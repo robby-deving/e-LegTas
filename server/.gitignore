@@ -1,2 +1,13 @@
+# Dependencies
 node_modules
+*/node_modules
+
+# Environment variables - explicitly list all .env files
 .env
+frontend/.env
+server/.env
+**/.env
+
+# System files
+.DS_Store
+**/.DS_Store
