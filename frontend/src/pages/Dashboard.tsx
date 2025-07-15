@@ -2,6 +2,12 @@ import { usePageTitle } from '../hooks/usePageTitle';
 import { Card, CardHeader, CardTitle, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,} from "../components/ui/dropdown-menu";
+import { Input } from "../components/ui/input";
+import { Calendar } from "lucide-react";
+
+import activeEC from '../assets/activeEC.svg';
+import registeredEvacuees from '../assets/registeredEvacuees.svg';
+import registeredFamilies from '../assets/registeredFamilies.svg';
 
 export default function Dashboard() {
   usePageTitle('Dashboard');
@@ -21,7 +27,14 @@ export default function Dashboard() {
               <DropdownMenuItem>Typhoon Yolanda</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <div className="border rounded px-3 py-1 text-sm text-gray-600 bg-white">01 April 2025 - 01 May 2025</div>
+          <div className="relative">
+            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500 pointer-events-none" />
+            <Input
+              readOnly
+              value="01 April 2025 - 01 May 2025"
+              className="pl-10 mr-6 cursor-default bg-white"
+            />
+          </div>
         </div>
       </div>
 
@@ -34,7 +47,12 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base font-medium">Total Evacuation Centers <span className="ml-auto text-yellow-500">🏠</span></CardTitle>
+            <CardTitle className="flex items-center gap-2 text-base font-medium">
+              Total Evacuation Centers
+              <span className="ml-auto text-yellow-500">
+                <img src={activeEC} alt="Evacuation Center" className="w-6 h-6" />
+              </span>
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <span className="text-2xl font-bold text-yellow-600">78</span>
@@ -42,7 +60,11 @@ export default function Dashboard() {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base font-medium">Registered Evacuees <span className="ml-auto text-green-600">👤</span></CardTitle>
+            <CardTitle className="flex items-center gap-2 text-base font-medium">
+                Registered Evacuees 
+                <span className="ml-auto text-green-600">
+                <img src={registeredEvacuees} alt="Evacuation Center" className="w-6 h-6" />
+                </span></CardTitle>
           </CardHeader>
           <CardContent>
             <span className="text-2xl font-bold text-green-600">200,143</span>
@@ -50,7 +72,11 @@ export default function Dashboard() {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base font-medium">Registered Families <span className="ml-auto text-blue-600">🏠</span></CardTitle>
+            <CardTitle className="flex items-center gap-2 text-base font-medium">
+                Registered Families 
+                <span className="ml-auto text-blue-600">
+                    <img src={registeredFamilies} alt="Evacuation Center" className="w-6 h-6" />
+                </span></CardTitle>
           </CardHeader>
           <CardContent>
             <span className="text-2xl font-bold text-blue-600">143</span>
@@ -64,7 +90,6 @@ export default function Dashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Evacuees Statistics</CardTitle>
-            <button>click</button>
           </CardHeader>
           <CardContent>
             {/* Bar chart style stats */}
