@@ -140,6 +140,7 @@ export default function Dashboard() {
                 {/* @ts-expect-error: XAxis is not a valid JSX component type due to type definitions */}
                 <XAxis type="number" hide />
                 <Tooltip content={CustomTooltip} cursor={false} />
+                {/* @ts-expect-error: Bar is not a valid JSX component type due to type definitions */}
                 <Bar dataKey="value" fill="#16a34a" radius={8} />
               </BarChart>
             </ResponsiveContainer>
