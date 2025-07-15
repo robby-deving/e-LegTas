@@ -12,9 +12,9 @@ import navigateTo from '../assets/navigateTo.svg';
 
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 
-const CustomTooltip = ({ active, payload }) => {
+const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: any[] }) => {
   if (!active || !payload || !payload.length) return null;
-  const { value, color } = payload[0];
+  const { value } = payload[0];
   return (
     <div className="flex items-center gap-2 rounded-full bg-white/90 px-4 py-1.5 shadow border border-gray-200">
       <span className="text-gray-700 text-sm font-medium">{payload[0].payload.label}</span>
@@ -54,11 +54,11 @@ export default function Dashboard() {
             </DropdownMenuContent>
           </DropdownMenu>
           <div className="relative">
-            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500 pointer-events-none" />
+            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-gray-500 pointer-events-none" />
             <Input
               readOnly
               value="01 April 2025 - 01 May 2025"
-              className="pl-10 mr-6 cursor-default bg-white"
+              className="pl-10 mr-7 cursor-default bg-white"
             />
           </div>
         </div>
@@ -81,7 +81,7 @@ export default function Dashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <span className="text-2xl font-bold text-yellow-600">78</span>
+            <span className="text-2xl font-bold" style={{ color: "#FACF39" }}>78</span>
           </CardContent>
         </Card>
         <Card>
@@ -105,7 +105,7 @@ export default function Dashboard() {
                 </span></CardTitle>
           </CardHeader>
           <CardContent>
-            <span className="text-2xl font-bold text-blue-600">143</span>
+            <span className="text-2xl font-bold" style={{ color: "#0192D4" }}>  143</span>
           </CardContent>
         </Card>
       </div>
@@ -117,15 +117,15 @@ export default function Dashboard() {
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Evacuees Statistics</CardTitle>
             <button className="p-1 rounded hover:bg-muted transition">
-              <img src={navigateTo} alt="Go to details" className="w-4 h-" />
+              <img src={navigateTo} alt="Go to details" className="w-4 h-4" />
             </button>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={275}>
               <BarChart
                 data={evacueeData}
                 layout="vertical"
-                margin={{ left: 0, right: 20, top: 0, bottom: 0 }}
+                margin={{ left: 0, right: 10, top: 0, bottom: 0 }}
                 barCategoryGap={9}
               >
                 {/* @ts-expect-error: YAxis is not a valid JSX component type due to type definitions */}
@@ -135,11 +135,11 @@ export default function Dashboard() {
                   tickLine={false}
                   axisLine={false}
                   width={150}
-                  tick={{ fontSize: 14, fill: "#15803d" }} // green-700
+                  tick={{ fontSize: 14, fill: "#888888" }} // green-700
                 />
                 {/* @ts-expect-error: XAxis is not a valid JSX component type due to type definitions */}
                 <XAxis type="number" hide />
-                <Tooltip content={<CustomTooltip />} cursor={false} />
+                <Tooltip content={CustomTooltip} cursor={false} />
                 <Bar dataKey="value" fill="#16a34a" radius={8} />
               </BarChart>
             </ResponsiveContainer>
@@ -148,17 +148,21 @@ export default function Dashboard() {
 
         {/* Evacuation Center Capacity Status */}
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Evacuation Center Capacity Status</CardTitle>
+            <button className="p-1 rounded hover:bg-muted transition">
+              <img src={navigateTo} alt="Go to details" className="w-4 h-4" />
+            </button>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
+            <div className="space-y-3">
               {[
                 { name: "Evacuation Center Name", brgy: "Brg. 1 - Name of Barangay", capacity: 90.1 },
                 { name: "Evacuation Center Name", brgy: "Brg. 1 - Name of Barangay", capacity: 89.4 },
                 { name: "Evacuation Center Name", brgy: "Brg. 1 - Name of Barangay", capacity: 88.3 },
                 { name: "Evacuation Center Name", brgy: "Brg. 1 - Name of Barangay", capacity: 74.1 },
                 { name: "Evacuation Center Name", brgy: "Brg. 1 - Name of Barangay", capacity: 49.4 },
+                { name: "Evacuation Center Name", brgy: "Brg. 1 - Name of Barangay", capacity: 39.4 },
               ].map((center, idx) => (
                 <div key={idx} className="flex items-center gap-2">
                   <div className="flex-1">
