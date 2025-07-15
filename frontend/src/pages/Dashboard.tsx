@@ -8,9 +8,35 @@ import { Calendar } from "lucide-react";
 import activeEC from '../assets/activeEC.svg';
 import registeredEvacuees from '../assets/registeredEvacuees.svg';
 import registeredFamilies from '../assets/registeredFamilies.svg';
+import navigateTo from '../assets/navigateTo.svg';
+
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+
+const CustomTooltip = ({ active, payload }) => {
+  if (!active || !payload || !payload.length) return null;
+  const { value, color } = payload[0];
+  return (
+    <div className="flex items-center gap-2 rounded-full bg-white/90 px-4 py-1.5 shadow border border-gray-200">
+      <span className="text-gray-700 text-sm font-medium">{payload[0].payload.label}</span>
+      <span className="ml-4 text-black text-sm font-bold">{Number(value).toLocaleString()}</span>
+    </div>
+  );
+};
 
 export default function Dashboard() {
   usePageTitle('Dashboard');
+  const evacueeData = [
+    { label: "Male", value: 120000 },
+    { label: "Female", value: 100000 },
+    { label: "Infant (<1 yr)", value: 10000 },
+    { label: "Children (2-12 yrs)", value: 40000 },
+    { label: "Youth (13-17 yrs)", value: 25000 },
+    { label: "Adult (18-59 yrs)", value: 90000 },
+    { label: "Senior Citizens (60+)", value: 30000 },
+    { label: "PWD", value: 8000 },
+    { label: "Pregnant Women", value: 5000 },
+    { label: "Lactating Women", value: 4000 },
+  ];
   return (
     <div className="text-black p-6 space-y-6">
       {/* Header */}
@@ -90,34 +116,33 @@ export default function Dashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Evacuees Statistics</CardTitle>
+            <button className="p-1 rounded hover:bg-muted transition">
+              <img src={navigateTo} alt="Go to details" className="w-4 h-" />
+            </button>
           </CardHeader>
           <CardContent>
-            {/* Bar chart style stats */}
-            <div className="space-y-2">
-              {[
-                { label: "Male", value: 120000 },
-                { label: "Female", value: 100000 },
-                { label: "Infant (<1 yr)", value: 10000 },
-                { label: "Children (2-12 yrs)", value: 40000 },
-                { label: "Youth (13-17 yrs)", value: 25000 },
-                { label: "Adult (18-59 yrs)", value: 90000 },
-                { label: "Senior Citizens (60+)", value: 30000 },
-                { label: "PWD", value: 8000 },
-                { label: "Pregnant Women", value: 5000 },
-                { label: "Lactating Women", value: 4000 },
-              ].map((stat) => (
-                <div key={stat.label} className="flex items-center gap-2">
-                  <span className="w-40 text-xs text-gray-700">{stat.label}</span>
-                  <div className="flex-1 bg-gray-200 rounded h-3 overflow-hidden">
-                    <div
-                      className="bg-green-600 h-3 rounded-full"
-                      style={{ width: `${Math.min(stat.value / 200000 * 100, 100)}%` }}
-                    ></div>
-                  </div>
-                  <span className="w-16 text-xs text-right text-gray-600">{stat.value.toLocaleString()}</span>
-                </div>
-              ))}
-            </div>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart
+                data={evacueeData}
+                layout="vertical"
+                margin={{ left: 0, right: 20, top: 0, bottom: 0 }}
+                barCategoryGap={9}
+              >
+                {/* @ts-expect-error: YAxis is not a valid JSX component type due to type definitions */}
+                <YAxis
+                  dataKey="label"
+                  type="category"
+                  tickLine={false}
+                  axisLine={false}
+                  width={150}
+                  tick={{ fontSize: 14, fill: "#15803d" }} // green-700
+                />
+                {/* @ts-expect-error: XAxis is not a valid JSX component type due to type definitions */}
+                <XAxis type="number" hide />
+                <Tooltip content={<CustomTooltip />} cursor={false} />
+                <Bar dataKey="value" fill="#16a34a" radius={8} />
+              </BarChart>
+            </ResponsiveContainer>
           </CardContent>
         </Card>
 
