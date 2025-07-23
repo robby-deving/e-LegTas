@@ -1,6 +1,8 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
-
+import { useDispatch } from 'react-redux'; 
+import { logout as logoutAction } from '../features/auth/authSlice'; 
+import { supabase } from '../lib/supabase'; 
 
 import SideItem from "./SideItem";
 import dashboardIcon from '../assets/dashboardIcon.svg';
@@ -20,6 +22,26 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function SideNav() {
   const [collapsed, setCollapsed] = useState(false);
+  const dispatch = useDispatch();
+  const navigate = useNavigate(); 
+
+  const handleLogout = async () => {
+    try {
+      // Sign out from Supabase Auth
+      await supabase.auth.signOut();
+      
+      // Clear Redux state
+      dispatch(logoutAction());
+      
+      // Redirect to login page
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Even if Supabase logout fails, clear local state and redirect
+      dispatch(logoutAction());
+      navigate('/login');
+    }
+  };
 
   return (
     <div className={`relative h-full border-r-2 border-gray-200 bg-white py-5 flex flex-col transition-all duration-300
@@ -60,8 +82,11 @@ export default function SideNav() {
       <div className="flex flex-1" />
 
       {/* Logout */}
-      <div className={`flex items-center gap-3 px-5 py-2 rounded-sm text-black hover:bg-gray-100 cursor-pointer transition-colors font-medium
-        ${collapsed ? 'justify-center' : ''}`}>
+      <div 
+        onClick={handleLogout} // Add the click handler
+        className={`flex items-center gap-3 px-5 py-2 rounded-sm text-black hover:bg-gray-100 cursor-pointer transition-colors font-medium
+        ${collapsed ? 'justify-center' : ''}`}
+      >
         <img className="h-5" src={logout} alt="Logout" />
         {!collapsed && <h2>Logout</h2>}
       </div>
