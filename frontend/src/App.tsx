@@ -12,12 +12,14 @@ import Reports from './pages/Reports';
 import Evacuees from './pages/EvacueeInfos'; 
 import Profile from './pages/Profile';
 import Login from './pages/Login';
+import ForgotPassword from './pages/ForgotPassword';
 
 function App() {
   return (
     <Routes>
       {/* Login route - doesn't include navigation components */}
       <Route path="/login" element={<Login />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
       
       {/* All other routes - include navigation components */}
       <Route path="/*" element={

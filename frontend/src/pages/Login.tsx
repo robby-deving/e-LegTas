@@ -87,7 +87,7 @@ export default function Login(){
                         className='w-36 h-auto mb-0'
                     />
                     
-                    <h1 className='text-[48px] font-black mb-6 text-center font-["Nunito_Sans"]'>
+                    <h1 className='text-[48px] font-black mb-6 text-center'>
                       <span className="text-[#6D6E71]">e-</span>
                       <span className="text-[#2BB673]">Leg</span>
                       <span className="text-[#038B53]">Tas</span>
