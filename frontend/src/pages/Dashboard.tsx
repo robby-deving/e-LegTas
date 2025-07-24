@@ -3,40 +3,38 @@ import { Card, CardHeader, CardTitle, CardContent } from "../components/ui/card"
 import { Button } from "../components/ui/button";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,} from "../components/ui/dropdown-menu";
 import { Input } from "../components/ui/input";
-import { Calendar } from "lucide-react";
+import { Calendar, ExternalLink } from "lucide-react";
 
 import activeEC from '../assets/activeEC.svg';
 import registeredEvacuees from '../assets/registeredEvacuees.svg';
 import registeredFamilies from '../assets/registeredFamilies.svg';
 import navigateTo from '../assets/navigateTo.svg';
 
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import EvacueeStatisticsChart from '../components/EvacueeStatisticsChart';
 
-const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: any[] }) => {
-  if (!active || !payload || !payload.length) return null;
-  const { value } = payload[0];
-  return (
-    <div className="flex items-center gap-2 rounded-full bg-white/90 px-4 py-1.5 shadow border border-gray-200">
-      <span className="text-gray-700 text-sm font-medium">{payload[0].payload.label}</span>
-      <span className="ml-4 text-black text-sm font-bold">{Number(value).toLocaleString()}</span>
-    </div>
-  );
-};
+export const EVACUEE_STATISTICS_DATA = [
+  { label: "Male", value: 120000 },
+  { label: "Female", value: 100000 },
+  { label: "Infant (<1 yr)", value: 10000 },
+  { label: "Children (2-12 yrs)", value: 40000 },
+  { label: "Youth (13-17 yrs)", value: 25000 },
+  { label: "Adult (18-59 yrs)", value: 90000 },
+  { label: "Senior Citizens (60+)", value: 30000 },
+  { label: "PWD", value: 8000 },
+  { label: "Pregnant Women", value: 5000 },
+  { label: "Lactating Women", value: 4000 },
+];
+
+export const EVACUATION_CENTER_CAPACITY_DATA = [
+  { name: "Evacuation Center Name", brgy: "Brg. 1 - Name of Barangay", capacity: 90.1, current: 19783, total: 23000 },
+  { name: "Evacuation Center Name", brgy: "Brg. 1 - Name of Barangay", capacity: 89.4, current: 15783, total: 21000 },
+  { name: "Evacuation Center Name", brgy: "Brg. 1 - Name of Barangay", capacity: 88.3, current: 15526, total: 22000 },
+  { name: "Evacuation Center Name", brgy: "Brg. 1 - Name of Barangay", capacity: 74.1, current: 25235, total: 35000 },
+  { name: "Evacuation Center Name", brgy: "Brg. 1 - Name of Barangay", capacity: 49.4, current: 12456, total: 30000 },
+];
 
 export default function Dashboard() {
   usePageTitle('Dashboard');
-  const evacueeData = [
-    { label: "Male", value: 120000 },
-    { label: "Female", value: 100000 },
-    { label: "Infant (<1 yr)", value: 10000 },
-    { label: "Children (2-12 yrs)", value: 40000 },
-    { label: "Youth (13-17 yrs)", value: 25000 },
-    { label: "Adult (18-59 yrs)", value: 90000 },
-    { label: "Senior Citizens (60+)", value: 30000 },
-    { label: "PWD", value: 8000 },
-    { label: "Pregnant Women", value: 5000 },
-    { label: "Lactating Women", value: 4000 },
-  ];
   return (
     <div className="text-black p-6 space-y-6">
       {/* Header */}
@@ -113,69 +111,39 @@ export default function Dashboard() {
       {/* Main Sections */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Evacuees Statistics */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Evacuees Statistics</CardTitle>
-            <button className="p-1 rounded hover:bg-muted transition">
-              <img src={navigateTo} alt="Go to details" className="w-4 h-4" />
-            </button>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={275}>
-              <BarChart
-                data={evacueeData}
-                layout="vertical"
-                margin={{ left: 0, right: 10, top: 0, bottom: 0 }}
-                barCategoryGap={9}
-              >
-                {/* @ts-expect-error: YAxis is not a valid JSX component type due to type definitions */}
-                <YAxis
-                  dataKey="label"
-                  type="category"
-                  tickLine={false}
-                  axisLine={false}
-                  width={150}
-                  tick={{ fontSize: 14, fill: "#888888" }} // green-700
-                />
-                {/* @ts-expect-error: XAxis is not a valid JSX component type due to type definitions */}
-                <XAxis type="number" hide />
-                <Tooltip content={CustomTooltip} cursor={false} />
-                {/* @ts-expect-error: Bar is not a valid JSX component type due to type definitions */}
-                <Bar dataKey="value" fill="#16a34a" radius={8} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+        <div className="border border-gray-200 rounded-xl shadow-sm p-6 flex flex-col min-h-[400px]">
+          <h2 className="text-lg font-bold mb-4 text-left">Evacuees Statistics</h2>
+          <div className="flex-1 flex items-center justify-center">
+            <EvacueeStatisticsChart data={EVACUEE_STATISTICS_DATA} height={275} />
+          </div>
+        </div>
 
         {/* Evacuation Center Capacity Status */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Evacuation Center Capacity Status</CardTitle>
-            <button className="p-1 rounded hover:bg-muted transition">
-              <img src={navigateTo} alt="Go to details" className="w-4 h-4" />
+        <div className="border border-gray-200 rounded-xl shadow-sm p-6 min-h-[400px] flex flex-col">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold text-left">Evacuation Center Capacity Status</h2>
+            <button className="p-1 rounded hover:bg-gray-100 transition" title="Export">
+              <ExternalLink className="w-5 h-5 text-gray-500" />
             </button>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {[
-                { name: "Evacuation Center Name", brgy: "Brg. 1 - Name of Barangay", capacity: 90.1 },
-                { name: "Evacuation Center Name", brgy: "Brg. 1 - Name of Barangay", capacity: 89.4 },
-                { name: "Evacuation Center Name", brgy: "Brg. 1 - Name of Barangay", capacity: 88.3 },
-                { name: "Evacuation Center Name", brgy: "Brg. 1 - Name of Barangay", capacity: 74.1 },
-                { name: "Evacuation Center Name", brgy: "Brg. 1 - Name of Barangay", capacity: 49.4 },
-                { name: "Evacuation Center Name", brgy: "Brg. 1 - Name of Barangay", capacity: 39.4 },
-              ].map((center, idx) => (
-                <div key={idx} className="flex items-center gap-2">
-                  <div className="flex-1">
+          </div>
+          <div className="w-full">
+            <div className="grid grid-cols-2 font-semibold text-gray-700 text-sm border-b border-gray-100 pb-2 mb-2">
+              <span>Name of Evacuation</span>
+              <span>Capacity</span>
+            </div>
+            <div className="divide-y divide-gray-100">
+              {EVACUATION_CENTER_CAPACITY_DATA.map((center, idx) => (
+                <div key={idx} className="grid grid-cols-2 py-2 items-center">
+                  <div>
                     <div className="font-medium text-sm">{center.name}</div>
                     <div className="text-xs text-gray-500">{center.brgy}</div>
                   </div>
-                  <span className={`font-bold text-sm ${center.capacity > 80 ? 'text-red-500' : center.capacity > 70 ? 'text-yellow-500' : 'text-green-600'}`}>{center.capacity}%</span>
+                  <span className={`font-bold text-sm ${center.capacity > 80 ? 'text-red-500' : center.capacity > 70 ? 'text-yellow-500' : 'text-green-600'}`}>{center.current.toLocaleString()} / {center.total.toLocaleString()} <span className="ml-1">({center.capacity}%)</span></span>
                 </div>
               ))}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     </div>
   );
