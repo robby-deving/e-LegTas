@@ -1,34 +1,25 @@
-import { useRef } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import L from 'leaflet';
 import icon from 'leaflet/dist/images/marker-icon.png';
 import iconRetina from 'leaflet/dist/images/marker-icon-2x.png';
 import shadow from 'leaflet/dist/images/marker-shadow.png';
 import { MapContainer, TileLayer, Marker, Tooltip } from 'react-leaflet';
-import ECMarker from '../assets/ECMarker.svg'; 
+import ECMarker from '../../assets/ECMarker.svg'; 
+import type { EvacuationCenter } from '@/types/EvacuationCenter';
 
-// Set default marker (not required if using custom icon for all)
+
 L.Icon.Default.mergeOptions({
   iconUrl: icon,
   iconRetinaUrl: iconRetina,
   shadowUrl: shadow,
 });
 
-// Create custom marker icon
 const evacCenterIcon = new L.Icon({
   iconUrl: ECMarker,
   iconSize: [50, 50],
   iconAnchor: [20, 40],
   popupAnchor: [0, -40],
 });
-
-type EvacuationCenter = {
-  id: number;
-  name: string;
-  address: string;
-  latitude: number;
-  longitude: number;
-  capacity_families: number;
-};
 
 
 type GISMapProps = {
@@ -37,53 +28,21 @@ type GISMapProps = {
 
 export default function GISMap({ onMarkerClick }: GISMapProps) {
   const mapRef = useRef<L.Map | null>(null);
+  const [evacuationCenters, setEvacuationCenters] = useState<EvacuationCenter[]>([]);
 
-const evacuationCenters: EvacuationCenter[] = [
-  {
-    id: 1,
-    name: 'Legazpi City High School',
-    address: 'Bogtong, Legazpi City',
-    latitude: 13.1373,
-    longitude: 123.7439,
-    capacity_families: 100,
-  },
-  {
-    id: 2,
-    name: 'Bicol University Main Campus',
-    address: 'Rizal St., Legazpi City',
-    latitude: 13.144024,
-    longitude: 123.724785,
-    capacity_families: 150,
+useEffect(() => {
+  fetch('http://localhost:3000/api/v1/evacuation-centers/detailed-map-data')
+    .then((res) => res.json())
+    .then((res) => {
+      console.log('Evacuation Centers:', res);
+      setEvacuationCenters(res.data); // <<== this is the fix
+    })
+    .catch((err) => {
+      console.error('Failed to fetch evacuation centers:', err);
+    });
+}, []);
 
-  },
-  {
-    id: 3,
-    name: 'Legazpi Port District Central School',
-    address: 'Legazpi Port, Legazpi City',
-    latitude: 13.1443,
-    longitude: 123.7498,
-    capacity_families: 80,
 
-  },
-  {
-    id: 4,
-    name: 'Legazpi East Central Elementary School',
-    address: 'Tagas, Legazpi City',
-    latitude: 13.1425,
-    longitude: 123.7603,
-    capacity_families: 120,
-
-  },
-  {
-    id: 5,
-    name: 'Tamaoyan Elementary School',
-    address: 'Tamaoyan, Legazpi City',
-    latitude: 13.1121,
-    longitude: 123.7152,
-    capacity_families: 60,
-
-  }
-];
 
   const handleMarkerClick = (evacuationCenter: EvacuationCenter) => {
     if (mapRef.current) {
@@ -92,7 +51,6 @@ const evacuationCenters: EvacuationCenter[] = [
         duration: 1.5,
       });
     }
-
     onMarkerClick(evacuationCenter);
   };
 
