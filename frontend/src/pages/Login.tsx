@@ -49,26 +49,9 @@ export default function Login(){
         }
     };
 
-    const handleForgotPassword = async (e: React.MouseEvent) => {
+    const handleForgotPassword = (e: React.MouseEvent) => {
         e.preventDefault();
-        if (!email) {
-            setError("Please enter your email address first");
-            return;
-        }
-        
-        try {
-            setLoading(true);
-            const { error } = await supabase.auth.resetPasswordForEmail(email, {
-                redirectTo: `${window.location.origin}/reset-password`,
-            });
-            
-            if (error) throw error;
-            alert("Password reset link sent to your email");
-        } catch (error: any) {
-            setError(error.error_description || error.message || 'Failed to send reset email');
-        } finally {
-            setLoading(false);
-        }
+        navigate('/forgot-password');
     };
 
     return(

@@ -13,6 +13,8 @@ import Evacuees from './pages/EvacueeInfos';
 import Profile from './pages/Profile';
 import Login from './pages/Login';
 import ForgotPassword from './pages/ForgotPassword';
+import ForgotPassword1 from './pages/ForgotPassword1';
+import ForgotPassword2 from './pages/ForgotPassword2';
 
 function App() {
   return (
@@ -20,7 +22,9 @@ function App() {
       {/* Login route - doesn't include navigation components */}
       <Route path="/login" element={<Login />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
-      
+      <Route path="/forgot-password/verify" element={<ForgotPassword1 />} />
+      <Route path="/forgot-password/reset" element={<ForgotPassword2 />} />
+
       {/* All other routes - include navigation components */}
       <Route path="/*" element={
         <div className="flex h-screen w-screen">
