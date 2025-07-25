@@ -60,12 +60,6 @@ export default function ForgotPassword(){
         setError(null);
         setSuccess(null);
         
-        if (!email) {
-            setError("Please enter your email address");
-            return;
-        }
-
-        // Validate email format
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(email)) {
             setError("Please enter a valid email address");
@@ -75,56 +69,33 @@ export default function ForgotPassword(){
         try {
             setLoading(true);
 
-            // Check if user exists in users_profile table (lowercase)
-            const { data: userProfile, error: userError } = await supabase
-                .from('users_profile')  // Changed to lowercase
-                .select('user_id, email')
-                .eq('email', email)
-                .single();
+            // Call backend API to send OTP
+            const response = await fetch('http://localhost:3000/api/send-otp', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email })
+            });
 
-            if (userError || !userProfile) {
-                // For security, we'll show success even if user doesn't exist
-                setSuccess("If an account with this email exists, a verification code has been sent.");
-                setTimeout(() => {
-                    navigate('/forgot-password/verify');
-                }, 2000);
-                return;
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.message || 'Failed to send verification code');
             }
 
-            // Generate OTP
-            const otp = generateOTP();
-            const expiration = new Date();
-            expiration.setMinutes(expiration.getMinutes() + 10); // OTP expires in 10 minutes
-
-            // Update users_profile with OTP (lowercase)
-            const { error: otpError } = await supabase
-                .from('users_profile')  // Changed to lowercase
-                .update({
-                    otp_code: otp,
-                    otp_expiration: expiration.toISOString()
-                })
-                .eq('email', email);
-
-            if (otpError) {
-                throw new Error('Failed to generate verification code');
-            }
-
-            // Send OTP via email
-            await sendOTPEmail(email, otp);
-
-            setSuccess("A verification code has been sent to your email. Please check your inbox.");
+            setSuccess(data.message);
             
-            // Store email in localStorage for next step
+            // Store email for next step
             localStorage.setItem('reset_email', email);
             
-            // Navigate to OTP verification page after short delay
             setTimeout(() => {
                 navigate('/forgot-password/verify');
             }, 2000);
             
         } catch (error: any) {
             console.error('Reset password error:', error);
-            setError(error.message || 'Failed to send verification code');
+            setError(error.message || 'Failed to send verification code. Please try again.');
         } finally {
             setLoading(false);
         }

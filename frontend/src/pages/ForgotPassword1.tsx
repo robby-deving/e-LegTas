@@ -125,27 +125,21 @@ export default function ForgotPassword1(){
             setLoading(true);
             setError(null);
             
-            // Generate new OTP
-            const newOtp = Math.floor(100000 + Math.random() * 900000).toString();
-            const expiration = new Date();
-            expiration.setMinutes(expiration.getMinutes() + 10);
+            // Call backend API to resend OTP
+            const response = await fetch('http://localhost:3000/api/send-otp', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email })
+            });
 
-            // Update users_profile with new OTP (lowercase)
-            const { error: otpError } = await supabase
-                .from('users_profile')  // Changed to lowercase
-                .update({
-                    otp_code: newOtp,
-                    otp_expiration: expiration.toISOString()
-                })
-                .eq('email', email);
+            const data = await response.json();
 
-            if (otpError) {
-                throw new Error('Failed to generate new OTP');
+            if (!response.ok) {
+                throw new Error(data.message || 'Failed to resend verification code');
             }
 
-            // Here you would send the new OTP via email
-            console.log(`New OTP for ${email}: ${newOtp}`);
-            
             setSuccess("New verification code sent to your email.");
             
         } catch (error: any) {
