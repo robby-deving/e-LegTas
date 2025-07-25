@@ -2,13 +2,13 @@ import { usePageTitle } from '../hooks/usePageTitle';
 import { Card, CardHeader, CardTitle, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,} from "../components/ui/dropdown-menu";
+import { useState } from 'react';
 import { Input } from "../components/ui/input";
 import { Calendar, ExternalLink } from "lucide-react";
 
 import activeEC from '../assets/activeEC.svg';
 import registeredEvacuees from '../assets/registeredEvacuees.svg';
 import registeredFamilies from '../assets/registeredFamilies.svg';
-import navigateTo from '../assets/navigateTo.svg';
 
 import EvacueeStatisticsChart from '../components/EvacueeStatisticsChart';
 
@@ -35,6 +35,14 @@ export const EVACUATION_CENTER_CAPACITY_DATA = [
 
 export default function Dashboard() {
   usePageTitle('Dashboard');
+  const [isEvacueeInfoModalOpen, setIsEvacueeInfoModalOpen] = useState(false);
+  const [selectedDisaster, setSelectedDisaster] = useState<string | null>(null);
+
+  const handleCardClick = (disasterName: string) => {
+    setSelectedDisaster(disasterName);
+    setIsEvacueeInfoModalOpen(true);
+  };
+
   return (
     <div className="text-black p-6 space-y-6">
       {/* Header */}
@@ -69,7 +77,7 @@ export default function Dashboard() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
+        <Card className="cursor-pointer" onClick={() => handleCardClick('Active Disasters')}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base font-medium">
               Total Evacuation Centers
@@ -82,7 +90,7 @@ export default function Dashboard() {
             <span className="text-2xl font-bold" style={{ color: "#FACF39" }}>78</span>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="cursor-pointer" onClick={() => handleCardClick('Registered Evacuees')}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base font-medium">
                 Registered Evacuees 
@@ -94,7 +102,7 @@ export default function Dashboard() {
             <span className="text-2xl font-bold text-green-600">200,143</span>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="cursor-pointer" onClick={() => handleCardClick('Registered Families')}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base font-medium">
                 Registered Families 
