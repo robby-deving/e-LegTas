@@ -18,8 +18,8 @@ import { useNavigate } from 'react-router-dom';
 type Disaster = {
   name: string;
   type: string;
-  start: string;
-  end?: string;
+  start_date: string;
+  end_date?: string;
   status: 'Active' | 'Ended';
 };
 
@@ -31,14 +31,14 @@ const DISASTER_TYPE_COLORS: Record<string, { typeColor: string; tagColor: string
 };
 
 const DISASTERS: Disaster[] = [
-  { name: 'Kristine', type: 'Typhoon', start: 'October 21, 2024', end: 'October 21, 2024', status: 'Active' },
-  { name: 'Fyang', type: 'Tropical Storm', start: 'October 21, 2024', end: 'October 21, 2024', status: 'Active' },
-  { name: 'Mayon', type: 'Volcanic Eruption', start: 'October 21, 2024', end: 'October 21, 2024', status: 'Active' },
-  { name: 'Landslide', type: 'Landslide', start: 'October 21, 2024', end: 'October 21, 2024', status: 'Active' },
-  { name: 'Odette', type: 'Typhoon', start: 'December 16, 2021', end: 'December 18, 2021', status: 'Ended' },
-  { name: 'Taal', type: 'Volcanic Eruption', start: 'January 12, 2020', end: 'January 22, 2020', status: 'Ended' },
-  { name: 'Agaton', type: 'Tropical Storm', start: 'April 8, 2022', end: 'April 13, 2022', status: 'Ended' },
-  { name: 'Leyte Landslide', type: 'Landslide', start: 'February 17, 2006', end: 'February 20, 2006', status: 'Ended' },
+  { name: 'Kristine', type: 'Typhoon', start_date: 'October 21, 2024', end_date: 'October 21, 2024', status: 'Active' },
+  { name: 'Fyang', type: 'Tropical Storm', start_date: 'October 21, 2024', end_date: 'October 21, 2024', status: 'Active' },
+  { name: 'Mayon', type: 'Volcanic Eruption', start_date: 'October 21, 2024', end_date: 'October 21, 2024', status: 'Active' },
+  { name: 'Landslide', type: 'Landslide', start_date: 'October 21, 2024', end_date: 'October 21, 2024', status: 'Active' },
+  { name: 'Odette', type: 'Typhoon', start_date: 'December 16, 2021', end_date: 'December 18, 2021', status: 'Ended' },
+  { name: 'Taal', type: 'Volcanic Eruption', start_date: 'January 12, 2020', end_date: 'January 22, 2020', status: 'Ended' },
+  { name: 'Agaton', type: 'Tropical Storm', start_date: 'April 8, 2022', end_date: 'April 13, 2022', status: 'Ended' },
+  { name: 'Leyte Landslide', type: 'Landslide', start_date: 'February 17, 2006', end_date: 'February 20, 2006', status: 'Ended' },
 ];
 
 const DISASTER_TYPES = [
@@ -118,7 +118,7 @@ export default function EvacuationInfo() {
             </DropdownMenuContent>
           </DropdownMenu>
           
-          {/* Date Filter (shadcn date picker) */}
+          {/* Date Filter */}
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="outline" className="flex gap-2 items-center min-w-[160px] cursor-pointer">
@@ -205,15 +205,18 @@ export default function EvacuationInfo() {
                 {activeDisasters.map((disaster, idx) => (
                   <Card 
                     key={idx} 
-                    className="relative group flex flex-col gap-0 rounded-2xl h-full transition-transform duration-300 hover:scale-105 ease-in-out hover:shadow-md cursor-pointer"
+                    className="relative group flex flex-col gap-0 rounded-xl h-full transition-transform duration-100 hover:scale-102 ease-in-out hover:shadow-md cursor-pointer"
                     onClick={() => navigate(`/evacuation-information/${disaster.name}`)} // Navigate to detail page
-> 
+                  > 
                     <CardHeader className="pb-2 flex-row items-center justify-between">
-                      <CardTitle className={`text-xl font-bold ${getTypeColor(disaster.type)}`}>{disaster.name}</CardTitle>
+                      <CardTitle className={`text-2xl font-bold ${getTypeColor(disaster.type)}`}>{disaster.name}</CardTitle>
                       <button
                         className="absolute top-4 right-4 p-1 rounded hover:bg-gray-100 transition"
                         title="Edit"
-                        onClick={() => handleEditClick(disaster)}
+                        onClick={(event) => {
+                          event.stopPropagation(); // Prevent parent Card's onClick from firing
+                          handleEditClick(disaster);
+                        }}
                       >
                         <Pencil className="w-4 h-4 text-gray-400 group-hover:text-green-700 cursor-pointer" />
                       </button>
@@ -223,12 +226,12 @@ export default function EvacuationInfo() {
                       <div className="flex w-full">
                         <div className="w-1/2">
                           <div className="text-xs text-gray-500 font-semibold">Start Date:</div>
-                          <div className="text-xs font-medium">{disaster.start}</div>
+                          <div className="text-xs font-medium">{disaster.start_date}</div>
                         </div>
                         <div className="w-1/2">
                           <div className="text-xs text-gray-500 font-semibold">End Date:</div>
                           <div className={`text-xs font-medium${disaster.status === 'Active' ? ' text-gray-400 italic' : ''}`}>
-                            {disaster.status === 'Active' ? 'Ongoing' : disaster.end}
+                            {disaster.status === 'Active' ? 'Ongoing' : disaster.end_date}
                           </div>
                         </div>
                       </div>
@@ -238,6 +241,7 @@ export default function EvacuationInfo() {
               </div>
             )}
           </div>
+          
           {/* Ended Disasters */}
           <div>
             <button
@@ -259,23 +263,32 @@ export default function EvacuationInfo() {
                   {endedDisasters.map((disaster, idx) => (
                     <Card 
                       key={idx} 
-                      className="relative group flex flex-col gap-0 rounded-2xl h-full transition-transform duration-300 hover:scale-105 ease-in-out hover:shadow-md cursor-pointer"
+                      className="relative group flex flex-col gap-0 rounded-xl h-full transition-transform duration-100 hover:scale-102 ease-in-out hover:shadow-md cursor-pointer"
                       onClick={() => navigate(`/evacuation-information/${disaster.name}`)} // Navigate to detail page
-                      >
-                      
+                    >
                       <CardHeader className="pb-2 flex-row items-center justify-between">
-                        <CardTitle className={`text-xl font-bold ${getTypeColor(disaster.type)}`}>{disaster.name}</CardTitle>
+                        <CardTitle className={`text-2xl font-bold ${getTypeColor(disaster.type)}`}>{disaster.name}</CardTitle>
+                        <button
+                          className="absolute top-4 right-4 p-1 rounded hover:bg-gray-100 transition"
+                          title="Edit"
+                          onClick={(event) => {
+                            event.stopPropagation(); // Prevent parent Card's onClick from firing
+                            handleEditClick(disaster);
+                          }}
+                        >
+                          <Pencil className="w-4 h-4 text-gray-400 group-hover:text-green-700 cursor-pointer" />
+                        </button>
                       </CardHeader>
                       <CardContent className="flex flex-col flex-1 justify-between">
                         <div className={`inline-block rounded px-2 py-1 text-xs font-semibold ${getTagColor(disaster.type)} mb-2 w-fit`}>{disaster.type}</div>
                         <div className="flex w-full">
                           <div className="w-1/2">
                             <div className="text-xs text-gray-500 font-semibold">Start Date:</div>
-                            <div className="text-xs font-medium">{disaster.start}</div>
+                            <div className="text-xs font-medium">{disaster.start_date}</div>
                           </div>
                           <div className="w-1/2">
                             <div className="text-xs text-gray-500 font-semibold">End Date:</div>
-                            <div className="text-xs font-medium">{disaster.end}</div>
+                            <div className="text-xs font-medium">{disaster.end_date}</div>
                           </div>
                         </div>
                       </CardContent>
@@ -286,6 +299,7 @@ export default function EvacuationInfo() {
             )}
           </div>
         </div>
+        
         {/* Update Disaster Modal */}
         <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
           <DialogContent className="max-w-md">
@@ -319,7 +333,7 @@ export default function EvacuationInfo() {
                 <label className="block text-sm font-semibold mb-1">Start Date:</label>
                 <div className="relative">
                   <Input
-                    value={editingDisaster?.start ?? ""}
+                    value={editingDisaster?.start_date ?? ""}
                     readOnly
                     className="w-full pr-10"
                   />
@@ -330,7 +344,7 @@ export default function EvacuationInfo() {
                 <label className="block text-sm font-semibold mb-1">End Date:</label>
                 <div className="relative">
                   <Input
-                    value={editingDisaster?.end ?? ""}
+                    value={editingDisaster?.end_date ?? ""}
                     placeholder="Pick a date"
                     readOnly
                     className="w-full pr-10"

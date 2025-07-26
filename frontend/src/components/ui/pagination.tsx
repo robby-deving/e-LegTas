@@ -1,5 +1,6 @@
 import * as React from "react"
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 
 const Pagination = React.forwardRef<
@@ -8,6 +9,7 @@ const Pagination = React.forwardRef<
     currentPage: number
     totalPages: number
     onPageChange: (page: number) => void
+    onRowsPerPageChange: (value: string) => void
     rowsPerPage: number
     totalRows: number
   }
@@ -15,13 +17,13 @@ const Pagination = React.forwardRef<
   currentPage,
   totalPages,
   onPageChange,
+  onRowsPerPageChange,
   rowsPerPage,
   totalRows,
   className,
   ...props
 }, ref) => {
-  const startIndex = (currentPage - 1) * rowsPerPage + 1
-  const endIndex = Math.min(startIndex + rowsPerPage - 1, totalRows)
+
 
   return (
     <div
@@ -48,11 +50,27 @@ const Pagination = React.forwardRef<
           Next
         </button>
       </div>
-      <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between sm:space-x-4">
-        <div>
-          <p className="text-sm text-muted-foreground">
-            Showing {startIndex} to {endIndex} of {totalRows} entries
-          </p>
+      <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-end sm:space-x-6">
+        <div className="flex items-center space-x-2">
+          <p className="text-sm font-medium">Rows per page</p>
+          <Select
+            value={`${rowsPerPage}`}
+            onValueChange={onRowsPerPageChange}
+          >
+            <SelectTrigger className="h-8 w-[70px]">
+              <SelectValue placeholder={rowsPerPage} />
+            </SelectTrigger>
+            <SelectContent side="top">
+              {[10, 20, 30, 40, 50].map((pageSize) => (
+                <SelectItem key={pageSize} value={`${pageSize}`}>
+                  {pageSize}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex w-[100px] items-center justify-center text-sm font-medium">
+          Page {currentPage} of {totalPages}
         </div>
         <div>
           <div className="inline-flex items-center gap-2">

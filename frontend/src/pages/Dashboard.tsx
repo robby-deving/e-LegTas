@@ -10,6 +10,7 @@ import activeEC from '../assets/activeEC.svg';
 import registeredEvacuees from '../assets/registeredEvacuees.svg';
 import registeredFamilies from '../assets/registeredFamilies.svg';
 
+import StatCard from '../components/StatCard';
 import EvacueeStatisticsChart from '../components/EvacueeStatisticsChart';
 
 export const EVACUEE_STATISTICS_DATA = [
@@ -77,43 +78,27 @@ export default function Dashboard() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="cursor-pointer" onClick={() => handleCardClick('Active Disasters')}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base font-medium">
-              Total Evacuation Centers
-              <span className="ml-auto text-yellow-500">
-                <img src={activeEC} alt="Evacuation Center" className="w-6 h-6" />
-              </span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <span className="text-2xl font-bold" style={{ color: "#FACF39" }}>78</span>
-          </CardContent>
-        </Card>
-        <Card className="cursor-pointer" onClick={() => handleCardClick('Registered Evacuees')}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base font-medium">
-                Registered Evacuees 
-                <span className="ml-auto text-green-600">
-                <img src={registeredEvacuees} alt="Evacuation Center" className="w-6 h-6" />
-                </span></CardTitle>
-          </CardHeader>
-          <CardContent>
-            <span className="text-2xl font-bold text-green-600">200,143</span>
-          </CardContent>
-        </Card>
-        <Card className="cursor-pointer" onClick={() => handleCardClick('Registered Families')}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base font-medium">
-                Registered Families 
-                <span className="ml-auto text-blue-600">
-                    <img src={registeredFamilies} alt="Evacuation Center" className="w-6 h-6" />
-                </span></CardTitle>
-          </CardHeader>
-          <CardContent>
-            <span className="text-2xl font-bold" style={{ color: "#0192D4" }}>  143</span>
-          </CardContent>
-        </Card>
+        <StatCard
+          title="Active Evacuation Centers"
+          value={5}
+          icon={<img src={activeEC} alt="Evacuation Center" className="w-6 h-6 text-sky-600" />}
+          valueClassName="text-yellow-400"
+          onClick={() => handleCardClick('Active Evacuation Centers')}
+        />
+        <StatCard
+          title="Registered Evacuees"
+          value="200,143"
+          icon={<img src={registeredEvacuees} alt="Registered Evacuees" className="w-6 h-6 text-green-600" />}
+          valueClassName="text-green-600"
+          onClick={() => handleCardClick('Registered Evacuees')}
+        />
+        <StatCard
+          title="Registered Families"
+          value={143}
+          icon={<img src={registeredFamilies} alt="Registered Families" className="w-6 h-6 text-blue-600" />}
+          valueClassName="text-blue-500"
+          onClick={() => handleCardClick('Registered Families')}
+        />
       </div>
 
       {/* Main Sections */}
