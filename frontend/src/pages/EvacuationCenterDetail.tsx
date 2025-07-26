@@ -83,8 +83,6 @@ const mockEvacuees = [
     ] },
 ];
 
-const rowsPerPageOptions = [10, 25, 50];
-
 import { EVACUATION_CENTERS } from "./DisasterDetail";
 import { DISASTERS } from "./DisasterDetail";
 
@@ -291,28 +289,17 @@ const EvacuationCenterDetail: React.FC = () => {
             </Table>
           </div>
           <div className="flex items-center justify-between">
-            <div className="text-sm text-muted-foreground">
-              0 of {totalRows} row(s) selected.
+            <div className="flex-1 text-sm text-muted-foreground">
+              {paginatedEvacuees.length} of {totalRows} row(s) shown.
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm">Rows per page</span>
-              <select
-                className="border border-input bg-background px-3 py-2 text-sm rounded-md"
-                value={rowsPerPage}
-                onChange={e => setRowsPerPage(Number(e.target.value))}
-              >
-                {rowsPerPageOptions.map(opt => (
-                  <option key={opt} value={opt}>{opt}</option>
-                ))}
-              </select>
-              <Pagination
-                currentPage={page}
-                totalPages={totalPages}
-                onPageChange={setPage}
-                rowsPerPage={rowsPerPage}
-                totalRows={totalRows}
-              />
-            </div>
+            <Pagination
+              currentPage={page}
+              totalPages={totalPages}
+              onPageChange={setPage}
+              rowsPerPage={rowsPerPage}
+              totalRows={totalRows}
+              onRowsPerPageChange={(value) => setRowsPerPage(Number(value))}
+            />
           </div>
         </div>
       </div>
