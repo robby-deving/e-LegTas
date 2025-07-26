@@ -6,6 +6,10 @@ interface UserData {
   email?: string;
   name?: string;
   role?: string;
+  role_id?: number;
+  resident_id?: number;     // Add this line
+  first_name?: string;
+  last_name?: string;
   // Add other user properties you want to store
 }
 
