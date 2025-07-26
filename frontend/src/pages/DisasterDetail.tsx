@@ -99,17 +99,6 @@ export default function DisasterDetail() {
   const endIndex = startIndex + rowsPerPage;
   const currentRows = filteredCenters.slice(startIndex, endIndex);
 
-  const handlePreviousPage = () => {
-    if (currentPage > 1) setCurrentPage(currentPage - 1);
-  };
-
-  const handleNextPage = () => {
-    if (currentPage < totalPages) setCurrentPage(currentPage + 1);
-  };
-
-  const handleFirstPage = () => setCurrentPage(1);
-  const handleLastPage = () => setCurrentPage(totalPages);
-
   return (
       <div className="text-black p-6 space-y-6">
           {/* Header with Breadcrumb */}
