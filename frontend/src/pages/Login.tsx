@@ -29,17 +29,39 @@ export default function Login(){
 
             if (error) throw error;
             
-            // Successfully logged in - Add this Redux dispatch
+            // Fetch user profile data with join to residents table
+            const { data: profileData, error: profileError } = await supabase
+                .from('users_profile')
+                .select(`
+                    role_id,
+                    resident_id,
+                    residents (
+                        first_name,
+                        last_name
+                    )
+                `)
+                .eq('user_id', data.user.id)
+                .single();
+
+            if (profileError) {
+                console.error('Profile fetch error:', profileError);
+            }
+            
+            // Successfully logged in - Redux dispatch with profile data
             dispatch(setCredentials({
                 user: {
                     id: data.user?.id,
                     email: data.user?.email,
-                    // You can add more user properties here if needed
+                    role_id: profileData?.role_id,
+                    resident_id: profileData?.resident_id,
+                    first_name: profileData?.residents?.first_name,
+                    last_name: profileData?.residents?.last_name,
                 },
                 token: data.session?.access_token || '',
             }));
             
             console.log('Login successful', data);
+            console.log('Profile data:', profileData);
             navigate('/dashboard'); // Redirect to dashboard or home page
         } catch (error: any) {
             console.error('Login error:', error);

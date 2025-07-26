@@ -1,9 +1,9 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
-import { useDispatch } from 'react-redux'; 
+import { useDispatch, useSelector } from 'react-redux'; 
 import { logout as logoutAction } from '../features/auth/authSlice'; 
 import { supabase } from '../lib/supabase'; 
-import { useUserProfile } from '../hooks/useUserProfile';
+import type { RootState } from '../store'; // Add 'type' keyword here
 
 import SideItem from "./SideItem";
 import dashboardIcon from '../assets/dashboardIcon.svg';
@@ -23,45 +23,39 @@ export default function SideNav() {
   const [collapsed, setCollapsed] = useState(false);
   const dispatch = useDispatch();
   const navigate = useNavigate(); 
-  const { userProfile, loading } = useUserProfile(); // Add this hook
+  
+  // Get user data directly from Redux
+  const { user } = useSelector((state: RootState) => state.auth);
 
   const handleLogout = async () => {
     try {
-      // Sign out from Supabase Auth
       await supabase.auth.signOut();
-      
-      // Clear Redux state
       dispatch(logoutAction());
-      
-      // Redirect to login page
       navigate('/login');
     } catch (error) {
       console.error('Logout error:', error);
-      // Even if Supabase logout fails, clear local state and redirect
       dispatch(logoutAction());
       navigate('/login');
     }
   };
 
-  // Helper functions to get display values
+  // Simplified helper functions using Redux data
   const getDisplayName = () => {
-    if (loading) return 'Loading...';
-    if (!userProfile) return 'Admin';
+    if (!user) return 'Admin';
     
-    const fullName = `${userProfile.firstName} ${userProfile.lastName}`.trim();
+    const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim();
     return fullName || 'Admin';
   };
 
   const getDisplayEmail = () => {
-    if (loading) return 'Loading...';
-    return userProfile?.email || 'administrator@e-legtas.com';
+    return user?.email || 'administrator@e-legtas.com';
   };
 
   const getUserInitials = () => {
-    if (!userProfile || loading) return 'A';
+    if (!user) return 'A';
     
-    const firstInitial = userProfile.firstName?.charAt(0)?.toUpperCase() || '';
-    const lastInitial = userProfile.lastName?.charAt(0)?.toUpperCase() || '';
+    const firstInitial = user.first_name?.charAt(0)?.toUpperCase() || '';
+    const lastInitial = user.last_name?.charAt(0)?.toUpperCase() || '';
     
     return firstInitial + lastInitial || 'A';
   };
