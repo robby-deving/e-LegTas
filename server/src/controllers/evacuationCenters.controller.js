@@ -101,6 +101,7 @@ exports.createEvacuationCenter = async (req, res, next) => {
         ec_status,
         category,
         camp_manager_id,
+        total_capacity,
         created_by
     } = req.body;
 
@@ -117,6 +118,7 @@ exports.createEvacuationCenter = async (req, res, next) => {
         ec_status,
         category,
         camp_manager_id: camp_manager_id ? Number(camp_manager_id) : null,
+        total_capacity: Number(total_capacity),
         created_by: Number(created_by),
         created_at: new Date().toISOString()
     };
@@ -156,6 +158,13 @@ exports.updateEvacuationCenter = async (req, res, next) => {
     if (!id || isNaN(Number(id))) {
         return next(new ApiError('Invalid evacuation center ID provided.', 400));
     }
+
+    if (updates.barangay_id !== undefined) updates.barangay_id = Number(updates.barangay_id);
+    if (updates.latitude !== undefined) updates.latitude = Number(updates.latitude);
+    if (updates.longitude !== undefined) updates.longitude = Number(updates.longitude);
+    if (updates.camp_manager_id !== undefined) updates.camp_manager_id = Number(updates.camp_manager_id);
+    if (updates.created_by !== undefined) updates.created_by = Number(updates.created_by);
+    if (updates.total_capacity !== undefined) updates.total_capacity = Number(updates.total_capacity);
 
     updates.updated_at = new Date().toISOString();
 
