@@ -5,7 +5,8 @@ import { Card, CardHeader, CardTitle, CardContent } from "../components/ui/card"
 import { Input } from "../components/ui/input";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "../components/ui/table";
 import { Pagination } from "../components/ui/pagination";
-import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
+import { Button } from "../components/ui/button";
 
 import EvacueeStatisticsChart from "../components/EvacueeStatisticsChart";
 import StatCard from "../components/StatCard";
@@ -83,20 +84,13 @@ const mockEvacuees = [
     ] },
 ];
 
-import { EVACUATION_CENTERS } from "./DisasterDetail";
 import { DISASTERS } from "./DisasterDetail";
 
 const EvacuationCenterDetail: React.FC = () => {
   const navigate = useNavigate();
-  const { disasterName, centerId } = useParams();
-  // Find center name by index (centerId is 1-based string)
-  let centerName = centerId;
-  if (centerId) {
-    const idx = parseInt(centerId, 10) - 1;
-    if (!isNaN(idx) && EVACUATION_CENTERS[idx]) {
-      centerName = EVACUATION_CENTERS[idx].name;
-    }
-  }
+  const { disasterName, centerName: centerParam } = useParams<{ disasterName?: string; centerName?: string }>();
+  const centerName = decodeURIComponent(centerParam || "");
+  
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -156,7 +150,7 @@ const EvacuationCenterDetail: React.FC = () => {
         </div>
       </div>
 
-      {/* Disaster Information Card (matching DisasterDetail) */}
+      {/* Disaster Information Card */}
       {disaster ? (
         <div className="py-3">
           <div className="space-y-3">
@@ -198,7 +192,6 @@ const EvacuationCenterDetail: React.FC = () => {
                 value={mockCenter.families.toLocaleString()}
                 icon={<Home className="w-5 h-5 text-blue-600 mr-2" />}
                 valueClassName="text-blue-500"
-                onClick={() => handleCardClick('Registered Families')}
               />
               {/* Registered Evacuees */}
               <StatCard
@@ -206,7 +199,6 @@ const EvacuationCenterDetail: React.FC = () => {
                 value={mockCenter.evacuees.toLocaleString()}
                 icon={<Users className="w-5 h-5 text-green-700 mr-2" />}
                 valueClassName="text-green-600"
-                onClick={() => handleCardClick('Registered Evacuees')}
               />
               {/* EC Capacity */}
               <StatCard
@@ -214,7 +206,6 @@ const EvacuationCenterDetail: React.FC = () => {
                 value={mockCenter.capacity.toLocaleString()}
                 icon={<LayoutGrid className="w-5 h-5 text-yellow-500 mr-2" />}
                 valueClassName="text-yellow-500"
-                onClick={() => handleCardClick('EC Capacity')}
               />
             </div>
           </div>
@@ -240,19 +231,30 @@ const EvacuationCenterDetail: React.FC = () => {
             </h3>
           </div>
 
-          {/* Search Input */}
-          <div className="w-full max-w-xs">
-            <Input
-              placeholder="Search"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="w-full border-border"
-            />
+          {/* Search & Register controls */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 w-full">
+            {/* Search Input */}
+            <div className="w-full max-w-xs">
+              <Input
+                placeholder="Search"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="w-full border-border"
+              />
+            </div>
+            {/* Register Evacuee Button */}
+            <Button
+              className="bg-green-700 hover:bg-green-800 text-white px-6 flex gap-2 items-center cursor-pointer self-start sm:self-auto"
+              onClick={() => setEditModalOpen(true)}
+            >
+              <span className="text-lg">+</span> Register Evacuee
+            </Button>
           </div>
-
+          
+          {/* Registered Evacuees Table */}
           <div className="rounded-md border border-input">
             <Table>
-              <TableHeader>
+              <TableHeader className="bg-gray-50">
                 <TableRow>
                   <TableHead className="text-left font-semibold">Family Head</TableHead>
                   <TableHead className="text-left font-semibold">Barangay</TableHead>
@@ -350,17 +352,17 @@ const EvacuationCenterDetail: React.FC = () => {
                     </TableHeader>
                     <TableBody>
                       <TableRow>
-                        <TableCell className="text-center">{selectedEvacuee.members.filter(m => m.sex === "Male").length}</TableCell>
-                        <TableCell className="text-center">{selectedEvacuee.members.filter(m => m.sex === "Female").length}</TableCell>
+                        <TableCell className="text-center">{selectedEvacuee.members.filter((m: { sex: string; }) => m.sex === "Male").length}</TableCell>
+                        <TableCell className="text-center">{selectedEvacuee.members.filter((m: { sex: string; }) => m.sex === "Female").length}</TableCell>
                         <TableCell className="text-center font-semibold">{selectedEvacuee.individuals}</TableCell>
-                        <TableCell className="text-center">{selectedEvacuee.members.filter(m => m.age < 2).length}</TableCell>
-                        <TableCell className="text-center">{selectedEvacuee.members.filter(m => m.age >= 2 && m.age <= 12).length}</TableCell>
-                        <TableCell className="text-center">{selectedEvacuee.members.filter(m => m.age >= 13 && m.age <= 17).length}</TableCell>
-                        <TableCell className="text-center">{selectedEvacuee.members.filter(m => m.age >= 18 && m.age <= 59).length}</TableCell>
-                        <TableCell className="text-center">{selectedEvacuee.members.filter(m => m.age >= 60).length}</TableCell>
-                        <TableCell className="text-center">{selectedEvacuee.members.filter(m => m.vulnerability === "PWD").length}</TableCell>
-                        <TableCell className="text-center">{selectedEvacuee.members.filter(m => m.vulnerability === "Pregnant").length}</TableCell>
-                        <TableCell className="text-center">{selectedEvacuee.members.filter(m => m.vulnerability === "Lactating").length}</TableCell>
+                        <TableCell className="text-center">{selectedEvacuee.members.filter((m: { age: number; }) => m.age < 2).length}</TableCell>
+                        <TableCell className="text-center">{selectedEvacuee.members.filter((m: { age: number; }) => m.age >= 2 && m.age <= 12).length}</TableCell>
+                        <TableCell className="text-center">{selectedEvacuee.members.filter((m: { age: number; }) => m.age >= 13 && m.age <= 17).length}</TableCell>
+                        <TableCell className="text-center">{selectedEvacuee.members.filter((m: { age: number; }) => m.age >= 18 && m.age <= 59).length}</TableCell>
+                        <TableCell className="text-center">{selectedEvacuee.members.filter((m: { age: number; }) => m.age >= 60).length}</TableCell>
+                        <TableCell className="text-center">{selectedEvacuee.members.filter((m: { vulnerability: string; }) => m.vulnerability === "PWD").length}</TableCell>
+                        <TableCell className="text-center">{selectedEvacuee.members.filter((m: { vulnerability: string; }) => m.vulnerability === "Pregnant").length}</TableCell>
+                        <TableCell className="text-center">{selectedEvacuee.members.filter((m: { vulnerability: string; }) => m.vulnerability === "Lactating").length}</TableCell>
                       </TableRow>
                     </TableBody>
                   </Table>
@@ -383,7 +385,7 @@ const EvacuationCenterDetail: React.FC = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {selectedEvacuee.members.map((member, idx) => (
+                      {selectedEvacuee.members.map((member: { fullName: string; age: number; barangayOfOrigin: string; sex: string; vulnerability: string; timeOfArrival: string; }, idx: number) => (
                         <TableRow key={idx} className="hover:bg-gray-50">
                           <TableCell className="font-medium">{member.fullName}</TableCell>
                           <TableCell>{member.age}</TableCell>

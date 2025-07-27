@@ -160,7 +160,7 @@ export default function DisasterDetail() {
 
                   {/* Date Information */}
                   <div className="flex items-center gap-2 text-gray-600">
-                      <Calendar className="w-5 h-5" />
+                      <Calendar className="w-4 h-4" />
                       <span className="text-sm">{disaster.start}</span>
                   </div>
               </div>
@@ -189,7 +189,7 @@ export default function DisasterDetail() {
                   {/* Table */}
                   <div className="rounded-md border border-input overflow-x-auto">
                       <Table>
-                          <TableHeader>
+                          <TableHeader className="bg-gray-50">
                               <TableRow>
                                   <TableHead className="text-left">
                                     Evacuation Center
@@ -213,7 +213,7 @@ export default function DisasterDetail() {
                                   <TableRow 
                                     key={index} 
                                     className="cursor-pointer hover:bg-gray-50"
-                                    onClick={() => navigate(`/evacuation-information/${disasterName}/evacuation-center/${index + 1}`)}
+                                    onClick={() => navigate(`/evacuation-information/${disasterName}/${encodeURIComponent(center.name)}`)}
                                   >
                                       <TableCell className="text-foreground font-medium">
                                           {center.name}
