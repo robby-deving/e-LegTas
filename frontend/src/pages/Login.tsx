@@ -10,9 +10,9 @@ import legTasLogo from '../assets/LegTas-Logo.png';
 export default function Login(){
     usePageTitle('Login');
     const navigate = useNavigate();
-    const dispatch = useDispatch(); // Add this line
+    const dispatch = useDispatch();
     const [loading, setLoading] = useState(false);
-    const [email, setEmail] = useState('');
+    const [employeeNumber, setEmployeeNumber] = useState(''); // Changed from email
     const [password, setPassword] = useState('');
     const [error, setError] = useState<string | null>(null);
 
@@ -22,50 +22,59 @@ export default function Login(){
         
         try {
             setLoading(true);
-            const { data, error } = await supabase.auth.signInWithPassword({
-                email,
+            
+            // Step 1: Find user by employee_number and get email from users_profile
+            const { data: userData, error: userError } = await supabase
+                .from('users')
+                .select(`
+                    id,
+                    employee_number,
+                    users_profile!inner (
+                        id,
+                        email,
+                        role_id,
+                        resident_id,
+                        residents (
+                            first_name,
+                            last_name
+                        )
+                    )
+                `)
+                .eq('employee_number', employeeNumber)
+                .single();
+
+            if (userError || !userData) {
+                throw new Error('Invalid employee number');
+            }
+
+            // Step 2: Use the email from users_profile to authenticate with Supabase
+            const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+                email: userData.users_profile.email,
                 password,
             });
 
-            if (error) throw error;
+            if (authError) throw authError;
             
-            // Fetch user profile data with join to residents table
-            const { data: profileData, error: profileError } = await supabase
-                .from('users_profile')
-                .select(`
-                    role_id,
-                    resident_id,
-                    residents (
-                        first_name,
-                        last_name
-                    )
-                `)
-                .eq('user_id', data.user.id)
-                .single();
-
-            if (profileError) {
-                console.error('Profile fetch error:', profileError);
-            }
-            
-            // Successfully logged in - Redux dispatch with profile data
+            // Step 3: Successfully logged in - Redux dispatch with profile data
             dispatch(setCredentials({
                 user: {
-                    id: data.user?.id,
-                    email: data.user?.email,
-                    role_id: profileData?.role_id,
-                    resident_id: profileData?.resident_id,
-                    first_name: profileData?.residents?.first_name,
-                    last_name: profileData?.residents?.last_name,
+                    id: authData.user?.id,
+                    email: userData.users_profile.email,
+                    employee_number: userData.employee_number,
+                    role_id: userData.users_profile.role_id,
+                    resident_id: userData.users_profile.resident_id,
+                    first_name: userData.users_profile.residents?.first_name,
+                    last_name: userData.users_profile.residents?.last_name,
                 },
-                token: data.session?.access_token || '',
+                token: authData.session?.access_token || '',
             }));
             
-            console.log('Login successful', data);
-            console.log('Profile data:', profileData);
-            navigate('/dashboard'); // Redirect to dashboard or home page
+            console.log('Login successful', authData);
+            console.log('User data:', userData);
+            navigate('/dashboard');
         } catch (error: any) {
             console.error('Login error:', error);
-            setError(error.error_description || error.message || 'Failed to login');
+            setError(error.message || 'Failed to login');
         } finally {
             setLoading(false);
         }
@@ -108,12 +117,12 @@ export default function Login(){
                     {/* Login form */}
                     <form className='space-y-4 flex flex-col items-center w-full max-w-md' onSubmit={handleLogin}>
                         <div className="w-96 flex flex-col">
-                            <label className='block text-sm font-medium text-gray-700'>Email</label>
+                            <label className='block text-sm font-medium text-gray-700'>Employee Number</label>
                             <input 
-                                type='email' 
-                                placeholder="Enter your email"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
+                                type='text' 
+                                placeholder="Enter your employee number"
+                                value={employeeNumber}
+                                onChange={(e) => setEmployeeNumber(e.target.value)}
                                 className='mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm'
                                 required
                             />

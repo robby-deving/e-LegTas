@@ -4,10 +4,11 @@ import type { PayloadAction } from '@reduxjs/toolkit';
 interface UserData {
   id?: string;
   email?: string;
+  employee_number?: string;  // Add this line
   name?: string;
   role?: string;
   role_id?: number;
-  resident_id?: number;     // Add this line
+  resident_id?: number;
   first_name?: string;
   last_name?: string;
   // Add other user properties you want to store
