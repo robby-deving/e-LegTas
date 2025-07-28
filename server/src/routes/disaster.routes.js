@@ -7,7 +7,9 @@ const disasterController = require('../controllers/disaster.controller'); // Adj
 const router = express.Router();
 
 // --- Disaster API Routes ---
-
+// GET disaster types
+// Example: GET /api/v1/disasters/types
+router.get('/types', disasterController.getAllDisasterTypes);
 // GET all disaster entries
 // Example: GET /api/v1/disasters
 router.get('/', disasterController.getAllDisasters);
@@ -27,6 +29,8 @@ router.put('/:id', disasterController.updateDisaster);
 // DELETE a disaster entry by ID
 // Example: DELETE /api/v1/disasters/123
 router.delete('/:id', disasterController.deleteDisaster);
+
+
 
 // Export the router
 module.exports = router;

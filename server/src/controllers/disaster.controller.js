@@ -246,3 +246,28 @@ exports.deleteDisaster = async (req, res, next) => {
         next(new ApiError('Internal server error during deleteDisaster.', 500));
     }
 };
+
+exports.getAllDisasterTypes = async (req, res, next) => {
+    try {
+        const { data, error } = await supabase
+            .from('disaster_types')
+            .select('*'); // Select all columns from the Disasters_Types table
+
+        if (error) {
+            console.error('Supabase Error (getAllDisasterTypes):', error);
+            return next(new ApiError('Failed to retrieve disaster type entries.', 500));
+        }
+
+        if (!data || data.length === 0) {
+            return res.status(200).json({ message: 'No disaster type entries found.', data: [] });
+        }
+
+        res.status(200).json({
+            message: 'Successfully retrieved all disaster type entries.',
+            count: data.length,
+            data: data
+        });
+    } catch (err) {
+        next(new ApiError('Internal server error during getAllDisasterTypes.', 500));
+    }
+};
