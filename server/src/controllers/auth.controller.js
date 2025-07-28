@@ -152,7 +152,80 @@ const sendOTP = async (req, res) => {
   }
 };
 
+const login = async (req, res) => {
+  try {
+    console.log('Login request received:', req.body);
+    
+    const { employeeNumber, password } = req.body;
+
+    if (!employeeNumber || !password) {
+      return res.status(400).json({ message: 'Employee number and password are required' });
+    }
+
+    // Step 1: Find user by employee_number and get email from users_profile
+    const { data: userData, error: userError } = await supabaseAdmin
+      .from('users')
+      .select(`
+        id,
+        employee_number,
+        users_profile!inner (
+          id,
+          email,
+          role_id,
+          resident_id,
+          residents (
+            first_name,
+            last_name
+          )
+        )
+      `)
+      .eq('employee_number', employeeNumber)
+      .single();
+
+    if (userError || !userData) {
+      console.error('User not found:', userError);
+      return res.status(401).json({ message: 'Invalid employee number or password' });
+    }
+
+    // Step 2: Use the email from users_profile to authenticate with Supabase
+    const { data: authData, error: authError } = await supabaseAdmin.auth.signInWithPassword({
+      email: userData.users_profile.email,
+      password,
+    });
+
+    if (authError) {
+      console.error('Authentication error:', authError);
+      return res.status(401).json({ message: 'Invalid employee number or password' });
+    }
+
+    // Step 3: Return user data and token
+    const responseData = {
+      user: {
+        id: authData.user?.id,
+        email: userData.users_profile.email,
+        employee_number: userData.employee_number,
+        role_id: userData.users_profile.role_id,
+        resident_id: userData.users_profile.resident_id,
+        first_name: userData.users_profile.residents?.first_name,
+        last_name: userData.users_profile.residents?.last_name,
+      },
+      token: authData.session?.access_token || '',
+    };
+
+    console.log('Login successful for employee:', employeeNumber);
+    res.status(200).json(responseData);
+    
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ 
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   resetPassword,
-  sendOTP
+  sendOTP,
+  login
 };
