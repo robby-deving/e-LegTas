@@ -2,11 +2,16 @@
 
 const express = require('express');
 const evacueeController = require('../controllers/evacuee.controller'); 
+const { searchEvacueeByName } = require('../controllers/evacueeSearch.controller');
+
 
 // Create an Express Router instance
 const router = express.Router();
 
 // --- Evacuee Registration API Routes ---
+
+// GET /api/v1/evacuees/search?name=Juan
+router.get('/search', searchEvacueeByName);
 
 // POST a new evacuee with vulnerability data
 // Example: POST /api/v1/evacuees with JSON body
