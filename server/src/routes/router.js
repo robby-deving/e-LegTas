@@ -1,0 +1,19 @@
+const express = require('express');
+const authRoutes = require('./auth.routes');
+
+const router = express.Router();
+const baseAPI = '/api/v1';
+
+// Mount routes
+router.use('/auth', authRoutes);
+
+// Health check route
+router.get('/health', (req, res) => {
+  res.json({ 
+    message: 'Server is running',
+    version: 'v1',
+    timestamp: new Date().toISOString()
+  });
+});
+
+module.exports = { router, baseAPI };
