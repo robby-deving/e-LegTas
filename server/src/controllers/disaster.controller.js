@@ -24,7 +24,10 @@ exports.getAllDisasters = async (req, res, next) => {
     try {
         const { data, error } = await supabase
             .from(TABLE_NAME)
-            .select('*');
+            .select(`
+                *,
+                disaster_types(name) // Join to get the name of the disaster type
+            `);
 
         if (error) {
             console.error('Supabase Error (getAllDisasters):', error);
@@ -35,10 +38,21 @@ exports.getAllDisasters = async (req, res, next) => {
             return res.status(200).json({ message: 'No disaster entries found.', data: [] });
         }
 
+        // Transform the data to flatten the nested disaster_types object
+        const transformedData = data.map(disaster => {
+            const disasterTypeName = disaster.disaster_types ? disaster.disaster_types.name : null;
+            const { disaster_types, ...rest } = disaster; // Destructure to omit the nested object
+
+            return {
+                ...rest, // Spread all other properties of the disaster
+                disaster_type_name: disasterTypeName // Add the flattened disaster type name
+            };
+        });
+
         res.status(200).json({
             message: 'Successfully retrieved all disaster entries.',
-            count: data.length,
-            data: data
+            count: transformedData.length,
+            data: transformedData
         });
     } catch (err) {
         next(new ApiError('Internal server error during getAllDisasters.', 500));
@@ -60,7 +74,10 @@ exports.getDisasterById = async (req, res, next) => {
     try {
         const { data, error } = await supabase
             .from(TABLE_NAME)
-            .select('*')
+            .select(`
+                *,
+                disaster_types(name) // Join to get the name of the disaster type
+            `)
             .eq('id', id)
             .single();
 
@@ -76,9 +93,17 @@ exports.getDisasterById = async (req, res, next) => {
             return next(new ApiError(`Disaster with ID ${id} not found.`, 404));
         }
 
+        // Transform the single data object to flatten the nested disaster_types object
+        const disasterTypeName = data.disaster_types ? data.disaster_types.name : null;
+        const { disaster_types, ...rest } = data; // Destructure to omit the nested object
+        const transformedData = {
+            ...rest,
+            disaster_type_name: disasterTypeName
+        };
+
         res.status(200).json({
             message: `Successfully retrieved disaster with ID ${id}.`,
-            data: data
+            data: transformedData
         });
     } catch (err) {
         next(new ApiError('Internal server error during getDisasterById.', 500));

@@ -240,7 +240,7 @@ exports.getEvacuationCenterMapData = async (req, res, next) => {
             .select(`
                 *,
                 barangays(name),
-                camp_managers:camp_manager_id(
+                users:assigned_user_id(
                     user_profile:user_profile_id(
                         residents:resident_id(
                             first_name,
