@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux'; // Add this import
 import { setCredentials } from '../features/auth/authSlice'; // Add this import
 import { usePageTitle } from '../hooks/usePageTitle';
-import { supabase } from '../lib/supabase';
 import unionBackground from '../assets/Union.png';
 import legTasLogo from '../assets/LegTas-Logo.png';
 
@@ -23,54 +22,31 @@ export default function Login(){
         try {
             setLoading(true);
             
-            // Step 1: Find user by employee_number and get email from users_profile
-            const { data: userData, error: userError } = await supabase
-                .from('users')
-                .select(`
-                    id,
-                    employee_number,
-                    users_profile!inner (
-                        id,
-                        email,
-                        role_id,
-                        resident_id,
-                        residents (
-                            first_name,
-                            last_name
-                        )
-                    )
-                `)
-                .eq('employee_number', employeeNumber)
-                .single();
-
-            if (userError || !userData) {
-                throw new Error('Invalid employee number');
-            }
-
-            // Step 2: Use the email from users_profile to authenticate with Supabase
-            const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-                email: userData.users_profile.email,
-                password,
+            // Call server API for login
+            const response = await fetch('http://localhost:3000/api/v1/auth/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    employeeNumber,
+                    password,
+                }),
             });
 
-            if (authError) throw authError;
-            
-            // Step 3: Successfully logged in - Redux dispatch with profile data
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.message || 'Login failed');
+            }
+
+            // Successfully logged in - Redux dispatch with data from server
             dispatch(setCredentials({
-                user: {
-                    id: authData.user?.id,
-                    email: userData.users_profile.email,
-                    employee_number: userData.employee_number,
-                    role_id: userData.users_profile.role_id,
-                    resident_id: userData.users_profile.resident_id,
-                    first_name: userData.users_profile.residents?.first_name,
-                    last_name: userData.users_profile.residents?.last_name,
-                },
-                token: authData.session?.access_token || '',
+                user: data.user,
+                token: data.token,
             }));
             
-            console.log('Login successful', authData);
-            console.log('User data:', userData);
+            console.log('Login successful', data);
             navigate('/dashboard');
         } catch (error: any) {
             console.error('Login error:', error);
