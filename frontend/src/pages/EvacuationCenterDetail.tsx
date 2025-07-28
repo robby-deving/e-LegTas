@@ -1,16 +1,15 @@
-import React, { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ChevronRight, ArrowRight } from "lucide-react";
+import { ChevronRight, ArrowRight, Calendar, Home, Users, LayoutGrid, Search } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "../components/ui/table";
 import { Pagination } from "../components/ui/pagination";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../components/ui/dialog";
 import { Button } from "../components/ui/button";
-
 import EvacueeStatisticsChart from "../components/EvacueeStatisticsChart";
 import StatCard from "../components/StatCard";
-import { Calendar, Home, Users, LayoutGrid } from "lucide-react";
+import { usePageTitle } from "../hooks/usePageTitle";
 
 const DISASTER_TYPE_COLORS = {
   Typhoon: { typeColor: "text-sky-500", tagColor: "bg-sky-100 text-sky-600" },
@@ -40,63 +39,61 @@ const mockStatistics = [
   { label: "Lactating Women", value: 2000 },
 ];
 
-// Enhanced mockEvacuees with family member details
 const mockEvacuees = [
-  { id: 1, familyHead: "Maria Santos", barangay: "Bgy. 1 - Oro Site", individuals: 6, room: "A1", decampment: "6/2/2025 8:00am", 
+  { 
+    id: 1, 
+    familyHead: "Juan dela Cruz", 
+    barangay: "Bgy. 1 - Oro Site", 
+    individuals: 6, 
+    room: "A1", 
+    decampment: "6/2/2025 8:00am", 
     members: [
-      { fullName: "Maria Santos", age: 45, barangayOfOrigin: "Bgy. 1 - Oro Site", sex: "Female", vulnerability: "None", timeOfArrival: "6/2/2025 8:00am" },
-      { fullName: "Juan Santos", age: 47, barangayOfOrigin: "Bgy. 1 - Oro Site", sex: "Male", vulnerability: "None", timeOfArrival: "6/2/2025 8:00am" },
-      { fullName: "Lita Santos", age: 12, barangayOfOrigin: "Bgy. 1 - Oro Site", sex: "Female", vulnerability: "Child", timeOfArrival: "6/2/2025 8:00am" },
-      { fullName: "Pedro Santos", age: 10, barangayOfOrigin: "Bgy. 1 - Oro Site", sex: "Male", vulnerability: "Child", timeOfArrival: "6/2/2025 8:00am" },
-      { fullName: "Ana Santos", age: 5, barangayOfOrigin: "Bgy. 1 - Oro Site", sex: "Female", vulnerability: "Infant", timeOfArrival: "6/2/2025 8:00am" },
-      { fullName: "Ramon Santos", age: 3, barangayOfOrigin: "Bgy. 1 - Oro Site", sex: "Male", vulnerability: "Infant", timeOfArrival: "6/2/2025 8:00am" },
-    ] },
-  { id: 2, familyHead: "Jose Dela Cruz", barangay: "Bgy. 2 - Bogtong", individuals: 4, room: "A2", decampment: "6/2/2025 9:30am", 
+      { fullName: "Juan dela Cruz", age: 45, barangayOfOrigin: "Bgy. 1 - Oro Site", sex: "Male", vulnerability: "None", timeOfArrival: "6/2/2025 8:00am" },
+      { fullName: "Maria dela Cruz", age: 42, barangayOfOrigin: "Bgy. 1 - Oro Site", sex: "Female", vulnerability: "None", timeOfArrival: "6/2/2025 8:00am" },
+    ] 
+  },
+  { 
+    id: 2, 
+    familyHead: "Juan Tamad", 
+    barangay: "Bgy. 2 - Bogtong", 
+    individuals: 4, 
+    room: "A2", 
+    decampment: "6/2/2025 9:30am", 
     members: [
-      { fullName: "Jose Dela Cruz", age: 40, barangayOfOrigin: "Bgy. 2 - Bogtong", sex: "Male", vulnerability: "None", timeOfArrival: "6/2/2025 9:30am" },
-      { fullName: "Elena Dela Cruz", age: 38, barangayOfOrigin: "Bgy. 2 - Bogtong", sex: "Female", vulnerability: "None", timeOfArrival: "6/2/2025 9:30am" },
-      { fullName: "Luis Dela Cruz", age: 15, barangayOfOrigin: "Bgy. 2 - Bogtong", sex: "Male", vulnerability: "Youth", timeOfArrival: "6/2/2025 9:30am" },
-      { fullName: "Maria Dela Cruz", age: 13, barangayOfOrigin: "Bgy. 2 - Bogtong", sex: "Female", vulnerability: "Youth", timeOfArrival: "6/2/2025 9:30am" },
-    ] },
-  { id: 3, familyHead: "Ana Reyes", barangay: "Bgy. 3 - Sabang", individuals: 5, room: "A3", decampment: "6/2/2025 10:00am", 
+      { fullName: "Juan Tamad", age: 35, barangayOfOrigin: "Bgy. 2 - Bogtong", sex: "Male", vulnerability: "None", timeOfArrival: "6/2/2025 9:30am" },
+      { fullName: "Lita Tamad", age: 33, barangayOfOrigin: "Bgy. 2 - Bogtong", sex: "Female", vulnerability: "None", timeOfArrival: "6/2/2025 9:30am" },
+    ] 
+  },
+  { 
+    id: 3, 
+    familyHead: "Juan Twothree", 
+    barangay: "Bgy. 3 - Sabang", 
+    individuals: 5, 
+    room: "A3", 
+    decampment: "6/2/2025 10:00am", 
     members: [
-      { fullName: "Ana Reyes", age: 35, barangayOfOrigin: "Bgy. 3 - Sabang", sex: "Female", vulnerability: "Pregnant", timeOfArrival: "6/2/2025 10:00am" },
-      { fullName: "Carlos Reyes", age: 37, barangayOfOrigin: "Bgy. 3 - Sabang", sex: "Male", vulnerability: "None", timeOfArrival: "6/2/2025 10:00am" },
-      { fullName: "Sofia Reyes", age: 9, barangayOfOrigin: "Bgy. 3 - Sabang", sex: "Female", vulnerability: "Child", timeOfArrival: "6/2/2025 10:00am" },
-      { fullName: "Juan Reyes", age: 7, barangayOfOrigin: "Bgy. 3 - Sabang", sex: "Male", vulnerability: "Child", timeOfArrival: "6/2/2025 10:00am" },
-      { fullName: "Lola Reyes", age: 65, barangayOfOrigin: "Bgy. 3 - Sabang", sex: "Female", vulnerability: "Senior", timeOfArrival: "6/2/2025 10:00am" },
-    ] },
-  { id: 4, familyHead: "Carlos Mendoza", barangay: "Bgy. 4 - Rawis", individuals: 7, room: "B1", decampment: "6/2/2025 8:45am", 
-    members: [
-      { fullName: "Carlos Mendoza", age: 50, barangayOfOrigin: "Bgy. 4 - Rawis", sex: "Male", vulnerability: "None", timeOfArrival: "6/2/2025 8:45am" },
-      { fullName: "Teresa Mendoza", age: 48, barangayOfOrigin: "Bgy. 4 - Rawis", sex: "Female", vulnerability: "None", timeOfArrival: "6/2/2025 8:45am" },
-      { fullName: "Raul Mendoza", age: 20, barangayOfOrigin: "Bgy. 4 - Rawis", sex: "Male", vulnerability: "Adult", timeOfArrival: "6/2/2025 8:45am" },
-      { fullName: "Lina Mendoza", age: 18, barangayOfOrigin: "Bgy. 4 - Rawis", sex: "Female", vulnerability: "Adult", timeOfArrival: "6/2/2025 8:45am" },
-      { fullName: "Pedro Mendoza", age: 15, barangayOfOrigin: "Bgy. 4 - Rawis", sex: "Male", vulnerability: "Youth", timeOfArrival: "6/2/2025 8:45am" },
-      { fullName: "Mila Mendoza", age: 12, barangayOfOrigin: "Bgy. 4 - Rawis", sex: "Female", vulnerability: "Child", timeOfArrival: "6/2/2025 8:45am" },
-      { fullName: "Jose Mendoza", age: 8, barangayOfOrigin: "Bgy. 4 - Rawis", sex: "Male", vulnerability: "Child", timeOfArrival: "6/2/2025 8:45am" },
-    ] },
-  { id: 5, familyHead: "Luisa Garcia", barangay: "Bgy. 5 - Taysan", individuals: 3, room: "B2", decampment: "6/2/2025 9:15am", 
-    members: [
-      { fullName: "Luisa Garcia", age: 30, barangayOfOrigin: "Bgy. 5 - Taysan", sex: "Female", vulnerability: "None", timeOfArrival: "6/2/2025 9:15am" },
-      { fullName: "Ramon Garcia", age: 32, barangayOfOrigin: "Bgy. 5 - Taysan", sex: "Male", vulnerability: "None", timeOfArrival: "6/2/2025 9:15am" },
-      { fullName: "Lola Garcia", age: 2, barangayOfOrigin: "Bgy. 5 - Taysan", sex: "Female", vulnerability: "Infant", timeOfArrival: "6/2/2025 9:15am" },
-    ] },
+      { fullName: "Juan Twothree", age: 50, barangayOfOrigin: "Bgy. 3 - Sabang", sex: "Male", vulnerability: "None", timeOfArrival: "6/2/2025 10:00am" },
+      { fullName: "Ana Twothree", age: 48, barangayOfOrigin: "Bgy. 3 - Sabang", sex: "Female", vulnerability: "None", timeOfArrival: "6/2/2025 10:00am" },
+    ] 
+  },
 ];
 
 import { DISASTERS } from "./DisasterDetail";
 
-const EvacuationCenterDetail: React.FC = () => {
+export default function EvacuationCenterDetail() {
+  usePageTitle('Evacuation Center Detail');
   const navigate = useNavigate();
   const { disasterName, centerName: centerParam } = useParams<{ disasterName?: string; centerName?: string }>();
   const centerName = decodeURIComponent(centerParam || "");
-  
+
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [selectedEvacuee, setSelectedEvacuee] = useState<any>(null); // State to track selected evacuee for modal
+  const [selectedEvacuee, setSelectedEvacuee] = useState<any>(null);
+  const [showRegisterModal, setShowRegisterModal] = useState(false);
+  const [searchName, setSearchName] = useState("");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
 
-  // Filter evacuees by search
   const filteredEvacuees = mockEvacuees.filter(e =>
     e.familyHead.toLowerCase().includes(search.toLowerCase()) ||
     e.barangay.toLowerCase().includes(search.toLowerCase())
@@ -106,23 +103,67 @@ const EvacuationCenterDetail: React.FC = () => {
   const totalPages = Math.ceil(totalRows / rowsPerPage);
   const paginatedEvacuees = filteredEvacuees.slice((page - 1) * rowsPerPage, page * rowsPerPage);
 
-  // Reset to page 1 when search or rowsPerPage changes
-  React.useEffect(() => { setPage(1); }, [search, rowsPerPage]);
+  useEffect(() => { 
+    setPage(1); 
+  }, [search, rowsPerPage]);
 
-  // Find disaster object by disasterName param (case-insensitive match)
   const disaster = DISASTERS.find(
     (d) => d.name.toLowerCase() === (disasterName || '').toLowerCase()
   );
 
-  // Handle row click to open modal
   const handleRowClick = (evacueeId: number) => {
     const evacuee = mockEvacuees.find(e => e.id === evacueeId);
     setSelectedEvacuee(evacuee || null);
   };
 
-  // Close modal
   const handleCloseModal = () => {
     setSelectedEvacuee(null);
+  };
+
+  const handleRegisterClick = () => {
+    setShowRegisterModal(true);
+    setSearchName("");
+    setSearchResults([]);
+  };
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchName(value);
+    if (value.trim()) {
+      const results = mockEvacuees.filter(e =>
+        e.familyHead.toLowerCase().includes(value.toLowerCase())
+      );
+      setSearchResults(results);
+    } else {
+      setSearchResults([]);
+    }
+  };
+
+  const handleSelectEvacuee = (evacuee: any) => {
+    const member = evacuee.members[0]; // Use the first member for simplicity
+    navigate(`/evacuation-information/${disasterName}/${centerParam}/register-evacuee`, {
+      state: {
+        prefilledData: {
+          firstName: member.fullName.split(" ")[0],
+          middleName: member.fullName.split(" ")[1] || "",
+          lastName: member.fullName.split(" ").slice(-1)[0],
+          sex: member.sex,
+          birthday: "", // Add logic to estimate birthday if needed
+          barangayOfOrigin: member.barangayOfOrigin,
+          vulnerabilities: {
+            pwd: member.vulnerability === "PWD",
+            pregnant: member.vulnerability === "Pregnant",
+            lactatingMother: member.vulnerability === "Lactating"
+          }
+        }
+      }
+    });
+    setShowRegisterModal(false);
+  };
+
+  const handleManualRegister = () => {
+    navigate(`/evacuation-information/${disasterName}/${centerParam}/register-evacuee`);
+    setShowRegisterModal(false);
   };
 
   return (
@@ -130,7 +171,6 @@ const EvacuationCenterDetail: React.FC = () => {
       {/* Header with Breadcrumb */}
       <div className="space-y-5">
         <h1 className="text-3xl font-bold text-green-800">Evacuation Information</h1>
-        {/* Breadcrumb */}
         <div className="flex items-center text-sm text-gray-600">
           <button
             onClick={() => navigate("/evacuation-information")}
@@ -154,19 +194,16 @@ const EvacuationCenterDetail: React.FC = () => {
       {disaster ? (
         <div className="py-3">
           <div className="space-y-3">
-            {/* Disaster Type Tag */}
             <div
               className={`inline-block rounded px-3 py-1 text-sm font-semibold ${DISASTER_TYPE_COLORS[disaster.type as keyof typeof DISASTER_TYPE_COLORS]?.tagColor}`}
             >
               {disaster.type}
             </div>
-            {/* Disaster Name */}
             <h2
               className={`text-3xl font-bold ${DISASTER_TYPE_COLORS[disaster.type as keyof typeof DISASTER_TYPE_COLORS]?.typeColor}`}
             >
               {disaster.name}
             </h2>
-            {/* Date Information */}
             <div className="flex items-center gap-2 text-gray-600">
               <Calendar className="w-4 h-4" />
               <span className="text-sm">{disaster.start}</span>
@@ -186,21 +223,18 @@ const EvacuationCenterDetail: React.FC = () => {
           </Card>
           <div className="flex flex-col gap-6 mt-5">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Registered Families */}
               <StatCard
                 title="Registered Families"
                 value={mockCenter.families.toLocaleString()}
                 icon={<Home className="w-5 h-5 text-blue-600 mr-2" />}
                 valueClassName="text-blue-500"
               />
-              {/* Registered Evacuees */}
               <StatCard
                 title="Registered Evacuees"
                 value={mockCenter.evacuees.toLocaleString()}
                 icon={<Users className="w-5 h-5 text-green-700 mr-2" />}
                 valueClassName="text-green-600"
               />
-              {/* EC Capacity */}
               <StatCard
                 title="EC Capacity"
                 value={mockCenter.capacity.toLocaleString()}
@@ -223,7 +257,6 @@ const EvacuationCenterDetail: React.FC = () => {
       {/* Registered Evacuees Table */}
       <div className="py-1">
         <div className="space-y-4">
-          {/* Section Header */}
           <div className="flex items-center justify-between">
             <h3 className="text-2xl font-bold">
               Registered Evacuees
@@ -231,9 +264,7 @@ const EvacuationCenterDetail: React.FC = () => {
             </h3>
           </div>
 
-          {/* Search & Register controls */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 w-full">
-            {/* Search Input */}
             <div className="w-full max-w-xs">
               <Input
                 placeholder="Search"
@@ -242,16 +273,14 @@ const EvacuationCenterDetail: React.FC = () => {
                 className="w-full border-border"
               />
             </div>
-            {/* Register Evacuee Button */}
             <Button
               className="bg-green-700 hover:bg-green-800 text-white px-6 flex gap-2 items-center cursor-pointer self-start sm:self-auto"
-              onClick={() => setEditModalOpen(true)}
+              onClick={handleRegisterClick}
             >
               <span className="text-lg">+</span> Register Evacuee
             </Button>
           </div>
           
-          {/* Registered Evacuees Table */}
           <div className="rounded-md border border-input">
             <Table>
               <TableHeader className="bg-gray-50">
@@ -314,7 +343,6 @@ const EvacuationCenterDetail: React.FC = () => {
           </DialogHeader>
           {selectedEvacuee && (
             <div className="space-y-6">
-              {/* Center and Family Head Info */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-semibold mb-2">Evacuation Center:</label>
@@ -329,8 +357,6 @@ const EvacuationCenterDetail: React.FC = () => {
                   <Input value={selectedEvacuee.room} readOnly className="w-full bg-gray-50" />
                 </div>
               </div>
-
-              {/* Total Individuals Breakdown */}
               <div>
                 <label className="block text-sm font-semibold mb-3">Individual Breakdown:</label>
                 <div className="overflow-x-auto border rounded-lg">
@@ -368,8 +394,6 @@ const EvacuationCenterDetail: React.FC = () => {
                   </Table>
                 </div>
               </div>
-
-              {/* List of Family Members */}
               <div>
                 <label className="block text-sm font-semibold mb-3">List of Family Members:</label>
                 <div className="overflow-x-auto border rounded-lg">
@@ -417,8 +441,53 @@ const EvacuationCenterDetail: React.FC = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Register Evacuee Modal */}
+      <Dialog open={showRegisterModal} onOpenChange={setShowRegisterModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-green-700 text-xl font-bold">Register Evacuee</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-4">
+            <Input
+              placeholder="Search Name"
+              value={searchName}
+              onChange={handleSearchChange}
+              className="w-full"
+            />
+            {searchResults.length > 0 ? (
+              <div className="space-y-1">
+                {searchResults.map((evacuee) => (
+                  <div
+                    key={evacuee.id}
+                    className="cursor-pointer p-1 hover:bg-gray-100 rounded flex items-center justify-between px-3 text-sm cursor-pointer"
+                    onClick={() => handleSelectEvacuee(evacuee)}
+                  >
+                    <span>{evacuee.familyHead}</span>
+                  </div>
+                ))}
+              </div>
+            ) : searchName.trim() ? (
+              <p className="text-gray-500 text-center text-sm py-4">No results found</p>
+            ) : null}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowRegisterModal(false)}
+              className="px-6 cursor-pointer"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleManualRegister}
+              className="bg-green-700 hover:bg-green-800 text-white px-6 cursor-pointer"
+            >
+              Manual Register
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
-};
-
-export default EvacuationCenterDetail;
+}

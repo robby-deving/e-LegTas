@@ -48,7 +48,7 @@ const DISASTER_TYPES = [
 
 // Error Boundary Component
 class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean, error: any}> {
-  state = { hasError: false, error: null };
+  state: { hasError: boolean; error: any } = { hasError: false, error: null };
 
   static getDerivedStateFromError(error: any) {
     return { hasError: true, error };

@@ -9,8 +9,9 @@ import {
   TableBody,
   TableCell
 } from "../components/ui/table";
-import { ChevronRight, Calendar, ArrowRight } from "lucide-react";
 import { Pagination } from "../components/ui/pagination";
+import { ChevronRight, Calendar, ArrowRight } from "lucide-react";
+import { usePageTitle } from "../hooks/usePageTitle";
 
 type EvacuationCenter = {
   name: string;
@@ -76,15 +77,23 @@ export const DISASTERS: Disaster[] = [
 ];
 
 export default function DisasterDetail() {
+  usePageTitle('Disaster Detail');
+  
+  // Get route parameters and navigation function
   const { disasterName } = useParams<{ disasterName: string }>();
   const navigate = useNavigate();
+  
+  // State variables for search, filtering, and pagination
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredCenters, setFilteredCenters] = useState<EvacuationCenter[]>(EVACUATION_CENTERS);
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
+  // Find disaster object by disasterName param
   const disaster = DISASTERS.find(d => d.name === disasterName);
 
+  // Filter evacuation centers based on search term
+  // Reset to first page when filtering
   useEffect(() => {
     const filtered = EVACUATION_CENTERS.filter(center =>
       center.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -92,9 +101,10 @@ export default function DisasterDetail() {
       center.campManager.toLowerCase().includes(searchTerm.toLowerCase())
     );
     setFilteredCenters(filtered);
-    setCurrentPage(1); // Reset to first page when filtering
+    setCurrentPage(1);
   }, [searchTerm]);
 
+  // Handle rows per page change
   const handleRowsPerPageChange = (value: string) => {
     setRowsPerPage(Number(value));
     setCurrentPage(1);
@@ -104,6 +114,7 @@ export default function DisasterDetail() {
     return <div className="text-red-500 p-6">Disaster not found</div>;
   }
 
+  // Helper functions to get disaster type colors
   const getTypeColor = (type: string) => DISASTER_TYPE_COLORS[type]?.typeColor || '';
   const getTagColor = (type: string) => DISASTER_TYPE_COLORS[type]?.tagColor || '';
 
@@ -115,146 +126,146 @@ export default function DisasterDetail() {
   const currentRows = filteredCenters.slice(startIndex, endIndex);
 
   return (
-      <div className="text-black p-6 space-y-6 flex flex-col min-h-screen">
-          {/* Header with Breadcrumb */}
-          <div className="space-y-5">
-              <h1 className="text-3xl font-bold text-green-800">
-                  Evacuation Information
-              </h1>
+    <div className="text-black p-6 space-y-6 flex flex-col min-h-screen">
+      {/* Page Header with Breadcrumb Navigation */}
+      <div className="space-y-5">
+        <h1 className="text-3xl font-bold text-green-800">
+          Evacuation Information
+        </h1>
 
-              {/* Breadcrumb */}
-              <div className="flex items-center text-sm text-gray-600">
-                  <button
-                      onClick={() => navigate("/evacuation-information")}
-                      className="hover:text-green-700 font-bold transition-colors cursor-pointer"
-                  >
-                      Disaster
-                  </button>
-                  <ChevronRight className="w-4 h-4 mx-2" />
-                  <span className="text-gray-900 font-semibold">
-                      {disaster.name}
-                  </span>
-              </div>
+        {/* Breadcrumb Navigation */}
+        <div className="flex items-center text-sm text-gray-600">
+          <button
+            onClick={() => navigate("/evacuation-information")}
+            className="hover:text-green-700 font-bold transition-colors cursor-pointer"
+          >
+            Disaster
+          </button>
+          <ChevronRight className="w-4 h-4 mx-2" />
+          <span className="text-gray-900 font-semibold">
+            {disaster.name}
+          </span>
+        </div>
+    </div>
+
+    {/* Disaster Information Card */}
+    <div className="py-3">
+        <div className="space-y-3">
+          {/* Disaster Type Tag */}
+          <div
+            className={`inline-block rounded px-3 py-1 text-sm font-semibold ${getTagColor(
+              disaster.type
+            )}`}
+          >
+            {disaster.type}
           </div>
 
-          {/* Disaster Information Card */}
-          <div className="py-3">
-              <div className="space-y-3">
-                  {/* Disaster Type Tag */}
-                  <div
-                      className={`inline-block rounded px-3 py-1 text-sm font-semibold ${getTagColor(
-                          disaster.type
-                      )}`}
-                  >
-                      {disaster.type}
-                  </div>
+          {/* Disaster Name */}
+          <h2
+            className={`text-3xl font-bold ${getTypeColor(
+              disaster.type
+            )}`}
+          >
+            {disaster.name}
+          </h2>
 
-                  {/* Disaster Name */}
-                  <h2
-                      className={`text-3xl font-bold ${getTypeColor(
-                          disaster.type
-                      )}`}
-                  >
-                      {disaster.name}
-                  </h2>
-
-                  {/* Date Information */}
-                  <div className="flex items-center gap-2 text-gray-600">
-                      <Calendar className="w-4 h-4" />
-                      <span className="text-sm">{disaster.start}</span>
-                  </div>
-              </div>
+          {/* Date Information */}
+          <div className="flex items-center gap-2 text-gray-600">
+            <Calendar className="w-4 h-4" />
+            <span className="text-sm">{disaster.start}</span>
           </div>
+        </div>
+    </div>
 
-          {/* Evacuation Centers Section */}
-          <div className="py-1 flex flex-col flex-1">
-              <div className="flex flex-col space-y-4 flex-1">
-                  {/* Section Header */}
-                  <div className="flex items-center justify-between">
-                      <h3 className="text-2xl font-bold">
-                          List of Evacuation Center
-                      </h3>
-                  </div>
+    {/* Evacuation Centers Section */}
+    <div className="py-1 flex flex-col flex-1">
+      <div className="flex flex-col space-y-4 flex-1">
+        {/* Section Header */}
+        <div className="flex items-center justify-between">
+          <h3 className="text-2xl font-bold">
+            List of Evacuation Center
+          </h3>
+        </div>
 
-                  {/* Search Input */}
-                  <div className="w-full max-w-xs">
-                      <Input
-                          placeholder="Search"
-                          value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
-                          className="w-full"
-                      />
-                  </div>
+        {/* Search Input */}
+        <div className="w-full max-w-xs">
+          <Input
+            placeholder="Search evacuation centers..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full"
+          />
+        </div>
 
-                  {/* Table */}
-                  <div className="rounded-md border border-input overflow-x-auto">
-                      <Table>
-                          <TableHeader className="bg-gray-50">
-                              <TableRow>
-                                  <TableHead className="text-left">
-                                    Evacuation Center
-                                  </TableHead>
-                                  <TableHead className="text-left">
-                                    Barangay
-                                  </TableHead>
-                                  <TableHead className="text-left">
-                                    Total Families
-                                  </TableHead>
-                                  <TableHead className="text-left">
-                                    Total Evacuees
-                                  </TableHead>
-                                  <TableHead className="text-left">
-                                    Camp Manager
-                                  </TableHead>
-                              </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                              {currentRows.map((center, index) => (
-                                  <TableRow 
-                                    key={index} 
-                                    className="cursor-pointer hover:bg-gray-50"
-                                    onClick={() => navigate(`/evacuation-information/${disasterName}/${encodeURIComponent(center.name)}`)}
-                                  >
-                                      <TableCell className="text-foreground font-medium">
-                                          {center.name}
-                                      </TableCell>
-                                      <TableCell className="text-foreground">
-                                          {center.barangay}
-                                      </TableCell>
-                                      <TableCell className="text-foreground">
-                                          <span>
-                                            {center.totalFamilies}
-                                          </span>
-                                      </TableCell>
-                                      <TableCell className="text-foreground">
-                                          {center.totalEvacuees}
-                                      </TableCell>
-                                      <TableCell className="flex items-center justify-between text-foreground">
-                                          {center.campManager}
-                                          <ArrowRight className="w-4 h-4 text-muted-foreground" />
-                                      </TableCell>
-                                  </TableRow>
-                              ))}
-                          </TableBody>
-                      </Table>
-                  </div>
-                  {/* Pagination */}
-                  <div className="flex items-center justify-between mt-auto pt-4">
-                    {/* Row selection indicator */}
-                    <div className="flex-1 text-sm text-muted-foreground">
-                      {currentRows.length} of {totalRows} row(s) shown.
-                    </div>
-                    <Pagination
-                      currentPage={currentPage}
-                      totalPages={totalPages}
-                      onPageChange={setCurrentPage}
-                      rowsPerPage={rowsPerPage}
-                      totalRows={totalRows}
-                      onRowsPerPageChange={handleRowsPerPageChange}
-                    />
-                  </div>
-              </div>
+        {/* Evacuation Centers Table */}
+        <div className="rounded-md border border-input overflow-x-auto">
+          <Table>
+            <TableHeader className="bg-gray-50">
+              <TableRow>
+                <TableHead className="text-left">
+                  Evacuation Center
+                </TableHead>
+                <TableHead className="text-left">
+                  Barangay
+                </TableHead>
+                <TableHead className="text-left">
+                  Total Families
+                </TableHead>
+                <TableHead className="text-left">
+                  Total Evacuees
+                </TableHead>
+                <TableHead className="text-left">
+                  Camp Manager
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {currentRows.map((center, index) => (
+                <TableRow 
+                  key={index} 
+                  className="cursor-pointer hover:bg-gray-50"
+                  onClick={() => navigate(`/evacuation-information/${disasterName}/${encodeURIComponent(center.name)}`)}
+                >
+                  <TableCell className="text-foreground font-medium">
+                    {center.name}
+                  </TableCell>
+                  <TableCell className="text-foreground">
+                    {center.barangay}
+                  </TableCell>
+                  <TableCell className="text-foreground">
+                    <span>
+                      {center.totalFamilies}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-foreground">
+                    {center.totalEvacuees}
+                  </TableCell>
+                  <TableCell className="flex items-center justify-between text-foreground">
+                    {center.campManager}
+                    <ArrowRight className="w-4 h-4 text-muted-foreground" />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+        
+        {/* Pagination Controls */}
+        <div className="flex items-center justify-between">
+          <div className="flex-1 text-sm text-muted-foreground">
+            {currentRows.length} of {totalRows} row(s) shown.
           </div>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            rowsPerPage={rowsPerPage}
+            totalRows={totalRows}
+            onRowsPerPageChange={handleRowsPerPageChange}
+          />
+        </div>
       </div>
+    </div>
+  </div>
   );
 }
