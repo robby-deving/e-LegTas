@@ -14,7 +14,6 @@ import Profile from './pages/Profile';
 
 import DisasterDetail from './pages/DisasterDetail';
 import EvacuationCenterDetail from './pages/EvacuationCenterDetail';
-import RegisterEvacuee from './pages/RegisterEvacuee';
 
 function App() {
   return (
@@ -36,7 +35,6 @@ function App() {
             <Route path="/profile" element={<Profile/>} />
             <Route path="/evacuation-information/:disasterName" element={<DisasterDetail/>} />
             <Route path="/evacuation-information/:disasterName/:centerName" element={<EvacuationCenterDetail/>} />
-            <Route path="/evacuation-information/:disasterName/:centerName/register-evacuee" element={<RegisterEvacuee/>} />
           </Routes>
         </div>
       </div>
