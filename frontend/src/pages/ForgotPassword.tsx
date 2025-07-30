@@ -70,7 +70,7 @@ export default function ForgotPassword(){
             setLoading(true);
 
             // Call backend API to send OTP
-            const response = await fetch('http://localhost:3000/api/send-otp', {
+            const response = await fetch('http://localhost:3000/api/v1/auth/send-otp', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
