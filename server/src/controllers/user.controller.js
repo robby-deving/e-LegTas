@@ -195,13 +195,63 @@ const createUser = async (req, res) => {
       });
     }
 
+    // Create Supabase auth user for login capability
+    const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      email: email,
+      password: password,
+      email_confirm: true,
+      user_metadata: {
+        employee_number: employeeNumber,
+        first_name: firstName,
+        last_name: lastName,
+        role_id: roleId
+      }
+    });
+
+    if (authError) {
+      console.error('Error creating auth user:', authError);
+      
+      // Cleanup: delete all created records
+      await supabaseAdmin
+        .from('users')
+        .delete()
+        .eq('id', user.id);
+      
+      await supabaseAdmin
+        .from('users_profile')
+        .delete()
+        .eq('id', userProfile.id);
+      
+      await supabaseAdmin
+        .from('residents')
+        .delete()
+        .eq('id', resident.id);
+
+      return res.status(500).json({ 
+        message: 'Failed to create authentication user. User creation rolled back.',
+        error: authError.message
+      });
+    }
+
+    // Update users_profile with auth user ID
+    const { error: updateError } = await supabaseAdmin
+      .from('users_profile')
+      .update({ user_id: authUser.user.id })
+      .eq('id', userProfile.id);
+
+    if (updateError) {
+      console.error('Error linking auth user to profile:', updateError);
+      // Note: This is not critical, the user can still login with their email
+    }
+
     // Return success response
     const responseData = {
-      message: 'User created successfully',
+      message: 'User created successfully with login capability',
       user: {
         id: user.id,
         employee_number: employeeNumber,
         email: email,
+        auth_user_id: authUser.user.id,
         resident: {
           first_name: firstName,
           middle_name: middleName,
