@@ -126,7 +126,7 @@ export default function ForgotPassword1(){
             setError(null);
             
             // Call backend API to resend OTP
-            const response = await fetch('http://localhost:3000/api/send-otp', {
+            const response = await fetch('http://localhost:3000/api/v1/auth/send-otp', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -200,7 +200,9 @@ export default function ForgotPassword1(){
                             {otp.map((digit, index) => (
                                 <input
                                     key={index}
-                                    ref={(el) => (inputRefs.current[index] = el)}
+                                    ref={(el) => {
+                                        inputRefs.current[index] = el;
+                                    }}
                                     type="text"
                                     maxLength={1}
                                     value={digit}
