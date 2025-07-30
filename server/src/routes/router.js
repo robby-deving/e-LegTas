@@ -1,11 +1,13 @@
 const express = require('express');
 const authRoutes = require('./auth.routes');
+const userRoutes = require('./user.routes');
 
 const router = express.Router();
 const baseAPI = '/api/v1';
 
 // Mount routes
 router.use('/auth', authRoutes);
+router.use('/users', userRoutes);
 
 // Health check route
 router.get('/health', (req, res) => {

@@ -242,7 +242,7 @@ export default function UserManagement(){
                             background: 'rgba(211, 211, 211, 0.80)'
                         }}
                     >
-                        <div className='bg-white rounded-lg p-6 w-[500px] shadow-lg max-h-[90vh] overflow-y-auto'>
+                        <div className='bg-white rounded-lg p-6 w-[700px] shadow-lg max-h-[90vh] overflow-y-auto'>
                             {/* Modal Header */}
                             <div className='flex items-center justify-between mb-6'>
                                 <h2 
@@ -266,28 +266,101 @@ export default function UserManagement(){
                             
                             {/* Form */}
                             <form className='space-y-4'>
-                                {/* First Name */}
-                                <div>
-                                    <label className='block text-sm font-semibold text-black mb-1'>
-                                        First Name
-                                    </label>
-                                    <input
-                                        type='text'
-                                        className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E]'
-                                        placeholder='Enter first name'
-                                    />
+                                {/* Row 1: First Name | Middle Name */}
+                                <div className='grid grid-cols-2 gap-4'>
+                                    <div>
+                                        <label className='block text-sm font-semibold text-black mb-1'>
+                                            First Name
+                                        </label>
+                                        <input
+                                            type='text'
+                                            className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E]'
+                                            placeholder='Enter first name'
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className='block text-sm font-medium text-black mb-1'>
+                                            Middle Name
+                                        </label>
+                                        <input
+                                            type='text'
+                                            className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E]'
+                                            placeholder='Enter middle name'
+                                        />
+                                    </div>
                                 </div>
 
-                                {/* Last Name */}
-                                <div>
-                                    <label className='block text-sm font-medium text-black mb-1'>
-                                        Last Name
-                                    </label>
-                                    <input
-                                        type='text'
-                                        className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E]'
-                                        placeholder='Enter last name'
-                                    />
+                                {/* Row 2: Last Name | Suffix */}
+                                <div className='grid grid-cols-2 gap-4'>
+                                    <div>
+                                        <label className='block text-sm font-medium text-black mb-1'>
+                                            Last Name
+                                        </label>
+                                        <input
+                                            type='text'
+                                            className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E]'
+                                            placeholder='Enter last name'
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className='block text-sm font-medium text-black mb-1'>
+                                            Suffix
+                                        </label>
+                                        <input
+                                            type='text'
+                                            className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E]'
+                                            placeholder='Enter suffix (optional)'
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Row 3: Sex | Barangay of Origin */}
+                                <div className='grid grid-cols-2 gap-4'>
+                                    <div>
+                                        <label className='block text-sm font-medium text-black mb-1'>
+                                            Sex
+                                        </label>
+                                        <select
+                                            className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E]'
+                                        >
+                                            <option value=''>Select sex</option>
+                                            <option value='Male'>Male</option>
+                                            <option value='Female'>Female</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className='block text-sm font-medium text-black mb-1'>
+                                            Barangay of Origin
+                                        </label>
+                                        <input
+                                            type='text'
+                                            className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E]'
+                                            placeholder='Enter barangay'
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Row 4: Employee Number | Birthdate */}
+                                <div className='grid grid-cols-2 gap-4'>
+                                    <div>
+                                        <label className='block text-sm font-medium text-black mb-1'>
+                                            Employee Number
+                                        </label>
+                                        <input
+                                            type='text'
+                                            className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E]'
+                                            placeholder='Enter employee number'
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className='block text-sm font-medium text-black mb-1'>
+                                            Birthdate
+                                        </label>
+                                        <input
+                                            type='date'
+                                            className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E]'
+                                        />
+                                    </div>
                                 </div>
 
                                 {/* Email */}
