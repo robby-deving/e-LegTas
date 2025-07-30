@@ -200,7 +200,6 @@ const mockEvacuees = [
   },
 ];
 
-import { DISASTERS } from "./DisasterDetail";
 
 export default function EvacuationCenterDetail() {
   usePageTitle('Evacuation Center Detail');
