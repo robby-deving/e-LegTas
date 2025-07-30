@@ -5,6 +5,7 @@ const router = express.Router();
 const evacuationCentersRoutes = require('./evacuationCenters.routes'); 
 const roomRoutes = require('./room.routes'); 
 const disasterRoutes = require('./disaster.routes'); 
+const disasterEventRoutes = require('./disaster_event.route'); // Import the disaster event routes
 
 // ---------- Routes ----------
 const baseAPI = '/api/v1';
@@ -12,6 +13,7 @@ const baseAPI = '/api/v1';
 router.use(`${baseAPI}/evacuation-centers`, evacuationCentersRoutes);
 router.use(`${baseAPI}/disasters`, disasterRoutes);
 router.use(`${baseAPI}/rooms`, roomRoutes);
+router.use(`${baseAPI}/disaster-events`, disasterEventRoutes);
 
 router.get('/', (req, res) => {
     res.status(200).json({ message: 'API router is working!' });
