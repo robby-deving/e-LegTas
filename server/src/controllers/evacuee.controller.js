@@ -277,8 +277,6 @@ exports.getEvacueeById = async (req, res, next) => {
     }
 };
 
-
-
 /**
  * @desc Get evacuee details and demographic breakdown by family head ID
  * @route GET /api/v1/evacuees/family/:family_head_id
