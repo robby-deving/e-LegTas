@@ -1,4 +1,4 @@
-// evacuation.route.js
+// evacuationCenters.route.js
 
 const express = require('express');
 const evacuationController = require('../controllers/evacuationCenters.controller'); 
