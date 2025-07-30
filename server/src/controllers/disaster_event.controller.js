@@ -246,7 +246,6 @@ exports.createDisasterEvent = async (req, res, next) => {
         evacuation_center_id: Number(evacuation_center_id),
         evacuation_start_date: new Date(evacuation_start_date).toISOString(),
         evacuation_end_date: evacuation_end_date ? new Date(evacuation_end_date).toISOString() : null,
-        created_at: new Date().toISOString()
     };
 
     try {

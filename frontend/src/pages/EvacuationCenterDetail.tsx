@@ -84,7 +84,6 @@ const mockEvacuees = [
     ] },
 ];
 
-import { DISASTERS } from "./DisasterDetail";
 
 const EvacuationCenterDetail: React.FC = () => {
   const navigate = useNavigate();

@@ -7,6 +7,7 @@ import DisasterFormDialog from "../components/Disasters/DisasterFormDialog";
 import ErrorBoundary from "../components/Disasters/ErrorBoundary";
 import type { Disaster, DisasterPayload, DisasterTypeWithId } from "@/types/disaster"; // Import new type
 import axios from "axios";
+import { encodeId } from "@/utils/secureId";
 
 export default function EvacuationInfo() {
   usePageTitle("Evacuation Information");
@@ -147,9 +148,12 @@ const filterDisastersByDate = (disaster: Disaster) => {
     filterDisastersByDate(d)
   );
 
-  const navigateToDetail = (d: Disaster) => {
-    navigate(`/evacuation-information/${d.id}`);
-  };
+const navigateToDetail = (d: Disaster) => {
+  const encoded = encodeId(d.id);
+  console.log("Encoded Disaster ID:", encoded, d.id);
+
+  navigate(`/evacuation-information/${encoded}`);
+};
 
   return (
     <ErrorBoundary>
