@@ -7,14 +7,14 @@ import DisasterFormDialog from "../components/Disasters/DisasterFormDialog";
 import ErrorBoundary from "../components/Disasters/ErrorBoundary";
 import type { Disaster, DisasterPayload, DisasterTypeWithId } from "@/types/disaster"; // Import new type
 import axios from "axios";
-import { encodeId } from "@/utils/secureId"; // Function for encoding IDs
+import { encodeId } from "@/utils/secureId";
 
 export default function EvacuationInfo() {
   usePageTitle("Evacuation Information");
-  const navigate = useNavigate(); // Navigation hook
+  const navigate = useNavigate();
 
   const [disasters, setDisasters] = useState<Disaster[]>([]);
-  const [typeFilter, setTypeFilter] = useState<string>("All");
+  const [typeFilter, setTypeFilter] = useState<string>("All"); // This remains 'string' for display purposes
   const [showEnded, setShowEnded] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -25,10 +25,10 @@ export default function EvacuationInfo() {
   const [filterMonth, setFilterMonth] = useState<number|null>(today.getMonth()); // 0-11
   const [filterYear, setFilterYear] = useState<number>(today.getFullYear());
 
-  // Disaster Types state
+  // Changed state type to DisasterTypeWithId[]
   const [disasterTypes, setDisasterTypes] = useState<DisasterTypeWithId[]>([{ id: null, name: "All" }]);
 
-  // Function to fetch all disasters
+  // Function to fetch all disasters (re-usable)
   const fetchDisasters = async () => {
     setLoading(true);
     try {
@@ -36,6 +36,7 @@ export default function EvacuationInfo() {
       const cachedDisastersTime = localStorage.getItem("disasters_time");
 
       if (cachedDisasters && cachedDisastersTime && Date.now() - Number(cachedDisastersTime) < 1000 * 60 * 5) {
+        // use cached data if less than 5 mins old
         setDisasters(JSON.parse(cachedDisasters));
       } else {
         const res = await axios.get("http://localhost:3000/api/v1/disasters");
@@ -59,29 +60,30 @@ export default function EvacuationInfo() {
     }
   };
 
-  // Fetch disasters on mount
+  // Initial fetch for disasters
   useEffect(() => {
     fetchDisasters();
   }, []);
 
-  // Fetch disaster types
   useEffect(() => {
     const fetchDisasterTypes = async () => {
       try {
-        const cachedTypes = localStorage.getItem("disaster_types_with_id");
+        const cachedTypes = localStorage.getItem("disaster_types_with_id"); // New cache key
         const cachedTypesTime = localStorage.getItem("disaster_types_time");
 
         if (cachedTypes && cachedTypesTime && Date.now() - Number(cachedTypesTime) < 1000 * 60 * 60) {
+          // Parse as DisasterTypeWithId[]
           const parsedCachedTypes: DisasterTypeWithId[] = JSON.parse(cachedTypes);
           setDisasterTypes([{ id: null, name: "All" }, ...parsedCachedTypes]);
         } else {
           const res = await axios.get("http://localhost:3000/api/v1/disasters/types");
+          // Map to include both id and name
           const typesWithId: DisasterTypeWithId[] = res.data.data.map((item: any) => ({
-            id: item.id,
+            id: item.id, // Assuming your API returns 'id' for disaster types
             name: item.name,
           }));
           setDisasterTypes([{ id: null, name: "All" }, ...typesWithId]);
-          localStorage.setItem("disaster_types_with_id", JSON.stringify(typesWithId));
+          localStorage.setItem("disaster_types_with_id", JSON.stringify(typesWithId)); // Store with new key
           localStorage.setItem("disaster_types_time", String(Date.now()));
         }
       } catch (err) {
@@ -90,76 +92,89 @@ export default function EvacuationInfo() {
     };
 
     fetchDisasterTypes();
-  }, []);
+  }, []); // Empty dependency array ensures this runs once on mount
 
-  // Function to handle create disaster
-  const handleCreateDisaster = async (payload: DisasterPayload) => {
-    try {
-      await axios.post("http://localhost:3000/api/v1/disasters", payload);
-      console.log("Disaster created successfully:", payload);
-      setCreateOpen(false);
-      localStorage.removeItem("disasters");
-      localStorage.removeItem("disasters_time");
-      await fetchDisasters();
-    } catch (error) {
-      console.error("Error creating disaster:", error);
-    }
-  };
+ const handleCreateDisaster = async (payload: DisasterPayload) => {
+  try {
+    await axios.post("http://localhost:3000/api/v1/disasters", payload);
+    console.log("Disaster created successfully:", payload);
+    setCreateOpen(false);
+    // Invalidate cache
+    localStorage.removeItem("disasters");
+    localStorage.removeItem("disasters_time");
+    await fetchDisasters();
+  } catch (error) {
+    console.error("Error creating disaster:", error);
+  }
+};
 
-  // Function to handle update disaster
-  const handleUpdateDisaster = async (payload: DisasterPayload) => {
-    if (!editingDisaster?.id) {
-      console.error("No disaster selected for editing.");
-      return;
-    }
-    try {
-      await axios.put(`http://localhost:3000/api/v1/disasters/${editingDisaster.id}`, payload);
-      console.log("Disaster updated successfully:", payload);
-      setEditOpen(false);
-      setEditingDisaster(undefined);
-      localStorage.removeItem("disasters");
-      localStorage.removeItem("disasters_time");
-      await fetchDisasters();
-    } catch (error) {
-      console.error("Error updating disaster:", error);
-    }
-  };
+const handleUpdateDisaster = async (payload: DisasterPayload) => {
+  if (!editingDisaster?.id) {
+    console.error("No disaster selected for editing.");
+    return;
+  }
+  try {
+    await axios.put(`http://localhost:3000/api/v1/disasters/${editingDisaster.id}`, payload);
+    console.log("Disaster updated successfully:", payload);
+    setEditOpen(false);
+    setEditingDisaster(undefined);
+    // Invalidate cache
+    localStorage.removeItem("disasters");
+    localStorage.removeItem("disasters_time");
+    await fetchDisasters();
+  } catch (error) {
+    console.error("Error updating disaster:", error);
+  }
+};
 
   // Filtering logic for month and year
-  const filterDisastersByDate = (disaster: Disaster) => {
-    const startDate = new Date(disaster.start_date);
-    return (filterMonth === null || startDate.getMonth() === filterMonth) && startDate.getFullYear() === filterYear;
-  };
+const filterDisastersByDate = (disaster: Disaster) => {
+  const startDate = new Date(disaster.start_date);
+  return (
+    (filterMonth === null || startDate.getMonth() === filterMonth) &&
+    startDate.getFullYear() === filterYear
+  );
+};
 
-  const activeDisasters = disasters.filter((d) => d.end_date === null && (typeFilter === "All" || d.type === typeFilter) && filterDisastersByDate(d));
-  const endedDisasters = disasters.filter((d) => d.end_date !== null && (typeFilter === "All" || d.type === typeFilter) && filterDisastersByDate(d));
+  const activeDisasters = disasters.filter((d) =>
+    d.end_date === null &&
+    (typeFilter === "All" || d.type === typeFilter) &&
+    filterDisastersByDate(d)
+  );
 
-  // **New function to navigate to evacuation center details**
-  const navigateToEvacuationCenter = (evacuationCenterId: string) => {
-    // Here we use the `navigate` function to redirect to the evacuation center's detail page
-    navigate(`/evacuation-information/${encodeId(evacuationCenterId)}`); // Navigate with the encoded ID
-  };
+  const endedDisasters = disasters.filter((d) =>
+    d.end_date !== null &&
+    (typeFilter === "All" || d.type === typeFilter) &&
+    filterDisastersByDate(d)
+  );
+
+const navigateToDetail = (d: Disaster) => {
+  const encoded = encodeId(d.id);
+  console.log("Encoded Disaster ID:", encoded, d.id);
+
+  navigate(`/evacuation-information/${encoded}`);
+};
 
   return (
     <ErrorBoundary>
       <div className="text-black p-6 space-y-6">
         <h1 className="text-3xl font-bold text-green-800">Evacuation Information</h1>
 
-        <DisasterFilterBar
-          disasterTypes={disasterTypes.map((t) => t.name)}
-          typeFilter={typeFilter}
-          setTypeFilter={setTypeFilter}
-          onRecordNew={() => setCreateOpen(true)}
-          month={filterMonth}
-          year={filterYear}
-          onMonthYearChange={(newMonth, newYear) => {
-            setFilterMonth(newMonth);
-            setFilterYear(newYear);
-          }}
-        />
+       <DisasterFilterBar
+            disasterTypes={disasterTypes.map(t => t.name)}
+            typeFilter={typeFilter}
+            setTypeFilter={setTypeFilter}
+            onRecordNew={() => setCreateOpen(true)}
+            // Pass month and year states and the setter to DisasterFilterBar
+            month={filterMonth}
+            year={filterYear}
+            onMonthYearChange={(newMonth, newYear) => {
+              setFilterMonth(newMonth);
+              setFilterYear(newYear);
+            }}
+          />
 
         <div className="mt-2 space-y-10">
-          {/* Section for Active Disasters */}
           <DisasterSection
             title="Active Disasters"
             disasters={activeDisasters}
@@ -167,13 +182,11 @@ export default function EvacuationInfo() {
               setEditingDisaster(d);
               setEditOpen(true);
             }}
-            // **Call navigateToEvacuationCenter when an evacuation center is clicked**
-            onNavigate={navigateToEvacuationCenter}
+            onNavigate={navigateToDetail}
             emptyMessage="No active disasters."
             loading={loading}
           />
 
-          {/* Section for Ended Disasters */}
           <DisasterSection
             title="Ended Disasters"
             disasters={endedDisasters}
@@ -184,7 +197,7 @@ export default function EvacuationInfo() {
               setEditingDisaster(d);
               setEditOpen(true);
             }}
-            onNavigate={navigateToEvacuationCenter} // **Added navigateToEvacuationCenter here as well**
+            onNavigate={navigateToDetail}
             emptyMessage="No ended disasters."
             loading={loading}
           />
@@ -194,8 +207,8 @@ export default function EvacuationInfo() {
           mode="create"
           open={createOpen}
           onClose={() => setCreateOpen(false)}
-          onSave={handleCreateDisaster}
-          disasterTypes={disasterTypes.filter((t) => t.id !== null)}
+          onSave={handleCreateDisaster} // Use the new handler
+          disasterTypes={disasterTypes.filter(t => t.id !== null)} // Pass only actual types, not "All"
         />
 
         <DisasterFormDialog
@@ -203,8 +216,8 @@ export default function EvacuationInfo() {
           disaster={editingDisaster}
           open={editOpen}
           onClose={() => setEditOpen(false)}
-          onSave={handleUpdateDisaster}
-          disasterTypes={disasterTypes.filter((t) => t.id !== null)}
+          onSave={handleUpdateDisaster} // Use the new handler
+          disasterTypes={disasterTypes.filter(t => t.id !== null)} // Pass only actual types, not "All"
         />
       </div>
     </ErrorBoundary>

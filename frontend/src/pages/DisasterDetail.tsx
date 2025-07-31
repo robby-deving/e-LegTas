@@ -1,3 +1,4 @@
+//DisasterDetail.tsx
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Input } from "../components/ui/input";

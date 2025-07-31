@@ -11,12 +11,26 @@ import EvacueeStatisticsChart from "../components/EvacueeStatisticsChart";
 import StatCard from "../components/StatCard";
 import { usePageTitle } from "../hooks/usePageTitle";
 import axios from "axios";
+import { encodeId } from "@/utils/secureId"; // <-- Import encodeId utility
+import { DISASTER_TYPE_COLORS } from "@/constants/disasterTypeColors"; // Assuming you have this constant already
 
 export default function EvacuationCenterDetail() {
   usePageTitle("Evacuation Center Detail");
   const navigate = useNavigate();
-  const { disasterId, centerName: centerParam } = useParams<{ disasterId?: string; centerName?: string }>();
+
+  // Extract parameters from the URL
+  const { disasterId: disasterIdParam, centerName: centerParam } = useParams<{ disasterId?: string; centerName?: string }>();
+
+  // Decode disasterId if it's base64 encoded
+  const disasterId = disasterIdParam ? atob(disasterIdParam) : ""; // Decode disasterId if it is base64 encoded
+
+  // Decode centerName if it's encoded
   const centerName = decodeURIComponent(centerParam || "");
+
+  // Log the decoded values (for debugging purposes)
+  console.log("Decoded Disaster ID:", disasterId);
+  console.log("Decoded Evacuation Center Name:", centerName);
+
 
   // State management for the data
   const [search, setSearch] = useState("");
@@ -35,7 +49,11 @@ export default function EvacuationCenterDetail() {
 
         // Fetch disaster details using disasterId
         const resDisaster = await axios.get(`/api/v1/disaster-events/by-disaster/${disasterId}/details`);
-        setDisaster(resDisaster.data);
+        if (resDisaster.data) {
+          setDisaster(resDisaster.data);
+        } else {
+          console.error("Disaster data not found.");
+        }
 
         // Fetch evacuees based on the centerName
         const resEvacuees = await axios.get(`/api/v1/evacuation-centers/${centerName}/evacuees`);
@@ -273,7 +291,7 @@ export default function EvacuationCenterDetail() {
             onClick={() => navigate(`/evacuation-information/${disasterId}`)}
             className="hover:text-green-700 font-semibold transition-colors cursor-pointer text-gray-900"
           >
-            {disaster.name}
+            {disaster ? disaster.name : "Loading..."} {/* Add null check here */}
           </button>
           <ChevronRight className="w-4 h-4 mx-2" />
           <span className="text-gray-900 font-normal">{centerName}</span>
