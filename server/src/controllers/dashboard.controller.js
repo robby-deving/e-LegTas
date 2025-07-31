@@ -243,4 +243,116 @@ exports.getEvacueeStatisticsByDisaster = async (req, res, next) => {
     }
 };
 
+/**
+ * @desc Get ranked evacuation center capacity status for a disaster
+ * @route GET /api/v1/dashboard/capacity-status/:disasterId
+ * @access Public
+ */
+exports.getEvacuationCenterCapacityStatus = async (req, res, next) => {
+    const { disasterId } = req.params;
+
+    try {
+        // Get active evacuation events for the disaster
+        const { data: activeEvents, error: eventError } = await supabase
+            .from('disaster_evacuation_event')
+            .select('id, evacuation_center_id')
+            .eq('disaster_id', disasterId)
+            .is('evacuation_end_date', null);
+
+        if (eventError) {
+            console.error('Supabase Error (active events):', eventError);
+            return next(new ApiError('Failed to retrieve active evacuation events.', 500));
+        }
+
+        if (!activeEvents || activeEvents.length === 0) {
+            return res.status(200).json({
+                message: 'No active evacuation centers found for this disaster.',
+                data: [],
+            });
+        }
+
+        const evacEventIds = activeEvents.map(event => event.id);
+        const centerIds = [...new Set(activeEvents.map(event => event.evacuation_center_id))];
+
+        // Get current occupancy per evacuation center
+        const { data: registrations, error: regError } = await supabase
+            .from('evacuation_registrations')
+            .select('disaster_evacuation_event_id')
+            .in('disaster_evacuation_event_id', evacEventIds);
+
+        if (regError) {
+            console.error('Supabase Error (registrations):', regError);
+            return next(new ApiError('Failed to retrieve evacuee registrations.', 500));
+        }
+
+        // Map eventId → count of evacuees
+        const occupancyMap = {};
+        for (const reg of registrations) {
+            const eventId = reg.disaster_evacuation_event_id;
+            const centerId = activeEvents.find(ev => ev.id === eventId)?.evacuation_center_id;
+            if (!centerId) continue;
+
+            occupancyMap[centerId] = (occupancyMap[centerId] || 0) + 1;
+        }
+
+        // Get total capacity from evacuation_center_rooms
+        const { data: roomCapacities, error: capError } = await supabase
+            .from('evacuation_center_rooms')
+            .select('evacuation_center_id, individual_room_capacity')
+            .in('evacuation_center_id', centerIds)
+            .is('deleted_at', null); // exclude deleted rooms
+
+        if (capError) {
+            console.error('Supabase Error (room capacities):', capError);
+            return next(new ApiError('Failed to retrieve room capacity data.', 500));
+        }
+
+        // Map centerId → total capacity
+        const capacityMap = {};
+        for (const room of roomCapacities) {
+            const centerId = room.evacuation_center_id;
+            capacityMap[centerId] = (capacityMap[centerId] || 0) + (room.individual_room_capacity || 0);
+        }
+
+        // Get center details (name, address)
+        const { data: centers, error: ecError } = await supabase
+            .from('evacuation_centers')
+            .select(`
+                id,
+                name,
+                address,
+                barangay_id,
+                barangay:barangay_id (name)
+            `)
+            .in('id', centerIds);
+
+        if (ecError) {
+            console.error('Supabase Error (evacuation_centers):', ecError);
+            return next(new ApiError('Failed to fetch evacuation center info.', 500));
+        }
+
+        // Build response list
+        const rankedCenters = centers.map(center => {
+            const centerId = center.id;
+            return {
+                id: centerId,
+                name: center.name,
+                //address: center.address,
+                barangay_name: center.barangay?.name || 'Unknown',
+                total_capacity: capacityMap[centerId] || 0,
+                current_occupancy: occupancyMap[centerId] || 0
+            };
+        }).sort((a, b) => b.current_occupancy - a.current_occupancy).slice(0, 10); // Top 10 only
+
+        res.status(200).json({
+            message: 'Successfully fetched evacuation center capacity status.',
+            data: rankedCenters,
+        });
+
+    } catch (err) {
+        next(new ApiError('Internal server error during capacity status aggregation.', 500));
+    }
+};
+
+
 

@@ -20,6 +20,9 @@ router.get('/registered-families/:disasterId', dashboardController.getTotalRegis
 // GET evacuee statistics by vulnerability type for a specific disaster
 // Example: GET /api/v1/dashboard/evacuee-statistics/:disasterId
 router.get('/evacuee-statistics/:disasterId', dashboardController.getEvacueeStatisticsByDisaster);
+// GET evacuation center capacity status for a specific disaster
+// Example: GET /api/v1/dashboard/capacity-status/:disasterId
+router.get('/capacity-status/:disasterId', dashboardController.getEvacuationCenterCapacityStatus);
 
 
 // Future dashboard routes can follow this format:
