@@ -11,60 +11,91 @@ import EvacueeStatisticsChart from "../components/EvacueeStatisticsChart";
 import StatCard from "../components/StatCard";
 import { usePageTitle } from "../hooks/usePageTitle";
 import axios from "axios";
-import { encodeId } from "@/utils/secureId"; // <-- Import encodeId utility
+import { encodeId, decodeId } from "@/utils/secureId"; // Import encodeId and decodeId utilities
 import { DISASTER_TYPE_COLORS } from "@/constants/disasterTypeColors"; // Assuming you have this constant already
+
+
+// Dummy data for testing purposes
+const mockCenter = {
+  name: "Evacuation Center 1",
+  barangay: "Bgy. 1 - Em's Barrio",
+  families: 143,
+  evacuees: 50000,
+  capacity: 20215,
+};
+
+const mockEvacuees = [
+  {
+    id: 1,
+    familyHead: "Juan dela Cruz",
+    barangay: "Bgy. 1 - Oro Site",
+    individuals: 6,
+    room: "A1",
+    decampment: "6/2/2025 8:00am",
+    members: [
+      { fullName: "Juan dela Cruz", age: 45, barangayOfOrigin: "Bgy. 1 - Oro Site", sex: "Male", vulnerability: "None", timeOfArrival: "6/2/2025 8:00am" },
+      { fullName: "Maria dela Cruz", age: 42, barangayOfOrigin: "Bgy. 1 - Oro Site", sex: "Female", vulnerability: "None", timeOfArrival: "6/2/2025 8:00am" },
+      { fullName: "Pedro dela Cruz", age: 15, barangayOfOrigin: "Bgy. 1 - Oro Site", sex: "Male", vulnerability: "Youth", timeOfArrival: "6/2/2025 8:00am" },
+      { fullName: "Ana dela Cruz", age: 12, barangayOfOrigin: "Bgy. 1 - Oro Site", sex: "Female", vulnerability: "Children", timeOfArrival: "6/2/2025 8:00am" },
+      { fullName: "Jose dela Cruz", age: 8, barangayOfOrigin: "Bgy. 1 - Oro Site", sex: "Male", vulnerability: "Children", timeOfArrival: "6/2/2025 8:00am" },
+      { fullName: "Lita dela Cruz", age: 5, barangayOfOrigin: "Bgy. 1 - Oro Site", sex: "Female", vulnerability: "Children", timeOfArrival: "6/2/2025 8:00am" },
+    ]
+  },
+  // More mock evacuee data here...
+];
 
 export default function EvacuationCenterDetail() {
   usePageTitle("Evacuation Center Detail");
   const navigate = useNavigate();
 
-  // Extract parameters from the URL
-  const { disasterId: disasterIdParam, centerName: centerParam } = useParams<{ disasterId?: string; centerName?: string }>();
+  const { disasterId: disasterIdParam, centerId: centerIdParam } = useParams<{ disasterId?: string; centerId?: string }>();
 
-  // Decode disasterId if it's base64 encoded
-  const disasterId = disasterIdParam ? atob(disasterIdParam) : ""; // Decode disasterId if it is base64 encoded
+  const disasterId = disasterIdParam ? decodeId(disasterIdParam) : "";
+  const centerId = centerIdParam ? decodeId(centerIdParam) : "";
 
-  // Decode centerName if it's encoded
-  const centerName = decodeURIComponent(centerParam || "");
+  const encodedDisasterId = disasterId ? encodeId(disasterId) : "";
+  const encodedCenterId = centerId ? encodeId(centerId) : "";
 
-  // Log the decoded values (for debugging purposes)
   console.log("Decoded Disaster ID:", disasterId);
-  console.log("Decoded Evacuation Center Name:", centerName);
+  console.log("Decoded Evacuation Center ID:", centerId);
 
+  console.log("Encoded Disaster ID:", encodedDisasterId);
+  console.log("Encoded Evacuation Center ID:", encodedCenterId);
 
-  // State management for the data
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [selectedEvacuee, setSelectedEvacuee] = useState<any>(null);
-  const [evacuees, setEvacuees] = useState<any[]>([]); // Will fetch evacuees from backend
-  const [disaster, setDisaster] = useState<any>(null); // Will fetch disaster details from backend
+  const [evacuees, setEvacuees] = useState<any[]>(mockEvacuees); // Set to mock data
+  const [disaster, setDisaster] = useState<any>(null);
 
-  // Fetch disaster and evacuees based on disasterId and centerName
-  useEffect(() => {
-    const fetchEvacuationData = async () => {
-      try {
-        console.log("Disaster ID:", disasterId); // Log disasterId to ensure it's correct
-        console.log("Evacuation Center Name:", centerName); // Log centerName for debugging
+useEffect(() => {
+  const fetchEvacuationData = async () => {
+    try {
+      console.log("Disaster ID:", disasterId);
+      console.log("Evacuation Center ID:", centerId);
 
-        // Fetch disaster details using disasterId
-        const resDisaster = await axios.get(`/api/v1/disaster-events/by-disaster/${disasterId}/details`);
-        if (resDisaster.data) {
-          setDisaster(resDisaster.data);
-        } else {
-          console.error("Disaster data not found.");
-        }
-
-        // Fetch evacuees based on the centerName
-        const resEvacuees = await axios.get(`/api/v1/evacuation-centers/${centerName}/evacuees`);
-        setEvacuees(resEvacuees.data); // This will be the list of evacuees based on the selected center
-      } catch (error) {
-        console.error("Error fetching data:", error);
+      // Fetch disaster data
+      const resDisaster = await axios.get(`/api/v1/disaster-events/by-disaster/${disasterId}/details`);
+      if (resDisaster.data) {
+        setDisaster(resDisaster.data);
       }
-    };
 
-    fetchEvacuationData();
-  }, [disasterId, centerName]); // This runs when disasterId or centerName changes
+      // Fetch evacuee data
+      const resEvacuees = await axios.get(`/api/v1/evacuation-centers/${centerId}/evacuees`);
+      if (resEvacuees.data && Array.isArray(resEvacuees.data.evacuees)) {
+        setEvacuees(resEvacuees.data.evacuees);  // Store the evacuees data correctly
+      } else {
+        console.error("Evacuees data is not an array:", resEvacuees.data);
+      }
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    }
+  };
+
+  fetchEvacuationData();
+}, [disasterId, centerId]);
+
 
   const filteredEvacuees = evacuees.filter(e =>
     e.familyHead.toLowerCase().includes(search.toLowerCase()) ||
@@ -193,7 +224,7 @@ export default function EvacuationCenterDetail() {
     const lastName = nameParts.pop() || '';
     const firstName = nameParts.shift() || '';
     const middleName = nameParts.join(" ") || '';
-    
+
     setFormData({
       firstName: firstName,
       middleName: middleName,
@@ -216,7 +247,7 @@ export default function EvacuationCenterDetail() {
         lactatingMother: member.vulnerability === "Lactating"
       }
     });
-    
+
     setShowSearchModal(false);
     setEvacueeModalOpen(true);
   };
@@ -248,32 +279,6 @@ export default function EvacuationCenterDetail() {
     setEvacueeModalOpen(true);
   };
 
-  // Form field handlers
-  const handleFormInputChange = (field: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
-
-  const handleVulnerabilityChange = (vulnerability: string, checked: boolean) => {
-    setFormData(prev => ({
-      ...prev,
-      vulnerabilities: {
-        ...prev.vulnerabilities,
-        [vulnerability]: checked
-      }
-    }));
-  };
-
-  const handleEvacueeModalClose = () => {
-    setEvacueeModalOpen(false);
-  };
-
-  const handleRegisterOrEdit = () => {
-    setEvacueeModalOpen(false);
-  };
-
   return (
     <div className="text-black p-6 space-y-6">
       {/* Header with Breadcrumb */}
@@ -288,13 +293,13 @@ export default function EvacuationCenterDetail() {
           </button>
           <ChevronRight className="w-4 h-4 mx-2" />
           <button
-            onClick={() => navigate(`/evacuation-information/${disasterId}`)}
+            onClick={() => navigate(`/evacuation-information/${encodedDisasterId}`)} 
             className="hover:text-green-700 font-semibold transition-colors cursor-pointer text-gray-900"
           >
-            {disaster ? disaster.name : "Loading..."} {/* Add null check here */}
+            {disaster ? disaster.name : "Loading..."}
           </button>
           <ChevronRight className="w-4 h-4 mx-2" />
-          <span className="text-gray-900 font-normal">{centerName}</span>
+          <span className="text-gray-900 font-normal">{encodedCenterId}</span>
         </div>
       </div>
 
@@ -325,27 +330,27 @@ export default function EvacuationCenterDetail() {
         <div className="md:col-span-1">
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl font-bold leading-tight mb-0">{centerName}</CardTitle>
-              <div className="text-muted-foreground text-base font-medium">{centerName}</div>
+              <CardTitle className="text-2xl font-bold leading-tight mb-0">{mockCenter.name}</CardTitle>
+              <div className="text-muted-foreground text-base font-medium">{mockCenter.barangay}</div>
             </CardHeader>
           </Card>
           <div className="flex flex-col gap-6 mt-5">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <StatCard
                 title="Registered Families"
-                value={evacuees.length.toLocaleString()}
+                value={mockCenter.families.toLocaleString()}
                 icon={<Home className="w-5 h-5 text-blue-600 mr-2" />}
                 valueClassName="text-blue-500"
               />
               <StatCard
                 title="Registered Evacuees"
-                value={evacuees.length.toLocaleString()}
+                value={mockCenter.evacuees.toLocaleString()}
                 icon={<Users className="w-5 h-5 text-green-700 mr-2" />}
                 valueClassName="text-green-600"
               />
               <StatCard
                 title="EC Capacity"
-                value="0" // This value needs to be updated according to your database
+                value={mockCenter.capacity.toLocaleString()}
                 icon={<LayoutGrid className="w-5 h-5 text-yellow-500 mr-2" />}
                 valueClassName="text-yellow-500"
               />
@@ -357,7 +362,7 @@ export default function EvacuationCenterDetail() {
             <CardTitle className="text-xl font-bold leading-tight mb-0">Evacuees Statistics</CardTitle>
           </CardHeader>
           <CardContent>
-            <EvacueeStatisticsChart data={[]} /> {/* Add the actual data */}
+            <EvacueeStatisticsChart data={[]} />
           </CardContent>
         </Card>
       </div>
@@ -401,30 +406,32 @@ export default function EvacuationCenterDetail() {
                   <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
-              <TableBody>
-                {paginatedEvacuees.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center text-muted-foreground py-8">No results.</TableCell>
-                  </TableRow>
-                ) : (
-                  paginatedEvacuees.map(evac => (
-                    <TableRow 
-                      key={evac.id}
-                      className="cursor-pointer hover:bg-gray-50"
-                      onClick={() => handleRowClick(evac.id)} // On clicking the row, open evacuee details
-                    >
-                      <TableCell className="text-foreground font-medium">{evac.familyHead}</TableCell>
-                      <TableCell className="text-foreground">{evac.barangay}</TableCell>
-                      <TableCell className="text-foreground">{evac.individuals.toLocaleString()}</TableCell>
-                      <TableCell className="text-foreground">{evac.room}</TableCell>
-                      <TableCell className="text-foreground">{evac.decampment}</TableCell>
-                      <TableCell className="flex justify-end items-center text-foreground">
-                        <ArrowRight className="w-4 h-4 text-muted-foreground" />
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
+<TableBody>
+  {paginatedEvacuees.length === 0 ? (
+    <TableRow>
+      <TableCell colSpan={6} className="text-center text-muted-foreground py-8">No results.</TableCell>
+    </TableRow>
+  ) : (
+    paginatedEvacuees.map(evac => (
+      <TableRow 
+        key={evac.evacuee_id}  // Make sure to use the correct ID
+        className="cursor-pointer hover:bg-gray-50"
+        onClick={() => handleRowClick(evac.evacuee_id)}  // Pass evacuee_id
+      >
+        <TableCell className="text-foreground font-medium">{evac.firstName} {evac.lastName}</TableCell>
+        <TableCell className="text-foreground">{evac.barangay_of_origin}</TableCell>
+        <TableCell className="text-foreground">{evac.age}</TableCell>
+        <TableCell className="text-foreground">{evac.roomName}</TableCell> {/* Ensure this field exists in your data */}
+        <TableCell className="text-foreground">{evac.arrivalTimestamp}</TableCell>
+        <TableCell className="flex justify-end items-center text-foreground">
+          <ArrowRight className="w-4 h-4 text-muted-foreground" />
+        </TableCell>
+      </TableRow>
+    ))
+  )}
+</TableBody>
+
+
             </Table>
           </div>
           <div className="flex items-center justify-between">
@@ -451,7 +458,7 @@ export default function EvacuationCenterDetail() {
           </DialogHeader>
           {selectedEvacuee && (
             <div className="space-y-6">
-              {/* Family details view, editable fields */}
+              {/* Family details */}
             </div>
           )}
         </DialogContent>

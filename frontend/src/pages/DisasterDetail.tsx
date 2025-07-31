@@ -1,15 +1,7 @@
-//DisasterDetail.tsx
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Input } from "../components/ui/input";
-import {
-  Table,
-  TableHeader,
-  TableRow,
-  TableHead,
-  TableBody,
-  TableCell
-} from "../components/ui/table";
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "../components/ui/table";
 import { ChevronRight, Calendar, ArrowRight } from "lucide-react";
 import { Pagination } from "../components/ui/pagination";
 import { decodeId } from "@/utils/secureId";
@@ -19,6 +11,7 @@ import type { ActiveEvacuation } from "@/types/EvacuationCenter";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { formatDate } from "@/utils/dateFormatter";
 import { getTypeColor, getTagColor } from '@/constants/disasterTypeColors';
+import { encodeId } from "@/utils/secureId"; // Import encodeId utility
 
 export default function DisasterDetail() {
   const { id } = useParams<{ id: string }>();
@@ -93,7 +86,6 @@ export default function DisasterDetail() {
   };
 
   if (!disaster) {
-    console.error("Disaster not found for disasterId:", disasterId);
     return <div className="text-red-500 p-6">Disaster not found for ID: {disasterId}</div>;
   }
 
@@ -107,6 +99,18 @@ export default function DisasterDetail() {
   const startIndex = (currentPage - 1) * rowsPerPage;
   const endIndex = startIndex + rowsPerPage;
   const currentRows = filteredCenters.slice(startIndex, endIndex);
+
+  // Use encoded disasterId and centerId to navigate
+  const navigateToCenterDetail = (centerId: number) => {
+    const encodedDisasterId = encodeId(disasterId); // Encode disasterId for URL
+    const encodedCenterId = encodeId(centerId); // Encode centerId for URL
+
+    console.log("Encoded Disaster ID:", encodedDisasterId);
+    console.log("Encoded Evacuation Center ID:", encodedCenterId);
+
+    // Navigate to the Evacuation Center detail page
+    navigate(`/evacuation-information/${encodedDisasterId}/${encodedCenterId}`);
+  };
 
   return (
     <div className="text-black p-6 space-y-6 flex flex-col min-h-screen">
@@ -175,7 +179,7 @@ export default function DisasterDetail() {
                     <TableRow
                       key={center.evacuation_center_id}
                       className="cursor-pointer hover:bg-gray-50"
-                      onClick={() => navigate(`/evacuation-information/${id}/${center.evacuation_center_id}`)}
+                      onClick={() => navigateToCenterDetail(center.evacuation_center_id)}
                     >
                       <TableCell className="text-foreground font-medium">{center.evacuation_center_name}</TableCell>
                       <TableCell className="text-foreground">{center.evacuation_center_barangay_name}</TableCell>

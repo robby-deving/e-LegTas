@@ -33,7 +33,10 @@ router.delete('/:id', evacuationController.deleteEvacuationCenter);
 // --- New Route to Fetch Evacuees by Center Name ---
 // GET evacuees for a specific evacuation center by name
 // Example: GET /api/v1/evacuation-centers/:centerName/evacuees
-router.get('/:centerName/evacuees', evacuationController.getEvacueesByCenterName);  
+//router.get('/:centerName/evacuees', evacuationController.getEvacueesByCenterName);  
+
+// Fetch evacuees by center ID
+router.get('/:centerId/evacuees', evacuationController.getEvacueesByCenterId);
 
 // Export the router
 module.exports = router;

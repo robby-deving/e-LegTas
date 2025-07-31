@@ -22,7 +22,7 @@ class ApiError extends Error {
  * @desc Get evacuees by center name
  * @route GET /api/v1/evacuation-centers/:centerName/evacuees
  * @access Public
- */
+ 
 exports.getEvacueesByCenterName = async (req, res, next) => {
   const { centerName } = req.params;
   console.log(`Fetching evacuees for center: ${centerName}`);
@@ -194,7 +194,214 @@ exports.getEvacueesByCenterName = async (req, res, next) => {
     console.error('Error in getEvacueesByCenterName:', err);
     return next(new ApiError('Internal server error while fetching evacuees.', 500));
   }
+};**/
+
+/**
+ * @desc Get all evacuation center entries by center ID
+ * @route GET /api/v1/evacuation-centers/:centerName/evacuees
+ * @access Public
+ */
+exports.getEvacueesByCenterId = async (req, res, next) => {
+  const { centerId } = req.params; // Get centerId from the URL params
+  console.log(`Fetching evacuees for center with ID: ${centerId}`);
+
+  try {
+    // Step 1: Validate the centerId to ensure it's a valid number
+    if (isNaN(centerId)) {
+      return next(new ApiError(`Invalid evacuation center ID: ${centerId}`, 400));
+    }
+
+    // Step 2: Find evacuation center by ID
+    console.log('Querying evacuation center by ID:', centerId);
+
+    const { data: centerData, error: centerError } = await supabase
+      .from('evacuation_centers')
+      .select('id, name')
+      .eq('id', centerId) // Correctly use eq for matching the center ID
+      .single(); // Ensure only one row is returned (single center)
+
+    if (centerError || !centerData) {
+      console.error('Center not found:', centerError);
+      return next(new ApiError(`Evacuation center with ID "${centerId}" not found.`, 404));
+    }
+
+    // Log the found center data
+    console.log('Found evacuation center:', centerData);
+
+    // Step 3: Find disaster events for this center
+    console.log(`Fetching disaster events for center with ID: ${centerId}`);
+    const { data: disasterEvents, error: disasterEventsError } = await supabase
+      .from('disaster_evacuation_event')
+      .select('id')
+      .eq('evacuation_center_id', centerData.id);
+
+    if (disasterEventsError || !disasterEvents || disasterEvents.length === 0) {
+      console.error('No disaster events found for this center:', disasterEventsError);
+      return next(new ApiError(`No disaster events found for center with ID "${centerId}".`, 404));
+    }
+
+    const disasterEventIds = disasterEvents.map(event => event.id);
+    console.log('Disaster event IDs:', disasterEventIds);
+
+    // Step 4: Fetch evacuees related to disaster events
+    console.log('Fetching evacuees related to disaster events:', disasterEventIds);
+    const { data: evacuees, error: evacueesError } = await supabase
+      .from('evacuation_registrations')
+      .select(`
+        id,
+        evacuee_resident_id,
+        family_head_id,
+        arrival_timestamp,
+        decampment_timestamp,
+        ec_rooms_id,
+        evacuee_residents (
+          id,
+          family_head_id,
+          relationship_to_family_head,
+          residents (
+            first_name,
+            last_name,
+            birthdate,
+            sex,
+            barangays ( name )
+          )
+        ),
+        family_head (
+          id,
+          resident_id,
+          residents (
+            first_name,
+            last_name
+          )
+        ),
+        evacuation_center_rooms (
+          room_name
+        )
+      `)
+      .in('disaster_evacuation_event_id', disasterEventIds);
+
+    if (evacueesError || !evacuees || evacuees.length === 0) {
+      console.error('No evacuees found for this center:', evacueesError);
+      return next(new ApiError(`No evacuees found for center with ID "${centerId}".`, 404));
+    }
+
+    // Step 5: Extract all evacuee_resident_ids
+    const evacueeResidentIds = evacuees.map(e => e.evacuee_residents?.id).filter(Boolean);
+    console.log('Evacuee Resident IDs:', evacueeResidentIds);
+
+    // Step 6: Fetch vulnerabilities linked to evacuees
+    console.log('Fetching vulnerabilities for evacuee residents:', evacueeResidentIds);
+    const { data: vulnerabilities, error: vulnError } = await supabase
+      .from('resident_vulnerabilities')
+      .select('evacuee_resident_id, vulnerability_types ( name )')
+      .in('evacuee_resident_id', evacueeResidentIds);
+
+    if (vulnError) {
+      console.error('Error fetching vulnerabilities:', vulnError);
+      return next(new ApiError('Failed to fetch vulnerabilities.', 500));
+    }
+
+    // Step 7: Map vulnerabilities
+    const vulnMap = {};
+    vulnerabilities.forEach(({ evacuee_resident_id, vulnerability_types }) => {
+      if (!vulnMap[evacuee_resident_id]) vulnMap[evacuee_resident_id] = [];
+      if (vulnerability_types?.name) {
+        vulnMap[evacuee_resident_id].push(vulnerability_types.name);
+      }
+    });
+
+    // Step 8: Summary template
+    const summary = {
+      total_male: 0,
+      total_female: 0,
+      total_individuals: evacuees.length,
+      infant: 0,
+      children: 0,
+      youth: 0,
+      adult: 0,
+      senior_citizens: 0,
+      pwd: 0,
+      pregnant: 0,
+      lactating: 0
+    };
+
+    // Step 9: Transform evacuee data
+    const transformedEvacuees = evacuees.map(evacuee => {
+      const evacResident = evacuee.evacuee_residents;
+      const resident = evacResident?.residents || {};
+      const barangay = resident.barangays || {};
+
+      const birthdate = resident.birthdate ? new Date(resident.birthdate) : null;
+      const age = birthdate
+        ? Math.floor((Date.now() - birthdate.getTime()) / (365.25 * 24 * 60 * 60 * 1000))
+        : null;
+
+      const sex = resident.sex || 'Unknown';
+      const vulnTypes = vulnMap[evacResident?.id] || [];
+      const roomName = evacuee.evacuation_center_rooms?.room_name || 'Unknown Room';
+      const decampmentTimestamp = evacuee.decampment_timestamp || null;
+
+      // --- Summary Counting ---
+      if (sex === 'Male') summary.total_male++;
+      else if (sex === 'Female') summary.total_female++;
+
+      if (age !== null) {
+        if (age <= 2) summary.infant++;
+        else if (age <= 12) summary.children++;
+        else if (age <= 17) summary.youth++;
+        else if (age <= 59) summary.adult++;
+        else summary.senior_citizens++;
+      }
+
+      if (vulnTypes.includes('Person with Disability')) summary.pwd++;
+      if (vulnTypes.includes('Pregnant Woman')) summary.pregnant++;
+      if (vulnTypes.includes('Lactating Woman')) summary.lactating++;
+
+      return {
+        evacuee_id: evacuee.id,
+        evacuee_resident_id: evacResident?.id || null,
+        familyHeadId: evacuee.family_head_id,
+        roomId: evacuee.ec_rooms_id,
+        roomName,
+        firstName: resident.first_name || '',
+        lastName: resident.last_name || '',
+        age,
+        barangay_of_origin: barangay.name || 'Unknown',
+        sex,
+        vulnerability_types: vulnTypes,
+        arrivalTimestamp: evacuee.arrival_timestamp,
+        decampmentTimestamp,
+        familyHeadFullName: evacuee.family_head?.residents
+          ? `${evacuee.family_head.residents.first_name} ${evacuee.family_head.residents.last_name}`
+          : 'Unknown'
+      };
+    });
+
+    // Step 10: Respond
+    return res.status(200).json({
+      message: `Successfully retrieved ${evacuees.length} evacuees for evacuation center with ID "${centerId}".`,
+      summary,
+      totalEvacuees: evacuees.length,
+      evacuees: transformedEvacuees
+    });
+
+  } catch (err) {
+    console.error('Error in getEvacueesByCenterId:', err);
+    return next(new ApiError('Internal server error while fetching evacuees.', 500));
+  }
 };
+
+
+
+
+
+
+
+
+
+
+
+
 
 /**
  * @desc Get all evacuation center entries
