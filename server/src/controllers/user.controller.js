@@ -38,9 +38,11 @@ const createUser = async (req, res) => {
       sex,
       birthdate,
       barangayOfOrigin,
+      employeeNumber: providedEmployeeNumber,
       email,
       password,
-      roleId
+      roleId,
+      assignedEvacuationCenter
     } = req.body;
 
     // Validate required fields
@@ -85,25 +87,42 @@ const createUser = async (req, res) => {
       return res.status(409).json({ message: 'Email already exists' });
     }
 
-    // Generate unique employee number
+    // Generate unique employee number or use provided one
     let employeeNumber;
     let isUnique = false;
     let attempts = 0;
     const maxAttempts = 10;
 
-    while (!isUnique && attempts < maxAttempts) {
-      employeeNumber = generateEmployeeNumber();
-      
+    if (providedEmployeeNumber) {
+      // Check if provided employee number is unique
       const { data: existingEmployee } = await supabaseAdmin
         .from('users')
         .select('employee_number')
-        .eq('employee_number', employeeNumber)
+        .eq('employee_number', providedEmployeeNumber)
         .single();
 
-      if (!existingEmployee) {
-        isUnique = true;
+      if (existingEmployee) {
+        return res.status(409).json({ message: 'Employee number already exists' });
       }
-      attempts++;
+      
+      employeeNumber = providedEmployeeNumber;
+      isUnique = true;
+    } else {
+      // Generate unique employee number if not provided
+      while (!isUnique && attempts < maxAttempts) {
+        employeeNumber = generateEmployeeNumber();
+        
+        const { data: existingEmployee } = await supabaseAdmin
+          .from('users')
+          .select('employee_number')
+          .eq('employee_number', employeeNumber)
+          .single();
+
+        if (!existingEmployee) {
+          isUnique = true;
+        }
+        attempts++;
+      }
     }
 
     if (!isUnique) {
@@ -244,6 +263,69 @@ const createUser = async (req, res) => {
       // Note: This is not critical, the user can still login with their email
     }
 
+    // Handle evacuation center assignment if provided
+    let evacuationCenterAssignment = null;
+    if (assignedEvacuationCenter && assignedEvacuationCenter.trim()) {
+      try {
+        // Find evacuation center by name
+        let { data: evacuationCenter, error: centerError } = await supabaseAdmin
+          .from('evacuation_centers')
+          .select('id, name, assigned_user_id')
+          .eq('name', assignedEvacuationCenter.trim())
+          .single();
+
+        if (centerError && centerError.code === 'PGRST116') {
+          // Evacuation center doesn't exist, create it
+          const { data: newCenter, error: createCenterError } = await supabaseAdmin
+            .from('evacuation_centers')
+            .insert({
+              name: assignedEvacuationCenter.trim(),
+              address: 'To be determined',
+              barangay_id: 1, // Default barangay, should be updated later
+              latitude: 0.0,
+              longitude: 0.0,
+              ec_status: 'Active',
+              category: 'Public',
+              total_capacity: 100, // Default capacity
+              assigned_user_id: user.id,
+              created_by: user.id
+            })
+            .select()
+            .single();
+
+          if (createCenterError) {
+            console.error('Error creating evacuation center:', createCenterError);
+          } else {
+            evacuationCenter = newCenter;
+            evacuationCenterAssignment = {
+              center_name: evacuationCenter.name,
+              center_id: evacuationCenter.id,
+              status: 'assigned_new'
+            };
+          }
+        } else if (evacuationCenter) {
+          // Evacuation center exists, update its assigned_user_id
+          const { error: updateError } = await supabaseAdmin
+            .from('evacuation_centers')
+            .update({ assigned_user_id: user.id })
+            .eq('id', evacuationCenter.id);
+
+          if (updateError) {
+            console.error('Error updating evacuation center assignment:', updateError);
+          } else {
+            evacuationCenterAssignment = {
+              center_name: evacuationCenter.name,
+              center_id: evacuationCenter.id,
+              status: 'assigned_existing'
+            };
+          }
+        }
+      } catch (evacuationError) {
+        console.error('Error handling evacuation center assignment:', evacuationError);
+        // Don't fail the entire user creation if evacuation assignment fails
+      }
+    }
+
     // Return success response
     const responseData = {
       message: 'User created successfully with login capability',
@@ -261,7 +343,8 @@ const createUser = async (req, res) => {
           birthdate: birthdate
         },
         role_id: roleId,
-        is_active: true
+        is_active: true,
+        evacuation_assignment: evacuationCenterAssignment
       }
     };
 
@@ -443,22 +526,49 @@ const getEvacuationCenters = async (req, res) => {
   try {
     const { data: centers, error } = await supabaseAdmin
       .from('evacuation_centers')
-      .select('id, name, location')
+      .select(`
+        id, 
+        name, 
+        address,
+        barangay_id,
+        latitude,
+        longitude,
+        ec_status,
+        category,
+        total_capacity,
+        assigned_user_id,
+        barangays!barangay_id (
+          id,
+          name
+        )
+      `)
       .order('name');
 
     if (error) {
       console.error('Error fetching evacuation centers:', error);
-      // Return default evacuation centers if table doesn't exist
-      const defaultCenters = [
-        { id: 1, name: 'Legazpi Elementary School', location: 'Legazpi City' },
-        { id: 2, name: 'Legazpi High School', location: 'Legazpi City' },
-        { id: 3, name: 'Bicol University Gymnasium', location: 'Legazpi City' },
-        { id: 4, name: 'Legazpi Sports Complex', location: 'Legazpi City' }
-      ];
-      return res.status(200).json({ centers: defaultCenters });
+      return res.status(500).json({ 
+        message: 'Failed to fetch evacuation centers',
+        error: error.message 
+      });
     }
 
-    res.status(200).json({ centers });
+    // Transform the data to include barangay information
+    const formattedCenters = centers?.map(center => ({
+      id: center.id,
+      name: center.name,
+      address: center.address,
+      barangay: center.barangays?.name || 'Unknown',
+      status: center.ec_status,
+      category: center.category,
+      capacity: center.total_capacity,
+      assigned_user_id: center.user_id,
+      coordinates: {
+        latitude: center.latitude,
+        longitude: center.longitude
+      }
+    })) || [];
+
+    res.status(200).json({ centers: formattedCenters });
 
   } catch (error) {
     console.error('Get evacuation centers error:', error);
@@ -485,6 +595,39 @@ const getBarangays = async (req, res) => {
 
   } catch (error) {
     console.error('Get barangays error:', error);
+    res.status(500).json({ 
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
+const getDisasters = async (req, res) => {
+  try {
+    const { data: disasters, error } = await supabaseAdmin
+      .from('disasters')
+      .select(`
+        id,
+        disaster_name,
+        disaster_type_id,
+        disaster_start_date,
+        disaster_end_date,
+        disaster_types!disaster_type_id (
+          id,
+          name
+        )
+      `)
+      .order('disaster_start_date', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching disasters:', error);
+      return res.status(500).json({ message: 'Failed to fetch disasters' });
+    }
+
+    res.status(200).json({ disasters });
+
+  } catch (error) {
+    console.error('Get disasters error:', error);
     res.status(500).json({ 
       message: 'Internal server error',
       error: error.message
@@ -1126,17 +1269,9 @@ const getUsersWithRoleFourAndFive = async (req, res) => {
       const userIds = users.map(user => user.id);
       
       const { data: evacuationAssignments, error: evacuationError } = await supabaseAdmin
-        .from('disaster_evacuation_event')
-        .select(`
-          assigned_user_id,
-          evacuation_center_id,
-          evacuation_centers!evacuation_center_id (
-            id,
-            name
-          )
-        `)
-        .in('assigned_user_id', userIds)
-        .order('evacuation_start_date', { ascending: false });
+        .from('evacuation_centers')
+        .select('id, name, assigned_user_id')
+        .in('assigned_user_id', userIds);
 
       if (evacuationError) {
         console.error('Error fetching evacuation assignments:', evacuationError);
@@ -1147,7 +1282,7 @@ const getUsersWithRoleFourAndFive = async (req, res) => {
           const assignment = evacuationAssignments?.find(assignment => assignment.assigned_user_id === user.id);
           return {
             ...user,
-            assigned_evacuation_center: assignment?.evacuation_centers?.name || null
+            assigned_evacuation_center: assignment?.name || null
           };
         });
       }
@@ -1201,6 +1336,7 @@ module.exports = {
   getRoles,
   getEvacuationCenters,
   getBarangays,
+  getDisasters,
   getEnumValues,
   checkUserSynchronization,
   createUserWithTrigger,

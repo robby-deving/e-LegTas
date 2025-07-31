@@ -30,6 +30,8 @@ export default function UserManagement(){
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [formLoading, setFormLoading] = useState(false);
+    const [barangays, setBarangays] = useState<{id: number; name: string}[]>([]);
+    const [evacuationCenters, setEvacuationCenters] = useState<{id: number; name: string}[]>([]);
     
     // Form state
     const [formData, setFormData] = useState({
@@ -91,6 +93,61 @@ export default function UserManagement(){
         };
 
         fetchUsers();
+    }, []);
+
+    // Fetch barangays from backend
+    useEffect(() => {
+        const fetchBarangays = async () => {
+            try {
+                const response = await fetch('http://localhost:3000/api/v1/users/data/barangays');
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch barangays: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                setBarangays(data.barangays || []);
+            } catch (err) {
+                console.error('Error fetching barangays:', err);
+                // Set some default barangays if fetch fails
+                setBarangays([
+                    { id: 1, name: 'Barangay 1' },
+                    { id: 2, name: 'Barangay 2' },
+                    { id: 3, name: 'Barangay 3' }
+                ]);
+            }
+        };
+
+        fetchBarangays();
+    }, []);
+
+    // Fetch evacuation centers from backend
+    useEffect(() => {
+        const fetchEvacuationCenters = async () => {
+            try {
+                const response = await fetch('http://localhost:3000/api/v1/users/data/evacuation-centers');
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch evacuation centers: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                setEvacuationCenters(data.centers?.map((center: any) => ({
+                    id: center.id,
+                    name: center.name
+                })) || []);
+            } catch (err) {
+                console.error('Error fetching evacuation centers:', err);
+                // Set some default evacuation centers if fetch fails
+                setEvacuationCenters([
+                    { id: 1, name: 'Legazpi Elementary School' },
+                    { id: 2, name: 'Legazpi High School' },
+                    { id: 3, name: 'Bicol University Gymnasium' }
+                ]);
+            }
+        };
+
+        fetchEvacuationCenters();
     }, []);
 
     // Filter users based on search term
@@ -182,9 +239,11 @@ export default function UserManagement(){
                     sex: formData.sex,
                     birthdate: formData.birthdate,
                     barangayOfOrigin: formData.barangay_of_origin,
+                    employeeNumber: formData.employee_number,
                     email: formData.email,
                     password: formData.password,
-                    roleId: parseInt(formData.role_id)
+                    roleId: parseInt(formData.role_id),
+                    assignedEvacuationCenter: formData.assigned_evacuation_center
                 })
             });
 
@@ -595,15 +654,20 @@ export default function UserManagement(){
                                         <label className='block text-sm font-medium text-black mb-1'>
                                             Barangay of Origin
                                         </label>
-                                        <input
-                                            type='text'
+                                        <select
                                             name='barangay_of_origin'
                                             value={formData.barangay_of_origin}
                                             onChange={handleFormChange}
                                             className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E]'
-                                            placeholder='Enter barangay'
                                             required
-                                        />
+                                        >
+                                            <option value=''>Select barangay</option>
+                                            {barangays.map((barangay) => (
+                                                <option key={barangay.id} value={barangay.id}>
+                                                    {barangay.name}
+                                                </option>
+                                            ))}
+                                        </select>
                                     </div>
                                 </div>
 
@@ -692,114 +756,40 @@ export default function UserManagement(){
                                 <div>
                                     <label className='block text-sm font-medium text-black mb-1'>
                                         Assigned Evacuation Center
-                                    </label>
-                                    <select
+                                    </label>                                        <select
                                         name='assigned_evacuation_center'
                                         value={formData.assigned_evacuation_center}
                                         onChange={handleFormChange}
                                         className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E]'
                                     >
                                         <option value=''>Select an evacuation center</option>
-                                        <option value='Albay Cathedral and Pastoral Center'>Albay Cathedral and Pastoral Center</option>
-                                        <option value='Albay Central School'>Albay Central School</option>
-                                        <option value='AMEC BCCM'>AMEC BCCM</option>
-                                        <option value='Arimbay Chapel'>Arimbay Chapel</option>
-                                        <option value='Arimbay Elementary School'>Arimbay Elementary School</option>
-                                        <option value='Bagacay Elementary School'>Bagacay Elementary School</option>
-                                        <option value='Bagong Abre Elementary School'>Bagong Abre Elementary School</option>
-                                        <option value='Bagumbayan Central School'>Bagumbayan Central School</option>
-                                        <option value='Bagumbayan Evacuation Center'>Bagumbayan Evacuation Center</option>
-                                        <option value='Banquerohan Elementary School'>Banquerohan Elementary School</option>
-                                        <option value='Banquerohan Nation HighSchool'>Banquerohan Nation HighSchool</option>
-                                        <option value='Bariis Elementary School'>Bariis Elementary School</option>
-                                        <option value='BFP Building'>BFP Building</option>
-                                        <option value='Bicol University'>Bicol University</option>
-                                        <option value='Bigaa Elementary School'>Bigaa Elementary School</option>
-                                        <option value='Bigaa Pastoral Center'>Bigaa Pastoral Center</option>
-                                        <option value='Bitano Elementary School'>Bitano Elementary School</option>
-                                        <option value='Bogña Elementary School'>Bogña Elementary School</option>
-                                        <option value='Bogtong Elementary School'>Bogtong Elementary School</option>
-                                        <option value='Buenavista Elementary School'>Buenavista Elementary School</option>
-                                        <option value='Buraguis Elementary School'>Buraguis Elementary School</option>
-                                        <option value='Buraguis Evacuation Center'>Buraguis Evacuation Center</option>
-                                        <option value='Buyoan Elementary School'>Buyoan Elementary School</option>
-                                        <option value='Cabagñan Elementary School'>Cabagñan Elementary School</option>
-                                        <option value='Cabagñan High School'>Cabagñan High School</option>
-                                        <option value='Cagbacong Elementary School'>Cagbacong Elementary School</option>
-                                        <option value='Dapdap Elementary School'>Dapdap Elementary School</option>
-                                        <option value='Dita Elementary School'>Dita Elementary School</option>
-                                        <option value='Divine Word High School Gymnasium'>Divine Word High School Gymnasium</option>
-                                        <option value='Don Bosco Agro-Mechanical Technology Center'>Don Bosco Agro-Mechanical Technology Center</option>
-                                        <option value='DZGB Radio Station'>DZGB Radio Station</option>
-                                        <option value="EM's Barrio Elementary School">EM's Barrio Elementary School</option>
-                                        <option value='Estanza Elementary School'>Estanza Elementary School</option>
-                                        <option value='Genecom'>Genecom</option>
-                                        <option value='Gogon Central School'>Gogon Central School</option>
-                                        <option value='Gogon Evacuation Center'>Gogon Evacuation Center</option>
-                                        <option value='Gogon JICA building'>Gogon JICA building</option>
-                                        <option value='Gogon High School'>Gogon High School</option>
-                                        <option value='Homapon Elementary School'>Homapon Elementary School</option>
-                                        <option value='Homapon Highschool'>Homapon Highschool</option>
-                                        <option value='Ibalon Central School'>Ibalon Central School</option>
-                                        <option value='Imalnod Elementary School'>Imalnod Elementary School</option>
-                                        <option value='Lamba Elementary School'>Lamba Elementary School</option>
-                                        <option value='Legazpi City PAGCOR Multi-purpose Evacuation Center (2 flrs)'>Legazpi City PAGCOR Multi-purpose Evacuation Center (2 flrs)</option>
-                                        <option value='Legazpi City Evacuation Center'>Legazpi City Evacuation Center</option>
-                                        <option value='Legazpi City Science High School'>Legazpi City Science High School</option>
-                                        <option value='Legazpi Port Elementary School'>Legazpi Port Elementary School</option>
-                                        <option value='Mabinit Elementary School'>Mabinit Elementary School</option>
-                                        <option value='Mariawa Elementary School'>Mariawa Elementary School</option>
-                                        <option value='Maoyod Social Hall'>Maoyod Social Hall</option>
-                                        <option value='Maslog Elementary School'>Maslog Elementary School</option>
-                                        <option value='Maslog High School'>Maslog High School</option>
-                                        <option value='Matanag Elementary School'>Matanag Elementary School</option>
-                                        <option value='Meriam College of Technology, Inc.'>Meriam College of Technology, Inc.</option>
-                                        <option value='NFA Building'>NFA Building</option>
-                                        <option value='Oro Site HighSchool'>Oro Site HighSchool</option>
-                                        <option value='Padang Elementary School'>Padang Elementary School</option>
-                                        <option value='Pag asa Natl High School'>Pag asa Natl High School</option>
-                                        <option value='Pawa Elementary School'>Pawa Elementary School</option>
-                                        <option value='Pawa High School'>Pawa High School</option>
-                                        <option value='Phil. Coast Guard'>Phil. Coast Guard</option>
-                                        <option value='Population Commission'>Population Commission</option>
-                                        <option value='Puro Elementary School'>Puro Elementary School</option>
-                                        <option value='Rawis Elementary School'>Rawis Elementary School</option>
-                                        <option value='Reyes Computer Oriented School'>Reyes Computer Oriented School</option>
-                                        <option value='San Francisco Elementary School'>San Francisco Elementary School</option>
-                                        <option value='San Joaquin Elementary School'>San Joaquin Elementary School</option>
-                                        <option value='San Roque Elementary School'>San Roque Elementary School</option>
-                                        <option value='SLTFI'>SLTFI</option>
-                                        <option value='St. Raphael Pastoral Center'>St. Raphael Pastoral Center</option>
-                                        <option value='St. Raphael Academy'>St. Raphael Academy</option>
-                                        <option value='Tamaoyan Elementary School'>Tamaoyan Elementary School</option>
-                                        <option value='Taysan Elementary School'>Taysan Elementary School</option>
-                                        <option value='Taysan Resettlement Integrated School'>Taysan Resettlement Integrated School</option>
-                                        <option value='UST Legazpi Dome'>UST Legazpi Dome</option>
-                                        <option value='Victory Village Elementary School'>Victory Village Elementary School</option>
-                                        <option value='Washington International School'>Washington International School</option>
-                                        <option value='Wesleyan Church'>Wesleyan Church</option>
+                                        {evacuationCenters.map((center) => (
+                                            <option key={center.id} value={center.name}>
+                                                {center.name}
+                                            </option>
+                                        ))}
                                     </select>
                                 </div>
-                            </form>
 
-                            {/* Modal Footer */}
-                            <div className='flex justify-end gap-3 mt-6 pt-4'>
-                                <button
-                                    type='button'
-                                    onClick={handleCloseModal}
-                                    className='px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none'
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type='submit'
-                                    disabled={formLoading}
-                                    className='px-4 py-2 text-white rounded-md hover:opacity-90 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed'
-                                    style={{ backgroundColor: '#00824E' }}
-                                >
-                                    {formLoading ? 'Adding...' : 'Add User'}
-                                </button>
-                            </div>
+                                {/* Modal Footer - Inside Form */}
+                                <div className='flex justify-end gap-3 mt-6 pt-4'>
+                                    <button
+                                        type='button'
+                                        onClick={handleCloseModal}
+                                        className='px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none'
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type='submit'
+                                        disabled={formLoading}
+                                        className='px-4 py-2 text-white rounded-md hover:opacity-90 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed'
+                                        style={{ backgroundColor: '#00824E' }}
+                                    >
+                                        {formLoading ? 'Adding...' : 'Add User'}
+                                    </button>
+                                </div>
+                            </form>
                         </div>
                     </div>
                 )}

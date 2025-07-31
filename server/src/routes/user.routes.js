@@ -8,6 +8,7 @@ const {
   getRoles, 
   getEvacuationCenters, 
   getBarangays,
+  getDisasters,
   getEnumValues
 } = require('../controllers/user.controller');
 
@@ -17,6 +18,7 @@ const router = express.Router();
 router.get('/data/roles', getRoles);              // GET /api/v1/users/data/roles
 router.get('/data/evacuation-centers', getEvacuationCenters); // GET /api/v1/users/data/evacuation-centers
 router.get('/data/barangays', getBarangays);      // GET /api/v1/users/data/barangays
+router.get('/data/disasters', getDisasters);      // GET /api/v1/users/data/disasters
 router.get('/data/enums', getEnumValues);         // GET /api/v1/users/data/enums
 
 // Specific user routes (put before general routes to avoid conflicts)
