@@ -1,6 +1,22 @@
 import { usePageTitle } from '../hooks/usePageTitle';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, MoreHorizontal, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
+
+interface User {
+    id: number;
+    first_name: string;
+    middle_name?: string;
+    last_name: string;
+    suffix?: string;
+    sex: string;
+    barangay_of_origin: string;
+    employee_number: string;
+    birthdate: string;
+    email: string;
+    role_id: number;
+    role_name?: string;
+    assigned_evacuation_center?: string;
+}
 
 export default function UserManagement(){
     usePageTitle('User Management');
@@ -9,34 +25,243 @@ export default function UserManagement(){
     const [currentPage, setCurrentPage] = useState(1);
     const [rowsPerPage, setRowsPerPage] = useState(10);
     const [selectedRows, setSelectedRows] = useState(0);
+    const [users, setUsers] = useState<User[]>([]);
+    const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [formLoading, setFormLoading] = useState(false);
+    
+    // Form state
+    const [formData, setFormData] = useState({
+        first_name: '',
+        middle_name: '',
+        last_name: '',
+        suffix: '',
+        sex: '',
+        barangay_of_origin: '',
+        employee_number: '',
+        birthdate: '',
+        email: '',
+        password: '',
+        role_id: '',
+        assigned_evacuation_center: ''
+    });
 
-    // Sample data for the table
-    const sampleUsers = [
-        {
-            id: 1,
-            user: 'John Doe',
-            email: 'john.doe@email.com',
-            role: 'CAMP MANAGER',
-            evacuationCenter: 'Albay Cathedral and Pastoral Center'
-        },
-        {
-            id: 2,
-            user: 'Jane Smith',
-            email: 'jane.smith@email.com',
-            role: 'BARANGAY OFFICER',
-            evacuationCenter: 'Bicol University'
-        },
-        {
-            id: 3,
-            user: 'Mike Johnson',
-            email: 'mike.johnson@email.com',
-            role: 'CAMP MANAGER',
-            evacuationCenter: 'UST Legazpi Dome'
+    // Fetch users from backend
+    useEffect(() => {
+        const fetchUsers = async () => {
+            try {
+                setLoading(true);
+                const response = await fetch('http://localhost:3000/api/v1/users/cswdo');
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch users: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                // Transform the backend data to match frontend format
+                const transformedUsers = data.users
+                    .filter((user: any) => user.users_profile && user.users_profile.residents) // Filter out users without complete profile data
+                    .map((user: any) => ({
+                        id: user.id,
+                        first_name: user.users_profile.residents.first_name,
+                        middle_name: user.users_profile.residents.middle_name,
+                        last_name: user.users_profile.residents.last_name,
+                        suffix: user.users_profile.residents.suffix,
+                        sex: user.users_profile.residents.sex,
+                        barangay_of_origin: user.users_profile.residents.barangays?.name || 'Unknown',
+                        employee_number: user.employee_number,
+                        birthdate: user.users_profile.residents.birthdate,
+                        email: user.users_profile.email,
+                        role_id: user.users_profile.role_id,
+                        role_name: user.users_profile.roles?.role_name,
+                        assigned_evacuation_center: user.assigned_evacuation_center || null // Get from backend or null
+                    }));
+                
+                setUsers(transformedUsers);
+                setFilteredUsers(transformedUsers);
+                setError(null);
+            } catch (err) {
+                console.error('Error fetching users:', err);
+                setError(err instanceof Error ? err.message : 'Failed to fetch users');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchUsers();
+    }, []);
+
+    // Filter users based on search term
+    useEffect(() => {
+        if (!searchTerm.trim()) {
+            setFilteredUsers(users);
+        } else {
+            const filtered = users.filter(user => {
+                const fullName = `${user.first_name} ${user.middle_name || ''} ${user.last_name}`.toLowerCase();
+                const email = user.email.toLowerCase();
+                const role = (user.role_name || '').toLowerCase();
+                const searchLower = searchTerm.toLowerCase();
+                
+                return fullName.includes(searchLower) || 
+                       email.includes(searchLower) || 
+                       role.includes(searchLower);
+            });
+            setFilteredUsers(filtered);
         }
-    ];
+        setCurrentPage(1); // Reset to first page when searching
+    }, [searchTerm, users]);
 
-    const totalRows = 100;
+    // Get the display name for a user
+    const getDisplayName = (user: User) => {
+        const parts = [user.first_name];
+        if (user.middle_name) {
+            parts.push(user.middle_name);
+        }
+        parts.push(user.last_name);
+        if (user.suffix) {
+            parts.push(user.suffix);
+        }
+        return parts.join(' ');
+    };
+
+    // Get role display name
+    const getRoleDisplayName = (roleId: number, roleName: string | undefined) => {
+        // Map backend role names to display names
+        if (roleName) {
+            switch (roleName.toLowerCase()) {
+                case 'cswdo':
+                    return 'CSWDO';
+                case 'camp manager':
+                    return 'CAMP MANAGER';
+                default:
+                    return roleName.toUpperCase();
+            }
+        }
+        
+        // Fallback to role_id mapping if role name is not available
+        if (roleId === 4) return 'CSWDO';
+        if (roleId === 5) return 'CAMP MANAGER';
+        return 'UNKNOWN ROLE';
+    };
+
+    const totalRows = filteredUsers.length;
     const totalPages = Math.ceil(totalRows / rowsPerPage);
+    
+    // Get paginated users
+    const startIndex = (currentPage - 1) * rowsPerPage;
+    const endIndex = startIndex + rowsPerPage;
+    const paginatedUsers = filteredUsers.slice(startIndex, endIndex);
+
+    // Handle form input changes
+    const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({
+            ...prev,
+            [name]: value
+        }));
+    };
+
+    // Handle form submission
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setFormLoading(true);
+        
+        try {
+            const response = await fetch('http://localhost:3000/api/v1/users', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    firstName: formData.first_name,
+                    middleName: formData.middle_name,
+                    lastName: formData.last_name,
+                    suffix: formData.suffix,
+                    sex: formData.sex,
+                    birthdate: formData.birthdate,
+                    barangayOfOrigin: formData.barangay_of_origin,
+                    email: formData.email,
+                    password: formData.password,
+                    roleId: parseInt(formData.role_id)
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to create user');
+            }
+
+            // Reset form and close modal
+            setFormData({
+                first_name: '',
+                middle_name: '',
+                last_name: '',
+                suffix: '',
+                sex: '',
+                barangay_of_origin: '',
+                employee_number: '',
+                birthdate: '',
+                email: '',
+                password: '',
+                role_id: '',
+                assigned_evacuation_center: ''
+            });
+            setIsAddUserModalOpen(false);
+            
+            // Refresh users list
+            const usersResponse = await fetch('http://localhost:3000/api/v1/users/cswdo');
+            const usersData = await usersResponse.json();
+            
+            // Apply the same transformation as in the initial fetch
+            const transformedUsers = usersData.users
+                .filter((user: any) => user.users_profile && user.users_profile.residents)
+                .map((user: any) => ({
+                    id: user.id,
+                    first_name: user.users_profile.residents.first_name,
+                    middle_name: user.users_profile.residents.middle_name,
+                    last_name: user.users_profile.residents.last_name,
+                    suffix: user.users_profile.residents.suffix,
+                    sex: user.users_profile.residents.sex,
+                    barangay_of_origin: user.users_profile.residents.barangays?.name || 'Unknown',
+                    employee_number: user.employee_number,
+                    birthdate: user.users_profile.residents.birthdate,
+                    email: user.users_profile.email,
+                    role_id: user.users_profile.role_id,
+                    role_name: user.users_profile.roles?.role_name,
+                    assigned_evacuation_center: user.assigned_evacuation_center || null
+                }));
+            
+            setUsers(transformedUsers);
+            setFilteredUsers(transformedUsers);
+            
+        } catch (err) {
+            console.error('Error creating user:', err);
+            setError(err instanceof Error ? err.message : 'Failed to create user');
+        } finally {
+            setFormLoading(false);
+        }
+    };
+
+    // Reset form when modal is closed
+    const handleCloseModal = () => {
+        setFormData({
+            first_name: '',
+            middle_name: '',
+            last_name: '',
+            suffix: '',
+            sex: '',
+            barangay_of_origin: '',
+            employee_number: '',
+            birthdate: '',
+            email: '',
+            password: '',
+            role_id: '',
+            assigned_evacuation_center: ''
+        });
+        setIsAddUserModalOpen(false);
+    };
 
     return(
         <div className='p-6'>
@@ -133,37 +358,57 @@ export default function UserManagement(){
                             </tr>
                         </thead>
                         <tbody className='bg-white'>
-                            {sampleUsers.map((user, index) => (
-                                <tr 
-                                    key={user.id} 
-                                    className={`hover:bg-gray-50 ${index !== sampleUsers.length - 1 ? 'border-b border-gray-200' : ''}`}
-                                >
-                                    <td className='px-6 py-4 whitespace-nowrap'>
-                                        <div className='text-base font-medium text-gray-900'>
-                                            {user.user}
-                                        </div>
-                                    </td>
-                                    <td className='px-6 py-4 whitespace-nowrap'>
-                                        <span 
-                                            className='inline-flex px-4.5 py-1 text-base font-extrabold rounded-lg'
-                                            style={{
-                                                color: '#038B53',
-                                                background: '#DAFFF0'
-                                            }}
-                                        >
-                                            {user.role}
-                                        </span>
-                                    </td>
-                                    <td className='px-6 py-4 whitespace-nowrap text-base text-gray-900'>
-                                        {user.evacuationCenter}
-                                    </td>
-                                    <td className='px-6 py-4 whitespace-nowrap text-right text-base font-medium'>
-                                        <button className='text-gray-400 hover:text-gray-600'>
-                                            <MoreHorizontal className='h-5 w-5' />
-                                        </button>
+                            {loading ? (
+                                <tr>
+                                    <td colSpan={4} className='px-6 py-8 text-center text-gray-500'>
+                                        Loading users...
                                     </td>
                                 </tr>
-                            ))}
+                            ) : error ? (
+                                <tr>
+                                    <td colSpan={4} className='px-6 py-8 text-center text-red-500'>
+                                        Error: {error}
+                                    </td>
+                                </tr>
+                            ) : paginatedUsers.length === 0 ? (
+                                <tr>
+                                    <td colSpan={4} className='px-6 py-8 text-center text-gray-500'>
+                                        {searchTerm ? 'No users found matching your search.' : 'No users found.'}
+                                    </td>
+                                </tr>
+                            ) : (
+                                paginatedUsers.map((user, index) => (
+                                    <tr 
+                                        key={user.id} 
+                                        className={`hover:bg-gray-50 ${index !== paginatedUsers.length - 1 ? 'border-b border-gray-200' : ''}`}
+                                    >
+                                        <td className='px-6 py-4 whitespace-nowrap'>
+                                            <div className='text-base font-medium text-gray-900'>
+                                                {getDisplayName(user)}
+                                            </div>
+                                        </td>
+                                        <td className='px-6 py-4 whitespace-nowrap'>
+                                            <span 
+                                                className='inline-flex px-4.5 py-1 text-base font-extrabold rounded-lg'
+                                                style={{
+                                                    color: '#038B53',
+                                                    background: '#DAFFF0'
+                                                }}
+                                            >
+                                                {getRoleDisplayName(user.role_id, user.role_name)}
+                                            </span>
+                                        </td>
+                                        <td className='px-6 py-4 whitespace-nowrap text-base text-gray-900'>
+                                            {user.assigned_evacuation_center || 'Not assigned'}
+                                        </td>
+                                        <td className='px-6 py-4 whitespace-nowrap text-right text-base font-medium'>
+                                            <button className='text-gray-400 hover:text-gray-600'>
+                                                <MoreHorizontal className='h-5 w-5' />
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
                         </tbody>
                     </table>
                 </div>
@@ -252,7 +497,7 @@ export default function UserManagement(){
                                     Add User
                                 </h2>
                                 <button
-                                    onClick={() => setIsAddUserModalOpen(false)}
+                                    onClick={handleCloseModal}
                                     className='hover:bg-gray-100 p-1 rounded'
                                 >
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="17" viewBox="0 0 16 17" fill="none">
@@ -265,7 +510,7 @@ export default function UserManagement(){
                             </div>
                             
                             {/* Form */}
-                            <form className='space-y-4'>
+                            <form className='space-y-4' onSubmit={handleSubmit}>
                                 {/* Row 1: First Name | Middle Name */}
                                 <div className='grid grid-cols-2 gap-4'>
                                     <div>
@@ -274,8 +519,12 @@ export default function UserManagement(){
                                         </label>
                                         <input
                                             type='text'
+                                            name='first_name'
+                                            value={formData.first_name}
+                                            onChange={handleFormChange}
                                             className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E]'
                                             placeholder='Enter first name'
+                                            required
                                         />
                                     </div>
                                     <div>
@@ -284,6 +533,9 @@ export default function UserManagement(){
                                         </label>
                                         <input
                                             type='text'
+                                            name='middle_name'
+                                            value={formData.middle_name}
+                                            onChange={handleFormChange}
                                             className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E]'
                                             placeholder='Enter middle name'
                                         />
@@ -298,8 +550,12 @@ export default function UserManagement(){
                                         </label>
                                         <input
                                             type='text'
+                                            name='last_name'
+                                            value={formData.last_name}
+                                            onChange={handleFormChange}
                                             className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E]'
                                             placeholder='Enter last name'
+                                            required
                                         />
                                     </div>
                                     <div>
@@ -308,6 +564,9 @@ export default function UserManagement(){
                                         </label>
                                         <input
                                             type='text'
+                                            name='suffix'
+                                            value={formData.suffix}
+                                            onChange={handleFormChange}
                                             className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E]'
                                             placeholder='Enter suffix (optional)'
                                         />
@@ -321,7 +580,11 @@ export default function UserManagement(){
                                             Sex
                                         </label>
                                         <select
+                                            name='sex'
+                                            value={formData.sex}
+                                            onChange={handleFormChange}
                                             className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E]'
+                                            required
                                         >
                                             <option value=''>Select sex</option>
                                             <option value='Male'>Male</option>
@@ -334,8 +597,12 @@ export default function UserManagement(){
                                         </label>
                                         <input
                                             type='text'
+                                            name='barangay_of_origin'
+                                            value={formData.barangay_of_origin}
+                                            onChange={handleFormChange}
                                             className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E]'
                                             placeholder='Enter barangay'
+                                            required
                                         />
                                     </div>
                                 </div>
@@ -348,8 +615,12 @@ export default function UserManagement(){
                                         </label>
                                         <input
                                             type='text'
+                                            name='employee_number'
+                                            value={formData.employee_number}
+                                            onChange={handleFormChange}
                                             className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E]'
                                             placeholder='Enter employee number'
+                                            required
                                         />
                                     </div>
                                     <div>
@@ -358,7 +629,11 @@ export default function UserManagement(){
                                         </label>
                                         <input
                                             type='date'
+                                            name='birthdate'
+                                            value={formData.birthdate}
+                                            onChange={handleFormChange}
                                             className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E]'
+                                            required
                                         />
                                     </div>
                                 </div>
@@ -370,8 +645,12 @@ export default function UserManagement(){
                                     </label>
                                     <input
                                         type='email'
+                                        name='email'
+                                        value={formData.email}
+                                        onChange={handleFormChange}
                                         className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E]'
                                         placeholder='Enter email address'
+                                        required
                                     />
                                 </div>
 
@@ -382,8 +661,12 @@ export default function UserManagement(){
                                     </label>
                                     <input
                                         type='password'
+                                        name='password'
+                                        value={formData.password}
+                                        onChange={handleFormChange}
                                         className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E]'
                                         placeholder='Enter password'
+                                        required
                                     />
                                 </div>
 
@@ -393,11 +676,15 @@ export default function UserManagement(){
                                         Role
                                     </label>
                                     <select
+                                        name='role_id'
+                                        value={formData.role_id}
+                                        onChange={handleFormChange}
                                         className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E]'
+                                        required
                                     >
                                         <option value=''>Select a role</option>
-                                        <option value='CAMP MANAGER'>CAMP MANAGER</option>
-                                        <option value='BARANGAY OFFICER'>BARANGAY OFFICER</option>
+                                        <option value='4'>CSWDO</option>
+                                        <option value='5'>CAMP MANAGER</option>
                                     </select>
                                 </div>
 
@@ -407,6 +694,9 @@ export default function UserManagement(){
                                         Assigned Evacuation Center
                                     </label>
                                     <select
+                                        name='assigned_evacuation_center'
+                                        value={formData.assigned_evacuation_center}
+                                        onChange={handleFormChange}
                                         className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E]'
                                     >
                                         <option value=''>Select an evacuation center</option>
@@ -495,16 +785,19 @@ export default function UserManagement(){
                             {/* Modal Footer */}
                             <div className='flex justify-end gap-3 mt-6 pt-4'>
                                 <button
-                                    onClick={() => setIsAddUserModalOpen(false)}
+                                    type='button'
+                                    onClick={handleCloseModal}
                                     className='px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none'
                                 >
                                     Cancel
                                 </button>
                                 <button
-                                    className='px-4 py-2 text-white rounded-md hover:opacity-90 focus:outline-none'
+                                    type='submit'
+                                    disabled={formLoading}
+                                    className='px-4 py-2 text-white rounded-md hover:opacity-90 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed'
                                     style={{ backgroundColor: '#00824E' }}
                                 >
-                                    Add User
+                                    {formLoading ? 'Adding...' : 'Add User'}
                                 </button>
                             </div>
                         </div>

@@ -954,15 +954,256 @@ const completeUserProfile = async (req, res) => {
   }
 };
 
+// Get users by role_id
+const getUsersByRole = async (req, res) => {
+  try {
+    const { roleId } = req.params;
+    const { page = 1, limit = 10, search = '' } = req.query;
+    const offset = (page - 1) * limit;
+
+    // Validate roleId
+    if (!roleId || isNaN(parseInt(roleId))) {
+      return res.status(400).json({ 
+        message: 'Invalid role ID provided',
+        error: 'Role ID must be a valid number'
+      });
+    }
+
+    const roleIdInt = parseInt(roleId);
+
+    let query = supabaseAdmin
+      .from('users')
+      .select(`
+        id,
+        employee_number,
+        created_at,
+        user_profile_id,
+        users_profile!user_profile_id (
+          id,
+          email,
+          role_id,
+          is_active,
+          roles!role_id (
+            id,
+            role_name
+          ),
+          residents!resident_id (
+            first_name,
+            middle_name,
+            last_name,
+            suffix,
+            sex,
+            birthdate,
+            barangay_of_origin,
+            barangays!barangay_of_origin (
+              id,
+              name
+            )
+          )
+        )
+      `)
+      .eq('users_profile.role_id', roleIdInt)
+      .range(offset, offset + limit - 1)
+      .order('created_at', { ascending: false });
+
+    // Add search filter if provided
+    if (search) {
+      query = query.or(`users_profile.residents.first_name.ilike.%${search}%,users_profile.residents.last_name.ilike.%${search}%,users_profile.email.ilike.%${search}%,employee_number.ilike.%${search}%`);
+    }
+
+    const { data: users, error } = await query;
+
+    if (error) {
+      console.error(`Error fetching users with role_id ${roleIdInt}:`, error);
+      return res.status(500).json({ 
+        message: `Failed to fetch users with role_id ${roleIdInt}`,
+        error: error.message 
+      });
+    }
+
+    // Get total count for users with specified role_id
+    const { data: allUsers, error: countError } = await supabaseAdmin
+      .from('users')
+      .select(`
+        id,
+        users_profile!user_profile_id (
+          role_id
+        )
+      `)
+      .eq('users_profile.role_id', roleIdInt);
+
+    if (countError) {
+      console.error(`Error counting users with role_id ${roleIdInt}:`, countError);
+      return res.status(500).json({ 
+        message: `Failed to count users with role_id ${roleIdInt}`,
+        error: countError.message 
+      });
+    }
+
+    const totalCount = allUsers ? allUsers.length : 0;
+
+    res.status(200).json({
+      users,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total: totalCount,
+        totalPages: Math.ceil(totalCount / limit)
+      }
+    });
+
+  } catch (error) {
+    console.error('Get users by role error:', error);
+    res.status(500).json({ 
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
+// Get users with role_id 4 and 5 (for role-based restrictions)
+const getUsersWithRoleFourAndFive = async (req, res) => {
+  try {
+    const { page = 1, limit = 10, search = '' } = req.query;
+    const offset = (page - 1) * limit;
+
+    // Role IDs 4 and 5
+    const targetRoleIds = [4, 5];
+
+    let query = supabaseAdmin
+      .from('users')
+      .select(`
+        id,
+        employee_number,
+        created_at,
+        user_profile_id,
+        users_profile!user_profile_id (
+          id,
+          email,
+          role_id,
+          is_active,
+          roles!role_id (
+            id,
+            role_name
+          ),
+          residents!resident_id (
+            first_name,
+            middle_name,
+            last_name,
+            suffix,
+            sex,
+            birthdate,
+            barangay_of_origin,
+            barangays!barangay_of_origin (
+              id,
+              name
+            )
+          )
+        )
+      `)
+      .in('users_profile.role_id', targetRoleIds)
+      .range(offset, offset + limit - 1)
+      .order('created_at', { ascending: false });
+
+    // Add search filter if provided
+    if (search) {
+      query = query.or(`users_profile.residents.first_name.ilike.%${search}%,users_profile.residents.last_name.ilike.%${search}%,users_profile.email.ilike.%${search}%,employee_number.ilike.%${search}%`);
+    }
+
+    const { data: users, error } = await query;
+
+    if (error) {
+      console.error('Error fetching users with role_id 4 and 5:', error);
+      return res.status(500).json({ 
+        message: 'Failed to fetch users with role_id 4 and 5',
+        error: error.message 
+      });
+    }
+
+    // Get evacuation center assignments for these users
+    let usersWithEvacuationCenters = users;
+    if (users && users.length > 0) {
+      const userIds = users.map(user => user.id);
+      
+      const { data: evacuationAssignments, error: evacuationError } = await supabaseAdmin
+        .from('disaster_evacuation_event')
+        .select(`
+          assigned_user_id,
+          evacuation_center_id,
+          evacuation_centers!evacuation_center_id (
+            id,
+            name
+          )
+        `)
+        .in('assigned_user_id', userIds)
+        .order('evacuation_start_date', { ascending: false });
+
+      if (evacuationError) {
+        console.error('Error fetching evacuation assignments:', evacuationError);
+        // Continue without evacuation center data
+      } else {
+        // Merge evacuation center data with users
+        usersWithEvacuationCenters = users.map(user => {
+          const assignment = evacuationAssignments?.find(assignment => assignment.assigned_user_id === user.id);
+          return {
+            ...user,
+            assigned_evacuation_center: assignment?.evacuation_centers?.name || null
+          };
+        });
+      }
+    }
+
+    // Get total count for users with role_id 4 and 5
+    const { data: allUsers, error: countError } = await supabaseAdmin
+      .from('users')
+      .select(`
+        id,
+        users_profile!user_profile_id (
+          role_id
+        )
+      `)
+      .in('users_profile.role_id', targetRoleIds);
+
+    if (countError) {
+      console.error('Error counting users with role_id 4 and 5:', countError);
+      return res.status(500).json({ 
+        message: 'Failed to count users with role_id 4 and 5',
+        error: countError.message 
+      });
+    }
+
+    const totalCount = allUsers ? allUsers.length : 0;
+
+    res.status(200).json({
+      users: usersWithEvacuationCenters,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total: totalCount,
+        totalPages: Math.ceil(totalCount / limit)
+      }
+    });
+
+  } catch (error) {
+    console.error('Get users with role 4 and 5 error:', error);
+    res.status(500).json({ 
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   createUser,
   getUsers,
   getUserById,
+  getUsersByRole,
   getRoles,
   getEvacuationCenters,
   getBarangays,
   getEnumValues,
   checkUserSynchronization,
   createUserWithTrigger,
-  completeUserProfile
+  completeUserProfile,
+  getUsersWithRoleFourAndFive
 };
