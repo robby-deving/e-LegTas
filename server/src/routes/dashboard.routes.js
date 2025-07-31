@@ -23,6 +23,9 @@ router.get('/evacuee-statistics/:disasterId', dashboardController.getEvacueeStat
 // GET evacuation center capacity status for a specific disaster
 // Example: GET /api/v1/dashboard/capacity-status/:disasterId
 router.get('/capacity-status/:disasterId', dashboardController.getEvacuationCenterCapacityStatus);
+// GET all active disasters
+// Example: GET - /api/v1/dashboard/disasters
+router.get('/disasters', dashboardController.getActiveDisasters);
 
 
 // Future dashboard routes can follow this format:

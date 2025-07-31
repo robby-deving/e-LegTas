@@ -354,5 +354,32 @@ exports.getEvacuationCenterCapacityStatus = async (req, res, next) => {
     }
 };
 
+/**
+ * @desc Get all active disasters
+ * @route GET /api/v1/dashboard/disasters
+ * @access Public
+ */
+
+exports.getActiveDisasters = async (req, res) => {
+  const { data, error } = await supabase
+    .from('disasters')
+    .select(`
+      id,
+      disaster_name,
+      disaster_start_date,
+      disaster_end_date,
+      disaster_types ( name )
+    `)
+    .not('disaster_start_date', 'is', null)  // has started
+    .is('disaster_end_date', null)           // still ongoing
+    .order('disaster_start_date', { ascending: false });
+
+  if (error) return res.status(500).json({ error: error.message });
+
+  res.status(200).json(data);
+};
+
+
+
 
 
