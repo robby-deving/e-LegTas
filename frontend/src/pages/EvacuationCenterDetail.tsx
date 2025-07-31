@@ -13,7 +13,7 @@ import { usePageTitle } from "../hooks/usePageTitle";
 import axios from "axios";
 
 export default function EvacuationCenterDetail() {
-  usePageTitle('Evacuation Center Detail');
+  usePageTitle("Evacuation Center Detail");
   const navigate = useNavigate();
   const { disasterId, centerName: centerParam } = useParams<{ disasterId?: string; centerName?: string }>();
   const centerName = decodeURIComponent(centerParam || "");
@@ -23,9 +23,6 @@ export default function EvacuationCenterDetail() {
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [selectedEvacuee, setSelectedEvacuee] = useState<any>(null);
-  const [showRegisterModal, setShowRegisterModal] = useState(false);
-  const [searchResults, setSearchResults] = useState<any[]>([]);
-
   const [evacuees, setEvacuees] = useState<any[]>([]); // Will fetch evacuees from backend
   const [disaster, setDisaster] = useState<any>(null); // Will fetch disaster details from backend
 
@@ -33,8 +30,11 @@ export default function EvacuationCenterDetail() {
   useEffect(() => {
     const fetchEvacuationData = async () => {
       try {
+        console.log("Disaster ID:", disasterId); // Log disasterId to ensure it's correct
+        console.log("Evacuation Center Name:", centerName); // Log centerName for debugging
+
         // Fetch disaster details using disasterId
-        const resDisaster = await axios.get(`/api/v1/disasters/${disasterId}`);
+        const resDisaster = await axios.get(`/api/v1/disaster-events/by-disaster/${disasterId}/details`);
         setDisaster(resDisaster.data);
 
         // Fetch evacuees based on the centerName
@@ -57,8 +57,8 @@ export default function EvacuationCenterDetail() {
   const totalPages = Math.ceil(totalRows / rowsPerPage);
   const paginatedEvacuees = filteredEvacuees.slice((page - 1) * rowsPerPage, page * rowsPerPage);
 
-  useEffect(() => { 
-    setPage(1); 
+  useEffect(() => {
+    setPage(1);
   }, [search, rowsPerPage]);
 
   const handleRowClick = (evacueeId: number) => {
@@ -97,7 +97,7 @@ export default function EvacuationCenterDetail() {
 
   const handleRegisterClick = () => {
     setEvacueeModalMode('register');
-    setShowRegisterModal(true);
+    setEvacueeModalOpen(true);
   };
 
   const handleEditMember = (fullName: string) => {
@@ -370,7 +370,7 @@ export default function EvacuationCenterDetail() {
               <span className="text-lg">+</span> Register Evacuee
             </Button>
           </div>
-          
+
           <div className="rounded-md border border-input">
             <Table>
               <TableHeader className="bg-gray-50">

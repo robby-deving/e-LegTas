@@ -45,6 +45,7 @@ exports.registerEvacuee = async (req, res, next) => {
   let resident_id = null;
   let evacuee_id = null;
   let registration_id = null;
+  let family_head_inserted_id = null; // To store the family head ID
 
   try {
     console.log('Step 1: Insert resident...');
@@ -58,6 +59,7 @@ exports.registerEvacuee = async (req, res, next) => {
       barangay_of_origin
     });
 
+    // Insert the resident
     const { data: residentData, error: residentError } = await supabase
       .from('residents')
       .insert([{
@@ -79,19 +81,30 @@ exports.registerEvacuee = async (req, res, next) => {
     const age = Math.floor((Date.now() - birthdateObj) / (365.25 * 24 * 60 * 60 * 1000));
     const isHead = relationship_to_family_head === 'Head';
 
-    console.log('Step 2: Insert evacuee_residents...');
-    console.log('Evacuee Payload:', {
-      resident_id,
-      marital_status,
-      educational_attainment,
-      school_of_origin,
-      occupation,
-      purok,
-      family_head_id: isHead ? null : family_head_id,
-      relationship_to_family_head,
-      date_registered: date_registered || new Date().toISOString()
-    });
+    // If the resident is the family head, insert into family_head table
+    if (isHead) {
+      console.log('Step 2: Insert family head...');
+      const { data: familyHeadData, error: familyHeadError } = await supabase
+        .from('family_head')
+        .insert([{
+          resident_id // Use the resident_id for the family head
+        }])
+        .select()
+        .single();
 
+      if (familyHeadError) {
+        await supabase.from('residents').delete().eq('id', resident_id);
+        throw new ApiError('Failed to register family head.', 500);
+      }
+
+      family_head_inserted_id = familyHeadData.id; // Store the inserted family head ID
+    } else {
+      // If not the family head, use the provided family_head_id
+      family_head_inserted_id = family_head_id;
+    }
+
+    // Step 2: Insert evacuee_residents
+    console.log('Step 3: Insert evacuee_residents...');
     const { data: evacueeData, error: evacueeError } = await supabase
       .from('evacuee_residents')
       .insert([{
@@ -101,7 +114,7 @@ exports.registerEvacuee = async (req, res, next) => {
         school_of_origin,
         occupation,
         purok,
-        family_head_id: isHead ? null : family_head_id,
+        family_head_id: family_head_inserted_id, // Use the family_head_id from family_heads table
         relationship_to_family_head,
         date_registered: date_registered || new Date().toISOString()
       }])
@@ -115,36 +128,14 @@ exports.registerEvacuee = async (req, res, next) => {
     }
     evacuee_id = evacueeData.id;
 
-    let effectiveFamilyHeadId = family_head_id;
-    if (isHead) {
-      console.log('Step 2.1: Update family_head_id for Head...');
-      const { error: updateError } = await supabase
-        .from('evacuee_residents')
-        .update({ family_head_id: evacuee_id })
-        .eq('id', evacuee_id);
-      if (updateError) {
-        await supabase.from('evacuee_residents').delete().eq('id', evacuee_id);
-        await supabase.from('residents').delete().eq('id', resident_id);
-        throw new ApiError('Failed to set family_head_id for head.', 500);
-      }
-      effectiveFamilyHeadId = evacuee_id;
-    }
-
-    console.log('Step 3: Insert evacuation_registrations...');
-    console.log('Evacuation Registration Payload:', {
-      evacuee_resident_id: evacuee_id,
-      disaster_evacuation_event_id,
-      family_head_id: effectiveFamilyHeadId,
-      reported_age_at_arrival: age,
-      ec_rooms_id
-    });
-
+    // Step 3: Insert evacuation_registrations
+    console.log('Step 4: Insert evacuation_registrations...');
     const { data: registrationData, error: registrationError } = await supabase
       .from('evacuation_registrations')
       .insert([{
         evacuee_resident_id: evacuee_id,
         disaster_evacuation_event_id,
-        family_head_id: effectiveFamilyHeadId,
+        family_head_id: family_head_inserted_id,
         arrival_timestamp: new Date().toISOString(),
         decampment_timestamp: null,
         reported_age_at_arrival: age,
@@ -161,6 +152,7 @@ exports.registerEvacuee = async (req, res, next) => {
     }
     registration_id = registrationData.id;
 
+    // Step 4: Insert vulnerabilities (if any)
     const vulnerabilities = [];
     if (is_pwd) vulnerabilities.push(4);
     if (is_minor) vulnerabilities.push(2);
@@ -169,12 +161,7 @@ exports.registerEvacuee = async (req, res, next) => {
     if (is_lactating) vulnerabilities.push(6);
 
     if (vulnerabilities.length > 0) {
-      console.log('Step 4: Insert vulnerabilities...');
-      console.log('Vulnerabilities Payload:', vulnerabilities.map(vuln_id => ({
-        evacuee_resident_id: evacuee_id,
-        vulnerability_type_id: vuln_id
-      })));
-
+      console.log('Step 5: Insert vulnerabilities...');
       const vulnInserts = vulnerabilities.map(vuln_id => ({
         evacuee_resident_id: evacuee_id,
         vulnerability_type_id: vuln_id
@@ -196,7 +183,7 @@ exports.registerEvacuee = async (req, res, next) => {
     return res.status(201).json({
       message: 'Evacuee registered successfully.',
       data: {
-        evacuee: { ...evacueeData, family_head_id: effectiveFamilyHeadId },
+        evacuee: { ...evacueeData, family_head_id: family_head_inserted_id },
         evacuation_registration: registrationData,
         vulnerability_type_ids: vulnerabilities
       }
@@ -210,6 +197,8 @@ exports.registerEvacuee = async (req, res, next) => {
     return next(new ApiError('Internal server error during evacuee registration.', 500));
   }
 };
+
+
 
 /**
  * @desc Get an evacuee's details by ID including resident & vulnerabilities
@@ -227,6 +216,7 @@ exports.getEvacueeById = async (req, res, next) => {
             .single();
         if (evacueeError || !evacuee) throw new ApiError(`Evacuee with ID ${id} not found.`, 404);
 
+        // Fetch resident data for this evacuee
         const { data: resident, error: residentError } = await supabase
             .from('residents')
             .select('*')
@@ -234,6 +224,7 @@ exports.getEvacueeById = async (req, res, next) => {
             .single();
         if (residentError || !resident) throw new ApiError('Resident data not found.', 404);
 
+        // Fetch vulnerabilities for this evacuee
         const { data: vulnerabilityLinks, error: vulnError } = await supabase
             .from('resident_vulnerabilities')
             .select('vulnerability_type_id, vulnerability_types(name)')
@@ -242,12 +233,34 @@ exports.getEvacueeById = async (req, res, next) => {
 
         const vulnerabilities = vulnerabilityLinks.map(v => v.vulnerability_types.name);
 
+        // Fetch the evacuation registration for this evacuee
         const { data: registration, error: regError } = await supabase
             .from('evacuation_registrations')
             .select('*')
             .eq('evacuee_resident_id', id)
             .single();
         if (regError || !registration) throw new ApiError('Evacuation registration not found.', 404);
+
+        // Fetch the family head data from family_head table (based on family_head_id)
+        let familyHeadData = null;
+        if (registration.family_head_id) {
+            const { data: familyHead, error: familyHeadError } = await supabase
+                .from('family_head')
+                .select('id, resident_id')
+                .eq('id', registration.family_head_id)  // Get family head by family_head_id
+                .single();
+            if (familyHeadError) throw new ApiError('Error fetching family head data.', 500);
+            if (familyHead) {
+                // Get the family head's resident data
+                const { data: familyHeadResident, error: familyHeadResidentError } = await supabase
+                    .from('residents')
+                    .select('*')
+                    .eq('id', familyHead.resident_id)  // Get resident data for family head
+                    .single();
+                if (familyHeadResidentError) throw new ApiError('Error fetching family head resident data.', 500);
+                familyHeadData = familyHeadResident;
+            }
+        }
 
         return res.status(200).json({
             evacuee: {
@@ -258,7 +271,7 @@ exports.getEvacueeById = async (req, res, next) => {
                 school_of_origin: evacuee.school_of_origin,
                 occupation: evacuee.occupation,
                 purok: evacuee.purok,
-                family_head_id: evacuee.family_head_id,
+                family_head: familyHeadData,  // Only include family head data here
                 relationship_to_family_head: evacuee.relationship_to_family_head,
                 date_registered: evacuee.date_registered,
                 vulnerabilities: vulnerabilities,

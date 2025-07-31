@@ -19,8 +19,6 @@ import { usePageTitle } from "../hooks/usePageTitle";
 import { formatDate } from "@/utils/dateFormatter";
 import { getTypeColor, getTagColor } from '@/constants/disasterTypeColors';
 
-
-
 export default function DisasterDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -34,32 +32,51 @@ export default function DisasterDetail() {
   const rawDisasterId = id?.split("-")[0] || "";
   const disasterId = decodeId(rawDisasterId);
 
+  // Fetch disaster data and handle error
   useEffect(() => {
-    const storedDisasters = localStorage.getItem("disasters");
-    if (storedDisasters) {
+    const fetchDisasterData = async () => {
+      console.log("Fetching disaster data for ID:", disasterId);
+      
       try {
-        const parsed: Disaster[] = JSON.parse(storedDisasters);
-        const disasterDetails = parsed.find(d => d.id === disasterId);
-        if (disasterDetails) setDisaster(disasterDetails);
+        const storedDisasters = localStorage.getItem("disasters");
+        if (storedDisasters) {
+          const parsed: Disaster[] = JSON.parse(storedDisasters);
+          const disasterDetails = parsed.find(d => d.id === disasterId);
+          if (disasterDetails) {
+            setDisaster(disasterDetails);
+          } else {
+            console.error("Disaster not found in local storage");
+          }
+        }
       } catch (e) {
         console.error("Error parsing disasters from localStorage", e);
       }
-    }
+    };
+
+    fetchDisasterData();
   }, [disasterId]);
 
   usePageTitle(disaster?.name ?? "");
 
   // Filter evacuation centers based on search term
-  // Reset to first page when filtering
   useEffect(() => {
     const fetchEvacuationCenters = async () => {
-      if (!disasterId || isNaN(disasterId)) return;
+      console.log("Fetching evacuation centers for disaster ID:", disasterId);
+
+      if (!disasterId || isNaN(disasterId)) {
+        console.error("Invalid disasterId:", disasterId);
+        return;
+      }
 
       try {
         const res = await axios.get(
           `http://localhost:3000/api/v1/disaster-events/by-disaster/${disasterId}/details`
         );
-        setCenters(res.data.data);
+        if (res.data && res.data.data) {
+          setCenters(res.data.data);
+        } else {
+          console.error("No evacuation data found for disasterId:", disasterId);
+        }
       } catch (err) {
         console.error("Failed to fetch evacuation data", err);
       }
@@ -75,10 +92,10 @@ export default function DisasterDetail() {
   };
 
   if (!disaster) {
-    return <div className="text-red-500 p-6">Disaster not found</div>;
+    console.error("Disaster not found for disasterId:", disasterId);
+    return <div className="text-red-500 p-6">Disaster not found for ID: {disasterId}</div>;
   }
 
- 
   const filteredCenters = evacuationCenters.filter(center =>
     center.evacuation_center_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     center.evacuation_center_barangay_name.toLowerCase().includes(searchTerm.toLowerCase())

@@ -26,11 +26,20 @@ class ApiError extends Error {
 exports.getDisasterEventDetailsByDisasterId = async (req, res, next) => {
     const { disasterId } = req.params;
 
+    // Log the incoming disasterId to confirm it's received correctly
+    console.log('Received Disaster ID:', disasterId);
+
+    // Check if the disasterId is valid
     if (!disasterId || isNaN(Number(disasterId))) {
+        console.error('Invalid Disaster ID provided:', disasterId); // Log invalid disasterId
         return next(new ApiError('Invalid Disaster ID provided.', 400));
     }
 
     try {
+        // Log the query about to be executed for debugging
+        console.log(`Querying Supabase for disaster ID: ${disasterId}`);
+
+        // Query Supabase for disaster event data
         const { data, error } = await supabase
             .from(TABLE_NAME) // Disaster_Evacuation_Event
             .select(`
@@ -57,12 +66,18 @@ exports.getDisasterEventDetailsByDisasterId = async (req, res, next) => {
             `)
             .eq('disaster_id', disasterId); // Filter by disaster_id
 
+        // Check for errors from Supabase
         if (error) {
-            console.error('Supabase Error (getDisasterEventDetailsByDisasterId):', error);
+            console.error('Supabase Error (getDisasterEventDetailsByDisasterId):', error); // Log Supabase error
             return next(new ApiError('Failed to retrieve detailed disaster event data.', 500));
         }
 
+        // Log the response data from Supabase for debugging
+        console.log('Supabase response data:', data);
+
+        // If no data is returned, return a response with a message
         if (!data || data.length === 0) {
+            console.log(`No disaster evacuation events found for Disaster ID: ${disasterId}`); // Log when no data is found
             return res.status(200).json({
                 message: `No disaster evacuation events found for Disaster ID ${disasterId}.`,
                 data: []
@@ -82,7 +97,7 @@ exports.getDisasterEventDetailsByDisasterId = async (req, res, next) => {
             const evacuationCenterTotalCapacity = evacuationCenter ? evacuationCenter.total_capacity : 0;
             const evacuationCenterBarangayName = (evacuationCenter && evacuationCenter.barangays) ? evacuationCenter.barangays.name : null;
 
-            // Extract Assigned User Name - FIX: Changed from event.Users to event.users
+            // Extract Assigned User Name
             let assignedUserName = null;
             if (event.users && event.users.user_profile && event.users.user_profile.residents) {
                 const resident = event.users.user_profile.residents;
@@ -94,7 +109,7 @@ exports.getDisasterEventDetailsByDisasterId = async (req, res, next) => {
                 ].filter(Boolean).join(' ');
             }
 
-            // Destructure to omit the original nested objects from the final output - FIX: Updated property names
+            // Destructure to omit the original nested objects from the final output
             const { evacuation_summaries, evacuation_centers, users, ...rest } = event;
 
             return {
@@ -108,15 +123,23 @@ exports.getDisasterEventDetailsByDisasterId = async (req, res, next) => {
             };
         });
 
+        // Log the transformed data before sending the response
+        console.log('Transformed disaster evacuation data:', transformedData);
+
+        // Send the final response to the frontend
         res.status(200).json({
             message: `Successfully retrieved detailed disaster evacuation events for Disaster ID ${disasterId}.`,
             count: transformedData.length,
             data: transformedData
         });
     } catch (err) {
+        // Log any errors during the execution
+        console.error('Error during getDisasterEventDetailsByDisasterId:', err);
         next(new ApiError('Internal server error during getDisasterEventDetailsByDisasterId.', 500));
     }
 };
+
+
 
 /**
  * @desc Get a single detailed disaster evacuation event by its ID,
