@@ -18,6 +18,223 @@ class ApiError extends Error {
 // --- Controller Functions ---
 
 /**
+ * @desc Get detailed disaster evacuation event data filtered by disaster evacuation event ID.
+ *       Includes summary counts, evacuation center details, and a list of evacuees.
+ * @route GET /api/v1/disaster-events/by-disaster-evacuation-event/:disasterEvacuationEventId/details
+ * @access Public (authentication can be added later if required)
+ */
+
+exports.getEvacueesByDisasterEvacuationEventId = async (req, res, next) => {
+  const { disasterEvacuationEventId } = req.params;
+  console.log(`Fetching evacuees for disaster evacuation event with ID: ${disasterEvacuationEventId}`);
+
+  try {
+    // Validate disasterEvacuationEventId
+    if (isNaN(disasterEvacuationEventId)) {
+      return next(new ApiError(`Invalid disaster evacuation event ID: ${disasterEvacuationEventId}`, 400));
+    }
+
+    // Fetch the disaster evacuation event
+    const { data: disasterEvacuationEventData, error: disasterEvacuationEventError } = await supabase
+      .from('disaster_evacuation_event')
+      .select('id, disaster_id')
+      .eq('id', disasterEvacuationEventId)
+      .single();
+
+    console.log(`Disaster Evacuation Event Data: ${JSON.stringify(disasterEvacuationEventData)}`);
+    
+    if (disasterEvacuationEventError || !disasterEvacuationEventData) {
+      return next(new ApiError(`Disaster evacuation event with ID "${disasterEvacuationEventId}" not found.`, 404));
+    }
+
+    const disasterId = disasterEvacuationEventData.disaster_id;
+    console.log(`Disaster ID from disaster evacuation event: ${disasterId}`);
+
+    // Fetch the disaster details using the disaster_id
+    const { data: disasterData, error: disasterError } = await supabase
+      .from('disasters')
+      .select('disaster_types(name), name, disaster_start_date')
+      .eq('id', disasterId)
+      .single();
+
+    console.log(`Disaster Data: ${JSON.stringify(disasterData)}`);
+
+    if (disasterError || !disasterData) {
+      return next(new ApiError(`Disaster with ID "${disasterId}" not found.`, 404));
+    }
+
+    const disasterType = disasterData?.disaster_types?.name || 'Unknown Type';
+    const disasterName = disasterData?.name || 'Unknown Disaster';
+    const disasterStartDate = disasterData?.disaster_start_date || 'Unknown Start Date';
+
+    console.log(`Disaster Type: ${disasterType}, Disaster Name: ${disasterName}, Start Date: ${disasterStartDate}`);
+
+    // Fetch the evacuation center details for this disaster evacuation event
+    const { data: evacuationCenterData, error: evacuationCenterError } = await supabase
+      .from('evacuation_centers')
+      .select(`
+        name,
+        barangays(name),
+        evacuation_center_rooms(individual_room_capacity)
+      `)
+      .eq('disaster_evacuation_event_id', disasterEvacuationEventId);
+
+    if (evacuationCenterError || !evacuationCenterData || evacuationCenterData.length === 0) {
+      return next(new ApiError(`No evacuation centers found for disaster evacuation event ID "${disasterEvacuationEventId}".`, 404));
+    }
+
+    // Summing up the individual room capacity for all evacuation center rooms
+    const totalCapacity = evacuationCenterData.reduce((sum, center) => {
+      const roomCapacity = center.evacuation_center_rooms.reduce((roomSum, room) => roomSum + (room.individual_room_capacity || 0), 0);
+      return sum + roomCapacity;
+    }, 0);
+
+    // Fetch evacuees
+    const { data: evacuees, error: evacueesError } = await supabase
+      .from('evacuation_registrations')
+      .select(`
+        id,
+        evacuee_resident_id,
+        family_head_id,
+        arrival_timestamp,
+        decampment_timestamp,
+        ec_rooms_id,
+        evacuee_residents (
+          id,
+          family_head_id,
+          relationship_to_family_head,
+          residents (
+            first_name,
+            last_name,
+            birthdate,
+            sex,
+            barangays(name)
+          )
+        ),
+        family_head (
+          id,
+          resident_id,
+          residents (
+            first_name,
+            last_name
+          )
+        ),
+        evacuation_center_rooms (
+          room_name
+        )
+      `)
+      .eq('disaster_evacuation_event_id', disasterEvacuationEventId);
+
+    if (evacueesError || !evacuees || evacuees.length === 0) {
+      return next(new ApiError(`No evacuees found for disaster evacuation event ID "${disasterEvacuationEventId}".`, 404));
+    }
+
+    // Construct the summary
+    const summary = {
+      total_male: 0,
+      total_female: 0,
+      total_individuals: evacuees.length,
+      total_families: evacuees.length,
+      infant: 0,
+      children: 0,
+      youth: 0,
+      adult: 0,
+      senior_citizens: 0,
+      pwd: 0,
+      pregnant: 0,
+      lactating: 0
+    };
+
+    // Process evacuee data
+    const transformedEvacuees = await Promise.all(evacuees.map(async (evacuee) => {
+      const evacResident = evacuee.evacuee_residents;
+      const resident = evacResident?.residents || {};
+      const barangay = resident.barangays || {};
+
+      const birthdate = resident.birthdate ? new Date(resident.birthdate) : null;
+      const age = birthdate ? Math.floor((Date.now() - birthdate.getTime()) / (365.25 * 24 * 60 * 60 * 1000)) : null;
+      const sex = resident.sex || 'Unknown';
+      const roomName = evacuee.evacuation_center_rooms?.room_name || 'Unknown Room';
+      const decampmentTimestamp = evacuee.decampment_timestamp || null;
+
+      const { data: familyHeadData, error: familyHeadError } = await supabase
+        .from('family_head')
+        .select('resident_id')
+        .eq('id', evacuee.family_head_id)
+        .single();
+
+      const familyHeadFullName = familyHeadError || !familyHeadData
+        ? 'Unknown'
+        : familyHeadData.resident_id;
+
+      // --- Summary Counting ---
+      if (sex === 'Male') summary.total_male++;
+      else if (sex === 'Female') summary.total_female++;
+
+      if (age !== null) {
+        if (age <= 2) summary.infant++;
+        else if (age <= 12) summary.children++;
+        else if (age <= 17) summary.youth++;
+        else if (age <= 59) summary.adult++;
+        else summary.senior_citizens++;
+      }
+
+      return {
+        evacuee_id: evacuee.id,
+        evacuee_resident_id: evacResident?.id || null,
+        familyHeadId: evacuee.family_head_id,
+        roomId: evacuee.ec_rooms_id,
+        roomName,
+        firstName: resident.first_name || '',
+        lastName: resident.last_name || '',
+        age,
+        barangay_of_origin: barangay.name || 'Unknown',
+        sex,
+        arrivalTimestamp: evacuee.arrival_timestamp,
+        decampmentTimestamp,
+        familyHeadFullName
+      };
+    }));
+
+    // Respond with the data
+    return res.status(200).json({
+      message: `Successfully retrieved ${evacuees.length} evacuees for disaster evacuation event with ID "${disasterEvacuationEventId}".`,
+      disasterType: disasterType,
+      disasterName: disasterName,
+      disasterStartDate: disasterStartDate,
+      evacuationCenterName: evacuationCenterData[0].name,
+      barangayName: evacuationCenterData[0].barangays.name,
+      totalFamilies: summary.total_families,
+      totalEvacuees: summary.total_individuals,
+      totalCapacity: totalCapacity,
+      summary: summary,
+      evacuees: transformedEvacuees
+    });
+
+  } catch (err) {
+    console.error('Error in getEvacueesByDisasterEvacuationEventId:', err);
+    return next(new ApiError('Internal server error while fetching evacuees.', 500));
+  }
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/**
  * @desc Get detailed disaster evacuation event data filtered by disaster ID,
  * including summary counts, evacuation center details, and assigned user's name.
  * @route GET /api/v1/disaster-events/by-disaster/:disasterId/details
@@ -146,7 +363,7 @@ exports.getDisasterEventDetailsByDisasterId = async (req, res, next) => {
  * including summary counts, evacuation center details, and assigned user's name.
  * @route GET /api/v1/disaster-events/:id
  * @access Public (for now, apply auth middleware later if needed)
- */
+ 
 exports.getDisasterEventById = async (req, res, next) => {
     const { id } = req.params;
 
@@ -241,7 +458,7 @@ exports.getDisasterEventById = async (req, res, next) => {
     } catch (err) {
         next(new ApiError('Internal server error during getDisasterEventById.', 500));
     }
-};
+};**/
 
 
 /**

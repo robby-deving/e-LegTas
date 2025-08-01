@@ -13,9 +13,13 @@ const router = express.Router();
 // Example: GET /api/v1/disaster-events/by-disaster/123/details
 router.get('/by-disaster/:disasterId/details', disasterEventController.getDisasterEventDetailsByDisasterId);
 
+// GET detailed evacuee data for a given disaster evacuation event ID
+// Example: GET /api/v1/disaster-events/:disasterEvacuationEventId/evacuees
+router.get('/:disasterEvacuationEventId/evacuees', disasterEventController.getEvacueesByDisasterEvacuationEventId);
+
 // GET a single detailed disaster evacuation event by its ID
 // Example: GET /api/v1/disaster-events/456
-router.get('/:id', disasterEventController.getDisasterEventById);
+//router.get('/:id', disasterEventController.getDisasterEventById);
 
 // POST a new disaster evacuation event entry
 // Example: POST /api/v1/disaster-events with JSON body

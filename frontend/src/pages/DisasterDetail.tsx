@@ -1,7 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Input } from "../components/ui/input";
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "../components/ui/table";
+import {
+  Table,
+  TableHeader,
+  TableRow,
+  TableHead,
+  TableBody,
+  TableCell
+} from "../components/ui/table";
 import { ChevronRight, Calendar, ArrowRight } from "lucide-react";
 import { Pagination } from "../components/ui/pagination";
 import { decodeId } from "@/utils/secureId";
@@ -11,7 +18,8 @@ import type { ActiveEvacuation } from "@/types/EvacuationCenter";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { formatDate } from "@/utils/dateFormatter";
 import { getTypeColor, getTagColor } from '@/constants/disasterTypeColors';
-import { encodeId } from "@/utils/secureId"; // Import encodeId utility
+
+
 
 export default function DisasterDetail() {
   const { id } = useParams<{ id: string }>();
@@ -26,51 +34,30 @@ export default function DisasterDetail() {
   const rawDisasterId = id?.split("-")[0] || "";
   const disasterId = decodeId(rawDisasterId);
 
-  // Fetch disaster data and handle error
   useEffect(() => {
-    const fetchDisasterData = async () => {
-      console.log("Fetching disaster data for ID:", disasterId);
-      
+    const storedDisasters = localStorage.getItem("disasters");
+    if (storedDisasters) {
       try {
-        const storedDisasters = localStorage.getItem("disasters");
-        if (storedDisasters) {
-          const parsed: Disaster[] = JSON.parse(storedDisasters);
-          const disasterDetails = parsed.find(d => d.id === disasterId);
-          if (disasterDetails) {
-            setDisaster(disasterDetails);
-          } else {
-            console.error("Disaster not found in local storage");
-          }
-        }
+        const parsed: Disaster[] = JSON.parse(storedDisasters);
+        const disasterDetails = parsed.find(d => d.id === disasterId);
+        if (disasterDetails) setDisaster(disasterDetails);
       } catch (e) {
         console.error("Error parsing disasters from localStorage", e);
       }
-    };
-
-    fetchDisasterData();
+    }
   }, [disasterId]);
 
   usePageTitle(disaster?.name ?? "");
 
-  // Filter evacuation centers based on search term
   useEffect(() => {
     const fetchEvacuationCenters = async () => {
-      console.log("Fetching evacuation centers for disaster ID:", disasterId);
-
-      if (!disasterId || isNaN(disasterId)) {
-        console.error("Invalid disasterId:", disasterId);
-        return;
-      }
+      if (!disasterId || isNaN(disasterId)) return;
 
       try {
         const res = await axios.get(
           `http://localhost:3000/api/v1/disaster-events/by-disaster/${disasterId}/details`
         );
-        if (res.data && res.data.data) {
-          setCenters(res.data.data);
-        } else {
-          console.error("No evacuation data found for disasterId:", disasterId);
-        }
+        setCenters(res.data.data);
       } catch (err) {
         console.error("Failed to fetch evacuation data", err);
       }
@@ -79,16 +66,16 @@ export default function DisasterDetail() {
     fetchEvacuationCenters();
   }, [disasterId]);
 
-  // Handle rows per page change
   const handleRowsPerPageChange = (value: string) => {
     setRowsPerPage(Number(value));
     setCurrentPage(1);
   };
 
   if (!disaster) {
-    return <div className="text-red-500 p-6">Disaster not found for ID: {disasterId}</div>;
+    return <div className="text-red-500 p-6">Disaster not found</div>;
   }
 
+ 
   const filteredCenters = evacuationCenters.filter(center =>
     center.evacuation_center_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     center.evacuation_center_barangay_name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -99,18 +86,6 @@ export default function DisasterDetail() {
   const startIndex = (currentPage - 1) * rowsPerPage;
   const endIndex = startIndex + rowsPerPage;
   const currentRows = filteredCenters.slice(startIndex, endIndex);
-
-  // Use encoded disasterId and centerId to navigate
-  const navigateToCenterDetail = (centerId: number) => {
-    const encodedDisasterId = encodeId(disasterId); // Encode disasterId for URL
-    const encodedCenterId = encodeId(centerId); // Encode centerId for URL
-
-    console.log("Encoded Disaster ID:", encodedDisasterId);
-    console.log("Encoded Evacuation Center ID:", encodedCenterId);
-
-    // Navigate to the Evacuation Center detail page
-    navigate(`/evacuation-information/${encodedDisasterId}/${encodedCenterId}`);
-  };
 
   return (
     <div className="text-black p-6 space-y-6 flex flex-col min-h-screen">
@@ -179,7 +154,7 @@ export default function DisasterDetail() {
                     <TableRow
                       key={center.evacuation_center_id}
                       className="cursor-pointer hover:bg-gray-50"
-                      onClick={() => navigateToCenterDetail(center.evacuation_center_id)}
+                      onClick={() => navigate(`/evacuation-information/${id}/${center.evacuation_center_id}`)}
                     >
                       <TableCell className="text-foreground font-medium">{center.evacuation_center_name}</TableCell>
                       <TableCell className="text-foreground">{center.evacuation_center_barangay_name}</TableCell>

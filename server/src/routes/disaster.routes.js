@@ -10,6 +10,7 @@ const router = express.Router();
 // GET disaster types
 // Example: GET /api/v1/disasters/types
 router.get('/types', disasterController.getAllDisasterTypes);
+
 // GET all disaster entries
 // Example: GET /api/v1/disasters
 router.get('/', disasterController.getAllDisasters);

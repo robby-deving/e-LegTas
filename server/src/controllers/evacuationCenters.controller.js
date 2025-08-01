@@ -310,11 +310,26 @@ exports.getEvacueesByCenterId = async (req, res, next) => {
       }
     });
 
-    // Step 8: Summary template
+    // Step 8: Fetch registered families from evacuation_summaries
+    const { data: summaryData, error: summaryError } = await supabase
+      .from('evacuation_summaries')
+      .select('total_no_of_family')
+      .eq('disaster_evacuation_event_id', disasterEventIds);
+
+    if (summaryError || !summaryData || summaryData.length === 0) {
+      console.error('No summary data found for this center:', summaryError);
+      return next(new ApiError(`No family summary data found for center with ID "${centerId}".`, 404));
+    }
+
+    const totalFamilies = summaryData.reduce((sum, row) => sum + row.total_no_of_family, 0);
+    console.log('Total Families:', totalFamilies);
+
+    // Step 9: Summary template
     const summary = {
       total_male: 0,
       total_female: 0,
       total_individuals: evacuees.length,
+      total_families: totalFamilies,  // Add the registered families to summary
       infant: 0,
       children: 0,
       youth: 0,
@@ -325,7 +340,7 @@ exports.getEvacueesByCenterId = async (req, res, next) => {
       lactating: 0
     };
 
-    // Step 9: Transform evacuee data
+    // Step 10: Transform evacuee data
     const transformedEvacuees = evacuees.map(evacuee => {
       const evacResident = evacuee.evacuee_residents;
       const resident = evacResident?.residents || {};
@@ -377,7 +392,7 @@ exports.getEvacueesByCenterId = async (req, res, next) => {
       };
     });
 
-    // Step 10: Respond
+    // Step 11: Respond
     return res.status(200).json({
       message: `Successfully retrieved ${evacuees.length} evacuees for evacuation center with ID "${centerId}".`,
       summary,
@@ -390,17 +405,6 @@ exports.getEvacueesByCenterId = async (req, res, next) => {
     return next(new ApiError('Internal server error while fetching evacuees.', 500));
   }
 };
-
-
-
-
-
-
-
-
-
-
-
 
 
 /**
