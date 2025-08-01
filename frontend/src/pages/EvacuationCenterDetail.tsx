@@ -13,8 +13,13 @@ import { usePageTitle } from "../hooks/usePageTitle";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Checkbox } from "../components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "../components/ui/radio-group";
-// import { decodeId } from "@/utils/secureId";
-import { getTypeColor, getTagColor } from '@/constants/disasterTypeColors';
+
+const DISASTER_TYPE_COLORS = {
+  Typhoon: { typeColor: "text-sky-500", tagColor: "bg-sky-100 text-sky-600" },
+  "Tropical Storm": { typeColor: "text-sky-400", tagColor: "bg-sky-100 text-sky-600" },
+  "Volcanic Eruption": { typeColor: "text-orange-600", tagColor: "bg-orange-100 text-orange-600" },
+  Landslide: { typeColor: "text-yellow-600", tagColor: "bg-yellow-100 text-yellow-600" },
+};
 
 const mockCenter = {
   name: "Evacuation Center 1",
@@ -195,6 +200,7 @@ const mockEvacuees = [
   },
 ];
 
+import { DISASTERS } from "./DisasterDetail";
 
 export default function EvacuationCenterDetail() {
   usePageTitle('Evacuation Center Detail');
@@ -473,12 +479,12 @@ export default function EvacuationCenterDetail() {
         <div className="py-3">
           <div className="space-y-3">
             <div
-              className={`inline-block rounded px-3 py-1 text-sm font-semibold ${getTagColor(disaster.type)}`}
+              className={`inline-block rounded px-3 py-1 text-sm font-semibold ${DISASTER_TYPE_COLORS[disaster.type as keyof typeof DISASTER_TYPE_COLORS]?.tagColor}`}
             >
               {disaster.type}
             </div>
             <h2
-              className={`text-3xl font-bold ${getTypeColor(disaster.type)}`}
+              className={`text-3xl font-bold ${DISASTER_TYPE_COLORS[disaster.type as keyof typeof DISASTER_TYPE_COLORS]?.typeColor}`}
             >
               {disaster.name}
             </h2>

@@ -1,4 +1,4 @@
-// evacuationCenters.route.js
+// evacuation.route.js
 
 const express = require('express');
 const evacuationController = require('../controllers/evacuationCenters.controller'); 
@@ -29,14 +29,6 @@ router.put('/:id', evacuationController.updateEvacuationCenter);
 // DELETE an evacuation center entry by ID
 // Example: DELETE /api/v1/evacuation-centers/123
 router.delete('/:id', evacuationController.deleteEvacuationCenter);
-
-// --- New Route to Fetch Evacuees by Center Name ---
-// GET evacuees for a specific evacuation center by name
-// Example: GET /api/v1/evacuation-centers/:centerName/evacuees
-//router.get('/:centerName/evacuees', evacuationController.getEvacueesByCenterName);  
-
-// Fetch evacuees by center ID
-router.get('/:centerId/evacuees', evacuationController.getEvacueesByCenterId);
 
 // Export the router
 module.exports = router;

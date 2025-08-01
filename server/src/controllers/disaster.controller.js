@@ -67,9 +67,6 @@ exports.getAllDisasters = async (req, res, next) => {
 exports.getDisasterById = async (req, res, next) => {
     const { id } = req.params;
 
-    // Log the received ID for debugging
-    console.log("Received disaster ID:", id);
-
     if (!id || isNaN(Number(id))) {
         return next(new ApiError('Invalid disaster ID provided.', 400));
     }
@@ -84,14 +81,9 @@ exports.getDisasterById = async (req, res, next) => {
             .eq('id', id)
             .single();
 
-        // Log the query result for debugging
-        console.log("Disaster data fetched:", data);
-        console.log("Disaster error:", error);
-
         if (error && error.code === 'PGRST116') {
-            return next(new ApiError(`Disaster with ID ${id} not found.`, 404));
+             return next(new ApiError(`Disaster with ID ${id} not found.`, 404));
         }
-
         if (error) {
             console.error('Supabase Error (getDisasterById):', error);
             return next(new ApiError('Failed to retrieve disaster entry.', 500));
@@ -114,7 +106,6 @@ exports.getDisasterById = async (req, res, next) => {
             data: transformedData
         });
     } catch (err) {
-        console.error('Error in getDisasterById:', err);
         next(new ApiError('Internal server error during getDisasterById.', 500));
     }
 };
