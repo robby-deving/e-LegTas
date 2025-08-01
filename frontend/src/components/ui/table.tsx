@@ -16,6 +16,7 @@ function Table({ className, ...props }: React.ComponentProps<"table">) {
     tableContainerRef.current.style.cursor = "grabbing"
   }
 
+  const handleMouseLeave = () => {
     if (!tableContainerRef.current) return
     setIsDragging(false)
     tableContainerRef.current.style.cursor = "grab"
@@ -35,6 +36,12 @@ function Table({ className, ...props }: React.ComponentProps<"table">) {
     tableContainerRef.current.scrollLeft = scrollLeft - walk
   }
 
+  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    if (tableContainerRef.current) {
+      tableContainerRef.current.scrollLeft += e.deltaY;
+    }
+  };
+
   return (
     <div
       ref={tableContainerRef}
@@ -44,6 +51,7 @@ function Table({ className, ...props }: React.ComponentProps<"table">) {
       onMouseLeave={handleMouseLeave}
       onMouseUp={handleMouseUp}
       onMouseMove={handleMouseMove}
+      onWheel={handleWheel}
     >
       <table
         data-slot="table"

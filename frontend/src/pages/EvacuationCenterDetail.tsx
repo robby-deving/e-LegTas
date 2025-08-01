@@ -1,34 +1,27 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ChevronRight, ArrowRight, Calendar, Home, Users, LayoutGrid } from "lucide-react";
-import { Card, CardHeader, CardTitle, CardContent } from "../components/ui/card";
-import { Input } from "../components/ui/input";
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "../components/ui/table";
-import { Pagination } from "../components/ui/pagination";
 import { Button } from "../components/ui/button";
-import EvacueeStatisticsChart from "../components/EvacueeStatisticsChart";
-import StatCard from "../components/StatCard";
-import { usePageTitle } from "../hooks/usePageTitle";
+import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { Input } from "../components/ui/input";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
+import { RegisteredFamiliesCard } from "../components/cards/RegisteredFamiliesCard";
+import { RegisteredEvacueesCard } from "../components/cards/RegisteredEvacueesCard";
+import { ECCapacityCard } from "../components/cards/ECCapacityCard";
+import { EvacuationCenterNameCard } from "../components/cards/EvacuationCenterNameCard";
 import { FamilyDetailsModal } from "../components/modals/FamilyDetailsModal";
 import { RegisterEvacueeModal } from "../components/modals/RegisterEvacueeModal";
 import { SearchEvacueeModal } from "../components/modals/SearchEvacueeModal";
 import { FamilyHeadSearchModal } from "../components/modals/FamilyHeadSearchModal";
-import { DISASTERS } from "./DisasterDetail";
+import { usePageTitle } from "../hooks/usePageTitle";
+import { Pagination } from "../components/ui/pagination";
+import { ChevronRight, Calendar, ArrowRight } from "lucide-react";
+import EvacueeStatisticsChart from "../components/EvacueeStatisticsChart";
 
 const DISASTER_TYPE_COLORS = {
   Typhoon: { typeColor: "text-sky-500", tagColor: "bg-sky-100 text-sky-600" },
   "Tropical Storm": { typeColor: "text-sky-400", tagColor: "bg-sky-100 text-sky-600" },
   "Volcanic Eruption": { typeColor: "text-orange-600", tagColor: "bg-orange-100 text-orange-600" },
   Landslide: { typeColor: "text-yellow-600", tagColor: "bg-yellow-100 text-yellow-600" },
-};
-
-const mockCenter = {
-  name: "Evacuation Center 1",
-  barangay: "Bgy. 1 - Em's Barrio",
-  families: 143,
-  evacuees: 50000,
-  capacity: 20215,
 };
 
 const mockStatistics = [
@@ -202,16 +195,34 @@ const mockEvacuees = [
   },
 ];
 
+import { DISASTERS, EVACUATION_CENTERS } from "./DisasterDetail";
+
 export default function EvacuationCenterDetail() {
   usePageTitle('Evacuation Center Detail');
   const navigate = useNavigate();
   const { disasterName, centerName: centerParam } = useParams<{ disasterName?: string; centerName?: string }>();
   const centerName = decodeURIComponent(centerParam || "");
+  const center = EVACUATION_CENTERS.find(c => c.name === centerName);
+
+  if (!center) {
+    return (
+      <div className="p-4 text-center">
+        <h1 className="text-xl font-bold">Evacuation Center Not Found</h1>
+        <p>The requested evacuation center "{centerName}" could not be found.</p>
+      </div>
+    );
+  }
+
+  const centerBarangay = center.barangay;
+  const familiesCount = parseInt(center.totalFamilies.split(' ')[0] || "0");
+  const evacueesCount = parseInt(center.totalEvacuees.split(' ')[0] || "0");
+  const capacityCount = parseInt(center.totalFamilies.split('/')[1] || '0');
 
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [selectedEvacuee, setSelectedEvacuee] = useState<any>(null);
+  const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [searchResults, setSearchResults] = useState<any[]>([]);
 
   const filteredEvacuees = mockEvacuees.filter(e =>
@@ -315,6 +326,11 @@ export default function EvacuationCenterDetail() {
   };
 
   // Search modal logic
+  const handleSearchNameClick = () => {
+    setShowSearchModal(true);
+    setSearchName("");
+    setSearchResults([]);
+  };
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSearchName(value);
@@ -448,7 +464,7 @@ export default function EvacuationCenterDetail() {
     <div className="text-black p-6 space-y-6">
       {/* Header with Breadcrumb */}
       <div className="space-y-5">
-        <h1 className="text-3xl font-bold text-green-800">Evacuation Information</h1>
+        <h1 className="text-3xl font-bold">Evacuation Information</h1>
         <div className="flex items-center text-sm text-gray-600">
           <button
             onClick={() => navigate("/evacuation-information")}
@@ -493,32 +509,12 @@ export default function EvacuationCenterDetail() {
       {/* Center Summary & Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
         <div className="md:col-span-1">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-2xl font-bold leading-tight mb-0">{mockCenter.name}</CardTitle>
-              <div className="text-muted-foreground text-base font-medium">{mockCenter.barangay}</div>
-            </CardHeader>
-          </Card>
+          <EvacuationCenterNameCard name={centerName} barangay={centerBarangay} />
           <div className="flex flex-col gap-6 mt-5">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <StatCard
-                title="Registered Families"
-                value={mockCenter.families.toLocaleString()}
-                icon={<Home className="w-5 h-5 text-blue-600 mr-2" />}
-                valueClassName="text-blue-500"
-              />
-              <StatCard
-                title="Registered Evacuees"
-                value={mockCenter.evacuees.toLocaleString()}
-                icon={<Users className="w-5 h-5 text-green-700 mr-2" />}
-                valueClassName="text-green-600"
-              />
-              <StatCard
-                title="EC Capacity"
-                value={mockCenter.capacity.toLocaleString()}
-                icon={<LayoutGrid className="w-5 h-5 text-yellow-500 mr-2" />}
-                valueClassName="text-yellow-500"
-              />
+              <RegisteredFamiliesCard count={familiesCount} />
+              <RegisteredEvacueesCard count={evacueesCount} />
+              <ECCapacityCard count={capacityCount} />
             </div>
           </div>
         </div>
@@ -617,7 +613,7 @@ export default function EvacuationCenterDetail() {
         isOpen={!!selectedEvacuee}
         onClose={handleCloseModal}
         evacuee={selectedEvacuee}
-        centerName={mockCenter.name}
+        centerName={centerName}
         onEditMember={handleEditMember}
       />
 
