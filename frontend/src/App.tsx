@@ -17,9 +17,9 @@ import EvacuationCenterDetail from './pages/EvacuationCenterDetail';
 
 function App() {
   return (
-    <div className="flex h-screen w-screen">
+    <div className="flex h-screen w-screen overflow-hidden md:flex-row">
       <SideNav />
-      <div className="flex flex-col flex-1">
+      <div className="flex flex-col flex-1 overflow-hidden">
         <TopNav />
         <div className="flex-1 p-4 overflow-y-auto">
           <Routes>

@@ -3,14 +3,51 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 
 function Table({ className, ...props }: React.ComponentProps<"table">) {
+  const tableContainerRef = React.useRef<HTMLDivElement>(null)
+  const [isDragging, setIsDragging] = React.useState(false)
+  const [startX, setStartX] = React.useState(0)
+  const [scrollLeft, setScrollLeft] = React.useState(0)
+
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!tableContainerRef.current) return
+    setIsDragging(true)
+    setStartX(e.pageX - tableContainerRef.current.offsetLeft)
+    setScrollLeft(tableContainerRef.current.scrollLeft)
+    tableContainerRef.current.style.cursor = "grabbing"
+  }
+
+    if (!tableContainerRef.current) return
+    setIsDragging(false)
+    tableContainerRef.current.style.cursor = "grab"
+  }
+
+  const handleMouseUp = () => {
+    if (!tableContainerRef.current) return
+    setIsDragging(false)
+    tableContainerRef.current.style.cursor = "grab"
+  }
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isDragging || !tableContainerRef.current) return
+    e.preventDefault()
+    const x = e.pageX - tableContainerRef.current.offsetLeft
+    const walk = (x - startX) * 2 // Adjust the multiplier for scroll speed
+    tableContainerRef.current.scrollLeft = scrollLeft - walk
+  }
+
   return (
     <div
+      ref={tableContainerRef}
       data-slot="table-container"
-      className="relative w-full overflow-x-auto"
+      className="relative w-full overflow-x-auto cursor-grab"
+      onMouseDown={handleMouseDown}
+      onMouseLeave={handleMouseLeave}
+      onMouseUp={handleMouseUp}
+      onMouseMove={handleMouseMove}
     >
       <table
         data-slot="table"
-        className={cn("w-full caption-bottom text-sm", className)}
+        className={cn("min-w-full caption-bottom text-sm", className)}
         {...props}
       />
     </div>
