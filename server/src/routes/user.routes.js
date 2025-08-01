@@ -3,6 +3,7 @@ const {
   createUser, 
   getUsers, 
   getUserById, 
+  updateUser,
   getUsersByRole,
   getUsersWithRoleFourAndFive,
   getRoles, 
@@ -29,5 +30,6 @@ router.get('/cswdo', getUsersWithRoleFourAndFive);   // GET /api/v1/users/cswdo
 router.post('/', createUser);           // POST /api/v1/users
 router.get('/', getUsers);              // GET /api/v1/users
 router.get('/:id', getUserById);        // GET /api/v1/users/:id
+router.put('/:id', updateUser);         // PUT /api/v1/users/:id
 
 module.exports = router;

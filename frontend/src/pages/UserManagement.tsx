@@ -10,6 +10,7 @@ interface User {
     suffix?: string;
     sex: string;
     barangay_of_origin: string;
+    barangay_of_origin_id?: number; // Add this to store the barangay ID
     employee_number: string;
     birthdate: string;
     email: string;
@@ -22,6 +23,8 @@ export default function UserManagement(){
     usePageTitle('User Management');
     const [searchTerm, setSearchTerm] = useState('');
     const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
+    const [isEditUserModalOpen, setIsEditUserModalOpen] = useState(false);
+    const [editingUser, setEditingUser] = useState<User | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
     const [rowsPerPage, setRowsPerPage] = useState(10);
     const [selectedRows, setSelectedRows] = useState(0);
@@ -73,6 +76,7 @@ export default function UserManagement(){
                         suffix: user.users_profile.residents.suffix,
                         sex: user.users_profile.residents.sex,
                         barangay_of_origin: user.users_profile.residents.barangays?.name || 'Unknown',
+                        barangay_of_origin_id: user.users_profile.residents.barangay_of_origin, // Store the actual ID
                         employee_number: user.employee_number,
                         birthdate: user.users_profile.residents.birthdate,
                         email: user.users_profile.email,
@@ -284,6 +288,7 @@ export default function UserManagement(){
                     suffix: user.users_profile.residents.suffix,
                     sex: user.users_profile.residents.sex,
                     barangay_of_origin: user.users_profile.residents.barangays?.name || 'Unknown',
+                    barangay_of_origin_id: user.users_profile.residents.barangay_of_origin, // Store the actual ID
                     employee_number: user.employee_number,
                     birthdate: user.users_profile.residents.birthdate,
                     email: user.users_profile.email,
@@ -320,6 +325,101 @@ export default function UserManagement(){
             assigned_evacuation_center: ''
         });
         setIsAddUserModalOpen(false);
+        setIsEditUserModalOpen(false);
+        setEditingUser(null);
+    };
+
+    // Handle opening edit modal
+    const handleEditUser = (user: User) => {
+        setEditingUser(user);
+        setFormData({
+            first_name: user.first_name,
+            middle_name: user.middle_name || '',
+            last_name: user.last_name,
+            suffix: user.suffix || '',
+            sex: user.sex,
+            barangay_of_origin: user.barangay_of_origin_id ? user.barangay_of_origin_id.toString() : '',
+            employee_number: user.employee_number,
+            birthdate: user.birthdate,
+            email: user.email,
+            password: '', // Leave password empty for security
+            role_id: user.role_id.toString(),
+            assigned_evacuation_center: user.assigned_evacuation_center || ''
+        });
+        setIsEditUserModalOpen(true);
+    };
+
+    // Handle edit form submission
+    const handleEditSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editingUser) return;
+        
+        setFormLoading(true);
+        
+        try {
+            const response = await fetch(`http://localhost:3000/api/v1/users/${editingUser.id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    firstName: formData.first_name,
+                    middleName: formData.middle_name,
+                    lastName: formData.last_name,
+                    suffix: formData.suffix,
+                    sex: formData.sex,
+                    birthdate: formData.birthdate,
+                    barangayOfOrigin: formData.barangay_of_origin,
+                    employeeNumber: formData.employee_number,
+                    email: formData.email,
+                    roleId: parseInt(formData.role_id),
+                    assignedEvacuationCenter: formData.assigned_evacuation_center,
+                    // Only include password if it's provided
+                    ...(formData.password && { password: formData.password })
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to update user');
+            }
+
+            // Reset form and close modal
+            handleCloseModal();
+            
+            // Refresh users list
+            const usersResponse = await fetch('http://localhost:3000/api/v1/users/cswdo');
+            const usersData = await usersResponse.json();
+            
+            // Apply the same transformation as in the initial fetch
+            const transformedUsers = usersData.users
+                .filter((user: any) => user.users_profile && user.users_profile.residents)
+                .map((user: any) => ({
+                    id: user.id,
+                    first_name: user.users_profile.residents.first_name,
+                    middle_name: user.users_profile.residents.middle_name,
+                    last_name: user.users_profile.residents.last_name,
+                    suffix: user.users_profile.residents.suffix,
+                    sex: user.users_profile.residents.sex,
+                    barangay_of_origin: user.users_profile.residents.barangays?.name || 'Unknown',
+                    barangay_of_origin_id: user.users_profile.residents.barangay_of_origin, // Store the actual ID
+                    employee_number: user.employee_number,
+                    birthdate: user.users_profile.residents.birthdate,
+                    email: user.users_profile.email,
+                    role_id: user.users_profile.role_id,
+                    role_name: user.users_profile.roles?.role_name,
+                    assigned_evacuation_center: user.assigned_evacuation_center || null
+                }));
+            
+            setUsers(transformedUsers);
+            setFilteredUsers(transformedUsers);
+            
+        } catch (err) {
+            console.error('Error updating user:', err);
+            setError(err instanceof Error ? err.message : 'Failed to update user');
+        } finally {
+            setFormLoading(false);
+        }
     };
 
     return(
@@ -461,7 +561,10 @@ export default function UserManagement(){
                                             {user.assigned_evacuation_center || 'Not assigned'}
                                         </td>
                                         <td className='px-6 py-4 whitespace-nowrap text-right text-base font-medium'>
-                                            <button className='text-gray-400 hover:text-gray-600'>
+                                            <button 
+                                                onClick={() => handleEditUser(user)}
+                                                className='text-gray-400 hover:text-gray-600'
+                                            >
                                                 <MoreHorizontal className='h-5 w-5' />
                                             </button>
                                         </td>
@@ -538,8 +641,8 @@ export default function UserManagement(){
                     </div>
                 </div>
 
-                {/* Add User Modal */}
-                {isAddUserModalOpen && (
+                {/* Add/Edit User Modal */}
+                {(isAddUserModalOpen || isEditUserModalOpen) && (
                     <div 
                         className='fixed inset-0 flex items-center justify-center z-50'
                         style={{
@@ -553,7 +656,7 @@ export default function UserManagement(){
                                     className='text-xl font-bold'
                                     style={{ color: '#0C955B' }}
                                 >
-                                    Add User
+                                    {isEditUserModalOpen ? 'Edit User' : 'Add User'}
                                 </h2>
                                 <button
                                     onClick={handleCloseModal}
@@ -569,7 +672,7 @@ export default function UserManagement(){
                             </div>
                             
                             {/* Form */}
-                            <form className='space-y-4' onSubmit={handleSubmit}>
+                            <form className='space-y-4' onSubmit={isEditUserModalOpen ? handleEditSubmit : handleSubmit}>
                                 {/* Row 1: First Name | Middle Name */}
                                 <div className='grid grid-cols-2 gap-4'>
                                     <div>
@@ -721,7 +824,7 @@ export default function UserManagement(){
                                 {/* Password */}
                                 <div>
                                     <label className='block text-sm font-medium text-black mb-1'>
-                                        Password
+                                        Password {isEditUserModalOpen && <span className='text-sm text-gray-500'>(leave empty to keep current password)</span>}
                                     </label>
                                     <input
                                         type='password'
@@ -729,8 +832,8 @@ export default function UserManagement(){
                                         value={formData.password}
                                         onChange={handleFormChange}
                                         className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E]'
-                                        placeholder='Enter password'
-                                        required
+                                        placeholder={isEditUserModalOpen ? 'Enter new password (optional)' : 'Enter password'}
+                                        required={!isEditUserModalOpen}
                                     />
                                 </div>
 
@@ -786,7 +889,10 @@ export default function UserManagement(){
                                         className='px-4 py-2 text-white rounded-md hover:opacity-90 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed'
                                         style={{ backgroundColor: '#00824E' }}
                                     >
-                                        {formLoading ? 'Adding...' : 'Add User'}
+                                        {formLoading 
+                                            ? (isEditUserModalOpen ? 'Updating...' : 'Adding...') 
+                                            : (isEditUserModalOpen ? 'Edit User' : 'Add User')
+                                        }
                                     </button>
                                 </div>
                             </form>

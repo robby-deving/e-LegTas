@@ -492,6 +492,280 @@ const getUserById = async (req, res) => {
   }
 };
 
+const updateUser = async (req, res) => {
+  try {
+    console.log('Update user request received:', req.body);
+    
+    const { id } = req.params;
+    const {
+      firstName,
+      middleName,
+      lastName,
+      suffix,
+      sex,
+      birthdate,
+      barangayOfOrigin,
+      employeeNumber,
+      email,
+      password,
+      roleId,
+      assignedEvacuationCenter
+    } = req.body;
+
+    // Validate required fields
+    if (!firstName || !lastName || !sex || !birthdate || !email || !roleId) {
+      return res.status(400).json({ 
+        message: 'Missing required fields: firstName, lastName, sex, birthdate, email, roleId' 
+      });
+    }
+
+    // Validate birthdate format (YYYY-MM-DD)
+    const birthdateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!birthdateRegex.test(birthdate)) {
+      return res.status(400).json({ 
+        message: 'Invalid birthdate format. Use YYYY-MM-DD format (e.g., 1990-01-15)' 
+      });
+    }
+
+    // Validate suffix enum values (if provided)
+    const validSuffixes = ['Jr.', 'Sr.', 'II', 'III', 'IV', 'V'];
+    if (suffix && !validSuffixes.includes(suffix)) {
+      return res.status(400).json({ 
+        message: `Invalid suffix. Allowed values: ${validSuffixes.join(', ')}` 
+      });
+    }
+
+    // Validate sex enum values
+    const validSexValues = ['Male', 'Female'];
+    if (!validSexValues.includes(sex)) {
+      return res.status(400).json({ 
+        message: `Invalid sex value. Allowed values: ${validSexValues.join(', ')}` 
+      });
+    }
+
+    // First, get the existing user to get related IDs
+    const { data: existingUser, error: fetchError } = await supabaseAdmin
+      .from('users')
+      .select(`
+        id,
+        employee_number,
+        user_profile_id,
+        users_profile!user_profile_id (
+          id,
+          email,
+          role_id,
+          resident_id,
+          user_id
+        )
+      `)
+      .eq('id', id)
+      .single();
+
+    if (fetchError || !existingUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Check if email is being changed and if new email already exists
+    if (email !== existingUser.users_profile.email) {
+      const { data: emailCheck } = await supabaseAdmin
+        .from('users_profile')
+        .select('email')
+        .eq('email', email)
+        .neq('id', existingUser.users_profile.id)
+        .single();
+
+      if (emailCheck) {
+        return res.status(409).json({ message: 'Email already exists' });
+      }
+    }
+
+    // Check if employee number is being changed and if new employee number already exists
+    if (employeeNumber && employeeNumber !== existingUser.employee_number) {
+      const { data: employeeCheck } = await supabaseAdmin
+        .from('users')
+        .select('employee_number')
+        .eq('employee_number', employeeNumber)
+        .neq('id', id)
+        .single();
+
+      if (employeeCheck) {
+        return res.status(409).json({ message: 'Employee number already exists' });
+      }
+    }
+
+    // Update resident record
+    const { error: residentError } = await supabaseAdmin
+      .from('residents')
+      .update({
+        first_name: firstName,
+        middle_name: middleName || null,
+        last_name: lastName,
+        suffix: suffix || null,
+        sex: sex,
+        birthdate: birthdate,
+        barangay_of_origin: barangayOfOrigin ? parseInt(barangayOfOrigin) : null,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', existingUser.users_profile.resident_id);
+
+    if (residentError) {
+      console.error('Error updating resident:', residentError);
+      return res.status(500).json({ 
+        message: 'Failed to update resident profile',
+        error: residentError.message
+      });
+    }
+
+    // Prepare users_profile update data
+    const profileUpdateData = {
+      email: email,
+      role_id: parseInt(roleId),
+      updated_at: new Date().toISOString()
+    };
+
+    // Add password hash if password is provided
+    if (password && password.trim()) {
+      const saltRounds = 12;
+      const passwordHash = await bcrypt.hash(password, saltRounds);
+      profileUpdateData.password_hash = passwordHash;
+    }
+
+    // Update users_profile
+    const { error: profileError } = await supabaseAdmin
+      .from('users_profile')
+      .update(profileUpdateData)
+      .eq('id', existingUser.users_profile.id);
+
+    if (profileError) {
+      console.error('Error updating user profile:', profileError);
+      return res.status(500).json({ 
+        message: 'Failed to update user profile',
+        error: profileError.message
+      });
+    }
+
+    // Update user record (employee number)
+    if (employeeNumber) {
+      const { error: userError } = await supabaseAdmin
+        .from('users')
+        .update({
+          employee_number: employeeNumber,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id);
+
+      if (userError) {
+        console.error('Error updating user:', userError);
+        return res.status(500).json({ 
+          message: 'Failed to update user record',
+          error: userError.message
+        });
+      }
+    }
+
+    // Update Supabase auth user if email or password changed
+    if (existingUser.users_profile.user_id) {
+      const authUpdateData = {};
+      
+      if (email !== existingUser.users_profile.email) {
+        authUpdateData.email = email;
+      }
+      
+      if (password && password.trim()) {
+        authUpdateData.password = password;
+      }
+
+      if (Object.keys(authUpdateData).length > 0) {
+        console.log('Updating Supabase auth user with:', { 
+          user_id: existingUser.users_profile.user_id, 
+          updates: Object.keys(authUpdateData) 
+        });
+        
+        const { data: authUpdateResult, error: authError } = await supabaseAdmin.auth.admin.updateUserById(
+          existingUser.users_profile.user_id,
+          authUpdateData
+        );
+
+        if (authError) {
+          console.error('Error updating auth user:', authError);
+          return res.status(500).json({ 
+            message: 'Failed to update authentication credentials',
+            error: authError.message
+          });
+        } else {
+          console.log('Auth user updated successfully:', authUpdateResult);
+        }
+      }
+    } else {
+      console.warn('No auth user_id found for user profile:', existingUser.users_profile.id);
+    }
+
+    // Handle evacuation center assignment if provided
+    let evacuationCenterAssignment = null;
+    console.log('Processing evacuation center assignment. assignedEvacuationCenter:', assignedEvacuationCenter);
+    
+    if (assignedEvacuationCenter && assignedEvacuationCenter.trim()) {
+      try {
+        console.log('Assigning user', id, 'to evacuation center:', assignedEvacuationCenter);
+        
+        // Database trigger will automatically clear existing assignments when we assign a new one
+        const { error: assignmentError } = await supabaseAdmin
+          .from('evacuation_centers')
+          .update({ assigned_user_id: id })
+          .eq('name', assignedEvacuationCenter);
+
+        if (assignmentError) {
+          console.error('Error updating evacuation center assignment:', assignmentError);
+        } else {
+          console.log('Successfully assigned user', id, 'to center:', assignedEvacuationCenter);
+          evacuationCenterAssignment = assignedEvacuationCenter;
+        }
+      } catch (evacuationError) {
+        console.error('Error handling evacuation center assignment:', evacuationError);
+      }
+    } else {
+      // Remove user from any existing evacuation center assignments if no center is selected
+      console.log('No evacuation center selected, clearing all assignments for user:', id);
+      try {
+        const { error: clearError } = await supabaseAdmin
+          .from('evacuation_centers')
+          .update({ assigned_user_id: null })
+          .eq('assigned_user_id', id);
+          
+        if (clearError) {
+          console.error('Error removing evacuation center assignment:', clearError);
+        } else {
+          console.log('Successfully removed all evacuation center assignments for user:', id);
+        }
+      } catch (evacuationError) {
+        console.error('Error removing evacuation center assignment:', evacuationError);
+      }
+    }
+
+    // Return success response
+    const responseData = {
+      message: 'User updated successfully',
+      user: {
+        id: parseInt(id),
+        employee_number: employeeNumber || existingUser.employee_number,
+        email: email,
+        role_id: parseInt(roleId),
+        evacuation_assignment: evacuationCenterAssignment
+      }
+    };
+
+    console.log('User updated successfully:', responseData);
+    res.status(200).json(responseData);
+
+  } catch (error) {
+    console.error('Update user error:', error);
+    res.status(500).json({ 
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
 const getRoles = async (req, res) => {
   try {
     const { data: roles, error } = await supabaseAdmin
@@ -561,7 +835,7 @@ const getEvacuationCenters = async (req, res) => {
       status: center.ec_status,
       category: center.category,
       capacity: center.total_capacity,
-      assigned_user_id: center.user_id,
+      assigned_user_id: center.assigned_user_id, // Fixed: use the correct field
       coordinates: {
         latitude: center.latitude,
         longitude: center.longitude
@@ -1332,6 +1606,7 @@ module.exports = {
   createUser,
   getUsers,
   getUserById,
+  updateUser,
   getUsersByRole,
   getRoles,
   getEvacuationCenters,
