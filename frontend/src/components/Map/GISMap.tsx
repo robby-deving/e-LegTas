@@ -34,7 +34,7 @@ useEffect(() => {
   fetch('http://localhost:3000/api/v1/evacuation-centers/detailed-map-data')
     .then((res) => res.json())
     .then((res) => {
-      console.log('Evacuation Centers:', res);
+      console.log('Evacuation Centers:', res.data);
       setEvacuationCenters(res.data); // <<== this is the fix
     })
     .catch((err) => {

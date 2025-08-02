@@ -264,18 +264,20 @@ exports.getEvacuationCenterMapData = async (req, res, next) => {
             let campManagerName = null;
             let campManagerPhoneNumber = null; // New variable for phone number
 
-            if (ec.camp_managers && ec.camp_managers.user_profile) {
-                const userProfile = ec.camp_managers.user_profile;
-                campManagerPhoneNumber = userProfile.phone_number || null; // Get phone number
+            if (ec.users && ec.users.user_profile) {
+                const userProfile = ec.users.user_profile;
+                campManagerPhoneNumber = userProfile.phone_number || null;
 
                 if (userProfile.residents) {
                     const resident = userProfile.residents;
-                    campManagerName = [
+                    const nameParts = [
                         resident.first_name,
-                        resident.middle_name, // Middle name can be null
+                        resident.middle_name,
                         resident.last_name,
-                        resident.suffix // Suffix can be null
-                    ].filter(Boolean).join(' '); // Filter out nulls and join
+                        resident.suffix
+                    ].filter(Boolean);
+                    
+                    campManagerName = nameParts.join(' ');
                 }
             }
 

@@ -14,6 +14,8 @@ export type EvacuationCenter = {
   barangay_name: string;
   camp_manager_name: string | null;
   camp_manager_phone_number?: string | null; 
+  total_capacity: number;
+  current_capacity: number;
 };
 
 export type ActiveEvacuation = {
