@@ -81,6 +81,7 @@ const createUser = async (req, res) => {
       .from('users_profile')
       .select('email')
       .eq('email', email)
+      .is('deleted_at', null)  // Exclude soft-deleted users
       .single();
 
     if (existingUser) {
@@ -99,6 +100,7 @@ const createUser = async (req, res) => {
         .from('users')
         .select('employee_number')
         .eq('employee_number', providedEmployeeNumber)
+        .is('deleted_at', null)  // Exclude soft-deleted users
         .single();
 
       if (existingEmployee) {
@@ -116,6 +118,7 @@ const createUser = async (req, res) => {
           .from('users')
           .select('employee_number')
           .eq('employee_number', employeeNumber)
+          .is('deleted_at', null)  // Exclude soft-deleted users
           .single();
 
         if (!existingEmployee) {
@@ -395,6 +398,7 @@ const getUsers = async (req, res) => {
           )
         )
       `)
+      .is('deleted_at', null)  // Exclude soft-deleted users
       .range(offset, offset + limit - 1)
       .order('created_at', { ascending: false });
 
@@ -413,7 +417,8 @@ const getUsers = async (req, res) => {
     // Get total count for pagination
     const { count, error: countError } = await supabaseAdmin
       .from('users')
-      .select('*', { count: 'exact', head: true });
+      .select('*', { count: 'exact', head: true })
+      .is('deleted_at', null);  // Exclude soft-deleted users from count
 
     if (countError) {
       console.error('Error counting users:', countError);
@@ -475,6 +480,7 @@ const getUserById = async (req, res) => {
         )
       `)
       .eq('id', id)
+      .is('deleted_at', null)  // Exclude soft-deleted users
       .single();
 
     if (error || !user) {
@@ -559,6 +565,7 @@ const updateUser = async (req, res) => {
         )
       `)
       .eq('id', id)
+      .is('deleted_at', null)  // Exclude soft-deleted users
       .single();
 
     if (fetchError || !existingUser) {
@@ -572,6 +579,7 @@ const updateUser = async (req, res) => {
         .select('email')
         .eq('email', email)
         .neq('id', existingUser.users_profile.id)
+        .is('deleted_at', null)  // Exclude soft-deleted users
         .single();
 
       if (emailCheck) {
@@ -586,6 +594,7 @@ const updateUser = async (req, res) => {
         .select('employee_number')
         .eq('employee_number', employeeNumber)
         .neq('id', id)
+        .is('deleted_at', null)  // Exclude soft-deleted users
         .single();
 
       if (employeeCheck) {
@@ -1159,7 +1168,7 @@ const createUserWithTrigger = async (req, res) => {
       if (userError) {
         console.error('Error creating user:', userError);
         
-        // Cleanup all records
+        // Cleanup
         await supabaseAdmin.auth.admin.deleteUser(authUser.user.id);
         await supabaseAdmin
           .from('users_profile')
@@ -1171,12 +1180,11 @@ const createUserWithTrigger = async (req, res) => {
           .eq('id', residentData.id);
           
         return res.status(500).json({ 
-          message: 'Failed to create user record',
+          message: 'Failed to create user',
           error: userError.message
         });
       }
 
-      // Return success response
       res.status(201).json({
         message: 'User created successfully with complete profile',
         user: {
@@ -1420,6 +1428,7 @@ const getUsersByRole = async (req, res) => {
         )
       `)
       .eq('users_profile.role_id', roleIdInt)
+      .is('deleted_at', null)  // Exclude soft-deleted users
       .range(offset, offset + limit - 1)
       .order('created_at', { ascending: false });
 
@@ -1447,7 +1456,8 @@ const getUsersByRole = async (req, res) => {
           role_id
         )
       `)
-      .eq('users_profile.role_id', roleIdInt);
+      .eq('users_profile.role_id', roleIdInt)
+      .is('deleted_at', null);  // Exclude soft-deleted users
 
     if (countError) {
       console.error(`Error counting users with role_id ${roleIdInt}:`, countError);
@@ -1519,6 +1529,7 @@ const getUsersWithRoleFourAndFive = async (req, res) => {
         )
       `)
       .in('users_profile.role_id', targetRoleIds)
+      .is('deleted_at', null)  // Exclude soft-deleted users
       .range(offset, offset + limit - 1)
       .order('created_at', { ascending: false });
 
@@ -1571,7 +1582,8 @@ const getUsersWithRoleFourAndFive = async (req, res) => {
           role_id
         )
       `)
-      .in('users_profile.role_id', targetRoleIds);
+      .in('users_profile.role_id', targetRoleIds)
+      .is('deleted_at', null);  // Exclude soft-deleted users
 
     if (countError) {
       console.error('Error counting users with role_id 4 and 5:', countError);
@@ -1602,6 +1614,213 @@ const getUsersWithRoleFourAndFive = async (req, res) => {
   }
 };
 
+// Soft delete user
+const deleteUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({ message: 'User ID is required' });
+    }
+
+    // First, get the user details to check if they exist and get the auth user ID
+    const { data: user, error: userError } = await supabaseAdmin
+      .from('users')
+      .select(`
+        id,
+        employee_number,
+        user_profile_id,
+        users_profile!user_profile_id (
+          id,
+          email,
+          user_id,
+          is_active
+        )
+      `)
+      .eq('id', id)
+      .is('deleted_at', null)
+      .single();
+
+    if (userError || !user) {
+      console.error('Error fetching user for deletion:', userError);
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const authUserId = user.users_profile?.user_id;
+    const userProfileId = user.user_profile_id;
+
+    // Perform soft delete operations in a transaction-like manner
+    const now = new Date().toISOString();
+
+    // 1. Soft delete the user record
+    const { error: userDeleteError } = await supabaseAdmin
+      .from('users')
+      .update({ 
+        deleted_at: now,
+        updated_at: now
+      })
+      .eq('id', id);
+
+    if (userDeleteError) {
+      console.error('Error soft deleting user:', userDeleteError);
+      return res.status(500).json({ message: 'Failed to delete user' });
+    }
+
+    // 2. Soft delete the user profile record
+    if (userProfileId) {
+      const { error: profileDeleteError } = await supabaseAdmin
+        .from('users_profile')
+        .update({ 
+          deleted_at: now,
+          is_active: false,
+          updated_at: now
+        })
+        .eq('id', userProfileId);
+
+      if (profileDeleteError) {
+        console.error('Error soft deleting user profile:', profileDeleteError);
+        // We could try to rollback the user deletion here, but for simplicity, we'll log the error
+      }
+    }
+
+    // 3. Clear evacuation center assignment (if any)
+    const { error: evacuationCenterError } = await supabaseAdmin
+      .from('evacuation_centers')
+      .update({ 
+        assigned_user_id: null,
+        updated_at: now
+      })
+      .eq('assigned_user_id', id);
+
+    if (evacuationCenterError) {
+      console.error('Error clearing evacuation center assignment:', evacuationCenterError);
+      // Continue with the process even if this fails
+    }
+
+    // 4. Set deleted_at in auth.users table to prevent login
+    if (authUserId) {
+      try {
+        // First update user metadata
+        await supabaseAdmin.auth.admin.updateUserById(authUserId, {
+          user_metadata: {
+            account_status: 'deleted',
+            deleted_at: now,
+            deleted_by: 'system'
+          }
+        });
+
+        // Use RPC to update auth.users deleted_at column
+        // This requires a PostgreSQL function that can bypass RLS
+        const { error: authDeleteError } = await supabaseAdmin.rpc('soft_delete_auth_user', {
+          user_id: authUserId,
+          deleted_timestamp: now
+        });
+
+        if (authDeleteError) {
+          console.log('Note: Could not update auth.users deleted_at via RPC, but user metadata updated');
+          console.log('You may need to create the soft_delete_auth_user function in PostgreSQL');
+        } else {
+          console.log(`Auth user ${authUserId} deleted_at set to ${now}`);
+        }
+      } catch (authError) {
+        console.error('Error updating auth user:', authError);
+        // Continue with the process even if this fails
+      }
+    }
+
+    console.log(`User ${id} (${user.employee_number}) successfully soft deleted`);
+
+    res.status(200).json({ 
+      message: 'User successfully deleted',
+      deletedUser: {
+        id: user.id,
+        employee_number: user.employee_number,
+        email: user.users_profile?.email
+      }
+    });
+
+  } catch (error) {
+    console.error('Delete user error:', error);
+    res.status(500).json({ 
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
+// Check if user can login (not soft deleted)
+const checkUserCanLogin = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ message: 'Email is required' });
+    }
+
+    // Check if user exists in auth.users and is not soft deleted
+    const { data: authUsers, error: authError } = await supabaseAdmin.auth.admin.listUsers();
+    
+    if (authError) {
+      return res.status(500).json({ message: 'Failed to check user status' });
+    }
+
+    const authUser = authUsers.users.find(u => u.email === email);
+    
+    if (!authUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Check if user is soft deleted in auth.users
+    if (authUser.deleted_at) {
+      return res.status(403).json({ 
+        message: 'Account has been deactivated. Please contact administrator.',
+        canLogin: false,
+        deleted_at: authUser.deleted_at
+      });
+    }
+
+    // Also check our custom tables
+    const { data: userProfile, error: profileError } = await supabaseAdmin
+      .from('users_profile')
+      .select('id, deleted_at, is_active')
+      .eq('email', email)
+      .single();
+
+    if (profileError || !userProfile) {
+      return res.status(404).json({ message: 'User profile not found' });
+    }
+
+    if (userProfile.deleted_at) {
+      return res.status(403).json({ 
+        message: 'Account has been deactivated. Please contact administrator.',
+        canLogin: false,
+        deleted_at: userProfile.deleted_at
+      });
+    }
+
+    if (!userProfile.is_active) {
+      return res.status(403).json({ 
+        message: 'Account is inactive. Please contact administrator.',
+        canLogin: false
+      });
+    }
+
+    return res.status(200).json({ 
+      message: 'User can login',
+      canLogin: true,
+      authUserId: authUser.id,
+      profileId: userProfile.id
+    });
+
+  } catch (error) {
+    console.error('Check user login error:', error);
+    res.status(500).json({ 
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   createUser,
   getUsers,
@@ -1616,5 +1835,7 @@ module.exports = {
   checkUserSynchronization,
   createUserWithTrigger,
   completeUserProfile,
-  getUsersWithRoleFourAndFive
+  getUsersWithRoleFourAndFive,
+  deleteUser,
+  checkUserCanLogin
 };

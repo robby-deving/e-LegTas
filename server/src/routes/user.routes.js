@@ -4,13 +4,15 @@ const {
   getUsers, 
   getUserById, 
   updateUser,
+  deleteUser,
   getUsersByRole,
   getUsersWithRoleFourAndFive,
   getRoles, 
   getEvacuationCenters, 
   getBarangays,
   getDisasters,
-  getEnumValues
+  getEnumValues,
+  checkUserCanLogin
 } = require('../controllers/user.controller');
 
 const router = express.Router();
@@ -22,6 +24,9 @@ router.get('/data/barangays', getBarangays);      // GET /api/v1/users/data/bara
 router.get('/data/disasters', getDisasters);      // GET /api/v1/users/data/disasters
 router.get('/data/enums', getEnumValues);         // GET /api/v1/users/data/enums
 
+// Auth check route
+router.post('/check-login', checkUserCanLogin);   // POST /api/v1/users/check-login
+
 // Specific user routes (put before general routes to avoid conflicts)
 router.get('/role/:roleId', getUsersByRole);   // GET /api/v1/users/role/5
 router.get('/cswdo', getUsersWithRoleFourAndFive);   // GET /api/v1/users/cswdo
@@ -31,5 +36,6 @@ router.post('/', createUser);           // POST /api/v1/users
 router.get('/', getUsers);              // GET /api/v1/users
 router.get('/:id', getUserById);        // GET /api/v1/users/:id
 router.put('/:id', updateUser);         // PUT /api/v1/users/:id
+router.delete('/:id', deleteUser);      // DELETE /api/v1/users/:id
 
 module.exports = router;

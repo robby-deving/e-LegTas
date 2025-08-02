@@ -33,18 +33,64 @@ const resetPassword = async (req, res) => {
       return res.status(400).json({ message: 'Missing required fields' });
     }
 
-    console.log('Received userId from users_profile:', userId);
+    console.log('Received userId (could be employee_number or auth user id):', userId);
 
-    // First verify the user exists in users_profile
-    const { data: userProfile, error: profileError } = await supabaseAdmin
-      .from('users_profile')
-      .select('email')
-      .eq('user_id', userId)
-      .single();
+    // First, try to find user by employee_number if userId looks like an employee number
+    let userProfile = null;
+    let authUserId = null;
 
-    if (profileError || !userProfile) {
-      console.error('User profile not found:', profileError);
-      return res.status(404).json({ message: 'User not found in users_profile' });
+    // Check if userId looks like an employee number (contains hyphens)
+    if (userId.includes('-')) {
+      console.log('Looking up user by employee_number:', userId);
+      
+      // Find user by employee_number and get their auth user_id
+      const { data: userData, error: userError } = await supabaseAdmin
+        .from('users')
+        .select(`
+          id,
+          employee_number,
+          users_profile!inner (
+            id,
+            email,
+            user_id
+          )
+        `)
+        .eq('employee_number', userId)
+        .is('deleted_at', null)  // Exclude soft-deleted users
+        .single();
+
+      if (userError || !userData) {
+        console.error('User not found by employee_number:', userError);
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      userProfile = userData.users_profile;
+      authUserId = userData.users_profile.user_id;
+      console.log('Found user by employee_number, auth user_id:', authUserId);
+    } else {
+      console.log('Looking up user by auth user_id:', userId);
+      
+      // Assume userId is an auth user UUID, look it up directly
+      const { data: profileData, error: profileError } = await supabaseAdmin
+        .from('users_profile')
+        .select('id, email, user_id')
+        .eq('user_id', userId)
+        .is('deleted_at', null)  // Exclude soft-deleted users
+        .single();
+
+      if (profileError || !profileData) {
+        console.error('User profile not found by user_id:', profileError);
+        return res.status(404).json({ message: 'User not found in users_profile' });
+      }
+
+      userProfile = profileData;
+      authUserId = userId;
+      console.log('Found user by auth user_id:', authUserId);
+    }
+
+    if (!authUserId) {
+      console.error('No auth user_id found');
+      return res.status(404).json({ message: 'User authentication record not found' });
     }
 
     console.log('Found user profile with email:', userProfile.email);
@@ -53,7 +99,7 @@ const resetPassword = async (req, res) => {
     console.log('Calling reset_user_password function...');
     
     const { data, error } = await supabaseAdmin.rpc('reset_user_password', {
-      user_id: userId,
+      user_id: authUserId,
       new_password: newPassword
     });
 
@@ -173,6 +219,9 @@ const login = async (req, res) => {
           email,
           role_id,
           resident_id,
+          user_id,
+          is_active,
+          deleted_at,
           residents (
             first_name,
             last_name
@@ -180,6 +229,7 @@ const login = async (req, res) => {
         )
       `)
       .eq('employee_number', employeeNumber)
+      .is('deleted_at', null)  // Exclude soft-deleted users
       .single();
 
     if (userError || !userData) {
@@ -187,7 +237,38 @@ const login = async (req, res) => {
       return res.status(401).json({ message: 'Invalid employee number or password' });
     }
 
-    // Step 2: Use the email from users_profile to authenticate with Supabase
+    // Check if user profile is soft-deleted or inactive
+    if (userData.users_profile.deleted_at) {
+      console.log('Login attempt for soft-deleted user:', employeeNumber);
+      return res.status(403).json({ 
+        message: 'Account has been deactivated. Please contact administrator.' 
+      });
+    }
+
+    if (!userData.users_profile.is_active) {
+      console.log('Login attempt for inactive user:', employeeNumber);
+      return res.status(403).json({ 
+        message: 'Account is inactive. Please contact administrator.' 
+      });
+    }
+
+    // Step 2: Check if auth user is soft-deleted before attempting login
+    const { data: authUser, error: authUserError } = await supabaseAdmin.auth.admin.getUserById(userData.users_profile.user_id);
+    
+    if (authUserError || !authUser.user) {
+      console.error('Auth user not found:', authUserError);
+      return res.status(401).json({ message: 'Invalid employee number or password' });
+    }
+
+    // Check if auth user has been soft-deleted (banned in Supabase terms)
+    if (authUser.user.banned_until || authUser.user.deleted_at) {
+      console.log('Login attempt for banned/deleted auth user:', employeeNumber);
+      return res.status(403).json({ 
+        message: 'Account has been deactivated. Please contact administrator.' 
+      });
+    }
+
+    // Step 3: Use the email from users_profile to authenticate with Supabase
     const { data: authData, error: authError } = await supabaseAdmin.auth.signInWithPassword({
       email: userData.users_profile.email,
       password,
@@ -198,7 +279,7 @@ const login = async (req, res) => {
       return res.status(401).json({ message: 'Invalid employee number or password' });
     }
 
-    // Step 3: Return user data and token
+    // Step 4: Return user data and token
     const responseData = {
       user: {
         id: authData.user?.id,

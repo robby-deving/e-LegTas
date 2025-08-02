@@ -35,6 +35,8 @@ export default function UserManagement(){
     const [formLoading, setFormLoading] = useState(false);
     const [barangays, setBarangays] = useState<{id: number; name: string}[]>([]);
     const [evacuationCenters, setEvacuationCenters] = useState<{id: number; name: string}[]>([]);
+    const [dropdownOpen, setDropdownOpen] = useState<number | null>(null);
+    const [deleteConfirmUser, setDeleteConfirmUser] = useState<User | null>(null);
     
     // Form state
     const [formData, setFormData] = useState({
@@ -422,6 +424,64 @@ export default function UserManagement(){
         }
     };
 
+    // Handle delete user
+    const handleDeleteUser = async (userId: number) => {
+        try {
+            const response = await fetch(`http://localhost:3000/api/v1/users/${userId}`, {
+                method: 'DELETE',
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to delete user');
+            }
+
+            // Refresh users list
+            const usersResponse = await fetch('http://localhost:3000/api/v1/users/cswdo');
+            const usersData = await usersResponse.json();
+            
+            // Apply the same transformation as in the initial fetch
+            const transformedUsers = usersData.users
+                .filter((user: any) => user.users_profile && user.users_profile.residents)
+                .map((user: any) => ({
+                    id: user.id,
+                    first_name: user.users_profile.residents.first_name,
+                    middle_name: user.users_profile.residents.middle_name,
+                    last_name: user.users_profile.residents.last_name,
+                    suffix: user.users_profile.residents.suffix,
+                    sex: user.users_profile.residents.sex,
+                    barangay_of_origin: user.users_profile.residents.barangays?.name || 'Unknown',
+                    barangay_of_origin_id: user.users_profile.residents.barangay_of_origin,
+                    employee_number: user.employee_number,
+                    birthdate: user.users_profile.residents.birthdate,
+                    email: user.users_profile.email,
+                    role_id: user.users_profile.role_id,
+                    role_name: user.users_profile.roles?.role_name,
+                    assigned_evacuation_center: user.assigned_evacuation_center || null
+                }));
+            
+            setUsers(transformedUsers);
+            setFilteredUsers(transformedUsers);
+            setDeleteConfirmUser(null);
+            
+        } catch (err) {
+            console.error('Error deleting user:', err);
+            setError(err instanceof Error ? err.message : 'Failed to delete user');
+        }
+    };
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = () => {
+            setDropdownOpen(null);
+        };
+
+        document.addEventListener('click', handleClickOutside);
+        return () => {
+            document.removeEventListener('click', handleClickOutside);
+        };
+    }, []);
+
     return(
         <div className='p-6'>
             {/* Title */}
@@ -561,12 +621,42 @@ export default function UserManagement(){
                                             {user.assigned_evacuation_center || 'Not assigned'}
                                         </td>
                                         <td className='px-6 py-4 whitespace-nowrap text-right text-base font-medium'>
-                                            <button 
-                                                onClick={() => handleEditUser(user)}
-                                                className='text-gray-400 hover:text-gray-600'
-                                            >
-                                                <MoreHorizontal className='h-5 w-5' />
-                                            </button>
+                                            <div className="relative">
+                                                <button 
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setDropdownOpen(dropdownOpen === user.id ? null : user.id);
+                                                    }}
+                                                    className='text-gray-400 hover:text-gray-600'
+                                                >
+                                                    <MoreHorizontal className='h-5 w-5' />
+                                                </button>
+                                                
+                                                {dropdownOpen === user.id && (
+                                                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 border border-gray-200">
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleEditUser(user);
+                                                                setDropdownOpen(null);
+                                                            }}
+                                                            className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-t-md"
+                                                        >
+                                                            Edit User
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setDeleteConfirmUser(user);
+                                                                setDropdownOpen(null);
+                                                            }}
+                                                            className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 rounded-b-md"
+                                                        >
+                                                            Delete User
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </td>
                                     </tr>
                                 ))
@@ -896,6 +986,73 @@ export default function UserManagement(){
                                     </button>
                                 </div>
                             </form>
+                        </div>
+                    </div>
+                )}
+
+                {/* Delete Confirmation Modal */}
+                {deleteConfirmUser && (
+                    <div 
+                        className='fixed inset-0 flex items-center justify-center z-50'
+                        style={{
+                            background: 'rgba(211, 211, 211, 0.80)'
+                        }}
+                    >
+                        <div className='bg-white rounded-lg p-6 w-[400px] shadow-lg'>
+                            {/* Modal Header */}
+                            <div className='flex items-center justify-between mb-4'>
+                                <h2 
+                                    className='text-xl font-bold'
+                                    style={{ color: '#DC2626' }}
+                                >
+                                    Delete User
+                                </h2>
+                                <button
+                                    onClick={() => setDeleteConfirmUser(null)}
+                                    className='hover:bg-gray-100 p-1 rounded'
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="17" viewBox="0 0 16 17" fill="none">
+                                        <g opacity="0.7">
+                                            <path d="M12 4.5L4 12.5" stroke="#020617" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"/>
+                                            <path d="M4 4.5L12 12.5" stroke="#020617" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"/>
+                                        </g>
+                                    </svg>
+                                </button>
+                            </div>
+                            
+                            {/* Modal Content */}
+                            <div className='mb-6'>
+                                <p className='text-gray-700 mb-2'>
+                                    Are you sure you want to delete this user?
+                                </p>
+                                <div className='bg-gray-50 p-3 rounded-md'>
+                                    <p className='font-medium text-gray-900'>
+                                        {getDisplayName(deleteConfirmUser)}
+                                    </p>
+                                    <p className='text-sm text-gray-600'>
+                                        {deleteConfirmUser.email}
+                                    </p>
+                                </div>
+                                <p className='text-sm text-red-600 mt-2'>
+                                    This action cannot be undone. The user will no longer be able to access the system.
+                                </p>
+                            </div>
+                            
+                            {/* Modal Footer */}
+                            <div className='flex justify-end gap-3'>
+                                <button
+                                    onClick={() => setDeleteConfirmUser(null)}
+                                    className='px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none'
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={() => handleDeleteUser(deleteConfirmUser.id)}
+                                    className='px-4 py-2 text-white bg-red-600 rounded-md hover:bg-red-700 focus:outline-none'
+                                >
+                                    Delete User
+                                </button>
+                            </div>
                         </div>
                     </div>
                 )}
