@@ -2,8 +2,6 @@
 
 const supabase = require('../config/supabase');
 
-const TABLE_NAME = 'disaster_evacuation_event';
-
 // --- Helper for Custom API Errors ---
 class ApiError extends Error {
     constructor(message, statusCode = 500) {
@@ -25,7 +23,7 @@ exports.getActiveEvacuationCentersByDisaster = async (req, res, next) => {
 
     try {
         const { data, error } = await supabase
-            .from(TABLE_NAME)
+            .from('disaster_evacuation_event')
             .select(`
                 evacuation_center_id
             `)
@@ -42,6 +40,7 @@ exports.getActiveEvacuationCentersByDisaster = async (req, res, next) => {
                 message: 'No active evacuation centers found for this disaster.',
                 count: 0,
                 data: [],
+                // eventIds: [],
             });
         }
 
@@ -52,6 +51,7 @@ exports.getActiveEvacuationCentersByDisaster = async (req, res, next) => {
             message: 'Successfully counted active evacuation centers for this disaster.',
             count: uniqueCenterIds.length,
             evacuation_center_ids: uniqueCenterIds
+            // eventIds: eventIds,
         });
 
     } catch (err) {
@@ -85,6 +85,7 @@ exports.getTotalRegisteredEvacueesByDisaster = async (req, res, next) => {
                 message: 'No active evacuation events found for this disaster.',
                 count: 0,
                 data: [],
+                // eventIds: [],
             });
         }
 
@@ -109,6 +110,7 @@ exports.getTotalRegisteredEvacueesByDisaster = async (req, res, next) => {
         res.status(200).json({
             message: 'Successfully counted total registered evacuees for this disaster.',
             count: totalRegistered,
+            // eventIds: eventIds,
         });
 
     } catch (err) {
@@ -142,6 +144,7 @@ exports.getTotalRegisteredFamiliesByDisaster = async (req, res, next) => {
                 message: 'No active evacuation events found for this disaster.',
                 count: 0,
                 data: [],
+                // eventIds: [],
             });
         }
 
@@ -166,6 +169,7 @@ exports.getTotalRegisteredFamiliesByDisaster = async (req, res, next) => {
         res.status(200).json({
             message: 'Successfully counted total registered families for this disaster.',
             count: totalFamilies,
+            // eventIds: eventIds,
         });
 
     } catch (err) {
@@ -198,6 +202,7 @@ exports.getEvacueeStatisticsByDisaster = async (req, res, next) => {
             return res.status(200).json({
                 message: 'No active evacuation events found for this disaster.',
                 statistics: {},
+                // eventIds: [],
             });
         }
 
@@ -236,6 +241,7 @@ exports.getEvacueeStatisticsByDisaster = async (req, res, next) => {
         res.status(200).json({
             message: 'Successfully retrieved evacuee statistics for this disaster.',
             statistics: aggregatedStats,
+            // eventIds: eventIds,
         });
 
     } catch (err) {
@@ -268,51 +274,72 @@ exports.getEvacuationCenterCapacityStatus = async (req, res, next) => {
             return res.status(200).json({
                 message: 'No active evacuation centers found for this disaster.',
                 data: [],
+                eventIds: [],
             });
         }
 
         const evacEventIds = activeEvents.map(event => event.id);
         const centerIds = [...new Set(activeEvents.map(event => event.evacuation_center_id))];
 
-        // Get current occupancy per evacuation center
-        const { data: registrations, error: regError } = await supabase
-            .from('evacuation_registrations')
-            .select('disaster_evacuation_event_id')
+        // Get evacuee counts from evacuation_summaries
+        const { data: summaries, error: summaryError } = await supabase
+            .from('evacuation_summaries')
+            .select('disaster_evacuation_event_id, total_no_of_individuals')
             .in('disaster_evacuation_event_id', evacEventIds);
 
-        if (regError) {
-            console.error('Supabase Error (registrations):', regError);
-            return next(new ApiError('Failed to retrieve evacuee registrations.', 500));
+        if (summaryError) {
+            console.error('Supabase Error (evacuation_summaries):', summaryError);
+            return next(new ApiError('Failed to retrieve summaries.', 500));
         }
+
+        // Map centerId → evacuee count
+        const occupancyMap = {};
+        for (const summary of summaries) {
+            const event = activeEvents.find(e => e.id === summary.disaster_evacuation_event_id);
+            if (!event) continue;
+            const centerId = event.evacuation_center_id;
+            occupancyMap[centerId] = (occupancyMap[centerId] || 0) + (summary.total_no_of_individuals || 0);
+        }
+
+        // Get current occupancy per evacuation center
+        // const { data: registrations, error: regError } = await supabase
+        //     .from('evacuation_registrations')
+        //     .select('disaster_evacuation_event_id')
+        //     .in('disaster_evacuation_event_id', evacEventIds);
+
+        // if (regError) {
+        //     console.error('Supabase Error (registrations):', regError);
+        //     return next(new ApiError('Failed to retrieve evacuee registrations.', 500));
+        // }
 
         // Map eventId → count of evacuees
-        const occupancyMap = {};
-        for (const reg of registrations) {
-            const eventId = reg.disaster_evacuation_event_id;
-            const centerId = activeEvents.find(ev => ev.id === eventId)?.evacuation_center_id;
-            if (!centerId) continue;
+        // const occupancyMap = {};
+        // for (const reg of registrations) {
+        //     const eventId = reg.disaster_evacuation_event_id;
+        //     const centerId = activeEvents.find(ev => ev.id === eventId)?.evacuation_center_id;
+        //     if (!centerId) continue;
 
-            occupancyMap[centerId] = (occupancyMap[centerId] || 0) + 1;
-        }
+        //     occupancyMap[centerId] = (occupancyMap[centerId] || 0) + 1;
+        // }
 
         // Get total capacity from evacuation_center_rooms
-        const { data: roomCapacities, error: capError } = await supabase
-            .from('evacuation_center_rooms')
-            .select('evacuation_center_id, individual_room_capacity')
-            .in('evacuation_center_id', centerIds)
-            .is('deleted_at', null); // exclude deleted rooms
+        // const { data: roomCapacities, error: capError } = await supabase
+        //     .from('evacuation_center_rooms')
+        //     .select('evacuation_center_id, individual_room_capacity')
+        //     .in('evacuation_center_id', centerIds)
+        //     .is('deleted_at', null); // exclude deleted rooms
 
-        if (capError) {
-            console.error('Supabase Error (room capacities):', capError);
-            return next(new ApiError('Failed to retrieve room capacity data.', 500));
-        }
+        // if (capError) {
+        //     console.error('Supabase Error (room capacities):', capError);
+        //     return next(new ApiError('Failed to retrieve room capacity data.', 500));
+        // }
 
         // Map centerId → total capacity
-        const capacityMap = {};
-        for (const room of roomCapacities) {
-            const centerId = room.evacuation_center_id;
-            capacityMap[centerId] = (capacityMap[centerId] || 0) + (room.individual_room_capacity || 0);
-        }
+        // const capacityMap = {};
+        // for (const room of roomCapacities) {
+        //     const centerId = room.evacuation_center_id;
+        //     capacityMap[centerId] = (capacityMap[centerId] || 0) + (room.individual_room_capacity || 0);
+        // }
 
         // Get center details (name, address)
         const { data: centers, error: ecError } = await supabase
@@ -320,6 +347,7 @@ exports.getEvacuationCenterCapacityStatus = async (req, res, next) => {
             .select(`
                 id,
                 name,
+                total_capacity,
                 address,
                 barangay_id,
                 barangay:barangay_id (name)
@@ -339,14 +367,15 @@ exports.getEvacuationCenterCapacityStatus = async (req, res, next) => {
                 name: center.name,
                 //address: center.address,
                 barangay_name: center.barangay?.name || 'Unknown',
-                total_capacity: capacityMap[centerId] || 0,
+                total_capacity: center.total_capacity || 0,
                 current_occupancy: occupancyMap[centerId] || 0
             };
-        }).sort((a, b) => b.current_occupancy - a.current_occupancy).slice(0, 10); // Top 10 only
+        }).sort((a, b) => b.current_occupancy - a.current_occupancy);
 
         res.status(200).json({
             message: 'Successfully fetched evacuation center capacity status.',
             data: rankedCenters,
+            eventIds: evacEventIds,
         });
 
     } catch (err) {

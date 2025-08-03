@@ -13,32 +13,43 @@ import registeredFamilies from '../assets/registeredFamilies.svg';
 import StatCard from '../components/StatCard';
 import EvacueeStatisticsChart from '../components/EvacueeStatisticsChart';
 
+import { supabase } from '../lib/supabaseClient';
+
 // import { MapContainer, TileLayer} from 'react-leaflet';
 // import 'leaflet/dist/leaflet.css';
 // import { useNavigate } from 'react-router-dom';
 // import GISMap from '../components/Map/GISMap';
 // import type { EvacuationCenter } from '@/types/EvacuationCenter';
 
-// export const EVACUEE_STATISTICS_DATA = [
-//   { label: "Male", value: 120000 },
-//   { label: "Female", value: 100000 },
-//   { label: "Infant (<1 yr)", value: 10000 },
-//   { label: "Children (2-12 yrs)", value: 40000 },
-//   { label: "Youth (13-17 yrs)", value: 25000 },
-//   { label: "Adult (18-59 yrs)", value: 90000 },
-//   { label: "Senior Citizens (60+)", value: 30000 },
-//   { label: "PWD", value: 8000 },
-//   { label: "Pregnant Women", value: 5000 },
-//   { label: "Lactating Women", value: 4000 },
-// ];
+type DisasterEvacuationEvent = {
+  evacuation_end_date: string | null;
+};
 
-// export const EVACUATION_CENTER_CAPACITY_DATA = [
-//   { name: "Evacuation Center Name", brgy: "Brg. 1 - Name of Barangay", capacity: 90.1, current: 19783, total: 23000 },
-//   { name: "Evacuation Center Name", brgy: "Brg. 1 - Name of Barangay", capacity: 89.4, current: 15783, total: 21000 },
-//   { name: "Evacuation Center Name", brgy: "Brg. 1 - Name of Barangay", capacity: 88.3, current: 15526, total: 22000 },
-//   { name: "Evacuation Center Name", brgy: "Brg. 1 - Name of Barangay", capacity: 74.1, current: 25235, total: 35000 },
-//   { name: "Evacuation Center Name", brgy: "Brg. 1 - Name of Barangay", capacity: 49.4, current: 12456, total: 30000 },
-// ];
+type EvacuationSummary = {
+  disaster_evacuation_event_id: number;
+  total_no_of_individuals: number | null;
+  total_no_of_family: number | null;
+  total_no_of_male: number | null;
+  total_no_of_female: number | null;
+  total_no_of_infant: number | null;
+  total_no_of_children: number | null;
+  total_no_of_youth: number | null;
+  total_no_of_adult: number | null;
+  total_no_of_seniors: number | null;
+  total_no_of_pwd: number | null;
+  total_no_of_pregnant: number | null;
+  total_no_of_lactating_women: number | null;
+};
+
+interface EvacuationRegistration {
+  disaster_evacuation_event_id: number;
+  [key: string]: any; // optional to allow other fields
+}
+
+interface EvacuationCenter {
+  id: number;
+  [key: string]: any;
+}
 
 export default function Dashboard() {
   usePageTitle('Dashboard');
@@ -59,6 +70,10 @@ export default function Dashboard() {
       total_capacity: number;
     }[]
   >([]);
+
+  const [capacityEventIds, setCapacityEventIds] = useState<number[]>([]);
+  const [initialFetchDone, setInitialFetchDone] = useState(false);
+
   // const navigate = useNavigate();
   // const [selectedEvacuationCenter, setSelectedEvacuationCenter] = useState<EvacuationCenter | null>(null);
 
@@ -106,7 +121,39 @@ export default function Dashboard() {
     };
 
     fetchActiveEvacuationCenters();
-  }, [selectedDisaster]);
+
+    // Subscribe to realtime updates
+    const channel = supabase
+      .channel('realtime-active-ec')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // insert | update | delete
+          schema: 'public',
+          table: 'disaster_evacuation_event',
+          filter: `disaster_id=eq.${selectedDisaster?.id}`
+        },
+        (payload) => {
+          console.log('Realtime event received:', payload);
+
+          const oldData = payload.old as DisasterEvacuationEvent;
+          const newData = payload.new as DisasterEvacuationEvent;
+
+          if (oldData?.evacuation_end_date !== newData?.evacuation_end_date) {
+            console.log('evacuation_end_date changed, refetching...');
+            fetchActiveEvacuationCenters();
+          } else {
+            console.log('No relevant change — skipping refetch.');
+          }
+        }
+      )
+      .subscribe();
+
+    // Cleanup
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [selectedDisaster]); // rerun if selected disaster changes
 
   useEffect(() => {
     const fetchRegisteredEvacueesCount = async () => {
@@ -129,6 +176,39 @@ export default function Dashboard() {
     };
 
     fetchRegisteredEvacueesCount();
+
+    // 👇 Realtime: Listen for updates on the evacuation_summaries table
+    const channel = supabase
+      .channel('realtime-registered-evacuees')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // insert, update, delete
+          schema: 'public',
+          table: 'evacuation_summaries'
+        },
+        (payload) => {
+          console.log('Realtime update for evacuation_summaries:', payload);
+
+          const newData = payload.new as EvacuationSummary;
+          const oldData = payload.old as EvacuationSummary;
+
+          // If the count or event_id changed, or if new summary added
+          const countChanged = newData?.total_no_of_individuals !== oldData?.total_no_of_individuals;
+          const eventIdChanged = newData?.disaster_evacuation_event_id !== oldData?.disaster_evacuation_event_id;
+
+          if (countChanged || eventIdChanged) {
+            fetchRegisteredEvacueesCount();
+          } else {
+            console.log('No significant evacuee data change — skipping refetch.');
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [selectedDisaster]);
 
   useEffect(() => {
@@ -152,6 +232,39 @@ export default function Dashboard() {
     };
 
     fetchRegisteredFamiliesCount();
+
+    const channel = supabase
+      .channel('realtime-registered-families')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // insert, update, delete
+          schema: 'public',
+          table: 'evacuation_summaries'
+        },
+        (payload) => {
+          console.log('Realtime update for evacuation_summaries (families):', payload);
+
+          const newData = payload.new as EvacuationSummary;
+          const oldData = payload.old as EvacuationSummary;
+
+          const countChanged = newData?.total_no_of_family !== oldData?.total_no_of_family;
+          const eventIdChanged = newData?.disaster_evacuation_event_id !== oldData?.disaster_evacuation_event_id;
+
+          // For now, always refetch on relevant field change (no filtering yet)
+          if (countChanged || eventIdChanged) {
+            console.log('Change in family summary detected — refetching...');
+            fetchRegisteredFamiliesCount();
+          } else {
+            console.log('No relevant family change — skipping.');
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [selectedDisaster]);
 
   useEffect(() => {
@@ -190,6 +303,47 @@ export default function Dashboard() {
     };
 
     fetchEvacueeStatistics();
+
+    // ✅ Setup Realtime subscription to evacuation_summaries
+    const channel = supabase
+      .channel('realtime-evacuee-statistics')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'evacuation_summaries',
+        },
+        (payload) => {
+          console.log('Realtime evacuee statistics update:', payload);
+
+          const newData = payload.new as EvacuationSummary;
+          const oldData = payload.old as EvacuationSummary;
+
+          const anyDemographicChanged =
+            newData?.total_no_of_male !== oldData?.total_no_of_male ||
+            newData?.total_no_of_female !== oldData?.total_no_of_female ||
+            newData?.total_no_of_infant !== oldData?.total_no_of_infant ||
+            newData?.total_no_of_children !== oldData?.total_no_of_children ||
+            newData?.total_no_of_youth !== oldData?.total_no_of_youth ||
+            newData?.total_no_of_adult !== oldData?.total_no_of_adult ||
+            newData?.total_no_of_seniors !== oldData?.total_no_of_seniors ||
+            newData?.total_no_of_pwd !== oldData?.total_no_of_pwd ||
+            newData?.total_no_of_pregnant !== oldData?.total_no_of_pregnant ||
+            newData?.total_no_of_lactating_women !== oldData?.total_no_of_lactating_women;
+
+          if (anyDemographicChanged) {
+            fetchEvacueeStatistics(); // ✅ Refetch chart data
+          } else {
+            console.log('No relevant statistic changed — skipping refetch.');
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [selectedDisaster]);
 
   useEffect(() => {
@@ -204,6 +358,10 @@ export default function Dashboard() {
 
         if (response.ok) {
           setEvacuationCapacityStatus(result.data || []);
+          if (result.eventIds) {
+            setCapacityEventIds(result.eventIds); // ✅ store for filtering
+          }
+          setInitialFetchDone(true);
         } else {
           console.error(result.message || 'Failed to fetch evacuation center capacity status.');
           setEvacuationCapacityStatus([]);
@@ -215,6 +373,73 @@ export default function Dashboard() {
     };
 
     fetchEvacuationCapacityStatus();
+
+    // ✅ Realtime listener for evacuee registration updates
+    const summaryChannel = supabase
+      .channel('realtime-evac-capacity-summaries')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'evacuation_summaries'
+        },
+        (payload) => {
+          console.log('Realtime update from evacuation_summaries:', payload);
+
+          const newtotaloccupancy = payload.new as EvacuationRegistration;
+          const oldtotaloccupancy = payload.old as EvacuationRegistration;
+
+          const newEventId = newtotaloccupancy?.disaster_evacuation_event_id;
+          const oldEventId = oldtotaloccupancy?.disaster_evacuation_event_id;
+
+          const isRelevant =
+            !initialFetchDone ||
+            capacityEventIds.includes(newEventId) ||
+            capacityEventIds.includes(oldEventId);
+
+          if (isRelevant) {
+            fetchEvacuationCapacityStatus();
+          } else {
+            console.log('Not related to current disaster — skipping.');
+          }
+        }
+      )
+      .subscribe();
+
+    // ✅ Realtime listener for room capacity changes
+    const centerChannel = supabase
+      .channel('realtime-evac-capacity-centers')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'evacuation_centers'
+        },
+          (payload) => {
+            console.log('Realtime update from evacuation_centers:', payload);
+
+            const newcentercapacity = payload.new as EvacuationCenter;
+            const oldcentercapacity = payload.old as EvacuationCenter;
+
+            const centerId = newcentercapacity?.id ?? oldcentercapacity?.id;
+            
+            const isRelevant =
+              !initialFetchDone || // allow all updates until data is loaded
+              evacuationCapacityStatus.some(center => center.id === centerId);
+
+            if (isRelevant) {
+              fetchEvacuationCapacityStatus();
+            }
+          }
+        )
+        .subscribe();
+
+    return () => {
+      supabase.removeChannel(summaryChannel);
+      supabase.removeChannel(centerChannel);
+    };
   }, [selectedDisaster]);
 
   return (
@@ -327,7 +552,12 @@ export default function Dashboard() {
               <span>Capacity</span>
             </div>
             <div className="divide-y divide-gray-100 max-h-64 overflow-y-auto pr-2">
-              {evacuationCapacityStatus.map((center, idx) => {
+              {evacuationCapacityStatus.length === 0 ? (
+                <div className="text-center text-gray-500 text-sm py-4">
+                  No Active Evacuation Centers
+                </div>
+              ) : (
+              evacuationCapacityStatus.map((center, idx) => {
                 const capacityPercentage =
                   center.total_capacity === 0
                     ? 0
@@ -353,7 +583,8 @@ export default function Dashboard() {
                     </span>
                   </div>
                 );
-              })}
+              })
+              )}
             </div>
           </div>
         </div>
