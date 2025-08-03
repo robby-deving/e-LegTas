@@ -18,7 +18,7 @@ import type { ActiveEvacuation } from "@/types/EvacuationCenter";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { formatDate } from "@/utils/dateFormatter";
 import { getTypeColor, getTagColor } from '@/constants/disasterTypeColors';
-
+import { encodeId } from "@/utils/secureId";
 
 
 export default function DisasterDetail() {
@@ -154,7 +154,7 @@ export default function DisasterDetail() {
                     <TableRow
                       key={center.evacuation_center_id}
                       className="cursor-pointer hover:bg-gray-50"
-                      onClick={() => navigate(`/evacuation-information/${id}/${center.evacuation_center_id}`)}
+                      onClick={() => navigate(`/evacuation-information/${encodeId(disasterId)}/${encodeId(center.id)}`)}
                     >
                       <TableCell className="text-foreground font-medium">{center.evacuation_center_name}</TableCell>
                       <TableCell className="text-foreground">{center.evacuation_center_barangay_name}</TableCell>

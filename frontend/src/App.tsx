@@ -34,7 +34,7 @@ function App() {
             <Route path="/user-management" element={<UserManagement/>} />
             <Route path="/profile" element={<Profile/>} />
             <Route path="/evacuation-information/:id" element={<DisasterDetail/>} />
-            <Route path="/evacuation-information/:disasterId/:centerId" element={<EvacuationCenterDetail />} />
+            <Route path="/evacuation-information/:id/:disasterEvacuationEventId" element={<EvacuationCenterDetail/>} />
           </Routes>
         </div>
       </div>

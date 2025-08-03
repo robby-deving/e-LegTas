@@ -425,11 +425,6 @@ exports.getRegisterEvacueeByFamilyId = async (req, res, next) => {
 };
 
 /**
- * @desc Get detailed evacuee data filtered by disaster evacuation event ID
- * @route GET /api/v1/evacuees/:disasterEvacuationEventId/evacuees-information
- * @access Public (optional authentication can be added later)
- */
-/**
  * @desc Get detailed evacuee data by disaster evacuation event ID, includes summary, room details, and full list of evacuees
  * @route GET /api/v1/evacuees/:disasterEvacuationEventId/evacuees-information
  * @access Public
