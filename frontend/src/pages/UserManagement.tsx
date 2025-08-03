@@ -29,6 +29,9 @@ export default function UserManagement(){
     const currentUser = useSelector(selectCurrentUser);
     const { hasPermission, loading: permissionsLoading } = usePermissions();
     const hasViewUserManagement = hasPermission('view_user_management');
+    const hasAddUser = hasPermission('add_user');
+    const hasUpdateUser = hasPermission('update_user');
+    const hasDeleteUser = hasPermission('delete_user');
     
     // All useState hooks must be called before any conditional returns
     const [searchTerm, setSearchTerm] = useState('');
@@ -484,38 +487,44 @@ export default function UserManagement(){
             cells.push(
                 <td key="actions" className='px-6 py-4 whitespace-nowrap text-right text-base font-medium'>
                     <div className="relative">
-                        <button 
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                setDropdownOpen(dropdownOpen === user.id ? null : user.id);
-                            }}
-                            className='text-gray-400 hover:text-gray-600'
-                        >
-                            <MoreHorizontal className='h-5 w-5' />
-                        </button>
+                        {(hasUpdateUser || hasDeleteUser) && (
+                            <button 
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setDropdownOpen(dropdownOpen === user.id ? null : user.id);
+                                }}
+                                className='text-gray-400 hover:text-gray-600'
+                            >
+                                <MoreHorizontal className='h-5 w-5' />
+                            </button>
+                        )}
                         
                         {dropdownOpen === user.id && (
                             <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 border border-gray-200">
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleEditUser(user);
-                                        setDropdownOpen(null);
-                                    }}
-                                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-t-md"
-                                >
-                                    Edit User
-                                </button>
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        setDeleteConfirmUser(user);
-                                        setDropdownOpen(null);
-                                    }}
-                                    className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 rounded-b-md"
-                                >
-                                    Delete User
-                                </button>
+                                {hasUpdateUser && (
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleEditUser(user);
+                                            setDropdownOpen(null);
+                                        }}
+                                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-t-md"
+                                    >
+                                        Edit User
+                                    </button>
+                                )}
+                                {hasDeleteUser && (
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setDeleteConfirmUser(user);
+                                            setDropdownOpen(null);
+                                        }}
+                                        className={`block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 ${hasUpdateUser ? 'rounded-b-md' : 'rounded-md'}`}
+                                    >
+                                        Delete User
+                                    </button>
+                                )}
                             </div>
                         )}
                     </div>
@@ -860,8 +869,8 @@ export default function UserManagement(){
                         />
                     </div>
                     
-                    {/* Add User Button - Show for users with access */}
-                    {currentRoleConfig && (
+                    {/* Add User Button - Show for users with add_user permission */}
+                    {currentRoleConfig && hasAddUser && (
                         <button
                             onClick={() => setIsAddUserModalOpen(true)}
                             className='inline-flex items-center gap-2 px-4 py-2 text-white font-medium text-base rounded-md hover:opacity-90 transition-opacity focus:outline-none'
