@@ -1,5 +1,8 @@
 import { usePageTitle } from '../hooks/usePageTitle';
 import { useState, useEffect } from 'react';
+import { useSelector } from 'react-redux';
+import { selectCurrentUser } from '../features/auth/authSlice';
+import { usePermissions } from '../contexts/PermissionContext';
 import { Search, MoreHorizontal, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 
 interface User {
@@ -21,6 +24,13 @@ interface User {
 
 export default function UserManagement(){
     usePageTitle('User Management');
+    
+    // All hooks must be called before any conditional logic
+    const currentUser = useSelector(selectCurrentUser);
+    const { hasPermission, loading: permissionsLoading } = usePermissions();
+    const hasViewUserManagement = hasPermission('view_user_management');
+    
+    // All useState hooks must be called before any conditional returns
     const [searchTerm, setSearchTerm] = useState('');
     const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
     const [isEditUserModalOpen, setIsEditUserModalOpen] = useState(false);
@@ -53,13 +63,49 @@ export default function UserManagement(){
         role_id: '',
         assigned_evacuation_center: ''
     });
+    
+    // Helper function to get appropriate API endpoint based on user role
+    const getUsersApiEndpoint = () => {
+        if (!currentUser?.role_id) return 'http://localhost:3000/api/v1/users';
+        
+        if (currentUser.role_id === 4 || currentUser.role_id === 5) {
+            // Roles 4 & 5 can only see users with role_id 4 & 5
+            return 'http://localhost:3000/api/v1/users/cswdo';
+        } else if (currentUser.role_id === 2 || currentUser.role_id === 3) {
+            // Roles 2 & 3 can only see users with role_id 2 & 3
+            return 'http://localhost:3000/api/v1/users';
+        }
+        
+        return 'http://localhost:3000/api/v1/users';
+    };
 
+    // Helper function to filter users based on current user's role group
+    const filterUsersByRoleGroup = (allUsers: any[]) => {
+        if (!currentUser?.role_id) return allUsers;
+        
+        if (currentUser.role_id === 4 || currentUser.role_id === 5) {
+            // Role 4 & 5 can only see users with role_id 4 & 5
+            return allUsers.filter((user: any) => 
+                user.role_id === 4 || user.role_id === 5
+            );
+        } else if (currentUser.role_id === 2 || currentUser.role_id === 3) {
+            // Role 2 & 3 can only see users with role_id 2 & 3
+            return allUsers.filter((user: any) => 
+                user.role_id === 2 || user.role_id === 3
+            );
+        }
+        
+        return allUsers;
+    };
+
+    // ALL useEffect hooks must be called before conditional logic
     // Fetch users from backend
     useEffect(() => {
         const fetchUsers = async () => {
             try {
                 setLoading(true);
-                const response = await fetch('http://localhost:3000/api/v1/users/cswdo');
+                const endpoint = getUsersApiEndpoint();
+                const response = await fetch(endpoint);
                 
                 if (!response.ok) {
                     throw new Error(`Failed to fetch users: ${response.status}`);
@@ -68,7 +114,7 @@ export default function UserManagement(){
                 const data = await response.json();
                 
                 // Transform the backend data to match frontend format
-                const transformedUsers = data.users
+                const allTransformedUsers = data.users
                     .filter((user: any) => user.users_profile && user.users_profile.residents) // Filter out users without complete profile data
                     .map((user: any) => ({
                         id: user.id,
@@ -87,8 +133,11 @@ export default function UserManagement(){
                         assigned_evacuation_center: user.assigned_evacuation_center || null // Get from backend or null
                     }));
                 
-                setUsers(transformedUsers);
-                setFilteredUsers(transformedUsers);
+                // Apply role-based filtering
+                const filteredUsersByRole = filterUsersByRoleGroup(allTransformedUsers);
+                
+                setUsers(filteredUsersByRole);
+                setFilteredUsers(filteredUsersByRole);
                 setError(null);
             } catch (err) {
                 console.error('Error fetching users:', err);
@@ -99,7 +148,7 @@ export default function UserManagement(){
         };
 
         fetchUsers();
-    }, []);
+    }, [currentUser?.role_id]); // Add currentUser.role_id as dependency
 
     // Fetch barangays from backend
     useEffect(() => {
@@ -176,6 +225,52 @@ export default function UserManagement(){
         setCurrentPage(1); // Reset to first page when searching
     }, [searchTerm, users]);
 
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = () => {
+            setDropdownOpen(null);
+        };
+
+        document.addEventListener('click', handleClickOutside);
+        return () => {
+            document.removeEventListener('click', handleClickOutside);
+        };
+    }, []);
+    
+    // Permission checks based on role and permission
+    const isRole2 = currentUser?.role_id === 2 && hasViewUserManagement;
+    const isRole3 = currentUser?.role_id === 3 && hasViewUserManagement; // Limited access role
+    const isRole4 = currentUser?.role_id === 4 && hasViewUserManagement; // CSWDO role with full access
+    const isRole5 = currentUser?.role_id === 5 && hasViewUserManagement;
+    
+    // Determine which roles the current user can see and manage
+    const isHigherRoleGroup = isRole4 || isRole5; // Roles 4 & 5 can manage each other
+    const isLowerRoleGroup = isRole2 || isRole3;  // Roles 2 & 3 can manage each other
+    
+    // Show loading while permissions are being fetched
+    if (permissionsLoading) {
+        return (
+            <div className="flex items-center justify-center min-h-screen">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#00824E] mx-auto mb-4"></div>
+                    <p className="text-gray-600">Loading permissions...</p>
+                </div>
+            </div>
+        );
+    }
+    
+    // If user doesn't have permission, show access denied
+    if (!hasViewUserManagement) {
+        return (
+            <div className="flex items-center justify-center min-h-screen">
+                <div className="text-center">
+                    <h2 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h2>
+                    <p className="text-gray-600">You don't have permission to view this page.</p>
+                </div>
+            </div>
+        );
+    }
+
     // Get the display name for a user
     const getDisplayName = (user: User) => {
         const parts = [user.first_name];
@@ -198,12 +293,18 @@ export default function UserManagement(){
                     return 'CSWDO';
                 case 'camp manager':
                     return 'CAMP MANAGER';
+                case 'barangay official':
+                    return 'BARANGAY OFFICIAL';
+                case 'regional coordinator':
+                    return 'REGIONAL COORDINATOR';
                 default:
                     return roleName.toUpperCase();
             }
         }
         
         // Fallback to role_id mapping if role name is not available
+        if (roleId === 2) return 'BARANGAY OFFICIAL';
+        if (roleId === 3) return 'REGIONAL COORDINATOR';
         if (roleId === 4) return 'CSWDO';
         if (roleId === 5) return 'CAMP MANAGER';
         return 'UNKNOWN ROLE';
@@ -232,25 +333,28 @@ export default function UserManagement(){
         setFormLoading(true);
         
         try {
+            // Set role and evacuation center based on current user's role group
+            const submitData = {
+                firstName: formData.first_name,
+                middleName: formData.middle_name,
+                lastName: formData.last_name,
+                suffix: formData.suffix,
+                sex: formData.sex,
+                birthdate: formData.birthdate,
+                barangayOfOrigin: formData.barangay_of_origin,
+                employeeNumber: formData.employee_number,
+                email: formData.email,
+                password: formData.password,
+                roleId: isLowerRoleGroup ? (currentUser?.role_id || 3) : parseInt(formData.role_id), // Use current user's role for lower role group
+                assignedEvacuationCenter: isHigherRoleGroup ? formData.assigned_evacuation_center : '' // Only include for higher role group
+            };
+
             const response = await fetch('http://localhost:3000/api/v1/users', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({
-                    firstName: formData.first_name,
-                    middleName: formData.middle_name,
-                    lastName: formData.last_name,
-                    suffix: formData.suffix,
-                    sex: formData.sex,
-                    birthdate: formData.birthdate,
-                    barangayOfOrigin: formData.barangay_of_origin,
-                    employeeNumber: formData.employee_number,
-                    email: formData.email,
-                    password: formData.password,
-                    roleId: parseInt(formData.role_id),
-                    assignedEvacuationCenter: formData.assigned_evacuation_center
-                })
+                body: JSON.stringify(submitData)
             });
 
             if (!response.ok) {
@@ -275,12 +379,13 @@ export default function UserManagement(){
             });
             setIsAddUserModalOpen(false);
             
-            // Refresh users list
-            const usersResponse = await fetch('http://localhost:3000/api/v1/users/cswdo');
+            // Refresh users list with role-based filtering
+            const endpoint = getUsersApiEndpoint();
+            const usersResponse = await fetch(endpoint);
             const usersData = await usersResponse.json();
             
             // Apply the same transformation as in the initial fetch
-            const transformedUsers = usersData.users
+            const allTransformedUsers = usersData.users
                 .filter((user: any) => user.users_profile && user.users_profile.residents)
                 .map((user: any) => ({
                     id: user.id,
@@ -299,8 +404,11 @@ export default function UserManagement(){
                     assigned_evacuation_center: user.assigned_evacuation_center || null
                 }));
             
-            setUsers(transformedUsers);
-            setFilteredUsers(transformedUsers);
+            // Apply role-based filtering
+            const filteredUsersByRole = filterUsersByRoleGroup(allTransformedUsers);
+            
+            setUsers(filteredUsersByRole);
+            setFilteredUsers(filteredUsersByRole);
             
         } catch (err) {
             console.error('Error creating user:', err);
@@ -359,26 +467,29 @@ export default function UserManagement(){
         setFormLoading(true);
         
         try {
+            // Handle role and evacuation center based on current user's role group
+            const submitData = {
+                firstName: formData.first_name,
+                middleName: formData.middle_name,
+                lastName: formData.last_name,
+                suffix: formData.suffix,
+                sex: formData.sex,
+                birthdate: formData.birthdate,
+                barangayOfOrigin: formData.barangay_of_origin,
+                employeeNumber: formData.employee_number,
+                email: formData.email,
+                roleId: isLowerRoleGroup ? editingUser.role_id : parseInt(formData.role_id), // Preserve existing role for lower role group
+                assignedEvacuationCenter: isHigherRoleGroup ? formData.assigned_evacuation_center : editingUser.assigned_evacuation_center,
+                // Only include password if it's provided
+                ...(formData.password && { password: formData.password })
+            };
+
             const response = await fetch(`http://localhost:3000/api/v1/users/${editingUser.id}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({
-                    firstName: formData.first_name,
-                    middleName: formData.middle_name,
-                    lastName: formData.last_name,
-                    suffix: formData.suffix,
-                    sex: formData.sex,
-                    birthdate: formData.birthdate,
-                    barangayOfOrigin: formData.barangay_of_origin,
-                    employeeNumber: formData.employee_number,
-                    email: formData.email,
-                    roleId: parseInt(formData.role_id),
-                    assignedEvacuationCenter: formData.assigned_evacuation_center,
-                    // Only include password if it's provided
-                    ...(formData.password && { password: formData.password })
-                })
+                body: JSON.stringify(submitData)
             });
 
             if (!response.ok) {
@@ -389,12 +500,13 @@ export default function UserManagement(){
             // Reset form and close modal
             handleCloseModal();
             
-            // Refresh users list
-            const usersResponse = await fetch('http://localhost:3000/api/v1/users/cswdo');
+            // Refresh users list with role-based filtering
+            const endpoint = getUsersApiEndpoint();
+            const usersResponse = await fetch(endpoint);
             const usersData = await usersResponse.json();
             
             // Apply the same transformation as in the initial fetch
-            const transformedUsers = usersData.users
+            const allTransformedUsers = usersData.users
                 .filter((user: any) => user.users_profile && user.users_profile.residents)
                 .map((user: any) => ({
                     id: user.id,
@@ -413,8 +525,11 @@ export default function UserManagement(){
                     assigned_evacuation_center: user.assigned_evacuation_center || null
                 }));
             
-            setUsers(transformedUsers);
-            setFilteredUsers(transformedUsers);
+            // Apply role-based filtering
+            const filteredUsersByRole = filterUsersByRoleGroup(allTransformedUsers);
+            
+            setUsers(filteredUsersByRole);
+            setFilteredUsers(filteredUsersByRole);
             
         } catch (err) {
             console.error('Error updating user:', err);
@@ -436,12 +551,13 @@ export default function UserManagement(){
                 throw new Error(errorData.message || 'Failed to delete user');
             }
 
-            // Refresh users list
-            const usersResponse = await fetch('http://localhost:3000/api/v1/users/cswdo');
+            // Refresh users list with role-based filtering
+            const endpoint = getUsersApiEndpoint();
+            const usersResponse = await fetch(endpoint);
             const usersData = await usersResponse.json();
             
             // Apply the same transformation as in the initial fetch
-            const transformedUsers = usersData.users
+            const allTransformedUsers = usersData.users
                 .filter((user: any) => user.users_profile && user.users_profile.residents)
                 .map((user: any) => ({
                     id: user.id,
@@ -460,8 +576,11 @@ export default function UserManagement(){
                     assigned_evacuation_center: user.assigned_evacuation_center || null
                 }));
             
-            setUsers(transformedUsers);
-            setFilteredUsers(transformedUsers);
+            // Apply role-based filtering
+            const filteredUsersByRole = filterUsersByRoleGroup(allTransformedUsers);
+            
+            setUsers(filteredUsersByRole);
+            setFilteredUsers(filteredUsersByRole);
             setDeleteConfirmUser(null);
             
         } catch (err) {
@@ -469,18 +588,6 @@ export default function UserManagement(){
             setError(err instanceof Error ? err.message : 'Failed to delete user');
         }
     };
-
-    // Close dropdown when clicking outside
-    useEffect(() => {
-        const handleClickOutside = () => {
-            setDropdownOpen(null);
-        };
-
-        document.addEventListener('click', handleClickOutside);
-        return () => {
-            document.removeEventListener('click', handleClickOutside);
-        };
-    }, []);
 
     return(
         <div className='p-6'>
@@ -528,28 +635,30 @@ export default function UserManagement(){
                         />
                     </div>
                     
-                    {/* Add User Button */}
-                    <button
-                        onClick={() => setIsAddUserModalOpen(true)}
-                        className='inline-flex items-center gap-2 px-4 py-2 text-white font-medium text-base rounded-md hover:opacity-90 transition-opacity focus:outline-none'
-                        style={{
-                            backgroundColor: '#00824E'
-                        }}
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14 14" fill="none">
-                            <g clipPath="url(#clip0_876_48038)">
-                                <path d="M7.0013 12.8327C10.223 12.8327 12.8346 10.221 12.8346 6.99935C12.8346 3.77769 10.223 1.16602 7.0013 1.16602C3.77964 1.16602 1.16797 3.77769 1.16797 6.99935C1.16797 10.221 3.77964 12.8327 7.0013 12.8327Z" stroke="#F8FAFC" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"/>
-                                <path d="M7 4.66602V9.33268" stroke="#F8FAFC" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"/>
-                                <path d="M4.66797 7H9.33464" stroke="#F8FAFC" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"/>
-                            </g>
-                            <defs>
-                                <clipPath id="clip0_876_48038">
-                                    <rect width="14" height="14" fill="white"/>
-                                </clipPath>
-                            </defs>
-                        </svg>
-                        Add User
-                    </button>
+                    {/* Add User Button - Show for both role groups */}
+                    {(isHigherRoleGroup || isLowerRoleGroup) && (
+                        <button
+                            onClick={() => setIsAddUserModalOpen(true)}
+                            className='inline-flex items-center gap-2 px-4 py-2 text-white font-medium text-base rounded-md hover:opacity-90 transition-opacity focus:outline-none'
+                            style={{
+                                backgroundColor: '#00824E'
+                            }}
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14 14" fill="none">
+                                <g clipPath="url(#clip0_876_48038)">
+                                    <path d="M7.0013 12.8327C10.223 12.8327 12.8346 10.221 12.8346 6.99935C12.8346 3.77769 10.223 1.16602 7.0013 1.16602C3.77964 1.16602 1.16797 3.77769 1.16797 6.99935C1.16797 10.221 3.77964 12.8327 7.0013 12.8327Z" stroke="#F8FAFC" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"/>
+                                    <path d="M7 4.66602V9.33268" stroke="#F8FAFC" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"/>
+                                    <path d="M4.66797 7H9.33464" stroke="#F8FAFC" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"/>
+                                </g>
+                                <defs>
+                                    <clipPath id="clip0_876_48038">
+                                        <rect width="14" height="14" fill="white"/>
+                                    </clipPath>
+                                </defs>
+                            </svg>
+                            Add User
+                        </button>
+                    )}
                 </div>
                 
                 {/* Users Table */}
@@ -568,9 +677,12 @@ export default function UserManagement(){
                                 <th className='px-6 py-3 text-left text-base font-medium text-gray-500'>
                                     Role
                                 </th>
-                                <th className='px-6 py-3 text-left text-base font-medium text-gray-500'>
-                                    Assigned Evacuation Center
-                                </th>
+                                {/* Only show Assigned Evacuation Center column for higher role group (4 & 5) */}
+                                {isHigherRoleGroup && (
+                                    <th className='px-6 py-3 text-left text-base font-medium text-gray-500'>
+                                        Assigned Evacuation Center
+                                    </th>
+                                )}
                                 <th className='px-6 py-3 text-right text-base font-medium text-gray-500'>
                                     {/* Empty header for actions column */}
                                 </th>
@@ -579,19 +691,19 @@ export default function UserManagement(){
                         <tbody className='bg-white'>
                             {loading ? (
                                 <tr>
-                                    <td colSpan={4} className='px-6 py-8 text-center text-gray-500'>
+                                    <td colSpan={isHigherRoleGroup ? 4 : 3} className='px-6 py-8 text-center text-gray-500'>
                                         Loading users...
                                     </td>
                                 </tr>
                             ) : error ? (
                                 <tr>
-                                    <td colSpan={4} className='px-6 py-8 text-center text-red-500'>
+                                    <td colSpan={isHigherRoleGroup ? 4 : 3} className='px-6 py-8 text-center text-red-500'>
                                         Error: {error}
                                     </td>
                                 </tr>
                             ) : paginatedUsers.length === 0 ? (
                                 <tr>
-                                    <td colSpan={4} className='px-6 py-8 text-center text-gray-500'>
+                                    <td colSpan={isHigherRoleGroup ? 4 : 3} className='px-6 py-8 text-center text-gray-500'>
                                         {searchTerm ? 'No users found matching your search.' : 'No users found.'}
                                     </td>
                                 </tr>
@@ -617,9 +729,12 @@ export default function UserManagement(){
                                                 {getRoleDisplayName(user.role_id, user.role_name)}
                                             </span>
                                         </td>
-                                        <td className='px-6 py-4 whitespace-nowrap text-base text-gray-900'>
-                                            {user.assigned_evacuation_center || 'Not assigned'}
-                                        </td>
+                                        {/* Only show Assigned Evacuation Center column for higher role group (4 & 5) */}
+                                        {isHigherRoleGroup && (
+                                            <td className='px-6 py-4 whitespace-nowrap text-base text-gray-900'>
+                                                {user.assigned_evacuation_center || 'Not assigned'}
+                                            </td>
+                                        )}
                                         <td className='px-6 py-4 whitespace-nowrap text-right text-base font-medium'>
                                             <div className="relative">
                                                 <button 
@@ -927,42 +1042,67 @@ export default function UserManagement(){
                                     />
                                 </div>
 
-                                {/* Role */}
-                                <div>
-                                    <label className='block text-sm font-medium text-black mb-1'>
-                                        Role
-                                    </label>
-                                    <select
-                                        name='role_id'
-                                        value={formData.role_id}
-                                        onChange={handleFormChange}
-                                        className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E]'
-                                        required
-                                    >
-                                        <option value=''>Select a role</option>
-                                        <option value='4'>CSWDO</option>
-                                        <option value='5'>CAMP MANAGER</option>
-                                    </select>
-                                </div>
+                                {/* Role - Show for higher role group (4 & 5), hide for lower role group (2 & 3) */}
+                                {isHigherRoleGroup && (
+                                    <div>
+                                        <label className='block text-sm font-medium text-black mb-1'>
+                                            Role
+                                        </label>
+                                        <select
+                                            name='role_id'
+                                            value={formData.role_id}
+                                            onChange={handleFormChange}
+                                            className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E]'
+                                            required
+                                        >
+                                            <option value=''>Select a role</option>
+                                            {/* Show appropriate roles based on current user's role group */}
+                                            {(currentUser?.role_id === 4 || currentUser?.role_id === 5) && (
+                                                <>
+                                                    <option value='4'>CSWDO</option>
+                                                    <option value='5'>CAMP MANAGER</option>
+                                                </>
+                                            )}
+                                            {(currentUser?.role_id === 2 || currentUser?.role_id === 3) && (
+                                                <>
+                                                    <option value='2'>BARANGAY OFFICIAL</option>
+                                                    <option value='3'>REGIONAL COORDINATOR</option>
+                                                </>
+                                            )}
+                                        </select>
+                                    </div>
+                                )}
 
-                                {/* Assigned Evacuation Center */}
-                                <div>
-                                    <label className='block text-sm font-medium text-black mb-1'>
-                                        Assigned Evacuation Center
-                                    </label>                                        <select
-                                        name='assigned_evacuation_center'
-                                        value={formData.assigned_evacuation_center}
-                                        onChange={handleFormChange}
-                                        className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E]'
-                                    >
-                                        <option value=''>Select an evacuation center</option>
-                                        {evacuationCenters.map((center) => (
-                                            <option key={center.id} value={center.name}>
-                                                {center.name}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
+                                {/* For lower role group (2 & 3), set default role to prevent form validation errors */}
+                                {isLowerRoleGroup && (
+                                    <input
+                                        type='hidden'
+                                        name='role_id'
+                                        value={currentUser?.role_id === 2 ? '2' : '3'} // Match current user's role group
+                                    />
+                                )}
+
+                                {/* Assigned Evacuation Center - Show only for higher role group (4 & 5) */}
+                                {isHigherRoleGroup && (
+                                    <div>
+                                        <label className='block text-sm font-medium text-black mb-1'>
+                                            Assigned Evacuation Center
+                                        </label>
+                                        <select
+                                            name='assigned_evacuation_center'
+                                            value={formData.assigned_evacuation_center}
+                                            onChange={handleFormChange}
+                                            className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E]'
+                                        >
+                                            <option value=''>Select an evacuation center</option>
+                                            {evacuationCenters.map((center) => (
+                                                <option key={center.id} value={center.name}>
+                                                    {center.name}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
 
                                 {/* Modal Footer - Inside Form */}
                                 <div className='flex justify-end gap-3 mt-6 pt-4'>
