@@ -1,9 +1,8 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux'; 
-import { logout as logoutAction } from '../features/auth/authSlice'; 
-import { supabase } from '../lib/supabase'; 
-import type { RootState } from '../store'; // Add 'type' keyword here
+import { logout as logoutAction, selectCurrentUser } from '../features/auth/authSlice'; 
+import { supabase } from '../lib/supabase';
 
 import SideItem from "./SideItem";
 import dashboardIcon from '../assets/dashboardIcon.svg';
@@ -14,6 +13,7 @@ import announcementIcon from '../assets/announcementIcon.svg';
 import userManagementIcon from '../assets/usersIcon.svg';
 import evacuationCenterIcon from '../assets/evacuationIcon.svg';
 import evacueeIcon from '../assets/evacueeIcon.svg';
+import roleModuleConfigIcon from '../assets/roleModuleConfigIcon.svg';
 import logo from '../assets/logo.svg';
 import logout from '../assets/logout.svg';
 
@@ -24,8 +24,8 @@ export default function SideNav() {
   const dispatch = useDispatch();
   const navigate = useNavigate(); 
   
-  // Get user data directly from Redux
-  const { user } = useSelector((state: RootState) => state.auth);
+  // Get user data using consistent selector pattern
+  const user = useSelector(selectCurrentUser);
 
   const handleLogout = async () => {
     try {
@@ -86,13 +86,26 @@ export default function SideNav() {
 
       {/* Menu Items */}
       <SideItem collapsed={collapsed} icon={dashboardIcon} label="Dashboard" to="/dashboard" />
-      <SideItem collapsed={collapsed} icon={mapIcon} label="Map" to="/map" />
-      <SideItem collapsed={collapsed} icon={evacueeIcon} label="Evacuee Informations" to="/evacuee-informations" />
-      <SideItem collapsed={collapsed} icon={evacuationCenterIcon} label="Evacuation Centers" to="/evacuation-centers" />
-      <SideItem collapsed={collapsed} icon={reportIcon} label="Reports" to="/reports" />
-      <SideItem collapsed={collapsed} icon={emergencyHotlineIcon} label="Emergency Hotlines" to="/emergency-hotlines" />
-      <SideItem collapsed={collapsed} icon={announcementIcon} label="Announcements" to="/announcements" />
-      <SideItem collapsed={collapsed} icon={userManagementIcon} label="User Management" to="/user-management" />
+      
+      {/* Show different menu items based on role */}
+      {user?.role_id === 1 ? (
+        // System Admin (role_id: 1) - Only Dashboard, User Management, and Role & Module Configuration
+        <>
+          <SideItem collapsed={collapsed} icon={userManagementIcon} label="User Management" to="/user-management" />
+          <SideItem collapsed={collapsed} icon={roleModuleConfigIcon} label="Role & Module Config" to="/role-module-config" />
+        </>
+      ) : (
+        // All other roles - Show all other menu items
+        <>
+          <SideItem collapsed={collapsed} icon={mapIcon} label="Map" to="/map" />
+          <SideItem collapsed={collapsed} icon={evacueeIcon} label="Evacuee Informations" to="/evacuee-informations" />
+          <SideItem collapsed={collapsed} icon={evacuationCenterIcon} label="Evacuation Centers" to="/evacuation-centers" />
+          <SideItem collapsed={collapsed} icon={reportIcon} label="Reports" to="/reports" />
+          <SideItem collapsed={collapsed} icon={emergencyHotlineIcon} label="Emergency Hotlines" to="/emergency-hotlines" />
+          <SideItem collapsed={collapsed} icon={announcementIcon} label="Announcements" to="/announcements" />
+          <SideItem collapsed={collapsed} icon={userManagementIcon} label="User Management" to="/user-management" />
+        </>
+      )}
 
       <div className="flex flex-1" />
 
