@@ -47,6 +47,8 @@ export default function UserManagement(){
     const [evacuationCenters, setEvacuationCenters] = useState<{id: number; name: string}[]>([]);
     const [dropdownOpen, setDropdownOpen] = useState<number | null>(null);
     const [deleteConfirmUser, setDeleteConfirmUser] = useState<User | null>(null);
+    const [roles, setRoles] = useState<{id: number; name: string}[]>([]);
+    const [rolesLoading, setRolesLoading] = useState(true);
     
     // Form state
     const [formData, setFormData] = useState({
@@ -64,42 +66,123 @@ export default function UserManagement(){
         assigned_evacuation_center: ''
     });
     
-    // Helper function to get appropriate API endpoint based on user role
-    const getUsersApiEndpoint = () => {
-        if (!currentUser?.role_id) return 'http://localhost:3000/api/v1/users';
+    // Role configuration - Easy to extend for new roles
+    const ROLE_CONFIGS = {
+        SYSTEM_ADMIN_GROUP: {
+            roles: [1],
+            canSeeEvacCenter: true,
+            canSelectRole: true,
+            canManageEvacCenter: true,
+            apiEndpoint: 'http://localhost:3000/api/v1/users',
+            allowedRoleIds: [1, 2, 3, 4, 5], // Can see all users
+            assignableRoleIds: [1, 2, 3, 4, 5], // Can assign any role
+            tableColumns: ['user', 'email', 'role', 'evacuation_center', 'actions']
+        },
+        BARANGAY_GROUP: {
+            roles: [2, 3],
+            canSeeEvacCenter: false,
+            canSelectRole: true, // Changed to true - they can assign roles
+            canManageEvacCenter: false, // Cannot manage evacuation centers
+            apiEndpoint: 'http://localhost:3000/api/v1/users',
+            allowedRoleIds: [2, 3],
+            assignableRoleIds: [2, 3], // Can only assign roles 2 & 3
+            tableColumns: ['user', 'role', 'actions']
+        },
+        CSWDO_GROUP: {
+            roles: [4, 5],
+            canSeeEvacCenter: true,
+            canSelectRole: true,
+            canManageEvacCenter: true,
+            apiEndpoint: 'http://localhost:3000/api/v1/users/cswdo',
+            allowedRoleIds: [4, 5],
+            assignableRoleIds: [4, 5], // Can only assign roles 4 & 5
+            tableColumns: ['user', 'role', 'evacuation_center', 'actions']
+        }
+    };
+
+    // Get current user's role configuration
+    const getCurrentRoleConfig = () => {
+        if (!currentUser?.role_id) return null;
         
-        if (currentUser.role_id === 4 || currentUser.role_id === 5) {
-            // Roles 4 & 5 can only see users with role_id 4 & 5
-            return 'http://localhost:3000/api/v1/users/cswdo';
-        } else if (currentUser.role_id === 2 || currentUser.role_id === 3) {
-            // Roles 2 & 3 can only see users with role_id 2 & 3
-            return 'http://localhost:3000/api/v1/users';
+        for (const [groupName, config] of Object.entries(ROLE_CONFIGS)) {
+            if (config.roles.includes(currentUser.role_id)) {
+                return { groupName, ...config };
+            }
+        }
+        return null;
+    };
+
+    const currentRoleConfig = getCurrentRoleConfig();
+
+    // Helper function to determine if evacuation center should be available based on user being edited
+    const canManageEvacuationCenterForUser = (targetUserRoleId?: number) => {
+        if (!currentRoleConfig) return false;
+        
+        // Barangay Group (roles 2 & 3) cannot manage evacuation centers at all
+        if (currentRoleConfig.roles.includes(2) || currentRoleConfig.roles.includes(3)) {
+            return false;
         }
         
-        return 'http://localhost:3000/api/v1/users';
+        // System Admin (role 1) can only manage evacuation centers for roles 4 & 5, not for roles 2 & 3
+        if (currentUser?.role_id === 1 && targetUserRoleId && [2, 3].includes(targetUserRoleId)) {
+            return false;
+        }
+        
+        // CSWDO Group (roles 4 & 5) can only manage evacuation centers for their own group
+        if (currentRoleConfig.roles.includes(4) || currentRoleConfig.roles.includes(5)) {
+            if (targetUserRoleId && ![4, 5].includes(targetUserRoleId)) {
+                return false;
+            }
+        }
+        
+        return currentRoleConfig.canManageEvacCenter;
+    };
+
+    // Helper function to get assignable roles for current user
+    const getAssignableRoles = () => {
+        if (!currentRoleConfig || !currentRoleConfig.assignableRoleIds) return [];
+        
+        return roles.filter(role => currentRoleConfig.assignableRoleIds.includes(role.id));
+    };
+
+    // Fetch roles from backend
+    const fetchRoles = async () => {
+        try {
+            setRolesLoading(true);
+            const response = await fetch('http://localhost:3000/api/v1/users/data/roles');
+            
+            if (!response.ok) {
+                throw new Error('Failed to fetch roles');
+            }
+            
+            const result = await response.json();
+            setRoles(result.roles || []);
+        } catch (error) {
+            console.error('Error fetching roles:', error);
+            // Fallback to empty array if fetch fails
+            setRoles([]);
+        } finally {
+            setRolesLoading(false);
+        }
+    };
+
+    // Helper function to get appropriate API endpoint based on user role
+    const getUsersApiEndpoint = () => {
+        if (!currentRoleConfig) return 'http://localhost:3000/api/v1/users';
+        return currentRoleConfig.apiEndpoint;
     };
 
     // Helper function to filter users based on current user's role group
     const filterUsersByRoleGroup = (allUsers: any[]) => {
-        if (!currentUser?.role_id) return allUsers;
+        if (!currentRoleConfig) return allUsers;
         
-        if (currentUser.role_id === 4 || currentUser.role_id === 5) {
-            // Role 4 & 5 can only see users with role_id 4 & 5
-            return allUsers.filter((user: any) => 
-                user.role_id === 4 || user.role_id === 5
-            );
-        } else if (currentUser.role_id === 2 || currentUser.role_id === 3) {
-            // Role 2 & 3 can only see users with role_id 2 & 3
-            return allUsers.filter((user: any) => 
-                user.role_id === 2 || user.role_id === 3
-            );
-        }
-        
-        return allUsers;
+        return allUsers.filter((user: any) => 
+            currentRoleConfig.allowedRoleIds.includes(user.role_id)
+        );
     };
 
     // ALL useEffect hooks must be called before conditional logic
-    // Fetch users from backend
+    // Fetch users and roles from backend
     useEffect(() => {
         const fetchUsers = async () => {
             try {
@@ -148,6 +231,7 @@ export default function UserManagement(){
         };
 
         fetchUsers();
+        fetchRoles(); // Fetch roles on component mount
     }, [currentUser?.role_id]); // Add currentUser.role_id as dependency
 
     // Fetch barangays from backend
@@ -237,15 +321,7 @@ export default function UserManagement(){
         };
     }, []);
     
-    // Permission checks based on role and permission
-    const isRole2 = currentUser?.role_id === 2 && hasViewUserManagement;
-    const isRole3 = currentUser?.role_id === 3 && hasViewUserManagement; // Limited access role
-    const isRole4 = currentUser?.role_id === 4 && hasViewUserManagement; // CSWDO role with full access
-    const isRole5 = currentUser?.role_id === 5 && hasViewUserManagement;
-    
-    // Determine which roles the current user can see and manage
-    const isHigherRoleGroup = isRole4 || isRole5; // Roles 4 & 5 can manage each other
-    const isLowerRoleGroup = isRole2 || isRole3;  // Roles 2 & 3 can manage each other
+    // Permission checks based on role and permission - Now using currentRoleConfig directly
     
     // Show loading while permissions are being fetched
     if (permissionsLoading) {
@@ -259,8 +335,8 @@ export default function UserManagement(){
         );
     }
     
-    // If user doesn't have permission, show access denied
-    if (!hasViewUserManagement) {
+    // If user doesn't have permission or no role config, show access denied
+    if (!hasViewUserManagement || !currentRoleConfig) {
         return (
             <div className="flex items-center justify-center min-h-screen">
                 <div className="text-center">
@@ -284,30 +360,175 @@ export default function UserManagement(){
         return parts.join(' ');
     };
 
-    // Get role display name
+    // Get role display name - now uses dynamic roles from backend
     const getRoleDisplayName = (roleId: number, roleName: string | undefined) => {
-        // Map backend role names to display names
+        // First try to use the roleName if available
         if (roleName) {
-            switch (roleName.toLowerCase()) {
-                case 'cswdo':
-                    return 'CSWDO';
-                case 'camp manager':
-                    return 'CAMP MANAGER';
-                case 'barangay official':
-                    return 'BARANGAY OFFICIAL';
-                case 'regional coordinator':
-                    return 'REGIONAL COORDINATOR';
-                default:
-                    return roleName.toUpperCase();
-            }
+            return roleName.toUpperCase();
         }
         
-        // Fallback to role_id mapping if role name is not available
-        if (roleId === 2) return 'BARANGAY OFFICIAL';
-        if (roleId === 3) return 'REGIONAL COORDINATOR';
-        if (roleId === 4) return 'CSWDO';
-        if (roleId === 5) return 'CAMP MANAGER';
-        return 'UNKNOWN ROLE';
+        // If no roleName, look up from fetched roles
+        const role = roles.find(r => r.id === roleId);
+        if (role) {
+            return role.name.toUpperCase();
+        }
+        
+        // Final fallback to role ID based mapping (for backward compatibility)
+        const roleMap: { [key: number]: string } = {
+            1: 'SYSTEM ADMIN',
+            2: 'BARANGAY OFFICIAL',
+            3: 'REGIONAL COORDINATOR',
+            4: 'CSWDO',
+            5: 'CAMP MANAGER'
+        };
+        
+        return roleMap[roleId] || 'UNKNOWN ROLE';
+    };
+
+    // Helper function to render table headers dynamically
+    const renderTableHeaders = () => {
+        const headers = [];
+        
+        if (currentRoleConfig?.tableColumns.includes('user')) {
+            headers.push(
+                <th key="user" className='px-6 py-3 text-left text-base font-medium text-gray-500'>
+                    User
+                </th>
+            );
+        }
+        
+        if (currentRoleConfig?.tableColumns.includes('email')) {
+            headers.push(
+                <th key="email" className='px-6 py-3 text-left text-base font-medium text-gray-500'>
+                    Email
+                </th>
+            );
+        }
+        
+        if (currentRoleConfig?.tableColumns.includes('role')) {
+            headers.push(
+                <th key="role" className='px-6 py-3 text-left text-base font-medium text-gray-500'>
+                    Role
+                </th>
+            );
+        }
+        
+        if (currentRoleConfig?.tableColumns.includes('evacuation_center')) {
+            headers.push(
+                <th key="evacuation_center" className='px-6 py-3 text-left text-base font-medium text-gray-500'>
+                    Assigned Evacuation Center
+                </th>
+            );
+        }
+        
+        if (currentRoleConfig?.tableColumns.includes('actions')) {
+            headers.push(
+                <th key="actions" className='px-6 py-3 text-right text-base font-medium text-gray-500'>
+                    {/* Empty header for actions column */}
+                </th>
+            );
+        }
+        
+        return headers;
+    };
+
+    // Helper function to render table cells dynamically
+    const renderTableCells = (user: User) => {
+        const cells = [];
+        
+        if (currentRoleConfig?.tableColumns.includes('user')) {
+            cells.push(
+                <td key="user" className='px-6 py-4 whitespace-nowrap'>
+                    <div className='text-base font-medium text-gray-900'>
+                        {getDisplayName(user)}
+                    </div>
+                </td>
+            );
+        }
+        
+        if (currentRoleConfig?.tableColumns.includes('email')) {
+            cells.push(
+                <td key="email" className='px-6 py-4 whitespace-nowrap'>
+                    <div className='text-base text-gray-900'>
+                        {user.email}
+                    </div>
+                </td>
+            );
+        }
+        
+        if (currentRoleConfig?.tableColumns.includes('role')) {
+            cells.push(
+                <td key="role" className='px-6 py-4 whitespace-nowrap'>
+                    <span 
+                        className='inline-flex px-4.5 py-1 text-base font-extrabold rounded-lg'
+                        style={{
+                            color: '#038B53',
+                            background: '#DAFFF0'
+                        }}
+                    >
+                        {getRoleDisplayName(user.role_id, user.role_name)}
+                    </span>
+                </td>
+            );
+        }
+        
+        if (currentRoleConfig?.tableColumns.includes('evacuation_center')) {
+            cells.push(
+                <td key="evacuation_center" className='px-6 py-4 whitespace-nowrap text-base text-gray-900'>
+                    {user.assigned_evacuation_center || 'N/A'}
+                </td>
+            );
+        }
+        
+        if (currentRoleConfig?.tableColumns.includes('actions')) {
+            cells.push(
+                <td key="actions" className='px-6 py-4 whitespace-nowrap text-right text-base font-medium'>
+                    <div className="relative">
+                        <button 
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setDropdownOpen(dropdownOpen === user.id ? null : user.id);
+                            }}
+                            className='text-gray-400 hover:text-gray-600'
+                        >
+                            <MoreHorizontal className='h-5 w-5' />
+                        </button>
+                        
+                        {dropdownOpen === user.id && (
+                            <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 border border-gray-200">
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleEditUser(user);
+                                        setDropdownOpen(null);
+                                    }}
+                                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-t-md"
+                                >
+                                    Edit User
+                                </button>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setDeleteConfirmUser(user);
+                                        setDropdownOpen(null);
+                                    }}
+                                    className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 rounded-b-md"
+                                >
+                                    Delete User
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </td>
+            );
+        }
+        
+        return cells;
+    };
+
+    // Get total column count for table spanning
+    const getColumnCount = () => {
+        return currentRoleConfig?.tableColumns.length || 3;
     };
 
     const totalRows = filteredUsers.length;
@@ -334,6 +555,8 @@ export default function UserManagement(){
         
         try {
             // Set role and evacuation center based on current user's role group
+            const targetRoleId = currentRoleConfig?.canSelectRole ? parseInt(formData.role_id) : (currentUser?.role_id || 3);
+            
             const submitData = {
                 firstName: formData.first_name,
                 middleName: formData.middle_name,
@@ -345,8 +568,8 @@ export default function UserManagement(){
                 employeeNumber: formData.employee_number,
                 email: formData.email,
                 password: formData.password,
-                roleId: isLowerRoleGroup ? (currentUser?.role_id || 3) : parseInt(formData.role_id), // Use current user's role for lower role group
-                assignedEvacuationCenter: isHigherRoleGroup ? formData.assigned_evacuation_center : '' // Only include for higher role group
+                roleId: targetRoleId,
+                assignedEvacuationCenter: canManageEvacuationCenterForUser(targetRoleId) ? formData.assigned_evacuation_center : ''
             };
 
             const response = await fetch('http://localhost:3000/api/v1/users', {
@@ -468,6 +691,8 @@ export default function UserManagement(){
         
         try {
             // Handle role and evacuation center based on current user's role group
+            const targetRoleId = currentRoleConfig?.canSelectRole ? parseInt(formData.role_id) : editingUser.role_id;
+            
             const submitData = {
                 firstName: formData.first_name,
                 middleName: formData.middle_name,
@@ -478,8 +703,8 @@ export default function UserManagement(){
                 barangayOfOrigin: formData.barangay_of_origin,
                 employeeNumber: formData.employee_number,
                 email: formData.email,
-                roleId: isLowerRoleGroup ? editingUser.role_id : parseInt(formData.role_id), // Preserve existing role for lower role group
-                assignedEvacuationCenter: isHigherRoleGroup ? formData.assigned_evacuation_center : editingUser.assigned_evacuation_center,
+                roleId: targetRoleId,
+                assignedEvacuationCenter: canManageEvacuationCenterForUser(targetRoleId) ? formData.assigned_evacuation_center : editingUser.assigned_evacuation_center,
                 // Only include password if it's provided
                 ...(formData.password && { password: formData.password })
             };
@@ -635,8 +860,8 @@ export default function UserManagement(){
                         />
                     </div>
                     
-                    {/* Add User Button - Show for both role groups */}
-                    {(isHigherRoleGroup || isLowerRoleGroup) && (
+                    {/* Add User Button - Show for users with access */}
+                    {currentRoleConfig && (
                         <button
                             onClick={() => setIsAddUserModalOpen(true)}
                             className='inline-flex items-center gap-2 px-4 py-2 text-white font-medium text-base rounded-md hover:opacity-90 transition-opacity focus:outline-none'
@@ -671,39 +896,25 @@ export default function UserManagement(){
                     <table className='min-w-full'>
                         <thead className='bg-white border-b border-gray-200'>
                             <tr>
-                                <th className='px-6 py-3 text-left text-base font-medium text-gray-500'>
-                                    User
-                                </th>
-                                <th className='px-6 py-3 text-left text-base font-medium text-gray-500'>
-                                    Role
-                                </th>
-                                {/* Only show Assigned Evacuation Center column for higher role group (4 & 5) */}
-                                {isHigherRoleGroup && (
-                                    <th className='px-6 py-3 text-left text-base font-medium text-gray-500'>
-                                        Assigned Evacuation Center
-                                    </th>
-                                )}
-                                <th className='px-6 py-3 text-right text-base font-medium text-gray-500'>
-                                    {/* Empty header for actions column */}
-                                </th>
+                                {renderTableHeaders()}
                             </tr>
                         </thead>
                         <tbody className='bg-white'>
                             {loading ? (
                                 <tr>
-                                    <td colSpan={isHigherRoleGroup ? 4 : 3} className='px-6 py-8 text-center text-gray-500'>
+                                    <td colSpan={getColumnCount()} className='px-6 py-8 text-center text-gray-500'>
                                         Loading users...
                                     </td>
                                 </tr>
                             ) : error ? (
                                 <tr>
-                                    <td colSpan={isHigherRoleGroup ? 4 : 3} className='px-6 py-8 text-center text-red-500'>
+                                    <td colSpan={getColumnCount()} className='px-6 py-8 text-center text-red-500'>
                                         Error: {error}
                                     </td>
                                 </tr>
                             ) : paginatedUsers.length === 0 ? (
                                 <tr>
-                                    <td colSpan={isHigherRoleGroup ? 4 : 3} className='px-6 py-8 text-center text-gray-500'>
+                                    <td colSpan={getColumnCount()} className='px-6 py-8 text-center text-gray-500'>
                                         {searchTerm ? 'No users found matching your search.' : 'No users found.'}
                                     </td>
                                 </tr>
@@ -713,66 +924,7 @@ export default function UserManagement(){
                                         key={user.id} 
                                         className={`hover:bg-gray-50 ${index !== paginatedUsers.length - 1 ? 'border-b border-gray-200' : ''}`}
                                     >
-                                        <td className='px-6 py-4 whitespace-nowrap'>
-                                            <div className='text-base font-medium text-gray-900'>
-                                                {getDisplayName(user)}
-                                            </div>
-                                        </td>
-                                        <td className='px-6 py-4 whitespace-nowrap'>
-                                            <span 
-                                                className='inline-flex px-4.5 py-1 text-base font-extrabold rounded-lg'
-                                                style={{
-                                                    color: '#038B53',
-                                                    background: '#DAFFF0'
-                                                }}
-                                            >
-                                                {getRoleDisplayName(user.role_id, user.role_name)}
-                                            </span>
-                                        </td>
-                                        {/* Only show Assigned Evacuation Center column for higher role group (4 & 5) */}
-                                        {isHigherRoleGroup && (
-                                            <td className='px-6 py-4 whitespace-nowrap text-base text-gray-900'>
-                                                {user.assigned_evacuation_center || 'Not assigned'}
-                                            </td>
-                                        )}
-                                        <td className='px-6 py-4 whitespace-nowrap text-right text-base font-medium'>
-                                            <div className="relative">
-                                                <button 
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setDropdownOpen(dropdownOpen === user.id ? null : user.id);
-                                                    }}
-                                                    className='text-gray-400 hover:text-gray-600'
-                                                >
-                                                    <MoreHorizontal className='h-5 w-5' />
-                                                </button>
-                                                
-                                                {dropdownOpen === user.id && (
-                                                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 border border-gray-200">
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                handleEditUser(user);
-                                                                setDropdownOpen(null);
-                                                            }}
-                                                            className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-t-md"
-                                                        >
-                                                            Edit User
-                                                        </button>
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                setDeleteConfirmUser(user);
-                                                                setDropdownOpen(null);
-                                                            }}
-                                                            className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 rounded-b-md"
-                                                        >
-                                                            Delete User
-                                                        </button>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </td>
+                                        {renderTableCells(user)}
                                     </tr>
                                 ))
                             )}
@@ -1042,8 +1194,8 @@ export default function UserManagement(){
                                     />
                                 </div>
 
-                                {/* Role - Show for higher role group (4 & 5), hide for lower role group (2 & 3) */}
-                                {isHigherRoleGroup && (
+                                {/* Role - Show based on role configuration */}
+                                {currentRoleConfig?.canSelectRole && (
                                     <div>
                                         <label className='block text-sm font-medium text-black mb-1'>
                                             Role
@@ -1056,34 +1208,36 @@ export default function UserManagement(){
                                             required
                                         >
                                             <option value=''>Select a role</option>
-                                            {/* Show appropriate roles based on current user's role group */}
-                                            {(currentUser?.role_id === 4 || currentUser?.role_id === 5) && (
-                                                <>
-                                                    <option value='4'>CSWDO</option>
-                                                    <option value='5'>CAMP MANAGER</option>
-                                                </>
-                                            )}
-                                            {(currentUser?.role_id === 2 || currentUser?.role_id === 3) && (
-                                                <>
-                                                    <option value='2'>BARANGAY OFFICIAL</option>
-                                                    <option value='3'>REGIONAL COORDINATOR</option>
-                                                </>
+                                            {!rolesLoading && getAssignableRoles().map(role => (
+                                                <option key={role.id} value={role.id}>
+                                                    {role.name.toUpperCase()}
+                                                </option>
+                                            ))}
+                                            {rolesLoading && (
+                                                <option disabled>Loading roles...</option>
                                             )}
                                         </select>
                                     </div>
                                 )}
 
-                                {/* For lower role group (2 & 3), set default role to prevent form validation errors */}
-                                {isLowerRoleGroup && (
+                                {/* For roles that can't select role, use hidden input */}
+                                {!currentRoleConfig?.canSelectRole && (
                                     <input
                                         type='hidden'
                                         name='role_id'
-                                        value={currentUser?.role_id === 2 ? '2' : '3'} // Match current user's role group
+                                        value={currentUser?.role_id || 3}
                                     />
                                 )}
 
-                                {/* Assigned Evacuation Center - Show only for higher role group (4 & 5) */}
-                                {isHigherRoleGroup && (
+                                {/* Assigned Evacuation Center - Show based on role configuration and target user */}
+                                {(() => {
+                                    // Determine target role ID for the user being added/edited
+                                    const targetRoleId = isEditUserModalOpen 
+                                        ? (currentRoleConfig?.canSelectRole ? parseInt(formData.role_id) || editingUser?.role_id : editingUser?.role_id)
+                                        : (currentRoleConfig?.canSelectRole ? parseInt(formData.role_id) : currentUser?.role_id);
+                                    
+                                    return canManageEvacuationCenterForUser(targetRoleId);
+                                })() && (
                                     <div>
                                         <label className='block text-sm font-medium text-black mb-1'>
                                             Assigned Evacuation Center
@@ -1094,7 +1248,7 @@ export default function UserManagement(){
                                             onChange={handleFormChange}
                                             className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E]'
                                         >
-                                            <option value=''>Select an evacuation center</option>
+                                            <option value=''>Select evacuation center (optional)</option>
                                             {evacuationCenters.map((center) => (
                                                 <option key={center.id} value={center.name}>
                                                     {center.name}

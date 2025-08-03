@@ -390,6 +390,7 @@ const getUsers = async (req, res) => {
             last_name,
             suffix,
             sex,
+            birthdate,
             barangay_of_origin,
             barangays!barangay_of_origin (
               id,
@@ -414,6 +415,31 @@ const getUsers = async (req, res) => {
       return res.status(500).json({ message: 'Failed to fetch users' });
     }
 
+    // Get evacuation center assignments for these users
+    let usersWithEvacuationCenters = users;
+    if (users && users.length > 0) {
+      const userIds = users.map(user => user.id);
+      
+      const { data: evacuationAssignments, error: evacuationError } = await supabaseAdmin
+        .from('evacuation_centers')
+        .select('id, name, assigned_user_id')
+        .in('assigned_user_id', userIds);
+
+      if (evacuationError) {
+        console.error('Error fetching evacuation assignments:', evacuationError);
+        // Continue without evacuation center data
+      } else {
+        // Merge evacuation center data with users
+        usersWithEvacuationCenters = users.map(user => {
+          const assignment = evacuationAssignments?.find(assignment => assignment.assigned_user_id === user.id);
+          return {
+            ...user,
+            assigned_evacuation_center: assignment?.name || null
+          };
+        });
+      }
+    }
+
     // Get total count for pagination
     const { count, error: countError } = await supabaseAdmin
       .from('users')
@@ -426,7 +452,7 @@ const getUsers = async (req, res) => {
     }
 
     res.status(200).json({
-      users,
+      users: usersWithEvacuationCenters,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -1447,6 +1473,31 @@ const getUsersByRole = async (req, res) => {
       });
     }
 
+    // Get evacuation center assignments for these users
+    let usersWithEvacuationCenters = users;
+    if (users && users.length > 0) {
+      const userIds = users.map(user => user.id);
+      
+      const { data: evacuationAssignments, error: evacuationError } = await supabaseAdmin
+        .from('evacuation_centers')
+        .select('id, name, assigned_user_id')
+        .in('assigned_user_id', userIds);
+
+      if (evacuationError) {
+        console.error('Error fetching evacuation assignments:', evacuationError);
+        // Continue without evacuation center data
+      } else {
+        // Merge evacuation center data with users
+        usersWithEvacuationCenters = users.map(user => {
+          const assignment = evacuationAssignments?.find(assignment => assignment.assigned_user_id === user.id);
+          return {
+            ...user,
+            assigned_evacuation_center: assignment?.name || null
+          };
+        });
+      }
+    }
+
     // Get total count for users with specified role_id
     const { data: allUsers, error: countError } = await supabaseAdmin
       .from('users')
@@ -1470,7 +1521,7 @@ const getUsersByRole = async (req, res) => {
     const totalCount = allUsers ? allUsers.length : 0;
 
     res.status(200).json({
-      users,
+      users: usersWithEvacuationCenters,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
