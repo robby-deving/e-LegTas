@@ -15,11 +15,32 @@ import EvacueeStatisticsChart from '../components/EvacueeStatisticsChart';
 
 import { supabase } from '../lib/supabaseClient';
 
+// This is for the display of GIS Map in dashboard
 // import { MapContainer, TileLayer} from 'react-leaflet';
 // import 'leaflet/dist/leaflet.css';
 // import { useNavigate } from 'react-router-dom';
 // import GISMap from '../components/Map/GISMap';
 // import type { EvacuationCenter } from '@/types/EvacuationCenter';
+
+// const formatDate = (dateString?: string | null) => {
+//   if (!dateString) return '';
+//   const date = new Date(dateString);
+//   return new Intl.DateTimeFormat('en-PH', {
+//     day: '2-digit',
+//     month: 'long',
+//     year: 'numeric',
+//   }).format(date);
+// };
+
+type Disaster = {
+  id: number;
+  disaster_name: string;
+  disaster_start_date: string | null;
+  disaster_end_date: string | null;
+  disaster_types?: {
+    name: string;
+  };
+};
 
 type DisasterEvacuationEvent = {
   evacuation_end_date: string | null;
@@ -41,22 +62,12 @@ type EvacuationSummary = {
   total_no_of_lactating_women: number | null;
 };
 
-interface EvacuationRegistration {
-  disaster_evacuation_event_id: number;
-  [key: string]: any; // optional to allow other fields
-}
-
-interface EvacuationCenter {
-  id: number;
-  [key: string]: any;
-}
-
 export default function Dashboard() {
   usePageTitle('Dashboard');
   const [isEvacueeInfoModalOpen, setIsEvacueeInfoModalOpen] = useState(false);
   //const [selectedDisaster, setSelectedDisaster] = useState<string | null>(null);
-  const [disasters, setDisasters] = useState<any[]>([]);
-  const [selectedDisaster, setSelectedDisaster] = useState<{ id: number; disaster_name: string } | null>(null);
+  const [disasters, setDisasters] = useState<Disaster[]>([]);
+  const [selectedDisaster, setSelectedDisaster] = useState<Disaster | null>(null);
   const [activeEvacuationCenters, setActiveEvacuationCenters] = useState<number>(0);
   const [registeredEvacueesCount, setRegisteredEvacueesCount] = useState<number>(0);
   const [registeredFamiliesCount, setRegisteredFamiliesCount] = useState<number>(0);
@@ -71,9 +82,7 @@ export default function Dashboard() {
     }[]
   >([]);
 
-  const [capacityEventIds, setCapacityEventIds] = useState<number[]>([]);
-  const [initialFetchDone, setInitialFetchDone] = useState(false);
-
+  // This is for the display of GIS Map in dashboard
   // const navigate = useNavigate();
   // const [selectedEvacuationCenter, setSelectedEvacuationCenter] = useState<EvacuationCenter | null>(null);
 
@@ -89,17 +98,150 @@ export default function Dashboard() {
     const fetchDisasters = async () => {
       try {
         const res = await fetch('http://localhost:3000/api/v1/dashboard/disasters');
-        const data = await res.json();
+        const data: Disaster[] = await res.json();
         setDisasters(data);
-        setSelectedDisaster(data[0] || null); // Default to first disaster
+
+        // If the current selection is gone or null, reset it
+        if (!selectedDisaster || !data.some(d => d.id === selectedDisaster.id)) {
+          setSelectedDisaster(data[0] || null);
+        }
       } catch (error) {
         console.error('Error fetching disasters:', error);
       }
     };
 
     fetchDisasters();
-  }, []);
 
+    const channel = supabase
+      .channel('realtime-active-disasters')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // listen to insert, update, delete
+          schema: 'public',
+          table: 'disasters',
+        },
+        (payload) => {
+          console.log('Realtime disaster change detected:', payload);
+          fetchDisasters();
+        }
+      )
+      .subscribe();
+
+    // Cleanup when component unmounts
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [selectedDisaster]);
+
+  // Helper function to Listen for evacuation_summaries changes
+  function listenToEvacuationSummaryChange(
+    channel: ReturnType<typeof supabase.channel>,
+    selectedDisasterId: number | undefined,
+    checkChanged: (newData: any, oldData: any) => boolean,
+    onChange: () => void,
+    label: string
+  ) {
+    channel.on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'evacuation_summaries',
+      },
+      async (payload) => {
+        const newData = payload.new as EvacuationSummary;
+        const oldData = payload.old as EvacuationSummary;
+
+        const hasChanged = checkChanged(newData, oldData);
+        if (!hasChanged) {
+          console.log(`${label}: no relevant change — skipping`);
+          return;
+        }
+
+        const isRelevant = await isEventLinkedToSelectedDisaster(
+          newData?.disaster_evacuation_event_id,
+          'event'
+        );
+
+        if (isRelevant) {
+          console.log(`${label}: relevant change detected — refetching`);
+          onChange();
+        } else {
+          console.log(`${label}: unrelated to selected disaster — skipping`);
+        }
+      }
+    );
+  }
+
+  // Helper function to Listen for evacuation_end_date changes
+  function listenToEvacuationEndDateChange(
+    channel: ReturnType<typeof supabase.channel>,
+    selectedDisasterId: number | undefined,
+    onChange: () => void,
+    label: string
+  ) {
+    channel.on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'disaster_evacuation_event',
+      },
+      (payload) => {
+        const newData = payload.new;
+        const oldData = payload.old;
+
+        const oldEndDate = oldData?.evacuation_end_date;
+        const newEndDate = newData?.evacuation_end_date;
+
+        const endDateChanged =
+          oldEndDate !== newEndDate && newData?.disaster_id === selectedDisasterId;
+
+        if (endDateChanged) {
+          console.log(`${label}: evacuation_end_date changed — refetching`);
+          onChange();
+        } else {
+          console.log(`${label}: no relevant end_date change — skipping`);
+        }
+      }
+    );
+  }
+
+  // Helper function for only fetching data if it is linked to the selected disaster
+  const isEventLinkedToSelectedDisaster = async (
+    eventIdOrCenterId: number,
+    mode: 'event' | 'center'
+  ): Promise<boolean> => {
+    if (!selectedDisaster?.id) return false;
+
+    if (mode === 'event') {
+      const { data, error } = await supabase
+        .from('disaster_evacuation_event')
+        .select('disaster_id')
+        .eq('id', eventIdOrCenterId)
+        .single();
+
+      if (error || !data) return false;
+      return data.disaster_id === selectedDisaster.id;
+    }
+
+    if (mode === 'center') {
+      const { data, error } = await supabase
+        .from('disaster_evacuation_event')
+        .select('id')
+        .eq('evacuation_center_id', eventIdOrCenterId)
+        .eq('disaster_id', selectedDisaster.id)
+        .is('evacuation_end_date', null);
+
+      if (error || !data) return false;
+      return data.length > 0;
+    }
+
+    return false;
+  };
+
+  // Active Evacuation Centers Count
   useEffect(() => {
     const fetchActiveEvacuationCenters = async () => {
       if (!selectedDisaster?.id) return;
@@ -128,23 +270,36 @@ export default function Dashboard() {
       .on(
         'postgres_changes',
         {
-          event: '*', // insert | update | delete
+          event: '*',
           schema: 'public',
           table: 'disaster_evacuation_event',
           filter: `disaster_id=eq.${selectedDisaster?.id}`
         },
         (payload) => {
-          console.log('Realtime event received:', payload);
-
           const oldData = payload.old as DisasterEvacuationEvent;
           const newData = payload.new as DisasterEvacuationEvent;
 
-          if (oldData?.evacuation_end_date !== newData?.evacuation_end_date) {
+          if (!oldData && newData?.evacuation_end_date === null) {
+            console.log('New active evacuation event inserted → refetching...');
+            fetchActiveEvacuationCenters();
+            return;
+          }
+
+          if (oldData && !newData) {
+            console.log('Evacuation event deleted → refetching...');
+            fetchActiveEvacuationCenters();
+            return;
+          }
+
+          if (
+            oldData?.evacuation_end_date !== newData?.evacuation_end_date
+          ) {
             console.log('evacuation_end_date changed, refetching...');
             fetchActiveEvacuationCenters();
-          } else {
-            console.log('No relevant change — skipping refetch.');
+            return;
           }
+
+          console.log('No relevant change — skipping refetch.');
         }
       )
       .subscribe();
@@ -155,6 +310,7 @@ export default function Dashboard() {
     };
   }, [selectedDisaster]); // rerun if selected disaster changes
 
+  // Registered Evacuees Count
   useEffect(() => {
     const fetchRegisteredEvacueesCount = async () => {
       if (!selectedDisaster?.id) return;
@@ -177,40 +333,33 @@ export default function Dashboard() {
 
     fetchRegisteredEvacueesCount();
 
-    // 👇 Realtime: Listen for updates on the evacuation_summaries table
-    const channel = supabase
-      .channel('realtime-registered-evacuees')
-      .on(
-        'postgres_changes',
-        {
-          event: '*', // insert, update, delete
-          schema: 'public',
-          table: 'evacuation_summaries'
-        },
-        (payload) => {
-          console.log('Realtime update for evacuation_summaries:', payload);
+    const channel = supabase.channel('realtime-evacuee-triggers')
+    
+    // (1) Listen for total_no_of_individual updates on the evacuation_summaries table
+    listenToEvacuationSummaryChange(
+      channel,
+      selectedDisaster?.id,
+      (newData, oldData) => newData?.total_no_of_individuals !== oldData?.total_no_of_individuals,
+      fetchRegisteredEvacueesCount,
+      'Evacuees'
+    );
+ 
+    // (2) Listen for evacuation_end_date changes
+    listenToEvacuationEndDateChange(
+      channel,
+      selectedDisaster?.id,
+      fetchRegisteredEvacueesCount,
+      'Evacuees'
+    );
 
-          const newData = payload.new as EvacuationSummary;
-          const oldData = payload.old as EvacuationSummary;
-
-          // If the count or event_id changed, or if new summary added
-          const countChanged = newData?.total_no_of_individuals !== oldData?.total_no_of_individuals;
-          const eventIdChanged = newData?.disaster_evacuation_event_id !== oldData?.disaster_evacuation_event_id;
-
-          if (countChanged || eventIdChanged) {
-            fetchRegisteredEvacueesCount();
-          } else {
-            console.log('No significant evacuee data change — skipping refetch.');
-          }
-        }
-      )
-      .subscribe();
+    channel.subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
   }, [selectedDisaster]);
 
+  // Registered Families Count
   useEffect(() => {
     const fetchRegisteredFamiliesCount = async () => {
       if (!selectedDisaster?.id) return;
@@ -233,40 +382,33 @@ export default function Dashboard() {
 
     fetchRegisteredFamiliesCount();
 
-    const channel = supabase
-      .channel('realtime-registered-families')
-      .on(
-        'postgres_changes',
-        {
-          event: '*', // insert, update, delete
-          schema: 'public',
-          table: 'evacuation_summaries'
-        },
-        (payload) => {
-          console.log('Realtime update for evacuation_summaries (families):', payload);
+    const channel = supabase.channel('realtime-family-triggers')
 
-          const newData = payload.new as EvacuationSummary;
-          const oldData = payload.old as EvacuationSummary;
+      // (1) Listen for total_no_of_family changes in evacuation_summaries
+      listenToEvacuationSummaryChange(
+        channel,
+        selectedDisaster?.id,
+        (newData, oldData) => newData?.total_no_of_family !== oldData?.total_no_of_family,
+        fetchRegisteredFamiliesCount,
+        'Families'
+      );
 
-          const countChanged = newData?.total_no_of_family !== oldData?.total_no_of_family;
-          const eventIdChanged = newData?.disaster_evacuation_event_id !== oldData?.disaster_evacuation_event_id;
+      // (2) Listen for evacuation_end_date changes
+      listenToEvacuationEndDateChange(
+        channel, 
+        selectedDisaster?.id, 
+        fetchRegisteredFamiliesCount, 
+        'Families'
+      );
 
-          // For now, always refetch on relevant field change (no filtering yet)
-          if (countChanged || eventIdChanged) {
-            console.log('Change in family summary detected — refetching...');
-            fetchRegisteredFamiliesCount();
-          } else {
-            console.log('No relevant family change — skipping.');
-          }
-        }
-      )
-      .subscribe();
+      channel.subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
   }, [selectedDisaster]);
 
+  // Evacuees Statistics Count
   useEffect(() => {
     const fetchEvacueeStatistics = async () => {
       if (!selectedDisaster?.id) return;
@@ -304,48 +446,43 @@ export default function Dashboard() {
 
     fetchEvacueeStatistics();
 
-    // ✅ Setup Realtime subscription to evacuation_summaries
-    const channel = supabase
-      .channel('realtime-evacuee-statistics')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'evacuation_summaries',
-        },
-        (payload) => {
-          console.log('Realtime evacuee statistics update:', payload);
+    const channel = supabase.channel('realtime-evacuee-statistics')
+    
+    // (1) Setup Realtime subscription to evacuation_summaries
+    listenToEvacuationSummaryChange(
+      channel,
+      selectedDisaster?.id,
+      (newData, oldData) =>
+        newData?.total_no_of_male !== oldData?.total_no_of_male ||
+        newData?.total_no_of_female !== oldData?.total_no_of_female ||
+        newData?.total_no_of_infant !== oldData?.total_no_of_infant ||
+        newData?.total_no_of_children !== oldData?.total_no_of_children ||
+        newData?.total_no_of_youth !== oldData?.total_no_of_youth ||
+        newData?.total_no_of_adult !== oldData?.total_no_of_adult ||
+        newData?.total_no_of_seniors !== oldData?.total_no_of_seniors ||
+        newData?.total_no_of_pwd !== oldData?.total_no_of_pwd ||
+        newData?.total_no_of_pregnant !== oldData?.total_no_of_pregnant ||
+        newData?.total_no_of_lactating_women !== oldData?.total_no_of_lactating_women,
+      fetchEvacueeStatistics,
+      'Evacuee Stats'
+    );
 
-          const newData = payload.new as EvacuationSummary;
-          const oldData = payload.old as EvacuationSummary;
+    // (2) Listen for evacuation_end_date changes
+    listenToEvacuationEndDateChange(
+      channel, 
+      selectedDisaster?.id, 
+      fetchEvacueeStatistics, 
+      'Evacuee Stats'
+    );
 
-          const anyDemographicChanged =
-            newData?.total_no_of_male !== oldData?.total_no_of_male ||
-            newData?.total_no_of_female !== oldData?.total_no_of_female ||
-            newData?.total_no_of_infant !== oldData?.total_no_of_infant ||
-            newData?.total_no_of_children !== oldData?.total_no_of_children ||
-            newData?.total_no_of_youth !== oldData?.total_no_of_youth ||
-            newData?.total_no_of_adult !== oldData?.total_no_of_adult ||
-            newData?.total_no_of_seniors !== oldData?.total_no_of_seniors ||
-            newData?.total_no_of_pwd !== oldData?.total_no_of_pwd ||
-            newData?.total_no_of_pregnant !== oldData?.total_no_of_pregnant ||
-            newData?.total_no_of_lactating_women !== oldData?.total_no_of_lactating_women;
-
-          if (anyDemographicChanged) {
-            fetchEvacueeStatistics(); // ✅ Refetch chart data
-          } else {
-            console.log('No relevant statistic changed — skipping refetch.');
-          }
-        }
-      )
-      .subscribe();
+    channel.subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
   }, [selectedDisaster]);
 
+  // Evacuation Capacity Status
   useEffect(() => {
     const fetchEvacuationCapacityStatus = async () => {
       if (!selectedDisaster?.id) return;
@@ -358,10 +495,6 @@ export default function Dashboard() {
 
         if (response.ok) {
           setEvacuationCapacityStatus(result.data || []);
-          if (result.eventIds) {
-            setCapacityEventIds(result.eventIds); // ✅ store for filtering
-          }
-          setInitialFetchDone(true);
         } else {
           console.error(result.message || 'Failed to fetch evacuation center capacity status.');
           setEvacuationCapacityStatus([]);
@@ -374,71 +507,74 @@ export default function Dashboard() {
 
     fetchEvacuationCapacityStatus();
 
-    // ✅ Realtime listener for evacuee registration updates
-    const summaryChannel = supabase
-      .channel('realtime-evac-capacity-summaries')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'evacuation_summaries'
-        },
-        (payload) => {
-          console.log('Realtime update from evacuation_summaries:', payload);
+    // Realtime listener for evacuee registration updates
+    const channel = supabase.channel('realtime-evacuation-center-capacity');
 
-          const newtotaloccupancy = payload.new as EvacuationRegistration;
-          const oldtotaloccupancy = payload.old as EvacuationRegistration;
+    // (1) Listen to changes in evacuation_summaries
+    listenToEvacuationSummaryChange(
+      channel,
+      selectedDisaster?.id,
+      (newData, oldData) => newData?.total_no_of_individuals !== oldData?.total_no_of_individuals,
+      fetchEvacuationCapacityStatus,
+      'Evacuation Capacity'
+    );
 
-          const newEventId = newtotaloccupancy?.disaster_evacuation_event_id;
-          const oldEventId = oldtotaloccupancy?.disaster_evacuation_event_id;
+    // (2) Listen to changes in evacuation_centers
+    channel.on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'evacuation_centers',
+      },
+      async (payload) => {
+        const newData = payload.new;
+        const oldData = payload.old;
 
-          const isRelevant =
-            !initialFetchDone ||
-            capacityEventIds.includes(newEventId) ||
-            capacityEventIds.includes(oldEventId);
+        const capacityChanged = newData?.total_capacity !== oldData?.total_capacity;
+        if (!capacityChanged) return;
 
-          if (isRelevant) {
-            fetchEvacuationCapacityStatus();
-          } else {
-            console.log('Not related to current disaster — skipping.');
-          }
+        const isRelevant = await isEventLinkedToSelectedDisaster(
+          newData.id,
+          'center'
+        );
+
+        if (isRelevant) {
+          console.log('Relevant evacuation_center capacity change → refetching');
+          fetchEvacuationCapacityStatus();
         }
-      )
-      .subscribe();
+      }
+    );
 
-    // ✅ Realtime listener for room capacity changes
-    const centerChannel = supabase
-      .channel('realtime-evac-capacity-centers')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'evacuation_centers'
-        },
-          (payload) => {
-            console.log('Realtime update from evacuation_centers:', payload);
+    // (3) Listen to updates in disaster_evacuation_event (evacuation_end_date changed)
+    listenToEvacuationEndDateChange(
+      channel, 
+      selectedDisaster?.id, 
+      fetchEvacuationCapacityStatus, 
+      'Capacity Status'
+    );
 
-            const newcentercapacity = payload.new as EvacuationCenter;
-            const oldcentercapacity = payload.old as EvacuationCenter;
+    // (4) Listen to new rows inserted in disaster_evacuation_event
+    channel.on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'disaster_evacuation_event',
+      },
+      (payload) => {
+        const inserted = payload.new;
+        if (inserted?.disaster_id === selectedDisaster?.id && inserted?.evacuation_end_date === null) {
+          console.log('New active evacuation event inserted');
+          fetchEvacuationCapacityStatus();
+        }
+      }
+    );
 
-            const centerId = newcentercapacity?.id ?? oldcentercapacity?.id;
-            
-            const isRelevant =
-              !initialFetchDone || // allow all updates until data is loaded
-              evacuationCapacityStatus.some(center => center.id === centerId);
-
-            if (isRelevant) {
-              fetchEvacuationCapacityStatus();
-            }
-          }
-        )
-        .subscribe();
+    channel.subscribe();
 
     return () => {
-      supabase.removeChannel(summaryChannel);
-      supabase.removeChannel(centerChannel);
+      supabase.removeChannel(channel);
     };
   }, [selectedDisaster]);
 
@@ -467,11 +603,20 @@ export default function Dashboard() {
           </DropdownMenu>
           <div className="relative">
             <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-gray-500 pointer-events-none" />
-            <Input
-              readOnly
-              value="01 April 2025 - 01 May 2025"
-              className="pl-10 mr-7 cursor-default bg-white"
-            />
+              {/* <Input
+                readOnly
+                value={
+                  selectedDisaster
+                    ? `Start Date: ${formatDate(selectedDisaster.disaster_start_date)}`
+                    : 'Select Disaster'
+                }
+                className="pl-10 mr-7 cursor-default bg-white"
+              /> */}
+              <Input
+                readOnly
+                value="01 April 2025 - 01 May 2025"
+                className="pl-10 mr-7 cursor-default bg-white"
+              />
           </div>
         </div>
       </div>
