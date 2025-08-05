@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Input } from "../ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import type { EvacuationCenterCategory } from '../../types/evacuation';
@@ -6,9 +6,6 @@ import { evacuationCenterService } from '../../services/evacuationCenterService'
 
 const CATEGORIES: EvacuationCenterCategory[] = [
   'School',
-  'Covered Court',
-  'Barangay Hall',
-  'Community Center',
   'Chapel/Church',
   'Dedicated Evacuation Center',
   'Government Building',
@@ -66,8 +63,9 @@ export function EvacuationCenterForm({ formData, onFormChange, errors }: Evacuat
   return (
     <div className="space-y-4">
       <div>
-        <label className="block text-sm font-medium mb-2">Name *</label>
+        <label htmlFor="name" className="block text-sm font-medium mb-2">Name *</label>
         <Input
+          id="name"
           placeholder="Evacuation Center Name"
           value={formData.name}
           onChange={(e) => onFormChange('name', e.target.value)}
@@ -77,12 +75,12 @@ export function EvacuationCenterForm({ formData, onFormChange, errors }: Evacuat
       </div>
 
       <div>
-        <label className="block text-sm font-medium mb-2">Category *</label>
+        <label htmlFor="category" className="block text-sm font-medium mb-2">Category *</label>
         <Select 
           value={formData.category} 
           onValueChange={(value) => onFormChange('category', value)}
         >
-          <SelectTrigger className={`w-full ${errors?.category ? 'border-red-500' : ''}`}>
+          <SelectTrigger id="category" className={`w-full ${errors?.category ? 'border-red-500' : ''}`}>
             <SelectValue placeholder="Select Category" />
           </SelectTrigger>
           <SelectContent>
@@ -97,8 +95,9 @@ export function EvacuationCenterForm({ formData, onFormChange, errors }: Evacuat
       </div>
 
       <div>
-        <label className="block text-sm font-medium mb-2">Street Name *</label>
+        <label htmlFor="streetName" className="block text-sm font-medium mb-2">Street Name *</label>
         <Input
+          id="streetName"
           placeholder="Street Name"
           value={formData.streetName}
           onChange={(e) => onFormChange('streetName', e.target.value)}
@@ -108,13 +107,13 @@ export function EvacuationCenterForm({ formData, onFormChange, errors }: Evacuat
       </div>
 
       <div>
-        <label className="block text-sm font-medium mb-2">Barangay *</label>
+        <label htmlFor="barangay" className="block text-sm font-medium mb-2">Barangay *</label>
         <Select 
           value={formData.barangay} 
           onValueChange={handleBarangayChange}
           disabled={loading}
         >
-          <SelectTrigger className={`w-full ${errors?.barangay ? 'border-red-500' : ''}`}>
+          <SelectTrigger id="barangay" className={`w-full ${errors?.barangay ? 'border-red-500' : ''}`}>
             <SelectValue placeholder={loading ? "Loading barangays..." : "Select Barangay"} />
           </SelectTrigger>
           <SelectContent>
@@ -130,8 +129,9 @@ export function EvacuationCenterForm({ formData, onFormChange, errors }: Evacuat
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium mb-2">Latitude *</label>
+          <label htmlFor="latitude" className="block text-sm font-medium mb-2">Latitude *</label>
           <Input
+            id="latitude"
             type="number"
             step="any"
             placeholder="0.00000"
@@ -142,8 +142,9 @@ export function EvacuationCenterForm({ formData, onFormChange, errors }: Evacuat
           {errors?.latitude && <p className="text-red-500 text-sm mt-1">{errors.latitude}</p>}
         </div>
         <div>
-          <label className="block text-sm font-medium mb-2">Longitude *</label>
+          <label htmlFor="longitude" className="block text-sm font-medium mb-2">Longitude *</label>
           <Input
+            id="longitude"
             type="number"
             step="any"
             placeholder="0.00000"
@@ -156,15 +157,18 @@ export function EvacuationCenterForm({ formData, onFormChange, errors }: Evacuat
       </div>
 
       <div>
-        <label className="block text-sm font-medium mb-2">Capacity</label>
+        <label htmlFor="totalCapacity" className="block text-sm font-medium mb-2">Total Capacity</label>
         <Input
+          id="totalCapacity"
           type="number"
-          placeholder="Total Capacity"
+          placeholder="0"
           value={formData.total_capacity}
-          onChange={(e) => onFormChange('total_capacity', e.target.value)}
-          className={errors?.total_capacity ? 'border-red-500' : ''}
+          readOnly
+          className="bg-gray-50 cursor-not-allowed"
         />
-        {errors?.total_capacity && <p className="text-red-500 text-sm mt-1">{errors.total_capacity}</p>}
+        <p className="text-xs text-gray-500 mt-1">
+          Total capacity is automatically calculated from room capacities
+        </p>
       </div>
     </div>
   );

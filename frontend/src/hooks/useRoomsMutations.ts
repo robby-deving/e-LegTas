@@ -40,17 +40,21 @@ export function useRoomMutations() {
 
   const deleteRoom = async (id: string): Promise<boolean> => {
     try {
-      setLoading(true);
-      setError(null);
-      await evacuationCenterService.deleteRoom(id);
-      return true;
+        setLoading(true);
+        setError(null);
+        await evacuationCenterService.deleteRoom(id);
+        return true;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete room');
-      return false;
+        // If the room is already deleted (404), consider it a success
+        if (err instanceof Error && err.message.includes('404')) {
+            return true;
+        }
+        setError(err instanceof Error ? err.message : 'Failed to delete room');
+        return false;
     } finally {
-      setLoading(false);
+        setLoading(false);
     }
-  };
+};
 
   return {
     createRoom,

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../ui/dialog";
+import { useState, useEffect } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "../ui/dialog";
 import { Button } from "../ui/button";
 import { EvacuationCenterForm } from './EvacuationCenterForm';
 import { RoomForm } from './RoomForm';
@@ -80,6 +80,51 @@ export function EvacuationCenterModal({ isOpen, onClose, mode, center, onSuccess
     }
     setErrors({});
   }, [center, mode, isOpen]);
+
+  // Calculate total capacity whenever rooms change
+  useEffect(() => {
+    const calculateTotalCapacity = () => {
+      // For new centers, sum all room capacities
+      if (mode === 'add') {
+        const total = rooms
+          .reduce((sum, room) => sum + (room.capacity || 0), 0);
+        
+        setFormData(prev => ({
+          ...prev,
+          total_capacity: total.toString()
+        }));
+      } 
+      // For editing, add new room capacities to existing total
+      else if (center) {
+        const existingRoomIds = new Set(center.rooms?.map(r => r.id) || []);
+        
+        const newRoomsTotal = rooms
+          .filter(room => 
+            room.id.startsWith('temp-') || // New rooms
+            !existingRoomIds.has(room.id)  // Or rooms not in original set
+          )
+          .reduce((sum, room) => sum + (room.capacity || 0), 0);
+
+        // Get the total from original non-deleted rooms
+        const existingRoomsTotal = rooms
+          .filter(room => 
+            !room.id.startsWith('temp-') && // Existing rooms
+            existingRoomIds.has(room.id) && // That were in original set
+            !room.markedForDeletion        // And not marked for deletion
+          )
+          .reduce((sum, room) => sum + (room.capacity || 0), 0);
+
+        const total = existingRoomsTotal + newRoomsTotal;
+        
+        setFormData(prev => ({
+          ...prev,
+          total_capacity: total.toString()
+        }));
+      }
+    };
+
+    calculateTotalCapacity();
+  }, [rooms, mode, center]);
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = { center: {}, rooms: {} };
@@ -184,8 +229,8 @@ export function EvacuationCenterModal({ isOpen, onClose, mode, center, onSuccess
     setRooms(prev => [...prev, newRoom]);
   };
 
+  // Update handleRoomChange to recalculate capacity
   const handleRoomChange = (roomId: string, field: string, value: string | number) => {
-    console.log('Room change:', { roomId, field, value, valueType: typeof value });
     setRooms(prev => prev.map(room => 
       room.id === roomId 
         ? { ...room, [field]: value }
@@ -207,32 +252,18 @@ export function EvacuationCenterModal({ isOpen, onClose, mode, center, onSuccess
     }
   };
 
-  const handleDeleteRoom = async (roomId: string) => {
-    try {
-      // If it's an existing room (not a temp one), delete it from the backend
-      if (!roomId.startsWith('temp-')) {
-        console.log('Deleting room:', roomId);
-        try {
-          await deleteRoom(roomId);
-        } catch (error) {
-          // If we get an error but the room is already soft-deleted, we can ignore it
-          console.log('Room might already be deleted, proceeding with UI update');
-        }
-      }
-      
-      // Remove from UI state regardless of backend result
+  // Update handleDeleteRoom to handle marking for deletion
+  const handleDeleteRoom = (roomId: string) => {
+    if (roomId.startsWith('temp-')) {
+      // Remove temporary rooms immediately
       setRooms(prev => prev.filter(room => room.id !== roomId));
-      
-      // Clear room errors
-      setErrors(prev => {
-        const { [roomId]: _, ...remainingRooms } = prev.rooms || {};
-        return {
-          ...prev,
-          rooms: remainingRooms
-        };
-      });
-    } catch (error) {
-      console.error('Error deleting room:', error);
+    } else {
+      // Mark existing rooms for deletion
+      setRooms(prev => prev.map(room => 
+        room.id === roomId 
+          ? { ...room, markedForDeletion: !room.markedForDeletion }
+          : room
+      ));
     }
   };
 
@@ -257,69 +288,46 @@ export function EvacuationCenterModal({ isOpen, onClose, mode, center, onSuccess
       let savedCenter: EvacuationCenter | null = null;
 
       if (mode === 'add') {
-        const result = await createCenter(centerData);
-        console.log('Create center response:', result);
-        savedCenter = result; // result should now be the center data directly
+        savedCenter = await createCenter(centerData);
       } else if (center) {
         savedCenter = await updateCenter(center.id, centerData);
+
+        // Handle room deletions first
+        const roomsToDelete = rooms.filter(room => 
+          !room.id.startsWith('temp-') && room.markedForDeletion
+        );
+        
+        await Promise.all(roomsToDelete.map(room => deleteRoom(room.id)));
       }
 
-      if (!savedCenter?.id) { // Use optional chaining
+      if (!savedCenter?.id) {
         console.error('No evacuation center ID received:', savedCenter);
         return;
       }
 
-      // Handle rooms for new centers or manage room changes for existing centers
-      if (mode === 'add' && rooms.length > 0) {
-        console.log('Creating rooms for center:', { centerId: savedCenter.id, rooms });
+      // Handle room creations and updates
+      if (rooms.length > 0) {
         await Promise.all(
-          rooms.map(async room => {
-            const roomData = {
-              evacuation_center_id: savedCenter!.id,
-              room_name: room.roomName,
-              room_type: room.type,
-              individual_room_capacity: Math.max(1, room.capacity)
-            };
-            console.log('Creating room with data:', roomData);
-            try {
-              const result = await createRoom(roomData);
-              console.log('Room creation result:', result);
-              return result;
-            } catch (error) {
-              console.error('Error creating room:', error);
-              throw error;
-            }
-          })
-        );
-      } else if (mode === 'edit' && center) {
-        // Handle room updates, creations, and deletions for existing center
-        const existingRoomIds = center.rooms?.map(r => r.id) || [];
-        const currentRoomIds = rooms.map(r => r.id);
-
-        // Delete removed rooms
-        const roomsToDelete = existingRoomIds.filter(id => !currentRoomIds.includes(id));
-        await Promise.all(roomsToDelete.map(id => deleteRoom(id)));
-
-        // Update or create rooms
-        await Promise.all(
-          rooms.map(room => {
-            if (room.id.startsWith('temp-')) {
-              // Create new room
-              return createRoom({
-                room_name: room.roomName,
-                room_type: room.type,
-                individual_room_capacity: room.capacity,
-                evacuation_center_id: center.id
-              });
-            } else {
-              // Update existing room
-              return updateRoom(room.id, {
-                room_name: room.roomName,
-                room_type: room.type,
-                individual_room_capacity: room.capacity
-              });
-            }
-          })
+          rooms
+            .filter(room => !room.markedForDeletion) // Skip marked rooms
+            .map(room => {
+              if (room.id.startsWith('temp-')) {
+                // Create new room
+                return createRoom({
+                  room_name: room.roomName,
+                  room_type: room.type,
+                  individual_room_capacity: room.capacity,
+                  evacuation_center_id: savedCenter!.id
+                });
+              } else {
+                // Update existing room
+                return updateRoom(room.id, {
+                  room_name: room.roomName,
+                  room_type: room.type,
+                  individual_room_capacity: room.capacity
+                });
+              }
+            })
         );
       }
 
@@ -342,6 +350,11 @@ export function EvacuationCenterModal({ isOpen, onClose, mode, center, onSuccess
           <DialogTitle className="text-green-700 text-xl font-bold">
             {mode === 'add' ? 'Add Evacuation Center' : 'Edit Evacuation Center'}
           </DialogTitle>
+          <DialogDescription>
+            {mode === 'add' 
+              ? 'Create a new evacuation center by filling out the information below.' 
+              : 'Update the evacuation center information below.'}
+          </DialogDescription>
         </DialogHeader>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-2 overflow-y-auto max-h-[calc(90vh-200px)]">

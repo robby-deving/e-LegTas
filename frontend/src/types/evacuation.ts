@@ -1,10 +1,7 @@
-export type EvacuationCenterStatus = 'Available' | 'Full' | 'Maintenance' | 'Unavailable';
+export type EvacuationCenterStatus = 'Available' | 'Unavailable';
 
 export type EvacuationCenterCategory = 
   | 'School'
-  | 'Covered Court'
-  | 'Barangay Hall'
-  | 'Community Center'
   | 'Chapel/Church'
   | 'Dedicated Evacuation Center'
   | 'Government Building'
@@ -20,6 +17,7 @@ export interface EvacuationRoom {
   roomName: string;
   type: RoomType;
   capacity: number;
+  markedForDeletion?: boolean;
   evacuationCenterId?: number;
 }
 

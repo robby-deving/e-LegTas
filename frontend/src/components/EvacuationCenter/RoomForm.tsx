@@ -1,4 +1,3 @@
-import React from 'react';
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
@@ -39,20 +38,40 @@ export function RoomForm({ rooms, onAddRoom, onRoomChange, onDeleteRoom, errors 
           </div>
         ) : (
           rooms.map((room) => (
-            <div key={room.id} className="border border-gray-200 rounded-lg p-3">
-              <div className="flex items-center justify-end mb-2">
+            <div 
+              key={room.id} 
+              className={`border rounded-lg p-3 ${
+                room.markedForDeletion 
+                  ? 'border-red-300 bg-red-50' 
+                  : 'border-gray-200'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-2">
+                {room.markedForDeletion && (
+                  <span className="text-xs text-red-600">Marked for deletion</span>
+                )}
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
                   onClick={() => onDeleteRoom(room.id)}
-                  className="text-red-600 hover:text-red-800 h-6 w-6 p-0"
+                  className={`h-6 w-6 p-0 ${
+                    room.markedForDeletion 
+                      ? 'text-green-600 hover:text-green-800' 
+                      : 'text-red-600 hover:text-red-800'
+                  }`}
                 >
-                  <X className="w-4 h-4" />
+                  {room.markedForDeletion ? (
+                    <span className="text-xs">Undo</span>
+                  ) : (
+                    <X className="w-4 h-4" />
+                  )}
                 </Button>
               </div>
               
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className={`grid grid-cols-1 sm:grid-cols-3 gap-4 ${
+                room.markedForDeletion ? 'opacity-50' : ''
+              }`}>
                 <div>
                   <label className="block text-xs text-gray-600 mb-1">Room Name *</label>
                   <Input

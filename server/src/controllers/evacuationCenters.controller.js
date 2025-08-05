@@ -262,30 +262,48 @@ exports.softDeleteEvacuationCenter = async (req, res, next) => {
     }
 
     try {
-        const { data, error } = await supabase
+        // Start a Supabase transaction by using multiple operations
+        const now = new Date().toISOString();
+
+        // 1. First soft delete all associated rooms
+        const { error: roomsError } = await supabase
+            .from('evacuation_center_rooms')
+            .update({ 
+                deleted_at: now
+            })
+            .eq('evacuation_center_id', id)
+            .is('deleted_at', null);
+
+        if (roomsError) {
+            console.error('Supabase Error (softDeleteRooms):', roomsError);
+            return next(new ApiError('Failed to soft delete associated rooms.', 500));
+        }
+
+        // 2. Then soft delete the evacuation center
+        const { data, error: centerError } = await supabase
             .from(TABLE_NAME)
             .update({ 
-                deleted_at: new Date().toISOString(),
+                deleted_at: now,
                 ec_status: 'Unavailable' // Update status to Unavailable when soft deleted
             })
             .eq('id', id)
             .is('deleted_at', null) // Only soft delete if not already deleted
             .select();
 
-        if (error) {
+        if (centerError) {
             console.error('Supabase Error (softDeleteEvacuationCenter):', {
-                error,
-                details: error.details,
-                hint: error.hint,
-                code: error.code
+                error: centerError,
+                details: centerError.details,
+                hint: centerError.hint,
+                code: centerError.code
             });
-            if (error.code === '23503') {
+            if (centerError.code === '23503') {
                 return next(new ApiError('Cannot delete: This evacuation center is referenced by other records.', 400));
             }
-            if (error.code === '23505') {
+            if (centerError.code === '23505') {
                 return next(new ApiError('Cannot delete: Duplicate key violation.', 400));
             }
-            return next(new ApiError(`Failed to soft delete evacuation center entry: ${error.message}`, 500));
+            return next(new ApiError(`Failed to soft delete evacuation center entry: ${centerError.message}`, 500));
         }
 
         if (!data || data.length === 0) {
@@ -293,7 +311,7 @@ exports.softDeleteEvacuationCenter = async (req, res, next) => {
         }
 
         res.status(200).json({
-            message: `Evacuation center with ID ${id} soft deleted successfully.`,
+            message: `Evacuation center with ID ${id} and all its rooms soft deleted successfully.`,
             data: data[0]
         });
     } catch (err) {
@@ -314,7 +332,8 @@ exports.restoreEvacuationCenter = async (req, res, next) => {
     }
 
     try {
-        const { data, error } = await supabase
+        // 1. First restore the evacuation center
+        const { data: centerData, error: centerError } = await supabase
             .from(TABLE_NAME)
             .update({ 
                 deleted_at: null,
@@ -324,18 +343,32 @@ exports.restoreEvacuationCenter = async (req, res, next) => {
             .not('deleted_at', 'is', null) // Only restore if currently deleted
             .select();
 
-        if (error) {
-            console.error('Supabase Error (restoreEvacuationCenter):', error);
+        if (centerError) {
+            console.error('Supabase Error (restoreEvacuationCenter):', centerError);
             return next(new ApiError('Failed to restore evacuation center entry.', 500));
         }
 
-        if (!data || data.length === 0) {
+        if (!centerData || centerData.length === 0) {
             return next(new ApiError(`Evacuation center with ID ${id} not found or not deleted.`, 404));
         }
 
+        // 2. Then restore all associated rooms
+        const { error: roomsError } = await supabase
+            .from('evacuation_center_rooms')
+            .update({ 
+                deleted_at: null
+            })
+            .eq('evacuation_center_id', id)
+            .not('deleted_at', 'is', null);
+
+        if (roomsError) {
+            console.error('Supabase Error (restoreRooms):', roomsError);
+            return next(new ApiError('Failed to restore associated rooms.', 500));
+        }
+
         res.status(200).json({
-            message: `Evacuation center with ID ${id} restored successfully.`,
-            data: data[0]
+            message: `Evacuation center with ID ${id} and all its rooms restored successfully.`,
+            data: centerData[0]
         });
     } catch (err) {
         next(new ApiError('Internal server error during restoreEvacuationCenter.', 500));
@@ -429,18 +462,19 @@ exports.getEvacuationCenterWithRooms = async (req, res, next) => {
             .from(TABLE_NAME)
             .select(`
                 *,
-                evacuation_center_rooms!inner (
+                evacuation_center_rooms(
                     id,
                     room_name,
                     individual_room_capacity,
                     room_type,
                     created_at,
-                    updated_at
+                    updated_at,
+                    deleted_at
                 )
             `)
             .eq('id', id)
             .is('deleted_at', null) // Exclude soft-deleted centers
-            .is('evacuation_center_rooms.deleted_at', null) // Add this line to exclude soft-deleted rooms
+            .is('evacuation_center_rooms.deleted_at', null) // Exclude soft-deleted rooms
             .single();
 
         if (error) {
@@ -452,9 +486,16 @@ exports.getEvacuationCenterWithRooms = async (req, res, next) => {
             return next(new ApiError(`Evacuation center with ID ${id} not found.`, 404));
         }
 
+        // Filter out any rooms that might have deleted_at set
+        const centerData = {
+            ...data,
+            evacuation_center_rooms: (data.evacuation_center_rooms || [])
+                .filter(room => !room.deleted_at)
+        };
+
         res.status(200).json({
             message: `Successfully retrieved evacuation center with ID ${id} and its rooms.`,
-            data: data
+            data: centerData
         });
     } catch (err) {
         next(new ApiError('Internal server error during getEvacuationCenterWithRooms.', 500));
