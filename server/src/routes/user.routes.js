@@ -12,7 +12,9 @@ const {
   getBarangays,
   getDisasters,
   getEnumValues,
-  checkUserCanLogin
+  checkUserCanLogin,
+  getUserStats,
+  getRecentUsers
 } = require('../controllers/user.controller');
 
 const router = express.Router();
@@ -23,6 +25,12 @@ router.get('/data/evacuation-centers', getEvacuationCenters); // GET /api/v1/use
 router.get('/data/barangays', getBarangays);      // GET /api/v1/users/data/barangays
 router.get('/data/disasters', getDisasters);      // GET /api/v1/users/data/disasters
 router.get('/data/enums', getEnumValues);         // GET /api/v1/users/data/enums
+
+// Stats route
+router.get('/stats', getUserStats);               // GET /api/v1/users/stats
+
+// Recent users route
+router.get('/recent', getRecentUsers);            // GET /api/v1/users/recent
 
 // Auth check route
 router.post('/check-login', checkUserCanLogin);   // POST /api/v1/users/check-login

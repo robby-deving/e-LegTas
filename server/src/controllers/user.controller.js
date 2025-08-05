@@ -1872,6 +1872,170 @@ const checkUserCanLogin = async (req, res) => {
   }
 };
 
+// Get user statistics for dashboard
+const getUserStats = async (req, res) => {
+  try {
+    console.log('Getting user statistics...');
+
+    // Get all active users with their roles
+    const { data: users, error } = await supabaseAdmin
+      .from('users')
+      .select(`
+        id,
+        users_profile!inner(
+          role_id,
+          is_active
+        )
+      `)
+      .is('deleted_at', null)
+      .eq('users_profile.is_active', true);
+
+    if (error) {
+      console.error('Error fetching user stats:', error);
+      return res.status(500).json({
+        message: 'Failed to fetch user statistics',
+        error: error.message
+      });
+    }
+
+    // Count users by role
+    const roleCounts = {
+      cdrrmo: 0,      // role_id 2 & 3 (CDRRMO/Barangay Official & Regional Coordinator)
+      cswdo: 0,       // role_id 4 (CSWDO)
+      campManager: 0, // role_id 5 (Camp Manager)
+      allUsers: 0     // Total active users
+    };
+
+    users.forEach(user => {
+      const roleId = user.users_profile.role_id;
+      
+      // Count all active users
+      roleCounts.allUsers++;
+      
+      // Count by specific roles
+      if (roleId === 2 || roleId === 3) {
+        roleCounts.cdrrmo++;
+      } else if (roleId === 4) {
+        roleCounts.cswdo++;
+      } else if (roleId === 5) {
+        roleCounts.campManager++;
+      }
+    });
+
+    console.log('User statistics calculated:', roleCounts);
+
+    res.json({
+      success: true,
+      message: 'User statistics retrieved successfully',
+      data: {
+        cdrrmo: roleCounts.cdrrmo,
+        cswdo: roleCounts.cswdo,
+        campManager: roleCounts.campManager,
+        allUsers: roleCounts.allUsers
+      }
+    });
+
+  } catch (error) {
+    console.error('Error in getUserStats:', error);
+    res.status(500).json({
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
+// Get recently added users for dashboard
+const getRecentUsers = async (req, res) => {
+  try {
+    console.log('Getting recently added users...');
+
+    // Get recently added users with their profile and resident data
+    const { data: users, error } = await supabaseAdmin
+      .from('users')
+      .select(`
+        id,
+        employee_number,
+        created_at,
+        users_profile!inner(
+          id,
+          email,
+          role_id,
+          is_active,
+          created_at,
+          roles(
+            id,
+            role_name
+          ),
+          residents(
+            id,
+            first_name,
+            middle_name,
+            last_name,
+            suffix,
+            sex,
+            birthdate,
+            barangays(
+              id,
+              name
+            )
+          )
+        )
+      `)
+      .is('deleted_at', null)
+      .eq('users_profile.is_active', true)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching recent users:', error);
+      return res.status(500).json({
+        message: 'Failed to fetch recent users',
+        error: error.message
+      });
+    }
+
+    // Transform the data to a cleaner format
+    const recentUsers = users.map(user => ({
+      id: user.id,
+      employee_number: user.employee_number,
+      created_at: user.created_at,
+      email: user.users_profile.email,
+      role_id: user.users_profile.role_id,
+      role_name: user.users_profile.roles?.role_name || 'Unknown Role',
+      first_name: user.users_profile.residents?.first_name || '',
+      middle_name: user.users_profile.residents?.middle_name || '',
+      last_name: user.users_profile.residents?.last_name || '',
+      suffix: user.users_profile.residents?.suffix || '',
+      full_name: [
+        user.users_profile.residents?.first_name || '',
+        user.users_profile.residents?.middle_name || '',
+        user.users_profile.residents?.last_name || '',
+        user.users_profile.residents?.suffix || ''
+      ].filter(Boolean).join(' '),
+      barangay: user.users_profile.residents?.barangays?.name || 'Unknown',
+      sex: user.users_profile.residents?.sex || '',
+      birthdate: user.users_profile.residents?.birthdate || null
+    }));
+
+    console.log(`Retrieved ${recentUsers.length} recent users`);
+
+    res.json({
+      success: true,
+      message: 'Recent users retrieved successfully',
+      data: recentUsers,
+      meta: {
+        count: recentUsers.length
+      }
+    });
+
+  } catch (error) {
+    console.error('Error in getRecentUsers:', error);
+    res.status(500).json({
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   createUser,
   getUsers,
@@ -1888,5 +2052,7 @@ module.exports = {
   completeUserProfile,
   getUsersWithRoleFourAndFive,
   deleteUser,
-  checkUserCanLogin
+  checkUserCanLogin,
+  getUserStats,
+  getRecentUsers
 };

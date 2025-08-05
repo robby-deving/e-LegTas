@@ -2,31 +2,65 @@ import { usePageTitle } from '../hooks/usePageTitle';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { selectCurrentUser } from '../features/auth/authSlice';
-import { useState } from 'react';
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { useState, useEffect } from 'react';
 
 export default function Dashboard(){
     usePageTitle('Dashboard');
     const user = useSelector(selectCurrentUser);
     const navigate = useNavigate();
     
-    // Pagination state for Recently Added Users table
-    const [currentPage, setCurrentPage] = useState(1);
-    const [rowsPerPage, setRowsPerPage] = useState(5);
-    const [selectedRows] = useState(0);
+    // State for user statistics
+    const [userStats, setUserStats] = useState({
+        cdrrmo: 0,
+        cswdo: 0,
+        campManager: 0,
+        allUsers: 0
+    });
     
-    // Mock data for recently added users (replace with actual API call)
-    const recentUsers = [
-        // Add sample data or fetch from API
-    ];
+    // State for recent users
+    const [recentUsers, setRecentUsers] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    
+    // Fetch user statistics
+    const fetchUserStats = async () => {
+        try {
+            const response = await fetch('/api/v1/users/stats');
+            if (!response.ok) {
+                throw new Error('Failed to fetch user statistics');
+            }
+            const data = await response.json();
+            setUserStats(data.data);
+        } catch (err) {
+            console.error('Error fetching user stats:', err);
+        }
+    };
+    
+    // Fetch recent users
+    const fetchRecentUsers = async () => {
+        try {
+            const response = await fetch('/api/v1/users/recent');
+            if (!response.ok) {
+                throw new Error('Failed to fetch recent users');
+            }
+            const data = await response.json();
+            setRecentUsers(data.data || []);
+        } catch (err) {
+            console.error('Error fetching recent users:', err);
+        }
+    };
+    
+    // Load data on component mount
+    useEffect(() => {
+        const loadData = async () => {
+            setLoading(true);
+            await Promise.all([fetchUserStats(), fetchRecentUsers()]);
+            setLoading(false);
+        };
+        
+        loadData();
+    }, []);
     
     const totalRows = recentUsers.length;
-    const totalPages = Math.ceil(totalRows / rowsPerPage);
-    
-    // Get paginated users
-    const startIndex = (currentPage - 1) * rowsPerPage;
-    const endIndex = startIndex + rowsPerPage;
-    const paginatedUsers = recentUsers.slice(startIndex, endIndex);
     
     return(
         <div className='text-black'>
@@ -58,7 +92,7 @@ export default function Dashboard(){
                                 </svg>
                             </div>
                             <div className="text-3xl font-bold" style={{ color: '#038B53' }}>
-                                0
+                                {loading ? '...' : (userStats?.cdrrmo ?? 0)}
                             </div>
                         </div>
 
@@ -74,7 +108,7 @@ export default function Dashboard(){
                                 </svg>
                             </div>
                             <div className="text-3xl font-bold" style={{ color: '#0192D4' }}>
-                                0
+                                {loading ? '...' : (userStats?.cswdo ?? 0)}
                             </div>
                         </div>
 
@@ -90,7 +124,7 @@ export default function Dashboard(){
                                 </svg>
                             </div>
                             <div className="text-3xl font-bold" style={{ color: '#FBB040' }}>
-                                0
+                                {loading ? '...' : (userStats?.campManager ?? 0)}
                             </div>
                         </div>
 
@@ -106,7 +140,7 @@ export default function Dashboard(){
                                 </svg>
                             </div>
                             <div className="text-3xl font-bold" style={{ color: '#038B53' }}>
-                                0
+                                {loading ? '...' : (userStats?.allUsers ?? 0)}
                             </div>
                         </div>
                     </div>
@@ -148,7 +182,7 @@ export default function Dashboard(){
                                         Role
                                     </th>
                                     <th className="text-left px-6 py-3 text-base font-semibold text-gray-500">
-                                        Assigned EC
+                                        Barangay
                                     </th>
                                     <th className="text-left px-6 py-3 text-base font-semibold text-gray-500">
                                         Status
@@ -163,97 +197,31 @@ export default function Dashboard(){
                                         </td>
                                     </tr>
                                 ) : (
-                                    paginatedUsers.map((user: any, index: number) => (
+                                    recentUsers.map((user: any, index: number) => (
                                         <tr 
                                             key={user.id || index} 
-                                            className={`hover:bg-gray-50 ${index !== paginatedUsers.length - 1 ? 'border-b border-gray-200' : ''}`}
+                                            className={`hover:bg-gray-50 ${index !== recentUsers.length - 1 ? 'border-b border-gray-200' : ''}`}
                                         >
                                             <td className="px-6 py-4 whitespace-nowrap text-gray-900 text-base">
-                                                {user.name || 'N/A'}
+                                                {user.full_name || 'N/A'}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-gray-900 text-base">
                                                 {user.email || 'N/A'}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-gray-900 text-base">
-                                                {user.role || 'N/A'}
+                                                {user.role_name || 'N/A'}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-gray-900 text-base">
-                                                {user.assigned_ec || 'N/A'}
+                                                {user.barangay && user.barangay !== 'Unknown' ? user.barangay : 'N/A'}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-gray-900 text-base">
-                                                {user.status || 'Active'}
+                                                Active
                                             </td>
                                         </tr>
                                     ))
                                 )}
                             </tbody>
                         </table>
-                    </div>
-
-                    {/* Pagination */}
-                    <div 
-                        className='flex items-center justify-between px-6 py-3 pt-5 bg-white'
-                        style={{
-                            border: '1px solid #E4E4E7',
-                            borderTop: 'none',
-                            borderBottomLeftRadius: '12px',
-                            borderBottomRightRadius: '12px'
-                        }}
-                    >
-                        <div className='flex items-center gap-4'>
-                            <span className='text-base text-gray-500'>
-                                {selectedRows} of {totalRows} row(s) selected.
-                            </span>
-                        </div>
-                        
-                        <div className='flex items-center gap-6'>
-                            <div className='flex items-center gap-2'>
-                                <span className='text-base text-gray-700'>Rows per page</span>
-                                <select
-                                    value={rowsPerPage}
-                                    onChange={(e) => setRowsPerPage(Number(e.target.value))}
-                                    className='border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E] gap-20 mr-10'
-                                >
-                                    <option value={5}>5</option>
-                                    <option value={10}>10</option>
-                                    <option value={20}>20</option>
-                                    <option value={50}>50</option>
-                                </select>
-                            </div>
-                            <span className='text-base text-gray-700'>
-                                Page {currentPage} of {totalPages}
-                            </span>
-                            <div className='flex items-center gap-1'>
-                                <button
-                                    onClick={() => setCurrentPage(1)}
-                                    disabled={currentPage === 1}
-                                    className='p-1 rounded border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed'
-                                >
-                                    <ChevronsLeft className='h-4 w-4' />
-                                </button>
-                                <button
-                                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                                    disabled={currentPage === 1}
-                                    className='p-1 rounded border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed'
-                                >
-                                    <ChevronLeft className='h-4 w-4' />
-                                </button>
-                                <button
-                                    onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                                    disabled={currentPage === totalPages}
-                                    className='p-1 rounded border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed'
-                                >
-                                    <ChevronRight className='h-4 w-4' />
-                                </button>
-                                <button
-                                    onClick={() => setCurrentPage(totalPages)}
-                                    disabled={currentPage === totalPages}
-                                    className='p-1 rounded border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed'
-                                >
-                                    <ChevronsRight className='h-4 w-4' />
-                                </button>
-                            </div>
-                        </div>
                     </div>
                 </div>
             )}
