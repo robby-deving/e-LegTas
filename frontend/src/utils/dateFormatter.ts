@@ -1,3 +1,5 @@
+// utils/dateFormatter.ts
+
 export const formatDate = (dateString?: string) => {
   if (!dateString) return "N/A";
 
@@ -8,5 +10,8 @@ export const formatDate = (dateString?: string) => {
         year: "numeric",
         month: "short",
         day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true, // keeps the 12-hour format with AM/PM
       }).format(date);
 };

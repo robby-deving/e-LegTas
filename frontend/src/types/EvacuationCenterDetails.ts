@@ -4,7 +4,7 @@ export type EvacuationCenterDetail = {
     disaster_type_name: string;
     disasters_id: number;
     disaster_name: string;
-    disaster_start_date: string;
+    disaster_start_date: string; // NOT DONE WRONG OUTPUT
     disaster_end_date: string | null;
   };
   evacuation_center: {
@@ -36,15 +36,27 @@ export type EvacueeStatistics = {
   };
 };
 
+export type FamilyMember = {
+  evacuee_id: number;
+  resident_id: number;
+  full_name: string;
+  age: number;
+  barangay_of_origin: string;
+  sex: string;
+  vulnerability_types: string[];
+  room_name: string;
+  arrival_timestamp: string;
+};
+
 export type FamilyEvacueeInformation = {
-  title: string;
+  id: number;
+  disaster_evacuation_event_id: string;
   family_head_full_name: string;
   barangay: string;
   total_individuals: number;
   room_name: string;
   decampment_timestamp: string | null;
   view_family: {
-    title: string;
     evacuation_center_name: string;
     head_of_family: string;
     decampment: string | null;
@@ -64,17 +76,6 @@ export type FamilyEvacueeInformation = {
     };
   };
   list_of_family_members: {
-    title: string;
-    family_members: {
-      evacuee_id: number;
-      resident_id: number;
-      full_name: string;
-      age: number;
-      barangay_of_origin: string;
-      sex: string;
-      vulnerability_types: string[];
-      arrival_timestamp: string;
-    }[];
+    family_members: FamilyMember[];
   };
 };
-

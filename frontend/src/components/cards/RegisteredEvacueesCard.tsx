@@ -1,4 +1,4 @@
-import { Users } from "lucide-react";
+import registeredEvacueesIcon from "@/assets/registeredEvacuees.svg";
 import StatCard from "../StatCard";
 
 interface RegisteredEvacueesCardProps {
@@ -10,7 +10,13 @@ export function RegisteredEvacueesCard({ count }: RegisteredEvacueesCardProps) {
     <StatCard
       title="Registered Evacuees"
       value={count.toLocaleString()}
-      icon={<Users className="w-5 h-5 text-green-700 mr-2" />}
+      icon={
+        <img
+          src={registeredEvacueesIcon}
+          alt="Registered Evacuees"
+          className="w-5 h-5 mr-2"
+        />
+      }
       valueClassName="text-green-600"
     />
   );

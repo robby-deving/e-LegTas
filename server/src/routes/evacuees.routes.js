@@ -23,19 +23,12 @@ router.get('/search', searchEvacueeByName);
 // @access Private (Camp Manager only)
 router.post('/', evacueeController.registerEvacuee);
 
-// Get evacuee details by ID
-// Example: GET /api/v1/evacuees/:id
-// @desc Get evacuee details by ID
-// @route GET /api/v1/evacuees/:id
-// @access Private
-router.get('/:id', evacueeController.getEvacueeById);
-
 // Get full evacuee demographic breakdown by family head ID
 // Example: GET /api/v1/evacuees/family/:family_head_id
 // @desc Get detailed evacuee data for a given family head ID, includes summary counts, demographics, and list of evacuees
 // @route GET /api/v1/evacuees/family/:family_head_id
 // @access Private (Camp Manager only)
-router.get('/family/:family_head_id', evacueeController.getRegisterEvacueeByFamilyId);
+// router.get('/family/:family_head_id', evacueeController.getRegisterEvacueeByFamilyId);
 
 // Get detailed evacuee data filtered by disaster evacuation event ID
 // Example: GET /api/v1/evacuees/:disasterEvacuationEventId/evacuees-information

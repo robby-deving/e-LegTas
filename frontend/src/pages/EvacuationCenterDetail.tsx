@@ -19,6 +19,8 @@ import type { EvacuationCenterDetail, EvacueeStatistics, FamilyEvacueeInformatio
 import { usePageTitle } from "../hooks/usePageTitle";
 import { encodeId } from "@/utils/secureId";
 import { formatDate } from "@/utils/dateFormatter";
+import { FamilyDetailsModal } from "../components/modals/FamilyDetailsModal";
+
 
 export default function EvacuationCenterDetail() {
   const navigate = useNavigate();
@@ -33,7 +35,9 @@ export default function EvacuationCenterDetail() {
   const [statistics, setStatistics] = useState<EvacueeStatistics | null>(null);
 
   const [evacuees, setEvacuees] = useState<FamilyEvacueeInformation[]>([]);
+  const [selectedFamily, setSelectedFamily] = useState<FamilyEvacueeInformation | null>(null);
   const [search, setSearch] = useState("");
+  
 
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(5);
@@ -42,16 +46,17 @@ const chartData = statistics
   ? [
       { label: "Males", value: statistics.summary.total_no_of_male },
       { label: "Females", value: statistics.summary.total_no_of_female },
-      { label: "Infants", value: statistics.summary.total_no_of_infant },
-      { label: "Children", value: statistics.summary.total_no_of_children },
-      { label: "Youth", value: statistics.summary.total_no_of_youth },
-      { label: "Adults", value: statistics.summary.total_no_of_adult },
-      { label: "Seniors", value: statistics.summary.total_no_of_seniors },
+      { label: "Infants (<1 yr)", value: statistics.summary.total_no_of_infant },
+      { label: "Children (2–12 yrs)", value: statistics.summary.total_no_of_children },
+      { label: "Youth (13–17 yrs)", value: statistics.summary.total_no_of_youth },
+      { label: "Adults (18–59 yrs)", value: statistics.summary.total_no_of_adult },
+      { label: "Senior Citizens (60+)", value: statistics.summary.total_no_of_seniors },
       { label: "PWD", value: statistics.summary.total_no_of_pwd },
-      { label: "Pregnant", value: statistics.summary.total_no_of_pregnant },
+      { label: "Pregnant Women", value: statistics.summary.total_no_of_pregnant },
       { label: "Lactating Women", value: statistics.summary.total_no_of_lactating_women },
     ]
   : [];
+
 
 
 
@@ -114,9 +119,11 @@ const filteredEvacuees = Array.isArray(evacuees)
     // future modal trigger
   };
 
-  const handleRowClick = (evacueeId: number) => {
-    // future family modal
-  };
+const handleRowClick = (evacueeId: number) => {
+  const selected = paginatedEvacuees.find(e => e.id === evacueeId);
+  if (selected) setSelectedFamily(selected);
+};
+
 
 if (!detail || !statistics) return <div className="p-6">Loading...</div>;
 
@@ -138,7 +145,7 @@ if (!detail || !statistics) return <div className="p-6">Loading...</div>;
 <div className="text-black p-6 space-y-6">
   {/* Header with Breadcrumb */}
   <div className="space-y-5">
-    <h1 className="text-3xl font-bold">Evacuation Information</h1>
+    <h1 className="text-3xl font-bold text-green-800">Evacuation Information</h1>
     <div className="flex items-center text-sm text-gray-600">
       <button
         onClick={() => navigate("/evacuation-information")}
@@ -240,7 +247,7 @@ if (!detail || !statistics) return <div className="p-6">Loading...</div>;
                   <TableHead className="text-left font-semibold">Family Head</TableHead>
                   <TableHead className="text-left font-semibold">Barangay</TableHead>
                   <TableHead className="text-left font-semibold">Total Individuals</TableHead>
-                  <TableHead className="text-left font-semibold">Room Number</TableHead>
+                  <TableHead className="text-left font-semibold">Room Name</TableHead>
                   <TableHead className="text-left font-semibold">Decampment</TableHead>
                   <TableHead />
                 </TableRow>
@@ -257,7 +264,7 @@ if (!detail || !statistics) return <div className="p-6">Loading...</div>;
                     <TableRow
                       key={idx}
                       className="cursor-pointer hover:bg-gray-50"
-                      onClick={() => handleRowClick(idx)}
+                      onClick={() => handleRowClick(evac.id)}
                     >
                       <TableCell className="text-foreground font-medium">{evac.family_head_full_name}</TableCell>
                       <TableCell className="text-foreground">{evac.barangay}</TableCell>
@@ -287,6 +294,16 @@ if (!detail || !statistics) return <div className="p-6">Loading...</div>;
               onRowsPerPageChange={value => setRowsPerPage(Number(value))}
             />
           </div>
+
+          <FamilyDetailsModal
+    isOpen={!!selectedFamily}
+    onClose={() => setSelectedFamily(null)}
+    evacuee={selectedFamily}
+    centerName={selectedFamily?.view_family?.evacuation_center_name || ""}
+    onEditMember={(memberName: string) => {
+      console.log("Edit member clicked:", memberName);
+    }}
+  />
         </div>
       </div>
     </div>
