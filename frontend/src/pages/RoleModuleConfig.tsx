@@ -4,7 +4,7 @@ import { selectCurrentUser } from '../features/auth/authSlice';
 import { Navigate } from 'react-router-dom';
 
 export default function RoleModuleConfig() {
-    usePageTitle('Role & Module Configuration');
+    usePageTitle('User Roles');
     
     const currentUser = useSelector(selectCurrentUser);
     
@@ -23,33 +23,66 @@ export default function RoleModuleConfig() {
                     fontSize: '32px' 
                 }}
             >
-                Role & Module Configuration
+                User Roles
             </h1>
             
+            {/* Add User Roles Button */}
+            <div className="mb-6 flex justify-end">
+                <button
+                    className='inline-flex items-center gap-2 px-4 py-2 text-white font-medium text-base rounded-md hover:opacity-90 transition-opacity focus:outline-none'
+                    style={{
+                        backgroundColor: '#00824E'
+                    }}
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14 14" fill="none">
+                        <g clipPath="url(#clip0_876_48038)">
+                            <path d="M7.0013 12.8327C10.223 12.8327 12.8346 10.221 12.8346 6.99935C12.8346 3.77769 10.223 1.16602 7.0013 1.16602C3.77964 1.16602 1.16797 3.77769 1.16797 6.99935C1.16797 10.221 3.77964 12.8327 7.0013 12.8327Z" stroke="#F8FAFC" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"/>
+                            <path d="M7 4.66602V9.33268" stroke="#F8FAFC" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"/>
+                            <path d="M4.66797 7H9.33464" stroke="#F8FAFC" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"/>
+                        </g>
+                        <defs>
+                            <clipPath id="clip0_876_48038">
+                                <rect width="14" height="14" fill="white"/>
+                            </clipPath>
+                        </defs>
+                    </svg>
+                    Add User Roles
+                </button>
+            </div>
+            
             {/* Content */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <div className="text-center py-12">
-                    <div className="mb-4">
-                        <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            </svg>
-                        </div>
-                    </div>
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">
-                        Role & Module Configuration
-                    </h3>
-                    <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                        Manage roles, permissions, and module access configurations for the system. 
-                        Configure which roles can access specific modules and features.
-                    </p>
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-md mx-auto">
-                        <p className="text-blue-800 text-sm">
-                            🚧 This feature is under development and will be available soon.
-                        </p>
-                    </div>
-                </div>
+            <div 
+                className='overflow-x-auto rounded-md'
+                style={{
+                    border: '1px solid #E4E4E7'
+                }}
+            >
+                {/* Table */}
+                <table className='min-w-full'>
+                    <thead className='bg-white border-b border-gray-200'>
+                        <tr>
+                            <th className='px-6 py-3 text-left text-base font-medium text-gray-500'>
+                                Name
+                            </th>
+                            <th className='px-6 py-3 text-left text-base font-medium text-gray-500'>
+                                Users
+                            </th>
+                            <th className='px-6 py-3 text-left text-base font-medium text-gray-500'>
+                                Permissions
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody className='bg-white'>
+                        {/* Table content placeholder */}
+                        <tr>
+                            <td className="px-6 py-4 whitespace-nowrap text-gray-900 text-base">
+                                No roles configured yet
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-gray-900 text-base"></td>
+                            <td className="px-6 py-4 whitespace-nowrap text-gray-900 text-base"></td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
     );
