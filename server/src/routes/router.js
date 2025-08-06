@@ -2,25 +2,39 @@
 
 const express = require('express');
 const router = express.Router();
-const evacuationCentersRoutes = require('./evacuationCenters.routes'); 
-const roomRoutes = require('./room.routes'); 
-const disasterRoutes = require('./disaster.routes'); 
-const disasterEventRoutes = require('./disaster_event.route'); // Import the disaster event routes
+
+// Import route modules
+const evacuationCentersRoutes = require('./evacuationCenters.routes');
+const roomRoutes = require('./room.routes');
+const disasterRoutes = require('./disaster.routes');
+const disasterEventRoutes = require('./disaster_event.route');
 const evacueesRoutes = require('./evacuees.routes');
 const barangayRoutes = require('./barangay.routes');
+const authRoutes = require('./auth.routes');
+const userRoutes = require('./user.routes');
+const permissionRoutes = require('./permission.routes');
 
-// ---------- Routes ----------
+// Base API path
 const baseAPI = '/api/v1';
 
-router.use(`${baseAPI}/evacuation-centers`, evacuationCentersRoutes);
-router.use(`${baseAPI}/disasters`, disasterRoutes);
-router.use(`${baseAPI}/rooms`, roomRoutes);
-router.use(`${baseAPI}/disaster-events`, disasterEventRoutes);
-router.use(`${baseAPI}/evacuees`, evacueesRoutes);
-router.use(`${baseAPI}/barangays`, barangayRoutes);
+// Mount routes
+router.use('/auth', authRoutes);
+router.use('/users', userRoutes);
+router.use('/permissions', permissionRoutes);
+router.use('/evacuation-centers', evacuationCentersRoutes);
+router.use('/disasters', disasterRoutes);
+router.use('/rooms', roomRoutes);
+router.use('/disaster-events', disasterEventRoutes);
+router.use('/evacuees', evacueesRoutes);
+router.use('/barangays', barangayRoutes);
 
-router.get('/', (req, res) => {
-    res.status(200).json({ message: 'API router is working!' });
+// Health check route
+router.get('/health', (req, res) => {
+  res.json({ 
+    message: 'Server is running',
+    version: 'v1',
+    timestamp: new Date().toISOString()
+  });
 });
 
-module.exports = router;
+module.exports = { router, baseAPI }; 

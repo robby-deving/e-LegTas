@@ -1,9 +1,10 @@
-require('dotenv').config();
 const app = require('./app');
+const dotenv = require('dotenv');
 
-const PORT = process.env.PORT || 4000;
+dotenv.config();
+
+const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
-  console.log(`Elegtas backend is running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
-

@@ -2,44 +2,36 @@
 
 // Import necessary modules
 const express = require('express');
-const cors = require('cors'); // For handling Cross-Origin Resource Sharing
-const apiRouter = require('./routes/router'); // Import your main API router from the 'routes' directory
+const cors = require('cors');
+const dotenv = require('dotenv');
+const { router, baseAPI } = require('./routes/router');
+
+// Load environment variables
+dotenv.config();
 
 // Initialize the Express application
 const app = express();
 
-// --- Middleware Setup ---
+// Environment variables check
+console.log('Environment variables check:');
+console.log('SUPABASE_URL:', process.env.SUPABASE_URL ? 'Found' : 'Missing');
+console.log('SUPABASE_SERVICE_ROLE_KEY:', process.env.SUPABASE_SERVICE_ROLE_KEY ? 'Found' : 'Missing');
+console.log('SMTP_USER:', process.env.SMTP_USER ? 'Found' : 'Missing');
+console.log('SMTP_PASS:', process.env.SMTP_PASS ? 'Found' : 'Missing');
 
-// Enable CORS for all origins (for development purposes).
-// In production, you should restrict this to your frontend's domain(s).
+// Middleware
 app.use(cors());
-
-// Parse incoming JSON requests. This is crucial for POST and PUT requests.
 app.use(express.json());
 
-// --- Route Definitions ---
+// API Routes
+app.use(baseAPI, router);
 
-// Mount the main API router under the root path '/'.
-// This means your API endpoints will start directly with the version, e.g., /v1/maps, /v1/users.
-// If you prefer an '/api' prefix, change this to app.use('/api', apiRouter);
-app.use('/', apiRouter);
-
-// --- Basic Route for Health Check (for the root of the app) ---
-// This route is for checking the application server itself, not necessarily the API.
-// It's good practice to have a simple endpoint to confirm the server is responsive.
-app.get('/', (req, res) => {
-    res.status(200).json({ message: 'Application server is running!' });
+// Root health check (for backwards compatibility)
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    message: 'Server is running',
+    note: 'Use /api/v1/health for versioned endpoint'
+  });
 });
 
-// --- Global Error Handling Middleware ---
-// This middleware catches any errors thrown by your route handlers.
-app.use((err, req, res, next) => {
-    console.error('Global Error Handler:', err.stack); // Log the error stack for debugging
-    res.status(err.statusCode || 500).json({
-        message: err.message || 'An unexpected error occurred.',
-        error: process.env.NODE_ENV === 'production' ? {} : err // Don't expose detailed errors in production
-    });
-});
-
-// Export the app instance for server.js to import and for testing
 module.exports = app;
