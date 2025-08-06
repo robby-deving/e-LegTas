@@ -17,33 +17,92 @@ const {
   getRecentUsers
 } = require('../controllers/user.controller');
 
+// Import enhanced middleware
+const { 
+  authenticateUser,
+  requireUserManagementAccess,
+  filterUsersByRole,
+  requireRoleGroup,
+  originalRequirePermission
+} = require('../middleware');
+
 const router = express.Router();
 
-// Helper routes for dropdowns (put these before /:id to avoid conflicts)
-router.get('/data/roles', getRoles);              // GET /api/v1/users/data/roles
-router.get('/data/evacuation-centers', getEvacuationCenters); // GET /api/v1/users/data/evacuation-centers
-router.get('/data/barangays', getBarangays);      // GET /api/v1/users/data/barangays
-router.get('/data/disasters', getDisasters);      // GET /api/v1/users/data/disasters
-router.get('/data/enums', getEnumValues);         // GET /api/v1/users/data/enums
+// Apply authentication to protected routes
+router.use('/stats', authenticateUser);
+router.use('/recent', authenticateUser);
+router.use('/role', authenticateUser);
+router.use('/cswdo', authenticateUser);
 
-// Stats route
-router.get('/stats', getUserStats);               // GET /api/v1/users/stats
+// Apply auth to main CRUD routes (skip for public data endpoints)
+router.use('/', (req, res, next) => {
+  if (req.path.startsWith('/data/') || req.path === '/check-login') {
+    return next();
+  }
+  return authenticateUser(req, res, next);
+});
 
-// Recent users route
-router.get('/recent', getRecentUsers);            // GET /api/v1/users/recent
+// Helper routes for dropdowns (public - no auth required)
+router.get('/data/roles', getRoles);
+router.get('/data/evacuation-centers', getEvacuationCenters);
+router.get('/data/barangays', getBarangays);
+router.get('/data/disasters', getDisasters);
+router.get('/data/enums', getEnumValues);
 
-// Auth check route
-router.post('/check-login', checkUserCanLogin);   // POST /api/v1/users/check-login
+// Auth check route (public)
+router.post('/check-login', checkUserCanLogin);
 
-// Specific user routes (put before general routes to avoid conflicts)
-router.get('/role/:roleId', getUsersByRole);   // GET /api/v1/users/role/5
-router.get('/cswdo', getUsersWithRoleFourAndFive);   // GET /api/v1/users/cswdo
+// Protected routes with enhanced permissions
+router.get('/stats', 
+  requireRoleGroup(['SYSTEM_ADMIN_GROUP', 'CSWDO_GROUP']),
+  requireUserManagementAccess('view'),
+  getUserStats
+);
 
-// User routes
-router.post('/', createUser);           // POST /api/v1/users
-router.get('/', getUsers);              // GET /api/v1/users
-router.get('/:id', getUserById);        // GET /api/v1/users/:id
-router.put('/:id', updateUser);         // PUT /api/v1/users/:id
-router.delete('/:id', deleteUser);      // DELETE /api/v1/users/:id
+router.get('/recent', 
+  requireUserManagementAccess('view'),
+  filterUsersByRole(),
+  getRecentUsers
+);
+
+router.get('/role/:roleId', 
+  requireUserManagementAccess('view'),
+  filterUsersByRole(),
+  getUsersByRole
+);
+
+router.get('/cswdo', 
+  requireRoleGroup('CSWDO_GROUP'),
+  requireUserManagementAccess('view'),
+  getUsersWithRoleFourAndFive
+);
+
+// Main CRUD routes with permissions
+router.post('/', 
+  requireUserManagementAccess('add'),
+  createUser
+);
+
+router.get('/', 
+  requireUserManagementAccess('view'),
+  filterUsersByRole(),
+  getUsers
+);
+
+router.get('/:id', 
+  requireUserManagementAccess('view'),
+  getUserById
+);
+
+router.put('/:id', 
+  requireUserManagementAccess('update'),
+  updateUser
+);
+
+router.delete('/:id', 
+  requireRoleGroup(['SYSTEM_ADMIN_GROUP', 'CSWDO_GROUP']),
+  requireUserManagementAccess('delete'),
+  deleteUser
+);
 
 module.exports = router;

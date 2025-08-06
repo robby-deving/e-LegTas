@@ -1,7 +1,7 @@
 import { usePageTitle } from '../hooks/usePageTitle';
 import { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
-import { selectCurrentUser } from '../features/auth/authSlice';
+import { selectCurrentUser, selectToken } from '../features/auth/authSlice';
 import { usePermissions } from '../contexts/PermissionContext';
 import { Search, MoreHorizontal, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 
@@ -27,6 +27,7 @@ export default function UserManagement(){
     
     // All hooks must be called before any conditional logic
     const currentUser = useSelector(selectCurrentUser);
+    const token = useSelector(selectToken);
     const { hasPermission, loading: permissionsLoading } = usePermissions();
     const hasViewUserManagement = hasPermission('view_user_management');
     const hasAddUser = hasPermission('add_user');
@@ -161,11 +162,26 @@ export default function UserManagement(){
         return roles.filter(role => currentRoleConfig.assignableRoleIds.includes(role.id));
     };
 
+    // Helper function to get headers with authentication
+    const getAuthHeaders = () => {
+        const headers: HeadersInit = {
+            'Content-Type': 'application/json',
+        };
+        
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+        
+        return headers;
+    };
+
     // Fetch roles from backend
     const fetchRoles = async () => {
         try {
             setRolesLoading(true);
-            const response = await fetch('http://localhost:3000/api/v1/users/data/roles');
+            const response = await fetch('http://localhost:3000/api/v1/users/data/roles', {
+                headers: getAuthHeaders(),
+            });
             
             if (!response.ok) {
                 throw new Error('Failed to fetch roles');
@@ -204,7 +220,9 @@ export default function UserManagement(){
             try {
                 setLoading(true);
                 const endpoint = getUsersApiEndpoint();
-                const response = await fetch(endpoint);
+                const response = await fetch(endpoint, {
+                    headers: getAuthHeaders(),
+                });
                 
                 if (!response.ok) {
                     throw new Error(`Failed to fetch users: ${response.status}`);
@@ -280,17 +298,23 @@ export default function UserManagement(){
     useEffect(() => {
         const fetchEvacuationCenters = async () => {
             try {
-                const response = await fetch('http://localhost:3000/api/v1/users/data/evacuation-centers');
+                // Add query parameter to only fetch active evacuation centers (where deleted_at IS NULL)
+                const response = await fetch('http://localhost:3000/api/v1/users/data/evacuation-centers?active=true');
                 
                 if (!response.ok) {
                     throw new Error(`Failed to fetch evacuation centers: ${response.status}`);
                 }
                 
                 const data = await response.json();
-                setEvacuationCenters(data.centers?.map((center: any) => ({
+                // Filter out centers that are unavailable or have deleted_at not null
+                const activeCenters = data.centers?.filter((center: any) => 
+                    !center.deleted_at && center.status === 'Available'
+                ) || [];
+                
+                setEvacuationCenters(activeCenters.map((center: any) => ({
                     id: center.id,
                     name: center.name
-                })) || []);
+                })));
             } catch (err) {
                 console.error('Error fetching evacuation centers:', err);
                 // Set some default evacuation centers if fetch fails
@@ -598,9 +622,7 @@ export default function UserManagement(){
 
             const response = await fetch('http://localhost:3000/api/v1/users', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: getAuthHeaders(),
                 body: JSON.stringify(submitData)
             });
 
@@ -625,13 +647,13 @@ export default function UserManagement(){
                 assigned_evacuation_center: ''
             });
             setIsAddUserModalOpen(false);
-            
+
             // Refresh users list with role-based filtering
             const endpoint = getUsersApiEndpoint();
-            const usersResponse = await fetch(endpoint);
-            const usersData = await usersResponse.json();
-            
-            // Apply the same transformation as in the initial fetch
+            const usersResponse = await fetch(endpoint, {
+                headers: getAuthHeaders(),
+            });
+            const usersData = await usersResponse.json();            // Apply the same transformation as in the initial fetch
             const allTransformedUsers = usersData.users
                 .filter((user: any) => user.users_profile && user.users_profile.residents)
                 .map((user: any) => ({
@@ -735,9 +757,7 @@ export default function UserManagement(){
 
             const response = await fetch(`http://localhost:3000/api/v1/users/${editingUser.id}`, {
                 method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: getAuthHeaders(),
                 body: JSON.stringify(submitData)
             });
 
@@ -751,7 +771,9 @@ export default function UserManagement(){
             
             // Refresh users list with role-based filtering
             const endpoint = getUsersApiEndpoint();
-            const usersResponse = await fetch(endpoint);
+            const usersResponse = await fetch(endpoint, {
+                headers: getAuthHeaders(),
+            });
             const usersData = await usersResponse.json();
             
             // Apply the same transformation as in the initial fetch
@@ -793,6 +815,7 @@ export default function UserManagement(){
         try {
             const response = await fetch(`http://localhost:3000/api/v1/users/${userId}`, {
                 method: 'DELETE',
+                headers: getAuthHeaders(),
             });
 
             if (!response.ok) {
@@ -802,7 +825,9 @@ export default function UserManagement(){
 
             // Refresh users list with role-based filtering
             const endpoint = getUsersApiEndpoint();
-            const usersResponse = await fetch(endpoint);
+            const usersResponse = await fetch(endpoint, {
+                headers: getAuthHeaders(),
+            });
             const usersData = await usersResponse.json();
             
             // Apply the same transformation as in the initial fetch
