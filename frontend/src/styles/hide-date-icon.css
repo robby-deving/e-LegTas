@@ -1,0 +1,23 @@
+/* Hide the native calendar icon in Chrome, Edge, Safari */
+.hide-date-icon::-webkit-calendar-picker-indicator {
+  opacity: 0;
+  display: none;
+}
+/* Hide the native calendar icon in Firefox */
+.hide-date-icon[type="date"]::-moz-calendar-picker-indicator {
+  opacity: 0;
+  display: none;
+}
+
+/* Hide the native calendar icon in IE */
+.hide-date-icon[type="date"]::-ms-clear,
+.hide-date-icon[type="date"]::-ms-reveal {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+/* Remove extra space for the icon */
+.hide-date-icon[type="date"] {
+  padding-right: 0 !important;
+}
