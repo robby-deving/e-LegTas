@@ -94,6 +94,7 @@ export default function RoleModuleConfig() {
             }
             
             const data = await response.json();
+            console.log('Fetched permissions:', data.permissions);
             setPermissions(data.permissions || []);
         } catch (error) {
             console.error('Error fetching permissions:', error);
@@ -337,17 +338,26 @@ export default function RoleModuleConfig() {
         setFormLoading(true);
         
         try {
-            const response = await fetch(`/api/v1/roles/${editingRole.id}`, {
+            // Convert permission names to permission IDs
+            const permissionIds = formData.permissions.map(permissionName => {
+                const permission = permissions.find(p => p.permission_name === permissionName);
+                console.log(`Permission: ${permissionName} -> ID: ${permission?.id}`);
+                return permission?.id;
+            }).filter(id => id !== undefined);
+
+            console.log('Sending permission IDs:', permissionIds);
+            console.log('All available permissions:', permissions);
+
+            const response = await fetch(`/api/v1/permissions/role/${editingRole.id}`, {
                 method: 'PUT',
                 headers: getAuthHeaders(),
                 body: JSON.stringify({
-                    role_name: formData.name,
-                    permissions: formData.permissions
+                    permissionIds: permissionIds
                 })
             });
 
             if (!response.ok) {
-                throw new Error('Failed to update role');
+                throw new Error('Failed to update role permissions');
             }
 
             // Reset form and close modal
