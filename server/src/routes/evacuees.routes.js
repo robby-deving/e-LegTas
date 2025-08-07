@@ -22,6 +22,19 @@ router.get('/search', searchEvacueeByName);
 // @route POST /api/v1/evacuees
 // @access Private (Camp Manager only)
 router.post('/', evacueeController.registerEvacuee);
+// Route to get all barangays
+// Example: GET /api/v1/barangays
+// @desc Get all barangays
+// @route GET /api/v1/barangays
+// @access Public
+router.get('/barangays', evacueeController.getAllBarangays);
+
+// Update an evacuee's details by ID
+// Example: PUT /api/v1/evacuees/123
+// @desc Update an evacuee's details
+// @route PUT /api/v1/evacuees/:id
+// @access Private (Camp Manager only)
+router.put('/:id', evacueeController.updateEvacuee);
 
 // Get full evacuee demographic breakdown by family head ID
 // Example: GET /api/v1/evacuees/family/:family_head_id

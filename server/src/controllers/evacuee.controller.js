@@ -271,6 +271,200 @@ exports.registerEvacuee = async (req, res, next) => {
 };
 
 /**
+ * @desc Get all barangay entries
+ * @route GET /api/v1/barangays
+ * @access Public
+ */
+exports.getAllBarangays = async (req, res, next) => {
+    try {
+        // Query the 'barangays' table to get all barangay records
+        const { data, error } = await supabase
+            .from('barangays')
+            .select('*'); // Fetch all barangays
+
+        if (error) {
+            console.error('Supabase Error (getAllBarangays):', error);
+            return next(new ApiError('Failed to retrieve barangay entries.', 500));
+        }
+
+        // If no data found
+        if (!data || data.length === 0) {
+            return res.status(200).json({ message: 'No barangay entries found.', data: [] });
+        }
+
+        // Successfully retrieved barangays data
+        res.status(200).json({
+            message: 'Successfully retrieved all barangay entries.',
+            count: data.length,
+            data: data // Send the data to the frontend
+        });
+    } catch (err) {
+        console.error('Internal server error during getAllBarangays:', err);
+        next(new ApiError('Internal server error during getAllBarangays.', 500));
+    }
+};
+
+
+/**
+ * @desc Update an evacuee's details
+ * @route PUT /api/v1/evacuees/:id
+ * @access Private (Camp Manager only)
+ */
+exports.updateEvacuee = async (req, res, next) => {
+  const { id } = req.params;
+  const {
+    first_name,
+    middle_name,
+    last_name,
+    suffix,
+    birthdate,
+    sex,
+    barangay_of_origin,
+    marital_status,
+    educational_attainment,
+    school_of_origin,
+    occupation,
+    purok,
+    family_head_id,
+    relationship_to_family_head,
+    date_registered,
+    is_infant,
+    is_pwd,
+    is_children,
+    is_senior,
+    is_pregnant,
+    is_lactating,
+    is_youth,
+    is_adult,
+    ec_rooms_id,
+    disaster_evacuation_event_id,
+  } = req.body;
+
+  let evacuee_id = null;
+  let resident_id = null;
+  let registration_id = null;
+  let family_head_inserted_id = null;
+
+  try {
+    // Step 1: Retrieve existing evacuee data
+    console.log('Step 1: Fetch existing evacuee...');
+    
+    // Get the evacuee record
+    const { data: evacueeData, error: evacueeError } = await supabase
+      .from('evacuee_residents')
+      .select('id, resident_id, family_head_id')
+      .eq('id', id)
+      .single();
+
+    if (evacueeError) {
+      console.error('Supabase evacueeError:', evacueeError);
+      return next(new ApiError('Evacuee not found or Supabase error.', 404));
+    }
+
+    evacuee_id = evacueeData.id;
+    resident_id = evacueeData.resident_id;
+    family_head_inserted_id = evacueeData.family_head_id;
+
+    // Step 2: Update the resident information
+    console.log('Step 2: Update resident...');
+    const { error: residentError } = await supabase
+      .from('residents')
+      .update({
+        first_name,
+        middle_name,
+        last_name,
+        suffix,
+        birthdate,
+        sex,
+        barangay_of_origin,
+      })
+      .eq('id', resident_id);
+
+    if (residentError) {
+      console.error('Supabase residentError:', residentError);
+      throw new ApiError('Failed to update resident details.', 500);
+    }
+
+    // Step 3: Update the evacuee information
+    console.log('Step 3: Update evacuee...');
+    const { error: evacueeUpdateError } = await supabase
+      .from('evacuee_residents')
+      .update({
+        marital_status,
+        educational_attainment,
+        school_of_origin,
+        occupation,
+        purok,
+        relationship_to_family_head,
+        date_registered: date_registered || new Date().toISOString(),
+        family_head_id: family_head_inserted_id || family_head_id, // Only update family head if provided
+        ec_rooms_id,
+        disaster_evacuation_event_id,
+      })
+      .eq('id', evacuee_id);
+
+    if (evacueeUpdateError) {
+      console.error('Supabase evacueeUpdateError:', evacueeUpdateError);
+      throw new ApiError('Failed to update evacuee information.', 500);
+    }
+
+    // Step 4: Update vulnerabilities if necessary
+    const vulnerabilities = [];
+    if (is_infant) vulnerabilities.push(1);
+    if (is_pwd) vulnerabilities.push(4);
+    if (is_children) vulnerabilities.push(2);
+    if (is_senior) vulnerabilities.push(3);
+    if (is_pregnant) vulnerabilities.push(5);
+    if (is_lactating) vulnerabilities.push(6);
+    if (is_youth) vulnerabilities.push(7);
+    if (is_adult) vulnerabilities.push(8);
+
+    if (vulnerabilities.length > 0) {
+      console.log('Step 4: Update vulnerabilities...');
+      const vulnInserts = vulnerabilities.map((vuln_id) => ({
+        evacuee_resident_id: evacuee_id,
+        vulnerability_type_id: vuln_id,
+      }));
+
+      // Remove previous vulnerabilities and update with new ones
+      const { error: vulnDeleteError } = await supabase
+        .from('resident_vulnerabilities')
+        .delete()
+        .eq('evacuee_resident_id', evacuee_id);
+
+      if (vulnDeleteError) {
+        console.error('Supabase vulnDeleteError:', vulnDeleteError);
+        throw new ApiError('Failed to remove previous vulnerabilities.', 500);
+      }
+
+      const { error: vulnInsertError } = await supabase
+        .from('resident_vulnerabilities')
+        .insert(vulnInserts);
+
+      if (vulnInsertError) {
+        console.error('Supabase vulnInsertError:', vulnInsertError);
+        throw new ApiError('Failed to update vulnerabilities.', 500);
+      }
+    }
+
+    console.log('Evacuee update complete.');
+
+    return res.status(200).json({
+      message: 'Evacuee updated successfully.',
+      data: {
+        evacuee: { ...evacueeData, family_head_id: family_head_inserted_id },
+      },
+    });
+  } catch (err) {
+    console.error('UpdateEvacuee Error:', err);
+    return next(
+      new ApiError('Internal server error during evacuee update.', 500)
+    );
+  }
+};
+
+
+/**
  * @desc Get evacuee details and demographic breakdown by family head ID
  * @route GET /api/v1/evacuees/family/:family_head_id
  * @access Private

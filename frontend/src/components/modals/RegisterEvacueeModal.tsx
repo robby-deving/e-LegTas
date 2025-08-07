@@ -1,4 +1,4 @@
-
+//RegisterEvacueeModal.tsx
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../ui/dialog";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
@@ -6,18 +6,40 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Checkbox } from "../ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
 import { Calendar, X as XIcon } from "lucide-react";
+import axios from "axios";
+import { useState, useEffect } from "react";
+import type { Barangay } from '@/types/EvacuationCenterDetails';
+
+
 
 export const RegisterEvacueeModal = ({
-  isOpen, 
-  onClose, 
-  mode, 
-  formData, 
-  onFormChange, 
-  onVulnerabilityChange, 
-  onSave, 
-  onFamilyHeadSearch 
+  isOpen,
+  onClose,
+  mode,
+  formData,
+  onFormChange,
+  onVulnerabilityChange,
+  onSave,
+  onFamilyHeadSearch
 }: any) => {
   if (!isOpen) return null;
+
+const [barangays, setBarangays] = useState<Barangay[]>([]);
+
+
+  useEffect(() => {
+    const fetchBarangays = async () => {
+      try {
+      const response = await axios.get<{ data: Barangay[] }>("http://localhost:3000/api/v1/barangays");
+      setBarangays(response.data.data);
+      } catch (error) {
+        console.error("Error fetching barangays:", error);
+      }
+    };
+
+    fetchBarangays();
+  }, []);
+  
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -29,6 +51,7 @@ export const RegisterEvacueeModal = ({
           {/* Personal Information Section */}
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* First Name */}
               <div>
                 <label className="block text-sm font-medium mb-2">First Name:</label>
                 <Input
@@ -38,6 +61,7 @@ export const RegisterEvacueeModal = ({
                   className="w-full"
                 />
               </div>
+              {/* Middle Name */}
               <div>
                 <label className="block text-sm font-medium mb-2">Middle Name:</label>
                 <Input
@@ -47,6 +71,7 @@ export const RegisterEvacueeModal = ({
                   className="w-full"
                 />
               </div>
+              {/* Last Name */}
               <div>
                 <label className="block text-sm font-medium mb-2">Last Name:</label>
                 <Input
@@ -56,15 +81,25 @@ export const RegisterEvacueeModal = ({
                   className="w-full"
                 />
               </div>
+              {/* Suffix */}
               <div>
                 <label className="block text-sm font-medium mb-2">Suffix:</label>
-                <Input
-                  placeholder="Suffix"
-                  value={formData.suffix}
-                  onChange={e => onFormChange('suffix', e.target.value)}
-                  className="w-full"
-                />
+                <Select value={formData.suffix} onValueChange={value => onFormChange('suffix', value)}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Jr.">Jr.</SelectItem>
+                    <SelectItem value="Sr.">Sr.</SelectItem>
+                    <SelectItem value="II">II</SelectItem>
+                    <SelectItem value="III">III</SelectItem>
+                    <SelectItem value="IV">IV</SelectItem>
+                    <SelectItem value="V">V</SelectItem>
+                    {/* Add more suffix options as per your needs */}
+                  </SelectContent>
+                </Select>
               </div>
+              {/* Sex */}
               <div>
                 <label className="block text-sm font-medium mb-2">Sex:</label>
                 <Select value={formData.sex} onValueChange={value => onFormChange('sex', value)}>
@@ -77,6 +112,7 @@ export const RegisterEvacueeModal = ({
                   </SelectContent>
                 </Select>
               </div>
+              {/* Marital Status */}
               <div>
                 <label className="block text-sm font-medium mb-2">Marital Status:</label>
                 <Select value={formData.maritalStatus} onValueChange={value => onFormChange('maritalStatus', value)}>
@@ -91,148 +127,130 @@ export const RegisterEvacueeModal = ({
                   </SelectContent>
                 </Select>
               </div>
+              {/* Birthday */}
               <div>
                 <label className="block text-sm font-medium mb-2">Birthday:</label>
                 <div className="relative">
                   <Input
                     type="date"
-                    placeholder="MM/DD/YYYY"
                     value={formData.birthday}
                     onChange={e => onFormChange('birthday', e.target.value)}
-                    className="w-full hide-date-icon"
+                    className="w-full"
                   />
                   <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
                 </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">Educational Attainment:</label>
-                <Select value={formData.educationalAttainment} onValueChange={value => onFormChange('educationalAttainment', value)}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Elementary">Elementary</SelectItem>
-                    <SelectItem value="High School">High School</SelectItem>
-                    <SelectItem value="College">College</SelectItem>
-                    <SelectItem value="Vocational">Vocational</SelectItem>
-                    <SelectItem value="Graduate">Graduate</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">Occupation:</label>
-                <Input
-                  placeholder="Occupation"
-                  value={formData.occupation}
-                  onChange={e => onFormChange('occupation', e.target.value)}
-                  className="w-full"
-                />
-              </div>
             </div>
           </div>
-          {/* Address and Family Details Section */}
+          {/* Address and Family Details */}
           <div className="space-y-4">
             <h3 className="text-sm font-medium text-gray-400">Address and Family Details</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">Purok:</label>
-                <Input
-                  placeholder="Purok"
-                  value={formData.purok}
-                  onChange={e => onFormChange('purok', e.target.value)}
-                  className="w-full"
-                />
-              </div>
+              {/* Barangay of Origin */}
               <div>
                 <label className="block text-sm font-medium mb-2">Barangay of Origin:</label>
                 <Select value={formData.barangayOfOrigin} onValueChange={value => onFormChange('barangayOfOrigin', value)}>
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select" />
+                    <SelectValue placeholder="Select Barangay" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Bgy. 1 - Em's Barrio">Bgy. 1 - Em's Barrio</SelectItem>
-                    <SelectItem value="Bgy. 1 - Oro Site">Bgy. 1 - Oro Site</SelectItem>
-                    <SelectItem value="Bgy. 2 - Bogtong">Bgy. 2 - Bogtong</SelectItem>
-                    <SelectItem value="Bgy. 3 - Sabang">Bgy. 3 - Sabang</SelectItem>
-                    <SelectItem value="Bgy. 4 - Rawis">Bgy. 4 - Rawis</SelectItem>
-                    <SelectItem value="Bgy. 5 - Taysan">Bgy. 5 - Taysan</SelectItem>
+                    {barangays.map((barangay) => (
+                      <SelectItem key={barangay.id} value={barangay.name}>{barangay.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {/* Purok */}
+              <div>
+                <label className="block text-sm font-medium mb-2">Purok:</label>
+                <Select value={formData.purok} onValueChange={value => onFormChange('purok', value)}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select Purok" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">1</SelectItem>
+                    <SelectItem value="2">2</SelectItem>
+                    <SelectItem value="3">3</SelectItem>
+                    {/* Add more Purok options */}
                   </SelectContent>
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Is Family Head?</label>
-                  <RadioGroup
-                    defaultValue={formData.isFamilyHead}
-                    onValueChange={value => onFormChange('isFamilyHead', value)}
-                    className="flex items-center space-x-4"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="Yes" id="r1" />
-                      <label htmlFor="r1">Yes</label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="No" id="r2" />
-                      <label htmlFor="r2">No</label>
-                    </div>
-                  </RadioGroup>
-                </div>
-                {formData.isFamilyHead === 'No' && (
-                  <>
-                    <div>
-                      <label className="block text-sm font-medium mb-2">Family Head:</label>
-                      <div className="relative">
-                        <Input
-                          placeholder="Search Family Head"
-                          value={formData.familyHead}
-                          onClick={onFamilyHeadSearch}
-                          readOnly
-                          className="w-full cursor-pointer bg-gray-50"
-                        />
-                        {formData.familyHead && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onFormChange('familyHead', '');
-                              onFormChange('relationshipToFamilyHead', '');
-                            }}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                          >
-                            <XIcon className="h-4 w-4" />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-2">Relationship to Family Head:</label>
-                      <Select value={formData.relationshipToFamilyHead} onValueChange={value => onFormChange('relationshipToFamilyHead', value)}>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Relationship to Family Head" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Spouse">Spouse</SelectItem>
-                          <SelectItem value="Child">Child</SelectItem>
-                          <SelectItem value="Parent">Parent</SelectItem>
-                          <SelectItem value="Sibling">Sibling</SelectItem>
-                          <SelectItem value="Other">Other</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </>
-                )}
-              </div>
+          </div>
+          {/* Family Head and Vulnerability Details */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-2">Search Evacuation Room:</label>
-                <Input
-                  placeholder="Room Number"
-                  value={formData.searchEvacuationRoom}
-                  onChange={e => onFormChange('searchEvacuationRoom', e.target.value)}
-                  className="w-full"
-                />
+                <label className="block text-sm font-medium mb-2">Is Family Head?</label>
+                <RadioGroup
+                  defaultValue={formData.isFamilyHead}
+                  onValueChange={value => onFormChange('isFamilyHead', value)}
+                  className="flex items-center space-x-4"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="Yes" id="r1" />
+                    <label htmlFor="r1">Yes</label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="No" id="r2" />
+                    <label htmlFor="r2">No</label>
+                  </div>
+                </RadioGroup>
               </div>
+              {formData.isFamilyHead === 'No' && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Family Head:</label>
+                    <div className="relative">
+                      <Input
+                        placeholder="Search Family Head"
+                        value={formData.familyHead}
+                        onClick={onFamilyHeadSearch}
+                        readOnly
+                        className="w-full cursor-pointer bg-gray-50"
+                      />
+                      {formData.familyHead && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onFormChange('familyHead', '');
+                            onFormChange('relationshipToFamilyHead', '');
+                          }}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                          <XIcon className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Relationship to Family Head:</label>
+                    <Select value={formData.relationshipToFamilyHead} onValueChange={value => onFormChange('relationshipToFamilyHead', value)}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Relationship to Family Head" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Spouse">Spouse</SelectItem>
+                        <SelectItem value="Child">Child</SelectItem>
+                        <SelectItem value="Parent">Parent</SelectItem>
+                        <SelectItem value="Sibling">Sibling</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
+              )}
+            </div>
+            {/* Search Evacuation Room */}
+            <div>
+              <label className="block text-sm font-medium mb-2">Search Evacuation Room:</label>
+              <Input
+                placeholder="Room Number"
+                value={formData.searchEvacuationRoom}
+                onChange={e => onFormChange('searchEvacuationRoom', e.target.value)}
+                className="w-full"
+              />
             </div>
           </div>
           {/* Vulnerability Classification Section */}

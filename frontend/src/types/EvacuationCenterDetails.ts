@@ -1,3 +1,4 @@
+//EvacuationCenterDetails.ts
 export type EvacuationCenterDetail = {
   disaster: {
     disaster_types_id: number;
@@ -78,4 +79,67 @@ export type FamilyEvacueeInformation = {
   list_of_family_members: {
     family_members: FamilyMember[];
   };
+};
+
+// Define this above or in your types file
+export interface Evacuee {
+  evacuee_resident_id: number;
+  first_name: string;
+  middle_name: string;
+  last_name: string;
+  suffix: string;
+  birthdate: string;
+  sex: string;
+  barangay_of_origin: string;
+  marital_status: string;
+  educational_attainment: string;
+  school_of_origin: string;
+  occupation: string;
+  purok: string;
+  relationship_to_family_head: string;
+  date_registered: string;
+  arrival_timestamp: string;
+  decampment_timestamp: string | null;
+  reported_age_at_arrival: number;
+  disaster_evacuation_event_id: number;
+  ec_rooms_id: number;
+  family_head_id: number;
+  vulnerability_type_ids: string[];
+}
+
+
+
+export type Barangay = {
+  id: number; 
+  name: string;
+};
+
+export type RegisterEvacuee = {
+  first_name: string;
+  middle_name: string;
+  last_name: string;
+  suffix?: string;
+  birthdate: string;
+  sex: string;
+  barangay_of_origin: string;
+  marital_status: string;
+  educational_attainment: string;
+  school_of_origin?: string;
+  occupation?: string;
+  purok?: string;
+  relationship_to_family_head: string;
+  family_head_id?: number;
+  date_registered?: string;
+
+  is_infant?: boolean;
+  is_children?: boolean;
+  is_youth?: boolean;
+  is_adult?: boolean;
+  is_senior?: boolean;
+  is_pwd?: boolean;
+  is_pregnant?: boolean;
+  is_lactating?: boolean;
+
+  ec_rooms_id: number;
+  disaster_evacuation_event_id: number;
 };

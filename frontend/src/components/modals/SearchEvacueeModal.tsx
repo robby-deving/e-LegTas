@@ -1,7 +1,19 @@
 
+// SeachEvacueeModal.tsx
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../ui/dialog";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
+import type { Evacuee } from "@/types/EvacuationCenterDetails";
+
+interface SearchEvacueeModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  searchName: string;
+  onSearchChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  searchResults: Evacuee[];
+  onSelectEvacuee: (evacuee: Evacuee) => void;
+  onManualRegister: () => void;
+}
 
 export const SearchEvacueeModal = ({
   isOpen,
@@ -11,7 +23,8 @@ export const SearchEvacueeModal = ({
   searchResults,
   onSelectEvacuee,
   onManualRegister
-}: any) => {
+}: SearchEvacueeModalProps) => {
+
   if (!isOpen) return null;
 
   return (
@@ -29,13 +42,13 @@ export const SearchEvacueeModal = ({
           />
           {searchResults.length > 0 ? (
             <div className="space-y-1">
-              {searchResults.map((evacuee: any) => (
+              {searchResults.map((evacuee: Evacuee) => (
                 <div
-                  key={evacuee.id}
+                  key={evacuee.evacuee_resident_id}
                   className="cursor-pointer p-1 hover:bg-gray-100 rounded flex items-center justify-between px-3 text-sm"
                   onClick={() => onSelectEvacuee(evacuee)}
                 >
-                  <span>{evacuee.familyHead}</span>
+                  <span>{`${evacuee.first_name} ${evacuee.last_name}`}</span>
                 </div>
               ))}
             </div>
