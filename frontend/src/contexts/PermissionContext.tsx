@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { useSelector } from 'react-redux';
-import { selectCurrentUser } from '../features/auth/authSlice';
+import { selectCurrentUser, selectToken } from '../features/auth/authSlice';
 
 interface Permission {
   id: number;
@@ -33,10 +33,11 @@ export const PermissionProvider: React.FC<PermissionProviderProps> = ({ children
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const currentUser = useSelector(selectCurrentUser);
+  const token = useSelector(selectToken);
 
   useEffect(() => {
     const fetchUserPermissions = async () => {
-      if (!currentUser?.role_id) {
+      if (!currentUser?.role_id || !token) {
         setPermissions([]);
         setLoading(false);
         return;
@@ -46,7 +47,12 @@ export const PermissionProvider: React.FC<PermissionProviderProps> = ({ children
       setError(null);
 
       try {
-        const response = await fetch(`http://localhost:3000/api/v1/permissions/role/${currentUser.role_id}`);
+        const response = await fetch(`/api/v1/permissions/role/${currentUser.role_id}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
         
         if (!response.ok) {
           throw new Error('Failed to fetch permissions');
@@ -64,7 +70,7 @@ export const PermissionProvider: React.FC<PermissionProviderProps> = ({ children
     };
 
     fetchUserPermissions();
-  }, [currentUser?.role_id]);
+  }, [currentUser?.role_id, token]);
 
   const hasPermission = (permissionName: string): boolean => {
     return permissions.some(permission => permission.permission_name === permissionName);
