@@ -277,34 +277,38 @@ const handleSearchChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     setEvacueeModalOpen(true);
   };
   const handleManualRegister = () => {
-    // Reset form data
-    setFormData({
-      firstName: '',
-      middleName: '',
-      lastName: '',
-      suffix: '',
-      sex: '',
-      maritalStatus: '',
-      birthday: '',
-      educationalAttainment: '',
-      schoolOfOrigin: '',
-      occupation: '',
-      purok: '',
-      barangayOfOrigin: '',
-      isFamilyHead: 'Yes',
-      familyHead: '',
-      relationshipToFamilyHead: '',
-      searchEvacuationRoom: '',
-      vulnerabilities: {
-        pwd: false,
-        pregnant: false,
-        lactatingMother: false
-      }
-    });
-    // Close search modal and open registration form
-    setShowSearchModal(false);
+  // Reset form data
+  setFormData({
+    firstName: '',
+    middleName: '',
+    lastName: '',
+    suffix: '',
+    sex: '',
+    maritalStatus: '',
+    birthday: '',
+    educationalAttainment: '',
+    schoolOfOrigin: '',
+    occupation: '',
+    purok: '',
+    barangayOfOrigin: '',
+    isFamilyHead: 'Yes',
+    familyHead: '',
+    relationshipToFamilyHead: '',
+    searchEvacuationRoom: '',
+    vulnerabilities: {
+      pwd: false,
+      pregnant: false,
+      lactatingMother: false
+    }
+  });
+
+  // Close search modal and **after a micro-delay**, open registration form
+  setShowSearchModal(false);
+  setTimeout(() => {
     setEvacueeModalOpen(true);
-  };
+  }, 0); // 0ms is enough to yield to the event loop
+};
+
 
   // Form field handlers
   const handleFormInputChange = (field: string, value: string) => {
@@ -344,9 +348,10 @@ const handleRowClick = (evacueeId: number) => {
   if (selected) setSelectedFamily(selected);
 };
 
-  const handleCloseModal = () => {
-    setSelectedEvacuee(null);
-  };
+const handleCloseModal = () => setSelectedFamily(null);
+
+
+
 
 function getVulnerabilityFlags(age: number) {
   return {
@@ -393,16 +398,24 @@ const handleRegisterEvacuee = async () => {
       disaster_evacuation_event_id: centerId,
     };
 
-    const response = await axios.post("http://localhost:3000/api/v1/evacuees", payload);
+    if (mode === 'register') {
+      // Register new evacuee
+      const response = await axios.post("http://localhost:3000/api/v1/evacuees", payload);
+      console.log("✅ Evacuee Registered", response.data);
+    } else if (mode === 'edit' && selectedEvacuee?.id) {
+      // Update existing evacuee
+      const response = await axios.put(`http://localhost:3000/api/v1/evacuees/${selectedEvacuee.id}`, payload);
+      console.log("✅ Evacuee Updated", response.data);
+    }
 
-    console.log("✅ Evacuee Registered", response.data);
     setEvacueeModalOpen(false);
     // Optional: refresh evacuees or show success toast
   } catch (error) {
-    console.error("❌ Error registering evacuee", error);
+    console.error("❌ Error registering/updating evacuee", error);
     // Optional: show error to user
   }
 };
+
 
 if (!detail || !statistics) return <div className="p-6">Loading...</div>;
 
@@ -580,7 +593,6 @@ if (!detail || !statistics) return <div className="p-6">Loading...</div>;
   onEditMember={handleEditMember}
 />
 
-
 <RegisterEvacueeModal
   isOpen={evacueeModalOpen}
   onClose={handleEvacueeModalClose}
@@ -588,7 +600,7 @@ if (!detail || !statistics) return <div className="p-6">Loading...</div>;
   formData={formData}
   onFormChange={handleFormInputChange}
   onVulnerabilityChange={handleVulnerabilityChange}
-  onSave={handleRegisterOrEdit}
+  onSave={handleRegisterEvacuee}
   onFamilyHeadSearch={handleFamilyHeadSearchClick}
 />
 

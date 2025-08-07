@@ -1,6 +1,6 @@
 
 // SeachEvacueeModal.tsx
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,DialogDescription } from "../ui/dialog";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import type { Evacuee } from "@/types/EvacuationCenterDetails";
@@ -28,10 +28,13 @@ export const SearchEvacueeModal = ({
   if (!isOpen) return null;
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+<Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle className="text-green-700 text-xl font-bold">Search Registered Evacuee</DialogTitle>
+        <DialogDescription>
+        Search for an evacuee by name. Select one to register, or proceed with manual registration if not found.
+      </DialogDescription>
         </DialogHeader>
         <div className="space-y-3 py-4">
           <Input

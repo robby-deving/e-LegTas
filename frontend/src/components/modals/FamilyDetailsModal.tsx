@@ -14,7 +14,7 @@ export const FamilyDetailsModal = ({ isOpen, onClose, evacuee, centerName, onEdi
   if (!isOpen || !evacuee) return null;
 
   return (
-<Dialog open={isOpen} onOpenChange={onClose}>
+<Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
   <DialogContent size="full">
     <DialogHeader>
       <DialogTitle className="text-green-700 text-xl font-bold">View Family</DialogTitle>
