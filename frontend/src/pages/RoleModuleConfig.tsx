@@ -3,6 +3,7 @@ import { useSelector } from 'react-redux';
 import { selectCurrentUser, selectToken } from '../features/auth/authSlice';
 import { Navigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 
 interface Role {
     id: number;
@@ -42,6 +43,9 @@ export default function RoleModuleConfig() {
     });
     const [rolePermissions, setRolePermissions] = useState<Record<number, number>>({});
     const [loading, setLoading] = useState(true);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [rowsPerPage, setRowsPerPage] = useState(10);
+    const [selectedRows, setSelectedRows] = useState(0);
     const [isAddRoleModalOpen, setIsAddRoleModalOpen] = useState(false);
     const [isEditRoleModalOpen, setIsEditRoleModalOpen] = useState(false);
     const [editingRole, setEditingRole] = useState<Role | null>(null);
@@ -51,6 +55,9 @@ export default function RoleModuleConfig() {
         permissions: [] as string[]
     });
     const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+    const [dropdownOpen, setDropdownOpen] = useState<number | null>(null);
+    const [dropdownPosition, setDropdownPosition] = useState<{showAbove: boolean; left: number; top: number} | null>(null);
+    const [deleteConfirmRole, setDeleteConfirmRole] = useState<Role | null>(null);
     
     // Get unique permission groups - manually map permissions to groups
     const getPermissionGroup = (permissionName: string): string => {
@@ -189,6 +196,18 @@ export default function RoleModuleConfig() {
         
         loadRolePermissions();
     }, [roles]);
+    
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = () => {
+            setDropdownOpen(null);
+        };
+
+        document.addEventListener('click', handleClickOutside);
+        return () => {
+            document.removeEventListener('click', handleClickOutside);
+        };
+    }, []);
     
     // Handle form input changes
     const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -373,6 +392,41 @@ export default function RoleModuleConfig() {
         }
     };
     
+    // Handle delete role
+    const handleDeleteRole = async (roleId: number) => {
+        try {
+            const response = await fetch(`/api/v1/roles/${roleId}`, {
+                method: 'DELETE',
+                headers: getAuthHeaders(),
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to delete role');
+            }
+
+            // Refresh roles list
+            await fetchRoles();
+            setDeleteConfirmRole(null);
+            
+        } catch (err) {
+            console.error('Error deleting role:', err);
+            // You could add error state handling here
+        }
+    };
+    
+    // Handle dropdown positioning to avoid clipping
+    const getDropdownPosition = (event: React.MouseEvent) => {
+        const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+        const viewportHeight = window.innerHeight;
+        const dropdownHeight = 100; // Estimated dropdown height
+        
+        return {
+            showAbove: rect.bottom + dropdownHeight > viewportHeight,
+            left: rect.right - 192, // 192px = w-48 (48 * 4px)
+            top: rect.bottom + dropdownHeight > viewportHeight ? rect.top - dropdownHeight : rect.bottom + 8
+        };
+    };
+    
     // Get user count by role
     const getUserCountByRole = (roleId: number) => {
         switch (roleId) {
@@ -383,6 +437,15 @@ export default function RoleModuleConfig() {
             default: return 0;
         }
     };
+    
+    // Pagination calculations
+    const totalRows = roles.length;
+    const totalPages = Math.ceil(totalRows / rowsPerPage);
+    
+    // Get paginated roles
+    const startIndex = (currentPage - 1) * rowsPerPage;
+    const endIndex = startIndex + rowsPerPage;
+    const paginatedRoles = roles.slice(startIndex, endIndex);
     
     // Only allow access for System Admin (role_id: 1)
     if (!currentUser || currentUser.role_id !== 1) {
@@ -429,13 +492,15 @@ export default function RoleModuleConfig() {
             
             {/* Content */}
             <div 
-                className='overflow-x-auto rounded-md'
+                className='rounded-md'
                 style={{
-                    border: '1px solid #E4E4E7'
+                    border: '1px solid #E4E4E7',
+                    overflow: 'visible'
                 }}
             >
                 {/* Table */}
-                <table className='min-w-full'>
+                <div className="overflow-x-auto">
+                    <table className='min-w-full'>
                     <thead className='bg-white border-b border-gray-200'>
                         <tr>
                             <th className='px-6 py-3 text-left text-base font-medium text-gray-500'>
@@ -465,8 +530,8 @@ export default function RoleModuleConfig() {
                                 </td>
                             </tr>
                         ) : (
-                            roles.map((role) => (
-                                <tr key={role.id} className="hover:bg-gray-50 border-b border-gray-200">
+                            paginatedRoles.map((role) => (
+                                <tr key={role.id} className="hover:bg-gray-50 border-b border-gray-200" style={{ position: 'relative' }}>
                                     <td className="px-6 py-4 whitespace-nowrap text-gray-900 text-base">
                                         {role.name}
                                     </td>
@@ -478,20 +543,56 @@ export default function RoleModuleConfig() {
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-gray-900 text-base">
                                         <div className="flex justify-end">
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleEditRole(role);
-                                                }}
-                                                className="p-2 rounded-full hover:bg-gray-100 transition-colors"
-                                                title="Edit role"
-                                            >
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="17" viewBox="0 0 16 17" fill="none">
-                                                    <path d="M8.0026 9.16536C8.37079 9.16536 8.66927 8.86689 8.66927 8.4987C8.66927 8.13051 8.37079 7.83203 8.0026 7.83203C7.63441 7.83203 7.33594 8.13051 7.33594 8.4987C7.33594 8.86689 7.63441 9.16536 8.0026 9.16536Z" stroke="#020617" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"/>
-                                                    <path d="M12.6667 9.16536C13.0349 9.16536 13.3333 8.86689 13.3333 8.4987C13.3333 8.13051 13.0349 7.83203 12.6667 7.83203C12.2985 7.83203 12 8.13051 12 8.4987C12 8.86689 12.2985 9.16536 12.6667 9.16536Z" stroke="#020617" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"/>
-                                                    <path d="M3.33073 9.16536C3.69892 9.16536 3.9974 8.86689 3.9974 8.4987C3.9974 8.13051 3.69892 7.83203 3.33073 7.83203C2.96254 7.83203 2.66406 8.13051 2.66406 8.4987C2.66406 8.86689 2.96254 9.16536 3.33073 9.16536Z" stroke="#020617" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"/>
-                                                </svg>
-                                            </button>
+                                            <div className="relative" data-role-id={role.id}>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        const position = getDropdownPosition(e);
+                                                        setDropdownOpen(dropdownOpen === role.id ? null : role.id);
+                                                        setDropdownPosition(position);
+                                                    }}
+                                                    className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                                                    title="Actions"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="17" viewBox="0 0 16 17" fill="none">
+                                                        <path d="M8.0026 9.16536C8.37079 9.16536 8.66927 8.86689 8.66927 8.4987C8.66927 8.13051 8.37079 7.83203 8.0026 7.83203C7.63441 7.83203 7.33594 8.13051 7.33594 8.4987C7.33594 8.86689 7.63441 9.16536 8.0026 9.16536Z" stroke="#020617" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"/>
+                                                        <path d="M12.6667 9.16536C13.0349 9.16536 13.3333 8.86689 13.3333 8.4987C13.3333 8.13051 13.0349 7.83203 12.6667 7.83203C12.2985 7.83203 12 8.13051 12 8.4987C12 8.86689 12.2985 9.16536 12.6667 9.16536Z" stroke="#020617" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"/>
+                                                        <path d="M3.33073 9.16536C3.69892 9.16536 3.9974 8.86689 3.9974 8.4987C3.9974 8.13051 3.69892 7.83203 3.33073 7.83203C2.96254 7.83203 2.66406 8.13051 2.66406 8.4987C2.66406 8.86689 2.96254 9.16536 3.33073 9.16536Z" stroke="#020617" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"/>
+                                                    </svg>
+                                                </button>
+                                                
+                                                {dropdownOpen === role.id && dropdownPosition && (
+                                                    <div 
+                                                        className="fixed w-48 bg-white rounded-md shadow-lg border border-gray-200"
+                                                        style={{
+                                                            zIndex: 9999,
+                                                            left: `${dropdownPosition.left}px`,
+                                                            top: `${dropdownPosition.top}px`
+                                                        }}
+                                                    >
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleEditRole(role);
+                                                                setDropdownOpen(null);
+                                                            }}
+                                                            className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-t-md"
+                                                        >
+                                                            Edit Role
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setDeleteConfirmRole(role);
+                                                                setDropdownOpen(null);
+                                                            }}
+                                                            className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 rounded-b-md"
+                                                        >
+                                                            Delete Role
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
                                     </td>
                                 </tr>
@@ -499,6 +600,73 @@ export default function RoleModuleConfig() {
                         )}
                     </tbody>
                 </table>
+                </div>
+            </div>
+
+            {/* Pagination */}
+            <div 
+                className='flex items-center justify-between px-6 py-3 pt-5 bg-white'
+                style={{
+                    border: '1px solid #E4E4E7',
+                    borderTop: 'none',
+                    borderBottomLeftRadius: '6px',
+                    borderBottomRightRadius: '6px'
+                }}
+            >
+                <div className='flex items-center gap-4'>
+                    <span className='text-base text-gray-500'>
+                        {selectedRows} of {totalRows} row(s) selected.
+                    </span>
+                </div>
+                
+                <div className='flex items-center gap-6'>
+                    <div className='flex items-center gap-2'>
+                        <span className='text-base text-gray-700'>Rows per page</span>
+                        <select
+                            value={rowsPerPage}
+                            onChange={(e) => setRowsPerPage(Number(e.target.value))}
+                            className='border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E] gap-20 mr-10'
+                        >
+                            <option value={5}>5</option>
+                            <option value={10}>10</option>
+                            <option value={20}>20</option>
+                            <option value={50}>50</option>
+                        </select>
+                    </div>
+                    <span className='text-base text-gray-700'>
+                        Page {currentPage} of {totalPages}
+                    </span>
+                    <div className='flex items-center gap-1'>
+                        <button
+                            onClick={() => setCurrentPage(1)}
+                            disabled={currentPage === 1}
+                            className='p-1 rounded border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed'
+                        >
+                            <ChevronsLeft className='h-4 w-4' />
+                        </button>
+                        <button
+                            onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                            disabled={currentPage === 1}
+                            className='p-1 rounded border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed'
+                        >
+                            <ChevronLeft className='h-4 w-4' />
+                        </button>
+                        <button
+                            onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                            disabled={currentPage === totalPages}
+                            className='p-1 rounded border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed'
+                        >
+                            <ChevronRight className='h-4 w-4' />
+                        </button>
+                        <button
+                            onClick={() => setCurrentPage(totalPages)}
+                            disabled={currentPage === totalPages}
+                            className='p-1 rounded border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed'
+                        >
+                            <ChevronsRight className='h-4 w-4' />
+                        </button>
+                    </div>
+                </div>
             </div>
             
             {/* Role Modal (Add/Edit) */}
@@ -617,6 +785,39 @@ export default function RoleModuleConfig() {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+            
+            {/* Delete Confirmation Modal */}
+            {deleteConfirmRole && (
+                <div 
+                    className='fixed inset-0 flex items-center justify-center z-50'
+                    style={{
+                        background: 'rgba(211, 211, 211, 0.80)'
+                    }}
+                >
+                    <div className="bg-white rounded-lg p-6 w-[400px] shadow-lg">
+                        <h2 className="text-xl font-bold mb-4" style={{ color: '#00824E' }}>
+                            Delete Role
+                        </h2>
+                        <p className="text-gray-600 mb-6">
+                            Are you sure you want to delete the role "{deleteConfirmRole.name}"? This action cannot be undone.
+                        </p>
+                        <div className="flex justify-end gap-4">
+                            <button
+                                onClick={() => setDeleteConfirmRole(null)}
+                                className="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => handleDeleteRole(deleteConfirmRole.id)}
+                                className="px-4 py-2 text-white bg-red-600 rounded-md hover:bg-red-700"
+                            >
+                                Delete
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

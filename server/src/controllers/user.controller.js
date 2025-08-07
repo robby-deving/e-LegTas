@@ -814,6 +814,103 @@ const getRoles = async (req, res) => {
   }
 };
 
+const createRole = async (req, res) => {
+  try {
+    const { role_name, permissions } = req.body;
+
+    console.log('Creating role:', role_name);
+    console.log('With permissions:', permissions);
+
+    if (!role_name || !role_name.trim()) {
+      return res.status(400).json({ 
+        message: 'Role name is required'
+      });
+    }
+
+    if (!Array.isArray(permissions)) {
+      return res.status(400).json({ 
+        message: 'Permissions must be an array'
+      });
+    }
+
+    // Create the role first
+    const { data: roleData, error: roleError } = await supabaseAdmin
+      .from('roles')
+      .insert({
+        role_name: role_name.trim(),
+        is_active: true
+      })
+      .select()
+      .single();
+
+    if (roleError) {
+      console.error('Error creating role:', roleError);
+      return res.status(500).json({ 
+        message: 'Failed to create role',
+        error: roleError.message
+      });
+    }
+
+    const roleId = roleData.id;
+    console.log('Created role with ID:', roleId);
+
+    // Add permissions to the role if any are provided
+    if (permissions.length > 0) {
+      // Convert permission names to permission IDs
+      const { data: permissionData, error: permError } = await supabaseAdmin
+        .from('permissions')
+        .select('id, permission_name')
+        .in('permission_name', permissions);
+
+      if (permError) {
+        console.error('Error fetching permissions:', permError);
+        return res.status(500).json({ 
+          message: 'Failed to fetch permissions',
+          error: permError.message
+        });
+      }
+
+      const permissionIds = permissionData.map(p => p.id);
+      console.log('Found permission IDs:', permissionIds);
+
+      if (permissionIds.length > 0) {
+        const rolePermissions = permissionIds.map(permissionId => ({
+          role_id: roleId,
+          permission_id: permissionId
+        }));
+
+        const { error: rolePermError } = await supabaseAdmin
+          .from('role_permission')
+          .insert(rolePermissions);
+
+        if (rolePermError) {
+          console.error('Error adding role permissions:', rolePermError);
+          return res.status(500).json({ 
+            message: 'Role created but failed to add permissions',
+            error: rolePermError.message
+          });
+        }
+      }
+    }
+
+    res.status(201).json({ 
+      message: 'Role created successfully',
+      role: {
+        id: roleId,
+        name: role_name.trim(),
+        permission_count: permissions.length
+      }
+    });
+
+  } catch (error) {
+    console.error('Create role error:', error);
+    res.status(500).json({ 
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
 const getEvacuationCenters = async (req, res) => {
   try {
     const { data: centers, error } = await supabaseAdmin
@@ -2026,6 +2123,7 @@ module.exports = {
   updateUser,
   getUsersByRole,
   getRoles,
+  createRole,
   getEvacuationCenters,
   getBarangays,
   getDisasters,

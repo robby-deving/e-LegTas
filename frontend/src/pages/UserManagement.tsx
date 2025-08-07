@@ -50,6 +50,7 @@ export default function UserManagement(){
     const [barangays, setBarangays] = useState<{id: number; name: string}[]>([]);
     const [evacuationCenters, setEvacuationCenters] = useState<{id: number; name: string}[]>([]);
     const [dropdownOpen, setDropdownOpen] = useState<number | null>(null);
+    const [dropdownPosition, setDropdownPosition] = useState<{showAbove: boolean; left: number; top: number} | null>(null);
     const [deleteConfirmUser, setDeleteConfirmUser] = useState<User | null>(null);
     const [roles, setRoles] = useState<{id: number; name: string}[]>([]);
     const [rolesLoading, setRolesLoading] = useState(true);
@@ -71,6 +72,8 @@ export default function UserManagement(){
     });
     
     // Role configuration - Easy to extend for new roles
+    // Use "all" for allowedRoleIds/assignableRoleIds to automatically include all roles
+    // Use array of specific IDs for restricted access
     const ROLE_CONFIGS = {
         SYSTEM_ADMIN_GROUP: {
             roles: [1],
@@ -78,8 +81,8 @@ export default function UserManagement(){
             canSelectRole: true,
             canManageEvacCenter: true,
             apiEndpoint: 'http://localhost:3000/api/v1/users',
-            allowedRoleIds: [1, 2, 3, 4, 5], // Can see all users
-            assignableRoleIds: [1, 2, 3, 4, 5], // Can assign any role
+            allowedRoleIds: "all", // Can see all users - automatically includes new roles
+            assignableRoleIds: "all", // Can assign any role - automatically includes new roles
             tableColumns: ['user', 'email', 'role', 'evacuation_center', 'actions']
         },
         BARANGAY_GROUP: {
@@ -159,7 +162,16 @@ export default function UserManagement(){
     const getAssignableRoles = () => {
         if (!currentRoleConfig || !currentRoleConfig.assignableRoleIds) return [];
         
-        return roles.filter(role => currentRoleConfig.assignableRoleIds.includes(role.id));
+        // If "all" is specified, return all roles
+        if (currentRoleConfig.assignableRoleIds === "all") {
+            return roles;
+        }
+        
+        // Otherwise, filter by the specified role IDs
+        return roles.filter(role => 
+            Array.isArray(currentRoleConfig.assignableRoleIds) && 
+            currentRoleConfig.assignableRoleIds.includes(role.id)
+        );
     };
 
     // Helper function to get headers with authentication
@@ -208,7 +220,14 @@ export default function UserManagement(){
     const filterUsersByRoleGroup = (allUsers: any[]) => {
         if (!currentRoleConfig) return allUsers;
         
+        // If "all" is specified, return all users
+        if (currentRoleConfig.allowedRoleIds === "all") {
+            return allUsers;
+        }
+        
+        // Otherwise, filter by the specified role IDs
         return allUsers.filter((user: any) => 
+            Array.isArray(currentRoleConfig.allowedRoleIds) && 
             currentRoleConfig.allowedRoleIds.includes(user.role_id)
         );
     };
@@ -530,7 +549,9 @@ export default function UserManagement(){
                             <button 
                                 onClick={(e) => {
                                     e.stopPropagation();
+                                    const position = getDropdownPosition(e);
                                     setDropdownOpen(dropdownOpen === user.id ? null : user.id);
+                                    setDropdownPosition(position);
                                 }}
                                 className='text-gray-400 hover:text-gray-600'
                             >
@@ -538,8 +559,15 @@ export default function UserManagement(){
                             </button>
                         )}
                         
-                        {dropdownOpen === user.id && (
-                            <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 border border-gray-200">
+                        {dropdownOpen === user.id && dropdownPosition && (
+                            <div 
+                                className="fixed w-48 bg-white rounded-md shadow-lg border border-gray-200"
+                                style={{
+                                    zIndex: 9999,
+                                    left: `${dropdownPosition.left}px`,
+                                    top: `${dropdownPosition.top}px`
+                                }}
+                            >
                                 {hasUpdateUser && (
                                     <button
                                         onClick={(e) => {
@@ -810,6 +838,19 @@ export default function UserManagement(){
         }
     };
 
+    // Function to determine dropdown position
+    const getDropdownPosition = (event: React.MouseEvent) => {
+        const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+        const viewportHeight = window.innerHeight;
+        const dropdownHeight = 100; // Estimated dropdown height
+        
+        return {
+            showAbove: rect.bottom + dropdownHeight > viewportHeight,
+            left: rect.right - 192, // 192px = w-48 (48 * 4px)
+            top: rect.bottom + dropdownHeight > viewportHeight ? rect.top - dropdownHeight : rect.bottom + 8
+        };
+    };
+
     // Handle delete user
     const handleDeleteUser = async (userId: number) => {
         try {
@@ -943,45 +984,43 @@ export default function UserManagement(){
                     }}
                 >
                     <table className='min-w-full'>
-                        <thead className='bg-white border-b border-gray-200'>
-                            <tr>
-                                {renderTableHeaders()}
-                            </tr>
-                        </thead>
-                        <tbody className='bg-white'>
-                            {loading ? (
+                            <thead className='bg-white border-b border-gray-200'>
                                 <tr>
-                                    <td colSpan={getColumnCount()} className='px-6 py-8 text-center text-gray-500'>
-                                        Loading users...
-                                    </td>
+                                    {renderTableHeaders()}
                                 </tr>
-                            ) : error ? (
-                                <tr>
-                                    <td colSpan={getColumnCount()} className='px-6 py-8 text-center text-red-500'>
-                                        Error: {error}
-                                    </td>
-                                </tr>
-                            ) : paginatedUsers.length === 0 ? (
-                                <tr>
-                                    <td colSpan={getColumnCount()} className='px-6 py-8 text-center text-gray-500'>
-                                        {searchTerm ? 'No users found matching your search.' : 'No users found.'}
-                                    </td>
-                                </tr>
-                            ) : (
-                                paginatedUsers.map((user, index) => (
-                                    <tr 
-                                        key={user.id} 
-                                        className={`hover:bg-gray-50 ${index !== paginatedUsers.length - 1 ? 'border-b border-gray-200' : ''}`}
-                                    >
-                                        {renderTableCells(user)}
+                            </thead>
+                            <tbody className='bg-white'>
+                                {loading ? (
+                                    <tr>
+                                        <td colSpan={getColumnCount()} className='px-6 py-8 text-center text-gray-500'>
+                                            Loading users...
+                                        </td>
                                     </tr>
-                                ))
+                                ) : error ? (
+                                    <tr>
+                                        <td colSpan={getColumnCount()} className='px-6 py-8 text-center text-red-500'>
+                                            Error: {error}
+                                        </td>
+                                    </tr>
+                                ) : paginatedUsers.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={getColumnCount()} className='px-6 py-8 text-center text-gray-500'>
+                                            {searchTerm ? 'No users found matching your search.' : 'No users found.'}
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    paginatedUsers.map((user, index) => (
+                                        <tr 
+                                            key={user.id} 
+                                            className={`hover:bg-gray-50 ${index !== paginatedUsers.length - 1 ? 'border-b border-gray-200' : ''}`}
+                                        >
+                                            {renderTableCells(user)}
+                                        </tr>
+                                    ))
                             )}
                         </tbody>
                     </table>
-                </div>
-
-                {/* Pagination */}
+                </div>                {/* Pagination */}
                 <div 
                     className='flex items-center justify-between px-6 py-3 pt-5 bg-white'
                     style={{

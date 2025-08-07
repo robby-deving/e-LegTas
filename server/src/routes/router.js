@@ -2,6 +2,8 @@ const express = require('express');
 const authRoutes = require('./auth.routes');
 const userRoutes = require('./user.routes');
 const permissionRoutes = require('./permission.routes');
+const { createRole } = require('../controllers/user.controller');
+const { authenticateUser, requireRoleGroup, requireUserManagementAccess } = require('../middleware');
 
 const router = express.Router();
 const baseAPI = '/api/v1';
@@ -10,6 +12,14 @@ const baseAPI = '/api/v1';
 router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
 router.use('/permissions', permissionRoutes);
+
+// Role creation route (POST /api/v1/roles)
+router.post('/roles',
+  authenticateUser,
+  requireRoleGroup('SYSTEM_ADMIN_GROUP'),
+  requireUserManagementAccess('add'),
+  createRole
+);
 
 // Health check route
 router.get('/health', (req, res) => {
