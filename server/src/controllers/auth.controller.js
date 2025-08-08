@@ -279,10 +279,11 @@ const login = async (req, res) => {
       return res.status(401).json({ message: 'Invalid employee number or password' });
     }
 
-    // Step 4: Return user data and token
+    // Step 4: Return user data and token, with both user_id (numeric) and auth_id (UUID)
     const responseData = {
       user: {
-        id: authData.user?.id,
+        user_id: userData.id, // Numeric users table id
+        auth_id: authData.user?.id, // Supabase Auth UUID
         email: userData.users_profile.email,
         employee_number: userData.employee_number,
         role_id: userData.users_profile.role_id,
