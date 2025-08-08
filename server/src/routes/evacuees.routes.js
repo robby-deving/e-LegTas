@@ -1,4 +1,4 @@
-// evacuees.routes.js
+// evacuees.route.js
 
 const express = require('express');
 const evacueeController = require('../controllers/evacuee.controller'); 
@@ -60,6 +60,14 @@ router.get('/:disasterEvacuationEventId/evacuee-statistics', evacueeController.g
 // @route GET /api/v1/evacuees/:disasterEvacuationEventId/details
 // @access Public
 router.get('/:disasterEvacuationEventId/details', evacueeController.getDisasterEvacuationDetails);
+
+// Get evacuation center rooms for a disaster evacuation event
+// Example: GET /api/v1/evacuees/:disasterEvacuationEventId/rooms
+// @desc Get all rooms (id + name) for the evacuation center tied to the given disaster_evacuation_event_id
+// @route GET /api/v1/evacuees/:disasterEvacuationEventId/rooms
+// @access Public
+router.get('/:disasterEvacuationEventId/rooms', evacueeController.getAllRoomsForDisasterEvacuationEventId);
+
 
 // Export the router
 module.exports = router;

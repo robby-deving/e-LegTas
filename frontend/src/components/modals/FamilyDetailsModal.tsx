@@ -167,14 +167,12 @@ export const FamilyDetailsModal = ({ isOpen, onClose, evacuee, centerName, onEdi
       <TableCell className="text-right flex justify-end items-center text-foreground">
         <Pencil
           className="w-4 h-4 text-gray-400 group-hover:text-green-700 cursor-pointer"
-          onClick={() => onEditMember(member)}
+          onClick={() => { console.log('Pencil clicked', member); onEditMember(member); }}
         />
       </TableCell>
     </TableRow>
   ))}
 </TableBody>
-
-
               </Table>
             </div>
           </div>

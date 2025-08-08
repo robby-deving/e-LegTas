@@ -15,7 +15,7 @@ import { EvacuationCenterNameCard } from "../components/cards/EvacuationCenterNa
 import EvacueeStatisticsChart from "../components/EvacueeStatisticsChart";
 import { getTypeColor, getTagColor } from "@/constants/disasterTypeColors";
 import { decodeId } from "@/utils/secureId";
-import type { EvacuationCenterDetail, EvacueeStatistics, FamilyEvacueeInformation, RegisterEvacuee, Evacuee } from "@/types/EvacuationCenterDetails";
+import type { EvacuationCenterDetail, EvacueeStatistics, FamilyEvacueeInformation, RegisterEvacuee, FamilyMember } from "@/types/EvacuationCenterDetails";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { encodeId } from "@/utils/secureId";
 import { formatDate } from "@/utils/dateFormatter";
@@ -150,43 +150,56 @@ const filteredEvacuees = Array.isArray(evacuees)
   const [familyHeadSearchResults, setFamilyHeadSearchResults] = useState<any[]>([]);
 
   // Edit button handler
-const handleEditMember = (fullName: string) => {
-  if (!selectedEvacuee) return;
-  const member = selectedEvacuee.members.find((m: { fullName: string }) => m.fullName === fullName);
-  if (member) {
-    const nameParts = member.fullName.split(" ");
-    const lastName = nameParts.pop() || '';
-    const firstName = nameParts.shift() || '';
-    const middleName = nameParts.join(" ") || '';
+const handleEditMember = (member: FamilyMember) => {
+  // Split full_name
+  const parts = (member.full_name || "").trim().split(/\s+/);
+  const lastName = parts.length > 1 ? parts.pop()! : "";
+  const firstName = parts.shift() || "";
+  const middleName = parts.join(" ");
 
-    const estimatedBirthday = member.birthdate || `${new Date().getFullYear() - member.age}-01-01`;
+  const headFullName =
+    selectedFamily?.view_family?.head_of_family ||
+    selectedFamily?.family_head_full_name ||
+    "";
+  const isHead = member.full_name === headFullName;
 
-    setFormData({
-      firstName,
-      middleName,
-      lastName,
-      suffix: '',
-      sex: member.sex || '',
-      maritalStatus: '',
-      birthday: estimatedBirthday,
-      educationalAttainment: '',
-      schoolOfOrigin: '',
-      occupation: '',
-      purok: selectedEvacuee.purok || '',
-      barangayOfOrigin: member.barangayOfOrigin || '',
-      isFamilyHead: selectedEvacuee.familyHead === member.fullName ? "Yes" : "No",
-      familyHead: selectedEvacuee.familyHead,
-      relationshipToFamilyHead: '',
-      searchEvacuationRoom: selectedEvacuee.room || '',
-      vulnerabilities: {
-        pwd: member.vulnerability === "PWD",
-        pregnant: member.vulnerability === "Pregnant",
-        lactatingMother: member.vulnerability === "Lactating"
-      }
-    });
-    setEvacueeModalMode('edit');
-    setEvacueeModalOpen(true);
-  }
+  setFormData(prev => ({
+    ...prev,
+    firstName,
+    middleName,
+    lastName,
+    suffix: "",
+    sex: member.sex || "",
+    maritalStatus: prev.maritalStatus || "",          // unknown here unless you fetch details
+    birthday: prev.birthday || "",                    // you can fetch this by evacuee_id if available
+    educationalAttainment: prev.educationalAttainment || "",
+    schoolOfOrigin: prev.schoolOfOrigin || "",
+    occupation: prev.occupation || "",
+    barangayOfOrigin: member.barangay_of_origin || "",
+    purok: prev.purok || "",
+    isFamilyHead: isHead ? "Yes" : "No",
+    familyHead: headFullName || "",
+    relationshipToFamilyHead: isHead ? "Head" : (prev.relationshipToFamilyHead || ""),
+    // We'll auto-select the room ID in the modal after rooms are fetched
+    searchEvacuationRoom: "",
+    roomNameForPrefill: member.room_name || "",
+    vulnerabilities: {
+      pwd: member.vulnerability_types?.includes("Person with Disability") || false,
+      pregnant: member.vulnerability_types?.includes("Pregnant Woman") || false,
+      lactatingMother: member.vulnerability_types?.includes("Lactating Woman") || false,
+    },
+  }));
+
+  // If you need the evacuee_id for saving updates later, keep it in state
+  setSelectedEvacuee(member as any);
+
+  setEvacueeModalMode("edit");
+
+  // Close the FamilyDetailsModal first to avoid double-dialog focus trap
+  setSelectedFamily(null);
+
+  // Open the edit modal
+  setEvacueeModalOpen(true);
 };
 
   // Search modal logic
@@ -602,6 +615,7 @@ if (!detail || !statistics) return <div className="p-6">Loading...</div>;
   onVulnerabilityChange={handleVulnerabilityChange}
   onSave={handleRegisterEvacuee}
   onFamilyHeadSearch={handleFamilyHeadSearchClick}
+  centerId={centerId} 
 />
 
 <SearchEvacueeModal

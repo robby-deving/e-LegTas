@@ -981,3 +981,46 @@ exports.getDisasterEvacuationDetails = async (req, res, next) => {
     return next(new ApiError('Internal server error', 500));
   }
 };
+
+
+/**
+ * @desc Get all rooms for the evacuation center tied to a disaster evacuation event
+ * @route GET /api/v1/evacuees/:disasterEvacuationEventId/rooms
+ * @access Public
+ */
+exports.getAllRoomsForDisasterEvacuationEventId = async (req, res, next) => {
+  const { disasterEvacuationEventId } = req.params;
+
+  try {
+    // 1) Resolve the evacuation_center_id from disaster_evacuation_event
+    const { data: eventRow, error: eventErr } = await supabase
+      .from('disaster_evacuation_event')
+      .select('evacuation_center_id')
+      .eq('id', disasterEvacuationEventId)
+      .single();
+
+    if (eventErr || !eventRow) {
+      return next(new ApiError('Disaster evacuation event not found.', 404));
+    }
+
+    // 2) Fetch all rooms for that center (names only for dropdown)
+    const { data: rooms, error: roomsErr } = await supabase
+      .from('evacuation_center_rooms')
+      .select('id, room_name')
+      .eq('evacuation_center_id', eventRow.evacuation_center_id)
+      .order('room_name', { ascending: true });
+
+    if (roomsErr) {
+      return next(new ApiError('Failed to fetch evacuation center rooms.', 500));
+    }
+
+    return res.status(200).json({
+      message: 'Rooms fetched successfully.',
+      count: rooms?.length || 0,
+      data: rooms || [],
+    });
+  } catch (err) {
+    console.error('getAllRoomsForDisasterEvacuationEventId error:', err);
+    return next(new ApiError('Internal server error.', 500));
+  }
+};
