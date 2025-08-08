@@ -6,14 +6,15 @@ import { usePermissions } from '../contexts/PermissionContext';
 import { Search, MoreHorizontal, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 
 interface User {
-    id: number;
+    user_id: number; // Numeric users table id
+    auth_id?: string; // Supabase Auth UUID
     first_name: string;
     middle_name?: string;
     last_name: string;
     suffix?: string;
     sex: string;
     barangay_of_origin: string;
-    barangay_of_origin_id?: number; // Add this to store the barangay ID
+    barangay_of_origin_id?: number;
     employee_number: string;
     birthdate: string;
     email: string;
@@ -249,29 +250,10 @@ export default function UserManagement(){
                 
                 const data = await response.json();
                 
-                // Transform the backend data to match frontend format
-                const allTransformedUsers = data.users
-                    .filter((user: any) => user.users_profile && user.users_profile.residents) // Filter out users without complete profile data
-                    .map((user: any) => ({
-                        id: user.id,
-                        first_name: user.users_profile.residents.first_name,
-                        middle_name: user.users_profile.residents.middle_name,
-                        last_name: user.users_profile.residents.last_name,
-                        suffix: user.users_profile.residents.suffix,
-                        sex: user.users_profile.residents.sex,
-                        barangay_of_origin: user.users_profile.residents.barangays?.name || 'Unknown',
-                        barangay_of_origin_id: user.users_profile.residents.barangay_of_origin, // Store the actual ID
-                        employee_number: user.employee_number,
-                        birthdate: user.users_profile.residents.birthdate,
-                        email: user.users_profile.email,
-                        role_id: user.users_profile.role_id,
-                        role_name: user.users_profile.roles?.role_name,
-                        assigned_evacuation_center: user.assigned_evacuation_center || null // Get from backend or null
-                    }));
-                
+                // Use backend user shape directly (already matches User interface)
+                const allTransformedUsers = data.users;
                 // Apply role-based filtering
                 const filteredUsersByRole = filterUsersByRoleGroup(allTransformedUsers);
-                
                 setUsers(filteredUsersByRole);
                 setFilteredUsers(filteredUsersByRole);
                 setError(null);
@@ -550,7 +532,7 @@ export default function UserManagement(){
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     const position = getDropdownPosition(e);
-                                    setDropdownOpen(dropdownOpen === user.id ? null : user.id);
+                                    setDropdownOpen(dropdownOpen === user.user_id ? null : user.user_id);
                                     setDropdownPosition(position);
                                 }}
                                 className='text-gray-400 hover:text-gray-600'
@@ -559,7 +541,7 @@ export default function UserManagement(){
                             </button>
                         )}
                         
-                        {dropdownOpen === user.id && dropdownPosition && (
+                        {dropdownOpen === user.user_id && dropdownPosition && (
                             <div 
                                 className="fixed w-48 bg-white rounded-md shadow-lg border border-gray-200"
                                 style={{
@@ -681,29 +663,10 @@ export default function UserManagement(){
             const usersResponse = await fetch(endpoint, {
                 headers: getAuthHeaders(),
             });
-            const usersData = await usersResponse.json();            // Apply the same transformation as in the initial fetch
-            const allTransformedUsers = usersData.users
-                .filter((user: any) => user.users_profile && user.users_profile.residents)
-                .map((user: any) => ({
-                    id: user.id,
-                    first_name: user.users_profile.residents.first_name,
-                    middle_name: user.users_profile.residents.middle_name,
-                    last_name: user.users_profile.residents.last_name,
-                    suffix: user.users_profile.residents.suffix,
-                    sex: user.users_profile.residents.sex,
-                    barangay_of_origin: user.users_profile.residents.barangays?.name || 'Unknown',
-                    barangay_of_origin_id: user.users_profile.residents.barangay_of_origin, // Store the actual ID
-                    employee_number: user.employee_number,
-                    birthdate: user.users_profile.residents.birthdate,
-                    email: user.users_profile.email,
-                    role_id: user.users_profile.role_id,
-                    role_name: user.users_profile.roles?.role_name,
-                    assigned_evacuation_center: user.assigned_evacuation_center || null
-                }));
-            
+            const usersData = await usersResponse.json();
+            const allTransformedUsers = usersData.users;
             // Apply role-based filtering
             const filteredUsersByRole = filterUsersByRoleGroup(allTransformedUsers);
-            
             setUsers(filteredUsersByRole);
             setFilteredUsers(filteredUsersByRole);
             
@@ -783,7 +746,7 @@ export default function UserManagement(){
                 ...(formData.password && { password: formData.password })
             };
 
-            const response = await fetch(`http://localhost:3000/api/v1/users/${editingUser.id}`, {
+            const response = await fetch(`http://localhost:3000/api/v1/users/${editingUser.user_id}`, {
                 method: 'PUT',
                 headers: getAuthHeaders(),
                 body: JSON.stringify(submitData)
@@ -803,30 +766,9 @@ export default function UserManagement(){
                 headers: getAuthHeaders(),
             });
             const usersData = await usersResponse.json();
-            
-            // Apply the same transformation as in the initial fetch
-            const allTransformedUsers = usersData.users
-                .filter((user: any) => user.users_profile && user.users_profile.residents)
-                .map((user: any) => ({
-                    id: user.id,
-                    first_name: user.users_profile.residents.first_name,
-                    middle_name: user.users_profile.residents.middle_name,
-                    last_name: user.users_profile.residents.last_name,
-                    suffix: user.users_profile.residents.suffix,
-                    sex: user.users_profile.residents.sex,
-                    barangay_of_origin: user.users_profile.residents.barangays?.name || 'Unknown',
-                    barangay_of_origin_id: user.users_profile.residents.barangay_of_origin, // Store the actual ID
-                    employee_number: user.employee_number,
-                    birthdate: user.users_profile.residents.birthdate,
-                    email: user.users_profile.email,
-                    role_id: user.users_profile.role_id,
-                    role_name: user.users_profile.roles?.role_name,
-                    assigned_evacuation_center: user.assigned_evacuation_center || null
-                }));
-            
+            const allTransformedUsers = usersData.users;
             // Apply role-based filtering
             const filteredUsersByRole = filterUsersByRoleGroup(allTransformedUsers);
-            
             setUsers(filteredUsersByRole);
             setFilteredUsers(filteredUsersByRole);
             
@@ -871,29 +813,10 @@ export default function UserManagement(){
             });
             const usersData = await usersResponse.json();
             
-            // Apply the same transformation as in the initial fetch
-            const allTransformedUsers = usersData.users
-                .filter((user: any) => user.users_profile && user.users_profile.residents)
-                .map((user: any) => ({
-                    id: user.id,
-                    first_name: user.users_profile.residents.first_name,
-                    middle_name: user.users_profile.residents.middle_name,
-                    last_name: user.users_profile.residents.last_name,
-                    suffix: user.users_profile.residents.suffix,
-                    sex: user.users_profile.residents.sex,
-                    barangay_of_origin: user.users_profile.residents.barangays?.name || 'Unknown',
-                    barangay_of_origin_id: user.users_profile.residents.barangay_of_origin,
-                    employee_number: user.employee_number,
-                    birthdate: user.users_profile.residents.birthdate,
-                    email: user.users_profile.email,
-                    role_id: user.users_profile.role_id,
-                    role_name: user.users_profile.roles?.role_name,
-                    assigned_evacuation_center: user.assigned_evacuation_center || null
-                }));
-            
+            // Use backend user shape directly
+            const allTransformedUsers = usersData.users;
             // Apply role-based filtering
             const filteredUsersByRole = filterUsersByRoleGroup(allTransformedUsers);
-            
             setUsers(filteredUsersByRole);
             setFilteredUsers(filteredUsersByRole);
             setDeleteConfirmUser(null);
@@ -1011,7 +934,7 @@ export default function UserManagement(){
                                 ) : (
                                     paginatedUsers.map((user, index) => (
                                         <tr 
-                                            key={user.id} 
+                                            key={user.user_id} 
                                             className={`hover:bg-gray-50 ${index !== paginatedUsers.length - 1 ? 'border-b border-gray-200' : ''}`}
                                         >
                                             {renderTableCells(user)}
@@ -1429,7 +1352,7 @@ export default function UserManagement(){
                                     Cancel
                                 </button>
                                 <button
-                                    onClick={() => handleDeleteUser(deleteConfirmUser.id)}
+                                    onClick={() => handleDeleteUser(deleteConfirmUser.user_id)}
                                     className='px-4 py-2 text-white bg-red-600 rounded-md hover:bg-red-700 focus:outline-none'
                                 >
                                     Delete User

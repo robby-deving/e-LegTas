@@ -316,10 +316,10 @@ const createUser = async (req, res) => {
     const responseData = {
       message: 'User created successfully with login capability',
       user: {
-        id: user.id,
+        user_id: user.id, // Numeric users table id
+        auth_id: authUser.user.id, // Supabase Auth UUID
         employee_number: employeeNumber,
         email: email,
-        auth_user_id: authUser.user.id,
         resident: {
           first_name: firstName,
           middle_name: middleName,
@@ -434,8 +434,27 @@ const getUsers = async (req, res) => {
       return res.status(500).json({ message: 'Failed to count users' });
     }
 
+    // Map users to include user_id and auth_id fields
+    const mappedUsers = usersWithEvacuationCenters.map(user => ({
+      user_id: user.id,
+      auth_id: user.users_profile?.user_id || null,
+      first_name: user.users_profile?.residents?.first_name,
+      middle_name: user.users_profile?.residents?.middle_name,
+      last_name: user.users_profile?.residents?.last_name,
+      suffix: user.users_profile?.residents?.suffix,
+      sex: user.users_profile?.residents?.sex,
+      birthdate: user.users_profile?.residents?.birthdate,
+      barangay_of_origin: user.users_profile?.residents?.barangay_of_origin,
+      barangay_of_origin_id: user.users_profile?.residents?.barangays?.id,
+      employee_number: user.employee_number,
+      email: user.users_profile?.email,
+      role_id: user.users_profile?.role_id,
+      role_name: user.users_profile?.roles?.role_name,
+      assigned_evacuation_center: user.assigned_evacuation_center,
+      is_active: user.users_profile?.is_active
+    }));
     res.status(200).json({
-      users: usersWithEvacuationCenters,
+      users: mappedUsers,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -496,7 +515,26 @@ const getUserById = async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    res.status(200).json({ user });
+    // Map user to include user_id and auth_id fields
+    const mappedUser = {
+      user_id: user.id,
+      auth_id: user.users_profile?.user_id || null,
+      first_name: user.users_profile?.residents?.first_name,
+      middle_name: user.users_profile?.residents?.middle_name,
+      last_name: user.users_profile?.residents?.last_name,
+      suffix: user.users_profile?.residents?.suffix,
+      sex: user.users_profile?.residents?.sex,
+      birthdate: user.users_profile?.residents?.birthdate,
+      barangay_of_origin: user.users_profile?.residents?.barangay_of_origin,
+      barangay_of_origin_id: user.users_profile?.residents?.barangays?.id,
+      employee_number: user.employee_number,
+      email: user.users_profile?.email,
+      role_id: user.users_profile?.role_id,
+      role_name: user.users_profile?.roles?.role_name,
+      assigned_evacuation_center: user.assigned_evacuation_center,
+      is_active: user.users_profile?.is_active
+    };
+    res.status(200).json({ user: mappedUser });
 
   } catch (error) {
     console.error('Get user by ID error:', error);
@@ -764,7 +802,8 @@ const updateUser = async (req, res) => {
     const responseData = {
       message: 'User updated successfully',
       user: {
-        id: parseInt(id),
+        user_id: parseInt(id),
+        auth_id: existingUser.users_profile?.user_id || null,
         employee_number: employeeNumber || existingUser.employee_number,
         email: email,
         role_id: parseInt(roleId),
