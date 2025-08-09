@@ -16,6 +16,11 @@ import EvacueeStatisticsChart from '../components/EvacueeStatisticsChart';
 import { supabase } from '../lib/supabaseClient';
 import { useDashboardData } from '../hooks/useDashboardData';
 
+import { Popover, PopoverTrigger, PopoverContent } from "../components/ui/popover";
+import { Calendar as DateCalendar } from "../components/ui/calendar";
+import type { DateRange } from "react-day-picker";
+import { Calendar as CalendarIcon } from "lucide-react";
+
 // This is for the display of GIS Map in dashboard
 // import { MapContainer, TileLayer} from 'react-leaflet';
 // import 'leaflet/dist/leaflet.css';
@@ -23,19 +28,10 @@ import { useDashboardData } from '../hooks/useDashboardData';
 // import GISMap from '../components/Map/GISMap';
 // import type { EvacuationCenter } from '@/types/EvacuationCenter';
 
-// const formatDate = (dateString?: string | null) => {
-//   if (!dateString) return '';
-//   const date = new Date(dateString);
-//   return new Intl.DateTimeFormat('en-PH', {
-//     day: '2-digit',
-//     month: 'long',
-//     year: 'numeric',
-//   }).format(date);
-// };
-
 export default function Dashboard() {
   usePageTitle('Dashboard');
   const [isEvacueeInfoModalOpen, setIsEvacueeInfoModalOpen] = useState(false);
+  const [selectedDateRange, setSelectedDateRange] = useState<DateRange | undefined>(undefined);
   const { 
     disasters, 
     selectedDisaster, 
@@ -44,7 +40,13 @@ export default function Dashboard() {
     registeredEvacueesCount,
     registeredFamiliesCount,
     evacueeStatistics,
-    evacuationCapacityStatus, } = useDashboardData();
+    evacuationCapacityStatus, } = useDashboardData(selectedDateRange);
+
+  const fromDate = selectedDisaster?.disaster_start_date
+    ? new Date(selectedDisaster.disaster_start_date)
+    : undefined;
+
+  const toDate = new Date(); // today
 
   // This is for the display of GIS Map in dashboard
   // const navigate = useNavigate();
@@ -78,7 +80,11 @@ export default function Dashboard() {
               {disasters.map(disaster => (
                 <DropdownMenuItem className="cursor-pointer"
                   key={disaster.id}
-                  onClick={() => setSelectedDisaster(disaster)}
+                  onClick={() => {
+                    setSelectedDisaster(disaster);
+                    // setSelectedDate(null);
+                    setSelectedDateRange(undefined);
+                  }}
                 >
                   {`${disaster.disaster_types?.name ?? ''} ${disaster.disaster_name}`}
                   {/* {`${disaster.disaster_name} (${disaster.disaster_types?.name ?? ''})`} */}
@@ -95,23 +101,76 @@ export default function Dashboard() {
             No Active Disaster
           </Button>
           )}
-          <div className="relative">
-            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-gray-500 pointer-events-none" />
-              {/* <Input
-                readOnly
-                value={
-                  selectedDisaster
-                    ? `Start Date: ${formatDate(selectedDisaster.disaster_start_date)}`
-                    : 'Select Disaster'
-                }
-                className="pl-10 mr-7 cursor-default bg-white"
-              /> */}
-              <Input
-                readOnly
-                value="01 April 2025 - 01 May 2025"
-                className="pl-10 mr-7 cursor-default bg-white"
-              />
-          </div>
+          {selectedDisaster && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={`border-green-300 cursor-pointer flex items-center space-x-2 ${
+                    selectedDateRange?.from ? "bg-green-100" : "bg-white"
+                  } text-green-700`}
+                >
+                  <CalendarIcon className="w-4 h-4" />
+                  
+                  <span>
+                    {selectedDateRange?.from && selectedDateRange?.to
+                      ? selectedDateRange.from.getTime() === selectedDateRange.to.getTime()
+                        ? selectedDateRange.from.toLocaleDateString("en-PH", {
+                            day: "2-digit",
+                            month: "long",
+                            year: "numeric",
+                          })
+                        : `${selectedDateRange.from.toLocaleDateString("en-PH", {
+                            day: "2-digit",
+                            month: "long",
+                            year: "numeric",
+                          })} - ${selectedDateRange.to.toLocaleDateString("en-PH", {
+                            day: "2-digit",
+                            month: "long",
+                            year: "numeric",
+                          })}`
+                      : selectedDateRange?.from
+                      ? selectedDateRange.from.toLocaleDateString("en-PH", {
+                          day: "2-digit",
+                          month: "long",
+                          year: "numeric",
+                        })
+                      : "Select Date Filter"}
+                  </span>
+
+                  {selectedDateRange?.from && (
+                    <span
+                      className="ml-2 cursor-pointer hover:text-red-500"
+                      onClick={(e) => {
+                        e.stopPropagation(); // Prevent reopening popover
+                        setSelectedDateRange(undefined); // ✅ Reset to live data
+                      }}
+                    >
+                      ✕
+                    </span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+
+              <PopoverContent className="w-auto px-3 pt-3 pb-3" align="end">
+                <div className="flex flex-col items-center space-y-3">
+                  <DateCalendar
+                    mode="range" // ✅ Allows single date or range
+                    selected={selectedDateRange}
+                    onSelect={(range) => setSelectedDateRange(range)} // ✅ No null issues
+                    disabled={{
+                      before: fromDate,
+                      after: toDate,
+                    }}
+                    defaultMonth={fromDate}
+                    numberOfMonths={2}
+                    required
+                    className="pb-1"
+                  />
+                </div>
+              </PopoverContent>
+            </Popover>
+          )}
         </div>
       </div>
 

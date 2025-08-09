@@ -1,3 +1,5 @@
+import { RealtimeChannel } from "@supabase/supabase-js";
+import type { DateRange } from "react-day-picker";
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import {
@@ -10,7 +12,7 @@ import type {
   DisasterEvacuationEvent,
 } from '../types/dashboard';
 
-export function useDashboardData() {
+export function useDashboardData(selectedDateRange?: DateRange) {
   const [disasters, setDisasters] = useState<Disaster[]>([]);
   const [selectedDisaster, setSelectedDisaster] = useState<Disaster | null>(null);
   const [activeEvacuationCenters, setActiveEvacuationCenters] = useState<number>(0);
@@ -71,7 +73,29 @@ export function useDashboardData() {
       if (!selectedDisaster?.id) return;
 
       try {
-        const response = await fetch(`http://localhost:3000/api/v1/dashboard/active-evacuation-centers/${selectedDisaster.id}`);
+        let url = `http://localhost:3000/api/v1/dashboard/active-evacuation-centers/${selectedDisaster.id}`;
+
+        if (selectedDateRange?.from) {
+          const timeZone = "Asia/Manila";
+
+          // From date: midnight Manila → convert to UTC ISO
+          const fromUtc = new Date(
+            selectedDateRange.from.toLocaleString("en-US", { timeZone })
+          );
+          fromUtc.setHours(0, 0, 0, 0); // midnight Manila
+          const fromIso = fromUtc.toISOString();
+
+          // To date: if range, use its midnight; else same as from
+          const toDate = selectedDateRange?.to
+            ? new Date(selectedDateRange.to.toLocaleString("en-US", { timeZone }))
+            : new Date(selectedDateRange.from.toLocaleString("en-US", { timeZone }));
+          toDate.setHours(23, 59, 59, 999); // end of day Manila
+          const toIso = toDate.toISOString();
+
+          url += `?from=${encodeURIComponent(fromIso)}&to=${encodeURIComponent(toIso)}`;
+        }
+
+        const response = await fetch(url);
         const result = await response.json();
 
         if (response.ok) {
@@ -88,51 +112,30 @@ export function useDashboardData() {
 
     fetchActiveEvacuationCenters();
 
-    // Subscribe to realtime updates
-    const channel = supabase
-      .channel('realtime-active-ec')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'disaster_evacuation_event',
-          filter: `disaster_id=eq.${selectedDisaster?.id}`
-        },
-        (payload) => {
-          const oldData = payload.old as DisasterEvacuationEvent;
-          const newData = payload.new as DisasterEvacuationEvent;
+    let channel: RealtimeChannel | null = null;
 
-          if (!oldData && newData?.evacuation_end_date === null) {
-            console.log('New active evacuation event inserted → refetching...');
-            fetchActiveEvacuationCenters();
-            return;
-          }
-
-          if (oldData && !newData) {
-            console.log('Evacuation event deleted → refetching...');
-            fetchActiveEvacuationCenters();
-            return;
-          }
-
-          if (
-            oldData?.evacuation_end_date !== newData?.evacuation_end_date
-          ) {
-            console.log('evacuation_end_date changed, refetching...');
-            fetchActiveEvacuationCenters();
-            return;
-          }
-
-          console.log('No relevant change — skipping refetch.');
-        }
-      )
-      .subscribe();
+    // Subscribe to realtime ONLY if no date range
+    if (!selectedDateRange?.from) {
+      channel = supabase
+        .channel('realtime-active-ec')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'disaster_evacuation_event',
+            filter: `disaster_id=eq.${selectedDisaster?.id}`
+          },
+          () => fetchActiveEvacuationCenters()
+        )
+        .subscribe();
+    }
 
     // Cleanup
     return () => {
-      supabase.removeChannel(channel);
+      if (channel) supabase.removeChannel(channel);
     };
-  }, [selectedDisaster]); // rerun if selected disaster changes
+  }, [selectedDisaster, selectedDateRange]); // rerun if selected disaster changes
 
   // Registered Evacuees Count
   useEffect(() => {
@@ -140,7 +143,30 @@ export function useDashboardData() {
       if (!selectedDisaster?.id) return;
 
       try {
-        const response = await fetch(`http://localhost:3000/api/v1/dashboard/registered-evacuees/${selectedDisaster.id}`);
+        let url = `http://localhost:3000/api/v1/dashboard/registered-evacuees/${selectedDisaster.id}`;
+
+        // ✅ If date filter applied, add query params with Manila → UTC conversion
+        if (selectedDateRange?.from) {
+          const timeZone = "Asia/Manila";
+
+          // From date (midnight Manila)
+          const fromUtc = new Date(
+            selectedDateRange.from.toLocaleString("en-US", { timeZone })
+          );
+          fromUtc.setHours(0, 0, 0, 0);
+          const fromIso = fromUtc.toISOString();
+
+          // To date (end of day Manila)
+          const toDate = selectedDateRange?.to
+            ? new Date(selectedDateRange.to.toLocaleString("en-US", { timeZone }))
+            : new Date(selectedDateRange.from.toLocaleString("en-US", { timeZone }));
+          toDate.setHours(23, 59, 59, 999);
+          const toIso = toDate.toISOString();
+
+          url += `?from=${encodeURIComponent(fromIso)}&to=${encodeURIComponent(toIso)}`;
+        }
+
+        const response = await fetch(url);
         const result = await response.json();
 
         if (response.ok) {
@@ -155,8 +181,14 @@ export function useDashboardData() {
       }
     };
 
-    fetchRegisteredEvacueesCount();
+    // If filter active → no realtime
+    if (selectedDateRange?.from) {
+      fetchRegisteredEvacueesCount();
+      return;
+    }
 
+    // Live mode
+    fetchRegisteredEvacueesCount();
     const channel = supabase.channel('realtime-evacuee-triggers')
     
     // (1) Listen for total_no_of_individual updates on the evacuation_summaries table
@@ -181,7 +213,7 @@ export function useDashboardData() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [selectedDisaster]);
+  }, [selectedDisaster, selectedDateRange]);
 
   // Registered Families Count
   useEffect(() => {
@@ -189,7 +221,28 @@ export function useDashboardData() {
       if (!selectedDisaster?.id) return;
 
       try {
-        const response = await fetch(`http://localhost:3000/api/v1/dashboard/registered-families/${selectedDisaster.id}`);
+        let url = `http://localhost:3000/api/v1/dashboard/registered-families/${selectedDisaster.id}`;
+
+        // ✅ If date filter applied, add query params with Manila → UTC conversion
+        if (selectedDateRange?.from) {
+          const timeZone = "Asia/Manila";
+
+          const fromUtc = new Date(
+            selectedDateRange.from.toLocaleString("en-US", { timeZone })
+          );
+          fromUtc.setHours(0, 0, 0, 0);
+          const fromIso = fromUtc.toISOString();
+
+          const toDate = selectedDateRange?.to
+            ? new Date(selectedDateRange.to.toLocaleString("en-US", { timeZone }))
+            : new Date(selectedDateRange.from.toLocaleString("en-US", { timeZone }));
+          toDate.setHours(23, 59, 59, 999);
+          const toIso = toDate.toISOString();
+
+          url += `?from=${encodeURIComponent(fromIso)}&to=${encodeURIComponent(toIso)}`;
+        }
+
+        const response = await fetch(url);
         const result = await response.json();
 
         if (response.ok) {
@@ -204,6 +257,13 @@ export function useDashboardData() {
       }
     };
 
+    // If filter active → no realtime
+    if (selectedDateRange?.from) {
+      fetchRegisteredFamiliesCount();
+      return;
+    }
+
+    // Live mode
     fetchRegisteredFamiliesCount();
 
     const channel = supabase.channel('realtime-family-triggers')
@@ -230,14 +290,38 @@ export function useDashboardData() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [selectedDisaster]);
+  }, [selectedDisaster, selectedDateRange]);
 
+  // Evacuee Statistics
   useEffect(() => {
     const fetchEvacueeStatistics = async () => {
       if (!selectedDisaster?.id) return;
 
       try {
-        const response = await fetch(`http://localhost:3000/api/v1/dashboard/evacuee-statistics/${selectedDisaster.id}`);
+        let url = `http://localhost:3000/api/v1/dashboard/evacuee-statistics/${selectedDisaster.id}`;
+
+        // If date filter applied, add query params (Manila → UTC conversion)
+        if (selectedDateRange?.from) {
+          const timeZone = "Asia/Manila";
+
+          // From date (midnight Manila)
+          const fromUtc = new Date(
+            selectedDateRange.from.toLocaleString("en-US", { timeZone })
+          );
+          fromUtc.setHours(0, 0, 0, 0);
+          const fromIso = fromUtc.toISOString();
+
+          // To date (end of day Manila)
+          const toDate = selectedDateRange?.to
+            ? new Date(selectedDateRange.to.toLocaleString("en-US", { timeZone }))
+            : new Date(selectedDateRange.from.toLocaleString("en-US", { timeZone }));
+          toDate.setHours(23, 59, 59, 999);
+          const toIso = toDate.toISOString();
+
+          url += `?from=${encodeURIComponent(fromIso)}&to=${encodeURIComponent(toIso)}`;
+        }
+
+        const response = await fetch(url);
         const result = await response.json();
 
         if (response.ok) {
@@ -258,20 +342,26 @@ export function useDashboardData() {
 
           setEvacueeStatistics(formattedStats);
         } else {
-          console.error(result.message || 'Failed to fetch evacuee statistics.');
+          console.error(result.message || "Failed to fetch evacuee statistics.");
           setEvacueeStatistics([]);
         }
       } catch (error) {
-        console.error('Error fetching evacuee statistics:', error);
+        console.error("Error fetching evacuee statistics:", error);
         setEvacueeStatistics([]);
       }
     };
 
-    fetchEvacueeStatistics();
+    // If filter active → fetch once (no realtime)
+    if (selectedDateRange?.from) {
+      fetchEvacueeStatistics();
+      return;
+    }
 
-    const channel = supabase.channel('realtime-evacuee-statistics')
-    
-    // (1) Setup Realtime subscription to evacuation_summaries
+    // Live mode
+    fetchEvacueeStatistics();
+    const channel = supabase.channel("realtime-evacuee-statistics");
+
+    // (1) Listen for evacuee stats changes in evacuation_summaries
     listenToEvacuationSummaryChange(
       channel,
       selectedDisaster?.id,
@@ -287,15 +377,15 @@ export function useDashboardData() {
         newData?.total_no_of_pregnant !== oldData?.total_no_of_pregnant ||
         newData?.total_no_of_lactating_women !== oldData?.total_no_of_lactating_women,
       fetchEvacueeStatistics,
-      'Evacuee Stats'
+      "Evacuee Stats"
     );
 
     // (2) Listen for evacuation_end_date changes
     listenToEvacuationEndDateChange(
-      channel, 
-      selectedDisaster?.id, 
-      fetchEvacueeStatistics, 
-      'Evacuee Stats'
+      channel,
+      selectedDisaster?.id,
+      fetchEvacueeStatistics,
+      "Evacuee Stats"
     );
 
     channel.subscribe();
@@ -303,17 +393,38 @@ export function useDashboardData() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [selectedDisaster]);
+  }, [selectedDisaster, selectedDateRange]);
 
-  // Evacuation Capacity Status
+  // Evacuation Center Capacity Status
   useEffect(() => {
     const fetchEvacuationCapacityStatus = async () => {
       if (!selectedDisaster?.id) return;
 
       try {
-        const response = await fetch(
-          `http://localhost:3000/api/v1/dashboard/capacity-status/${selectedDisaster.id}`
-        );
+        let url = `http://localhost:3000/api/v1/dashboard/capacity-status/${selectedDisaster.id}`;
+
+        // If date filter applied, add query params with Manila → UTC conversion
+        if (selectedDateRange?.from) {
+          const timeZone = "Asia/Manila";
+
+          // From date (midnight Manila)
+          const fromUtc = new Date(
+            selectedDateRange.from.toLocaleString("en-US", { timeZone })
+          );
+          fromUtc.setHours(0, 0, 0, 0);
+          const fromIso = fromUtc.toISOString();
+
+          // To date (end of day Manila)
+          const toDate = selectedDateRange?.to
+            ? new Date(selectedDateRange.to.toLocaleString("en-US", { timeZone }))
+            : new Date(selectedDateRange.from.toLocaleString("en-US", { timeZone }));
+          toDate.setHours(23, 59, 59, 999);
+          const toIso = toDate.toISOString();
+
+          url += `?from=${encodeURIComponent(fromIso)}&to=${encodeURIComponent(toIso)}`;
+        }
+
+        const response = await fetch(url);
         const result = await response.json();
 
         if (response.ok) {
@@ -328,16 +439,23 @@ export function useDashboardData() {
       }
     };
 
+    // If date filter is active → Historical mode (no realtime)
+    if (selectedDateRange?.from) {
+      fetchEvacuationCapacityStatus();
+      return;
+    }
+
+    // Live mode (no date filter) → fetch + realtime updates
     fetchEvacuationCapacityStatus();
 
-    // Realtime listener for evacuee registration updates
     const channel = supabase.channel('realtime-evacuation-center-capacity');
 
     // (1) Listen to changes in evacuation_summaries
     listenToEvacuationSummaryChange(
       channel,
       selectedDisaster?.id,
-      (newData, oldData) => newData?.total_no_of_individuals !== oldData?.total_no_of_individuals,
+      (newData, oldData) =>
+        newData?.total_no_of_individuals !== oldData?.total_no_of_individuals,
       fetchEvacuationCapacityStatus,
       'Evacuation Capacity'
     );
@@ -372,13 +490,13 @@ export function useDashboardData() {
 
     // (3) Listen to updates in disaster_evacuation_event (evacuation_end_date changed)
     listenToEvacuationEndDateChange(
-      channel, 
-      selectedDisaster?.id, 
-      fetchEvacuationCapacityStatus, 
+      channel,
+      selectedDisaster?.id,
+      fetchEvacuationCapacityStatus,
       'Capacity Status'
     );
 
-    // (4) Listen to new rows inserted in disaster_evacuation_event
+    // (4) Listen to new active events inserted
     channel.on(
       'postgres_changes',
       {
@@ -388,7 +506,10 @@ export function useDashboardData() {
       },
       (payload) => {
         const inserted = payload.new;
-        if (inserted?.disaster_id === selectedDisaster?.id && inserted?.evacuation_end_date === null) {
+        if (
+          inserted?.disaster_id === selectedDisaster?.id &&
+          inserted?.evacuation_end_date === null
+        ) {
           console.log('New active evacuation event inserted');
           fetchEvacuationCapacityStatus();
         }
@@ -400,7 +521,7 @@ export function useDashboardData() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [selectedDisaster]);
+  }, [selectedDisaster, selectedDateRange]);
   
   return {
     disasters,
