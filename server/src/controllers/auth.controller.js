@@ -1,6 +1,12 @@
+
 const { createClient } = require('@supabase/supabase-js');
 const { sendOTPEmail } = require('../services/emailService');
 const dotenv = require('dotenv');
+
+const crypto = require('crypto');
+const jwt = require('jsonwebtoken');
+const JWT_SECRET = process.env.JWT_SECRET || 'changeme';
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '1h'; // 1 hour default
 
 dotenv.config();
 
@@ -20,6 +26,28 @@ const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
 
 const generateOTP = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
+};
+
+// Helper to generate a secure random refresh token
+const generateRefreshToken = () => {
+  return crypto.randomBytes(64).toString('hex');
+};
+
+// Helper to set httpOnly cookie
+const setRefreshTokenCookie = (res, token, expiresAt) => {
+  const isProd = process.env.NODE_ENV === 'production';
+  res.cookie('refresh_token', token, {
+    httpOnly: true,
+    secure: isProd ? true : false,
+    sameSite: isProd ? 'strict' : 'lax',
+    expires: expiresAt,
+    path: '/'
+  });
+};
+
+// Helper to clear refresh token cookie
+const clearRefreshTokenCookie = (res) => {
+  res.clearCookie('refresh_token', { path: '/' });
 };
 
 const resetPassword = async (req, res) => {
@@ -198,16 +226,14 @@ const sendOTP = async (req, res) => {
   }
 };
 
+
 const login = async (req, res) => {
   try {
     console.log('Login request received:', req.body);
-    
     const { employeeNumber, password } = req.body;
-
     if (!employeeNumber || !password) {
       return res.status(400).json({ message: 'Employee number and password are required' });
     }
-
     // Step 1: Find user by employee_number and get email from users_profile
     const { data: userData, error: userError } = await supabaseAdmin
       .from('users')
@@ -229,61 +255,60 @@ const login = async (req, res) => {
         )
       `)
       .eq('employee_number', employeeNumber)
-      .is('deleted_at', null)  // Exclude soft-deleted users
+      .is('deleted_at', null)
       .single();
-
     if (userError || !userData) {
       console.error('User not found:', userError);
       return res.status(401).json({ message: 'Invalid employee number or password' });
     }
-
-    // Check if user profile is soft-deleted or inactive
     if (userData.users_profile.deleted_at) {
       console.log('Login attempt for soft-deleted user:', employeeNumber);
-      return res.status(403).json({ 
-        message: 'Account has been deactivated. Please contact administrator.' 
-      });
+      return res.status(403).json({ message: 'Account has been deactivated. Please contact administrator.' });
     }
-
     if (!userData.users_profile.is_active) {
       console.log('Login attempt for inactive user:', employeeNumber);
-      return res.status(403).json({ 
-        message: 'Account is inactive. Please contact administrator.' 
-      });
+      return res.status(403).json({ message: 'Account is inactive. Please contact administrator.' });
     }
-
     // Step 2: Check if auth user is soft-deleted before attempting login
     const { data: authUser, error: authUserError } = await supabaseAdmin.auth.admin.getUserById(userData.users_profile.user_id);
-    
     if (authUserError || !authUser.user) {
       console.error('Auth user not found:', authUserError);
       return res.status(401).json({ message: 'Invalid employee number or password' });
     }
-
-    // Check if auth user has been soft-deleted (banned in Supabase terms)
     if (authUser.user.banned_until || authUser.user.deleted_at) {
       console.log('Login attempt for banned/deleted auth user:', employeeNumber);
-      return res.status(403).json({ 
-        message: 'Account has been deactivated. Please contact administrator.' 
-      });
+      return res.status(403).json({ message: 'Account has been deactivated. Please contact administrator.' });
     }
-
     // Step 3: Use the email from users_profile to authenticate with Supabase
     const { data: authData, error: authError } = await supabaseAdmin.auth.signInWithPassword({
       email: userData.users_profile.email,
       password,
     });
-
     if (authError) {
       console.error('Authentication error:', authError);
       return res.status(401).json({ message: 'Invalid employee number or password' });
     }
-
-    // Step 4: Return user data and token, with both user_id (numeric) and auth_id (UUID)
+    // Step 4: Issue refresh token
+    const refreshToken = generateRefreshToken();
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+    // Store refresh token in DB
+    const { error: refreshError } = await supabaseAdmin
+      .from('refresh_tokens')
+      .insert({
+        user_id: userData.id,
+        token: refreshToken,
+        expires_at: expiresAt.toISOString(),
+      });
+    if (refreshError) {
+      console.error('Error storing refresh token:', refreshError);
+      return res.status(500).json({ message: 'Failed to issue refresh token' });
+    }
+    setRefreshTokenCookie(res, refreshToken, expiresAt);
+    // Step 5: Return user data and access token
     const responseData = {
       user: {
-        user_id: userData.id, // Numeric users table id
-        auth_id: authData.user?.id, // Supabase Auth UUID
+        user_id: userData.id,
+        auth_id: authData.user?.id,
         email: userData.users_profile.email,
         employee_number: userData.employee_number,
         role_id: userData.users_profile.role_id,
@@ -291,23 +316,96 @@ const login = async (req, res) => {
         first_name: userData.users_profile.residents?.first_name,
         last_name: userData.users_profile.residents?.last_name,
       },
-      token: authData.session?.access_token || '',
+      token: authData.session?.access_token || ''
     };
-
     console.log('Login successful for employee:', employeeNumber);
     res.status(200).json(responseData);
-    
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ 
-      message: 'Internal server error',
-      error: error.message
+    res.status(500).json({ message: 'Internal server error', error: error.message });
+  }
+};
+// Refresh endpoint with JWT issuing logic
+const refresh = async (req, res) => {
+  try {
+    console.log('--- REFRESH ENDPOINT DEBUG ---');
+    console.log('Cookies:', req.cookies);
+    console.log('Body:', req.body);
+    const refreshToken = req.cookies?.refresh_token || req.body.refresh_token;
+    console.log('Refresh token received:', refreshToken);
+    if (!refreshToken) {
+      console.log('No refresh token provided');
+      return res.status(401).json({ message: 'No refresh token provided' });
+    }
+    // Find token in DB
+    const { data: tokenRow, error } = await supabaseAdmin
+      .from('refresh_tokens')
+      .select('id, user_id, expires_at, revoked')
+      .eq('token', refreshToken)
+      .single();
+    console.log('Token row from DB:', tokenRow, 'Error:', error);
+    if (error || !tokenRow) {
+      console.log('Invalid refresh token');
+      return res.status(401).json({ message: 'Invalid refresh token' });
+    }
+    if (tokenRow.revoked || new Date(tokenRow.expires_at) < new Date()) {
+      console.log('Refresh token expired or revoked');
+      return res.status(401).json({ message: 'Refresh token expired or revoked' });
+    }
+    // Get user profile and auth id
+    const { data: userData, error: userError } = await supabaseAdmin
+      .from('users')
+      .select('id, users_profile!inner(id, email, user_id, role_id)')
+      .eq('id', tokenRow.user_id)
+      .single();
+    console.log('User data from DB:', userData, 'Error:', userError);
+    if (userError || !userData) {
+      console.log('User not found');
+      return res.status(401).json({ message: 'User not found' });
+    }
+    // Issue new JWT access token
+    const payload = {
+      user_id: userData.id,
+      email: userData.users_profile.email,
+      role_id: userData.users_profile.role_id,
+      auth_id: userData.users_profile.user_id
+    };
+    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+    console.log('New JWT issued for user:', payload);
+    return res.status(200).json({
+      success: true,
+      token,
+      user: payload
     });
+  } catch (error) {
+    console.error('Refresh error:', error);
+    return res.status(500).json({ message: 'Internal server error', error: error.message });
+  }
+};
+
+// Logout endpoint
+const logout = async (req, res) => {
+  try {
+    const refreshToken = req.cookies?.refresh_token || req.body.refresh_token;
+    if (refreshToken) {
+      // Revoke the token in DB
+      await supabaseAdmin
+        .from('refresh_tokens')
+        .update({ revoked: true })
+        .eq('token', refreshToken);
+    }
+    clearRefreshTokenCookie(res);
+    res.status(200).json({ message: 'Logged out successfully' });
+  } catch (error) {
+    console.error('Logout error:', error);
+    res.status(500).json({ message: 'Internal server error', error: error.message });
   }
 };
 
 module.exports = {
   resetPassword,
   sendOTP,
-  login
+  login,
+  refresh,
+  logout
 };

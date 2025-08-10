@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
-import { useSelector } from 'react-redux';
-import { selectCurrentUser, selectToken } from '../features/auth/authSlice';
+import { useSelector, useDispatch } from 'react-redux';
+import { selectCurrentUser, selectToken, logout } from '../features/auth/authSlice';
 
 interface Permission {
   id: number;
@@ -34,6 +34,7 @@ export const PermissionProvider: React.FC<PermissionProviderProps> = ({ children
   const [error, setError] = useState<string | null>(null);
   const currentUser = useSelector(selectCurrentUser);
   const token = useSelector(selectToken);
+  const dispatch = useDispatch();
 
   useEffect(() => {
     const fetchUserPermissions = async () => {
@@ -53,11 +54,16 @@ export const PermissionProvider: React.FC<PermissionProviderProps> = ({ children
             'Content-Type': 'application/json'
           }
         });
-        
+        if (response.status === 401) {
+          // Unauthorized, auto-logout
+          dispatch(logout());
+          setPermissions([]);
+          setLoading(false);
+          return;
+        }
         if (!response.ok) {
           throw new Error('Failed to fetch permissions');
         }
-
         const data = await response.json();
         setPermissions(data.permissions || []);
       } catch (err) {
@@ -98,7 +104,3 @@ export const usePermissions = (): PermissionContextType => {
   return context;
 };
 
-export const usePermission = (permissionName: string): boolean => {
-  const { hasPermission } = usePermissions();
-  return hasPermission(permissionName);
-};

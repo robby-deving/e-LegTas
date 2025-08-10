@@ -1,5 +1,7 @@
+
 const express = require('express');
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
 const dotenv = require('dotenv');
 const { router, baseAPI } = require('./routes/router');
 
@@ -15,7 +17,11 @@ console.log('SMTP_USER:', process.env.SMTP_USER ? 'Found' : 'Missing');
 console.log('SMTP_PASS:', process.env.SMTP_PASS ? 'Found' : 'Missing');
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: 'http://localhost:5173',
+  credentials: true
+}));
+app.use(cookieParser());
 app.use(express.json());
 
 // API Routes

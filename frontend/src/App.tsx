@@ -2,6 +2,8 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { selectIsAuthenticated } from './features/auth/authSlice';
 import { PermissionProvider } from './contexts/PermissionContext';
+import { useAutoLogoutOnTokenExpiry } from './features/auth/useAutoLogoutOnTokenExpiry';
+import { useAutoRefreshToken } from './features/auth/useAutoRefreshToken';
 import TopNav from './components/TopNav';
 import SideNav from './components/SideNav';
 
@@ -52,6 +54,8 @@ function AppLayout({ children }: { children: React.ReactNode }) {
 
 function App() {
   const isAuthenticated = useSelector(selectIsAuthenticated);
+  useAutoLogoutOnTokenExpiry();
+  useAutoRefreshToken();
 
   return (
     <PermissionProvider>
