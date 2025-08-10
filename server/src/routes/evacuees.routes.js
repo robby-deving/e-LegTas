@@ -2,7 +2,7 @@
 
 const express = require('express');
 const evacueeController = require('../controllers/evacuee.controller'); 
-const { searchEvacueeByName } = require('../controllers/evacueeSearch.controller');
+const { searchEvacueeByName, searchFamilyHeads } = require('../controllers/evacueeSearch.controller');
 
 // Create an Express Router instance
 const router = express.Router();
@@ -15,6 +15,12 @@ const router = express.Router();
 // @route GET /api/v1/evacuees/search?name={name}
 // @access Public
 router.get('/search', searchEvacueeByName);
+
+// Search all the family head
+// @desc Search family heads used in this disaster event (by name, optional ?q=)
+// @route GET /api/v1/evacuees/:disasterEvacuationEventId/family-heads?q=John
+// @access Private (Camp Manager only)
+router.get('/:disasterEvacuationEventId/family-heads', searchFamilyHeads);
 
 // Register a new evacuee with vulnerability data
 // Example: POST /api/v1/evacuees with JSON body
@@ -29,19 +35,16 @@ router.post('/', evacueeController.registerEvacuee);
 // @access Public
 router.get('/barangays', evacueeController.getAllBarangays);
 
+// Transfer the head of a family (within a specific disaster event)
+router.post('/:disasterEvacuationEventId/transfer-head', evacueeController.transferHead);
+
+
 // Update an evacuee's details by ID
 // Example: PUT /api/v1/evacuees/123
 // @desc Update an evacuee's details
 // @route PUT /api/v1/evacuees/:id
 // @access Private (Camp Manager only)
 router.put('/:id', evacueeController.updateEvacuee);
-
-// Get full evacuee demographic breakdown by family head ID
-// Example: GET /api/v1/evacuees/family/:family_head_id
-// @desc Get detailed evacuee data for a given family head ID, includes summary counts, demographics, and list of evacuees
-// @route GET /api/v1/evacuees/family/:family_head_id
-// @access Private (Camp Manager only)
-// router.get('/family/:family_head_id', evacueeController.getRegisterEvacueeByFamilyId);
 
 // Get detailed evacuee data filtered by disaster evacuation event ID
 // Example: GET /api/v1/evacuees/:disasterEvacuationEventId/evacuees-information
@@ -68,6 +71,12 @@ router.get('/:disasterEvacuationEventId/details', evacueeController.getDisasterE
 // @access Public
 router.get('/:disasterEvacuationEventId/rooms', evacueeController.getAllRoomsForDisasterEvacuationEventId);
 
+// Get full evacuee details for editing (includes resident info, evacuee info, registration, and vulnerabilities)
+// Example: GET /api/v1/evacuees/:disasterEvacuationEventId/:evacueeResidentId/edit
+// @desc Fetch all the details needed to prefill the edit evacuee modal for a given disaster evacuation event and evacuee
+// @route GET /api/v1/evacuees/:disasterEvacuationEventId/:evacueeResidentId/edit
+// @access Private (Camp Manager only)
+router.get( '/:disasterEvacuationEventId/:evacueeResidentId/edit', evacueeController.getEvacueeDetailsForEdit );
 
 // Export the router
 module.exports = router;

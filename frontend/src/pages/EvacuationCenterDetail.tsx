@@ -15,7 +15,7 @@ import { EvacuationCenterNameCard } from "../components/cards/EvacuationCenterNa
 import EvacueeStatisticsChart from "../components/EvacueeStatisticsChart";
 import { getTypeColor, getTagColor } from "@/constants/disasterTypeColors";
 import { decodeId } from "@/utils/secureId";
-import type { EvacuationCenterDetail, EvacueeStatistics, FamilyEvacueeInformation, RegisterEvacuee, FamilyMember } from "@/types/EvacuationCenterDetails";
+import type { EvacuationCenterDetail, EvacueeStatistics, FamilyEvacueeInformation, RegisterEvacuee, FamilyMember, FamilyHeadResult, EditEvacueeApi, SelectedEvacuee } from "@/types/EvacuationCenterDetails";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { encodeId } from "@/utils/secureId";
 import { formatDate } from "@/utils/dateFormatter";
@@ -23,481 +23,523 @@ import { FamilyDetailsModal } from "../components/modals/FamilyDetailsModal";
 import { RegisterEvacueeModal } from "../components/modals/RegisterEvacueeModal";
 import { SearchEvacueeModal } from "../components/modals/SearchEvacueeModal";
 import { FamilyHeadSearchModal } from "../components/modals/FamilyHeadSearchModal";
-import { differenceInYears } from 'date-fns';
+import { differenceInYears } from "date-fns";
+import { mapEditPayloadToForm, mapSearchPayloadToForm } from "@/utils/mapEvacueePayload";
 
 export default function EvacuationCenterDetail() {
   const navigate = useNavigate();
-  const { id: encodedDisasterId, disasterEvacuationEventId: encodedCenterId } = useParams();
-
+  const { id: encodedDisasterId, disasterEvacuationEventId: encodedCenterId } =
+    useParams();
   const disasterId = decodeId(encodedDisasterId!);
   const centerId = decodeId(encodedCenterId!);
-  
-
   const [detail, setDetail] = useState<EvacuationCenterDetail | null>(null);
-
   const [statistics, setStatistics] = useState<EvacueeStatistics | null>(null);
-
   const [evacuees, setEvacuees] = useState<FamilyEvacueeInformation[]>([]);
-  const [selectedFamily, setSelectedFamily] = useState<FamilyEvacueeInformation | null>(null);
-  
+  const [selectedFamily, setSelectedFamily] =
+    useState<FamilyEvacueeInformation | null>(null);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [selectedEvacuee, setSelectedEvacuee] = useState<any>(null);
-  const [showRegisterModal, setShowRegisterModal] = useState(false);
+  const [selectedEvacuee, setSelectedEvacuee] =
+    useState<SelectedEvacuee | null>(null);
   const [searchResults, setSearchResults] = useState<any[]>([]);
 
-const chartData = statistics
-  ? [
-      { label: "Males", value: statistics.summary.total_no_of_male },
-      { label: "Females", value: statistics.summary.total_no_of_female },
-      { label: "Infants (<1 yr)", value: statistics.summary.total_no_of_infant },
-      { label: "Children (2–12 yrs)", value: statistics.summary.total_no_of_children },
-      { label: "Youth (13–17 yrs)", value: statistics.summary.total_no_of_youth },
-      { label: "Adults (18–59 yrs)", value: statistics.summary.total_no_of_adult },
-      { label: "Senior Citizens (60+)", value: statistics.summary.total_no_of_seniors },
-      { label: "PWD", value: statistics.summary.total_no_of_pwd },
-      { label: "Pregnant Women", value: statistics.summary.total_no_of_pregnant },
-      { label: "Lactating Women", value: statistics.summary.total_no_of_lactating_women },
-    ]
-  : [];
+  const chartData = statistics
+    ? [
+        { label: "Males", value: statistics.summary.total_no_of_male },
+        { label: "Females", value: statistics.summary.total_no_of_female },
+        {
+          label: "Infants (<1 yr)",
+          value: statistics.summary.total_no_of_infant,
+        },
+        {
+          label: "Children (2–12 yrs)",
+          value: statistics.summary.total_no_of_children,
+        },
+        {
+          label: "Youth (13–17 yrs)",
+          value: statistics.summary.total_no_of_youth,
+        },
+        {
+          label: "Adults (18–59 yrs)",
+          value: statistics.summary.total_no_of_adult,
+        },
+        {
+          label: "Senior Citizens (60+)",
+          value: statistics.summary.total_no_of_seniors,
+        },
+        { label: "PWD", value: statistics.summary.total_no_of_pwd },
+        {
+          label: "Pregnant Women",
+          value: statistics.summary.total_no_of_pregnant,
+        },
+        {
+          label: "Lactating Women",
+          value: statistics.summary.total_no_of_lactating_women,
+        },
+      ]
+    : [];
 
-usePageTitle(detail?.evacuation_center?.evacuation_center_name ?? "Evacuation Center Detail");
+  usePageTitle(
+    detail?.evacuation_center?.evacuation_center_name ??
+      "Evacuation Center Detail"
+  );
 
-useEffect(() => {
-  console.log("✅ Decoded IDs:", { disasterId, centerId });
+  useEffect(() => {
+    console.log("✅ Decoded IDs:", { disasterId, centerId });
 
-  if (!centerId || isNaN(Number(centerId))) {
-    console.warn("❌ Invalid decoded centerId:", centerId);
-    return;
-  }
-
-  const fetchDetails = async () => {
-    try {
-      const res = await axios.get(`http://localhost:3000/api/v1/evacuees/${centerId}/details`);
-      setDetail(res.data);
-    } catch (err) {
-      console.error("❌ Error fetching details:", err);
+    if (!centerId || isNaN(Number(centerId))) {
+      console.warn("❌ Invalid decoded centerId:", centerId);
+      return;
     }
-  };
 
-  const fetchStatistics = async () => {
-    try {
-      const res = await axios.get(`http://localhost:3000/api/v1/evacuees/${centerId}/evacuee-statistics`);
-      setStatistics(res.data);
-    } catch (err) {
-      console.error("❌ Error fetching statistics:", err);
-    }
-  };
+    const fetchDetails = async () => {
+      try {
+        const res = await axios.get<EvacuationCenterDetail>(
+          `http://localhost:3000/api/v1/evacuees/${centerId}/details`
+        );
+        setDetail(res.data);
+      } catch (err) {
+        console.error("❌ Error fetching details:", err);
+      }
+    };
+    const fetchStatistics = async () => {
+      try {
+        const res = await axios.get<EvacueeStatistics>(
+          `http://localhost:3000/api/v1/evacuees/${centerId}/evacuee-statistics`
+        );
+        setStatistics(res.data);
+      } catch (err) {
+        console.error("❌ Error fetching statistics:", err);
+      }
+    };
 
-  const fetchEvacuees = async () => {
-    try {
-      const res = await axios.get(`http://localhost:3000/api/v1/evacuees/${centerId}/evacuees-information`);
-      setEvacuees(Array.isArray(res.data) ? res.data : []);
-    } catch (err) {
-      console.error("❌ Error fetching evacuees:", err);
-    }
-  };
+    const fetchEvacuees = async () => {
+      try {
+        const res = await axios.get<FamilyEvacueeInformation[]>(
+          `http://localhost:3000/api/v1/evacuees/${centerId}/evacuees-information`
+        );
+        setEvacuees(Array.isArray(res.data) ? res.data : []);
+      } catch (err) {
+        console.error("❌ Error fetching evacuees:", err);
+      }
+    };
 
-  fetchDetails();
-  fetchStatistics();
-  fetchEvacuees();
-}, [centerId]);
+    fetchDetails();
+    fetchStatistics();
+    fetchEvacuees();
+  }, [centerId]);
 
-
-
-const filteredEvacuees = Array.isArray(evacuees)
-  ? evacuees.filter(evac =>
-      evac.family_head_full_name.toLowerCase().includes(search.toLowerCase())
-      || evac.barangay.toLowerCase().includes(search.toLowerCase())
-    )
-  : [];
+  const filteredEvacuees = Array.isArray(evacuees)
+    ? evacuees.filter(
+        (evac) =>
+          evac.family_head_full_name
+            .toLowerCase()
+            .includes(search.toLowerCase()) ||
+          evac.barangay.toLowerCase().includes(search.toLowerCase())
+      )
+    : [];
 
   const totalRows = filteredEvacuees.length;
   const totalPages = Math.ceil(totalRows / rowsPerPage);
-  const paginatedEvacuees = filteredEvacuees.slice((page - 1) * rowsPerPage, page * rowsPerPage);
+  const paginatedEvacuees = filteredEvacuees.slice(
+    (page - 1) * rowsPerPage,
+    page * rowsPerPage
+  );
 
-    // Add state for modal mode and form data
+  // Add state for modal mode and form data
   const [evacueeModalOpen, setEvacueeModalOpen] = useState(false);
-  const [evacueeModalMode, setEvacueeModalMode] = useState<'register' | 'edit'>('register');
+  const [evacueeModalMode, setEvacueeModalMode] = useState<"register" | "edit">(
+    "register"
+  );
   const [formData, setFormData] = useState({
-    firstName: '',
-    middleName: '',
-    lastName: '',
-    suffix: '',
-    sex: '',
-    maritalStatus: '',
-    birthday: '',
-    educationalAttainment: '',
-    schoolOfOrigin: '',
-    occupation: '',
-    purok: '',
-    barangayOfOrigin: '',
-    isFamilyHead: 'Yes',
-    familyHead: '',
-    relationshipToFamilyHead: '',
-    searchEvacuationRoom: '',
+    firstName: "",
+    middleName: "",
+    lastName: "",
+    suffix: "",
+    sex: "",
+    maritalStatus: "",
+    birthday: "",
+    educationalAttainment: "",
+    schoolOfOrigin: "",
+    occupation: "",
+    purok: "",
+    barangayOfOrigin: "",
+    isFamilyHead: "Yes",
+    familyHead: "",
+    familyHeadId: null as number | null,
+    relationshipToFamilyHead: "",
+    searchEvacuationRoom: "",
+    evacuationRoomName: "",
     vulnerabilities: {
       pwd: false,
       pregnant: false,
-      lactatingMother: false
-    }
+      lactatingMother: false,
+    },
   });
   const [showSearchModal, setShowSearchModal] = useState(false);
-  const [showFamilyHeadSearchModal, setShowFamilyHeadSearchModal] = useState(false);
+  const [showFamilyHeadSearchModal, setShowFamilyHeadSearchModal] =
+    useState(false);
   const [searchName, setSearchName] = useState("");
   const [familyHeadSearchTerm, setFamilyHeadSearchTerm] = useState("");
-  const [familyHeadSearchResults, setFamilyHeadSearchResults] = useState<any[]>([]);
+  const [familyHeadSearchResults, setFamilyHeadSearchResults] = useState<
+    FamilyHeadResult[]
+  >([]);
+  const [fhLoading, setFhLoading] = useState(false);
 
-  // Edit button handler
-const handleEditMember = (member: FamilyMember) => {
-  // Split full_name
-  const parts = (member.full_name || "").trim().split(/\s+/);
-  const lastName = parts.length > 1 ? parts.pop()! : "";
-  const firstName = parts.shift() || "";
-  const middleName = parts.join(" ");
+  const handleEditMember = async (member: FamilyMember) => {
+    try {
+      const evacueeResidentId =
+        (member as any).evacuee_resident_id ?? (member as any).evacuee_id;
+      if (!evacueeResidentId) return;
 
-  const headFullName =
-    selectedFamily?.view_family?.head_of_family ||
-    selectedFamily?.family_head_full_name ||
-    "";
-  const isHead = member.full_name === headFullName;
-
-  setFormData(prev => ({
-    ...prev,
-    firstName,
-    middleName,
-    lastName,
-    suffix: "",
-    sex: member.sex || "",
-    maritalStatus: prev.maritalStatus || "",          // unknown here unless you fetch details
-    birthday: prev.birthday || "",                    // you can fetch this by evacuee_id if available
-    educationalAttainment: prev.educationalAttainment || "",
-    schoolOfOrigin: prev.schoolOfOrigin || "",
-    occupation: prev.occupation || "",
-    barangayOfOrigin: member.barangay_of_origin || "",
-    purok: prev.purok || "",
-    isFamilyHead: isHead ? "Yes" : "No",
-    familyHead: headFullName || "",
-    relationshipToFamilyHead: isHead ? "Head" : (prev.relationshipToFamilyHead || ""),
-    // We'll auto-select the room ID in the modal after rooms are fetched
-    searchEvacuationRoom: "",
-    roomNameForPrefill: member.room_name || "",
-    vulnerabilities: {
-      pwd: member.vulnerability_types?.includes("Person with Disability") || false,
-      pregnant: member.vulnerability_types?.includes("Pregnant Woman") || false,
-      lactatingMother: member.vulnerability_types?.includes("Lactating Woman") || false,
-    },
-  }));
-
-  // If you need the evacuee_id for saving updates later, keep it in state
-  setSelectedEvacuee(member as any);
-
-  setEvacueeModalMode("edit");
-
-  // Close the FamilyDetailsModal first to avoid double-dialog focus trap
-  setSelectedFamily(null);
-
-  // Open the edit modal
-  setEvacueeModalOpen(true);
-};
-
-  // Search modal logic
-  const handleSearchNameClick = () => {
-    setShowSearchModal(true);
-    setSearchName("");
-    setSearchResults([]);
-  };
-const handleSearchChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-  const value = e.target.value;
-  setSearchName(value);
-
-  if (value.trim() === '') {
-    setSearchResults([]);
-    return;
-  }
-
-  try {
-    const res = await axios.get(`http://localhost:3000/api/v1/evacuees/search?name=${value}`);
-    setSearchResults(res.data);
-  } catch (err) {
-    console.error("Error searching evacuees", err);
-  }
-};
-
-  const handleFamilyHeadSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setFamilyHeadSearchTerm(value);
-    if (value.trim()) {
-      const results = evacuees.filter(e =>
-        e.family_head_full_name.toLowerCase().includes(value.toLowerCase())
+      const res = await axios.get<EditEvacueeApi>(
+        `http://localhost:3000/api/v1/evacuees/${centerId}/${evacueeResidentId}/edit`
       );
-      setFamilyHeadSearchResults(results);
-    } else {
-      setFamilyHeadSearchResults([]);
+      const data = res.data;
+
+      const mapped = mapEditPayloadToForm(data);
+      setFormData((prev) => ({
+        ...prev,
+        ...mapped,
+        evacuationRoomName: member.room_name || prev.evacuationRoomName || "",
+      }));
+
+      setSelectedEvacuee({
+        id: Number(evacueeResidentId),
+        registration_ec_rooms_id: data.ec_rooms_id ?? null,
+      });
+
+      setEvacueeModalMode("edit");
+      setEvacueeModalOpen(true);
+    } catch (err) {
+      console.error("Failed to load evacuee details for edit:", err);
     }
   };
 
-  const handleFamilyHeadSelect = (evacuee: any) => {
-    setFormData(prev => ({
+  const handleSearchChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchName(value);
+
+    if (value.trim() === "") {
+      setSearchResults([]);
+      return;
+    }
+
+    try {
+      const { data } = await axios.get<any[]>(
+        "http://localhost:3000/api/v1/evacuees/search",
+        { params: { name: value } }
+      );
+      setSearchResults(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("Error searching evacuees", err);
+      setSearchResults([]);
+    }
+  };
+
+  const handleFamilyHeadSearchChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    setFamilyHeadSearchTerm(e.target.value);
+  };
+
+  useEffect(() => {
+    const q = familyHeadSearchTerm.trim();
+    if (!showFamilyHeadSearchModal) return;
+    if (!q) {
+      setFamilyHeadSearchResults([]);
+      return;
+    }
+
+    const t = setTimeout(async () => {
+      try {
+        setFhLoading(true);
+        const { data } = await axios.get<{ data: FamilyHeadResult[] }>(
+          `http://localhost:3000/api/v1/evacuees/${centerId}/family-heads`,
+          { params: { q } }
+        );
+        setFamilyHeadSearchResults(data?.data || []);
+      } catch (e) {
+        console.error("FH search error", e);
+        setFamilyHeadSearchResults([]);
+      } finally {
+        setFhLoading(false);
+      }
+    }, 250); // debounce
+
+    return () => clearTimeout(t);
+  }, [familyHeadSearchTerm, showFamilyHeadSearchModal, centerId]);
+
+  const handleFamilyHeadSelect = (fh: FamilyHeadResult) => {
+    setFormData((prev) => ({
       ...prev,
-      familyHead: evacuee.familyHead,
-      barangayOfOrigin: evacuee.barangay || '',
-      purok: evacuee.purok || ''
+      familyHead: fh.family_head_full_name,
+      familyHeadId: fh.family_head_id,
+      barangayOfOrigin:
+        fh.barangay_id != null ? String(fh.barangay_id) : prev.barangayOfOrigin,
+      purok: fh.purok ?? prev.purok,
+      evacuationRoomName: fh.evacuation_room ?? "",
     }));
     setShowFamilyHeadSearchModal(false);
   };
 
   const handleFamilyHeadSearchClick = () => {
-    setFamilyHeadSearchTerm('');
+    setFamilyHeadSearchTerm("");
     setFamilyHeadSearchResults([]);
     setShowFamilyHeadSearchModal(true);
   };
   const handleSelectEvacuee = (evacuee: any) => {
-    const member = evacuee.members[0];
-    const nameParts = member.fullName.split(" ");
-    const lastName = nameParts.pop() || '';
-    const firstName = nameParts.shift() || '';
-    const middleName = nameParts.join(" ") || '';
-    
-    // Pre-fill the form with the selected evacuee's details
-    setFormData({
-      firstName: firstName,
-      middleName: middleName,
-      lastName: lastName,
-      suffix: '',
-      sex: member.sex || '',
-      maritalStatus: '',
-      birthday: '',
-      educationalAttainment: '',
-      schoolOfOrigin: '',
-      occupation: '',
-      purok: evacuee.purok || '',
-      barangayOfOrigin: evacuee.barangay || '',
-      isFamilyHead: 'Yes',
-      familyHead: '',
-      relationshipToFamilyHead: '',
-      searchEvacuationRoom: evacuee.room || '',
-      vulnerabilities: {
-        pwd: member.vulnerability === "PWD",
-        pregnant: member.vulnerability === "Pregnant",
-        lactatingMother: member.vulnerability === "Lactating"
-      }
-    });
-    
-    // Close the search modal and open the registration form
+    const mapped = mapSearchPayloadToForm(evacuee);
+    setFormData((prev) => ({
+      ...prev,
+      ...mapped,
+    }));
     setShowSearchModal(false);
+    setEvacueeModalMode("register");
     setEvacueeModalOpen(true);
   };
+
   const handleManualRegister = () => {
-  // Reset form data
-  setFormData({
-    firstName: '',
-    middleName: '',
-    lastName: '',
-    suffix: '',
-    sex: '',
-    maritalStatus: '',
-    birthday: '',
-    educationalAttainment: '',
-    schoolOfOrigin: '',
-    occupation: '',
-    purok: '',
-    barangayOfOrigin: '',
-    isFamilyHead: 'Yes',
-    familyHead: '',
-    relationshipToFamilyHead: '',
-    searchEvacuationRoom: '',
-    vulnerabilities: {
-      pwd: false,
-      pregnant: false,
-      lactatingMother: false
-    }
-  });
+    // Reset form data
+    setFormData({
+      firstName: "",
+      middleName: "",
+      lastName: "",
+      suffix: "",
+      sex: "",
+      maritalStatus: "",
+      birthday: "",
+      educationalAttainment: "",
+      schoolOfOrigin: "",
+      occupation: "",
+      purok: "",
+      barangayOfOrigin: "",
+      isFamilyHead: "Yes",
+      familyHead: "",
+      familyHeadId: null as number | null,
+      relationshipToFamilyHead: "",
+      searchEvacuationRoom: "",
+      evacuationRoomName: "",
+      vulnerabilities: {
+        pwd: false,
+        pregnant: false,
+        lactatingMother: false,
+      },
+    });
 
-  // Close search modal and **after a micro-delay**, open registration form
-  setShowSearchModal(false);
-  setTimeout(() => {
-    setEvacueeModalOpen(true);
-  }, 0); // 0ms is enough to yield to the event loop
-};
+    setShowSearchModal(false);
+    setTimeout(() => {
+      setEvacueeModalOpen(true);
+    }, 0);
+  };
 
-
-  // Form field handlers
   const handleFormInputChange = (field: string, value: string) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [field]: value
+      [field]: value,
     }));
   };
-  const handleVulnerabilityChange = (vulnerability: string, checked: boolean) => {
-    setFormData(prev => ({
+  const handleVulnerabilityChange = (
+    vulnerability: string,
+    checked: boolean
+  ) => {
+    setFormData((prev) => ({
       ...prev,
       vulnerabilities: {
         ...prev.vulnerabilities,
-        [vulnerability]: checked
-      }
+        [vulnerability]: checked,
+      },
     }));
   };
   const handleEvacueeModalClose = () => {
     setEvacueeModalOpen(false);
   };
-  const handleRegisterOrEdit = () => {
-    // Save logic here
-    setEvacueeModalOpen(false);
+
+  const handleRegisterClick = () => {
+    setEvacueeModalMode("register");
+    setShowSearchModal(true);
+    setSearchName("");
+    setSearchResults([]);
   };
 
-const handleRegisterClick = () => {
-  setEvacueeModalMode('register');
-  // Show search modal first
-  setShowSearchModal(true);
-  setSearchName('');
-  setSearchResults([]);
-};
-
-
-const handleRowClick = (evacueeId: number) => {
-  const selected = paginatedEvacuees.find(e => e.id === evacueeId);
-  if (selected) setSelectedFamily(selected);
-};
-
-const handleCloseModal = () => setSelectedFamily(null);
-
-
-
-
-function getVulnerabilityFlags(age: number) {
-  return {
-    is_infant: age < 1,
-    is_children: age >= 1 && age <= 12,
-    is_youth: age >= 13 && age <= 17,
-    is_adult: age >= 18 && age <= 59,
-    is_senior: age >= 60,
+  const handleRowClick = (evacueeId: number) => {
+    const selected = paginatedEvacuees.find((e) => e.id === evacueeId);
+    if (selected) setSelectedFamily(selected);
   };
-}
 
-const handleRegisterEvacuee = async () => {
-  try {
-    const birthdate = new Date(formData.birthday);
-    const age = differenceInYears(new Date(), birthdate); // ✅ Calculate age once
-    const vulnerabilityFlags = getVulnerabilityFlags(age); // ✅ Only calculate once here
+  const handleCloseModal = () => setSelectedFamily(null);
 
-    const payload: RegisterEvacuee = {
-      first_name: formData.firstName,
-      middle_name: formData.middleName,
-      last_name: formData.lastName,
-      suffix: formData.suffix || '',
-      birthdate: formData.birthday,
-      sex: formData.sex,
-      barangay_of_origin: formData.barangayOfOrigin,
-      marital_status: formData.maritalStatus,
-      educational_attainment: formData.educationalAttainment,
-      school_of_origin: formData.schoolOfOrigin || '',
-      occupation: formData.occupation || '',
-      purok: formData.purok || '',
-      relationship_to_family_head: formData.relationshipToFamilyHead,
-      family_head_id: formData.isFamilyHead === 'No' ? selectedFamily?.id : undefined,
-      date_registered: new Date().toISOString(),
-
-      // ✅ Spread flags from helper function
-      ...vulnerabilityFlags,
-
-      // ✅ These come from the form directly
-      is_pwd: formData.vulnerabilities.pwd,
-      is_pregnant: formData.vulnerabilities.pregnant,
-      is_lactating: formData.vulnerabilities.lactatingMother,
-
-      ec_rooms_id: parseInt(formData.searchEvacuationRoom),
-      disaster_evacuation_event_id: centerId,
+  function getVulnerabilityFlags(age: number) {
+    return {
+      is_infant: age < 1,
+      is_children: age >= 1 && age <= 12,
+      is_youth: age >= 13 && age <= 17,
+      is_adult: age >= 18 && age <= 59,
+      is_senior: age >= 60,
     };
-
-    if (mode === 'register') {
-      // Register new evacuee
-      const response = await axios.post("http://localhost:3000/api/v1/evacuees", payload);
-      console.log("✅ Evacuee Registered", response.data);
-    } else if (mode === 'edit' && selectedEvacuee?.id) {
-      // Update existing evacuee
-      const response = await axios.put(`http://localhost:3000/api/v1/evacuees/${selectedEvacuee.id}`, payload);
-      console.log("✅ Evacuee Updated", response.data);
-    }
-
-    setEvacueeModalOpen(false);
-    // Optional: refresh evacuees or show success toast
-  } catch (error) {
-    console.error("❌ Error registering/updating evacuee", error);
-    // Optional: show error to user
   }
-};
 
+  const handleRegisterEvacuee = async () => {
+    console.log("[handleRegisterEvacuee] start", {
+      mode: evacueeModalMode,
+      isFamilyHead: formData.isFamilyHead,
+      familyHeadId: formData.familyHeadId,
+      searchEvacuationRoom: formData.searchEvacuationRoom,
+    });
 
-if (!detail || !statistics) return <div className="p-6">Loading...</div>;
+    try {
+      const birthdate = new Date(formData.birthday);
+      const age = differenceInYears(new Date(), birthdate);
+      const vulnerabilityFlags = getVulnerabilityFlags(age);
+      const relationship =
+        formData.isFamilyHead === "Yes"
+          ? "Head"
+          : formData.relationshipToFamilyHead;
+
+      if (formData.isFamilyHead === "No" && !formData.familyHeadId) {
+        console.error(
+          "[handleRegisterEvacuee] BLOCKED: Missing familyHeadId when isFamilyHead = 'No'"
+        );
+        return;
+      }
+
+      const payload: RegisterEvacuee = {
+        first_name: formData.firstName,
+        middle_name: formData.middleName,
+        last_name: formData.lastName,
+        suffix:
+          formData.suffix && formData.suffix.trim() !== ""
+            ? formData.suffix.trim()
+            : null,
+        birthdate: formData.birthday,
+        sex: formData.sex,
+        barangay_of_origin: Number(formData.barangayOfOrigin),
+        marital_status: formData.maritalStatus,
+        educational_attainment: formData.educationalAttainment,
+        school_of_origin: formData.schoolOfOrigin || "",
+        occupation: formData.occupation || "",
+        purok: formData.purok || "",
+        relationship_to_family_head: relationship,
+        family_head_id:
+          formData.isFamilyHead === "No" ? formData.familyHeadId! : undefined,
+        date_registered: new Date().toISOString(),
+        ...vulnerabilityFlags,
+        is_pwd: formData.vulnerabilities.pwd,
+        is_pregnant: formData.vulnerabilities.pregnant,
+        is_lactating: formData.vulnerabilities.lactatingMother,
+        ec_rooms_id: parseInt(formData.searchEvacuationRoom),
+        disaster_evacuation_event_id: centerId,
+      };
+
+      console.log("[handleRegisterEvacuee] payload", payload);
+
+      if (evacueeModalMode === "register") {
+        console.log("[handleRegisterEvacuee] POST /evacuees");
+        const resp = await axios.post(
+          "http://localhost:3000/api/v1/evacuees",
+          payload
+        );
+        console.log("[handleRegisterEvacuee] POST OK", resp.status, resp.data);
+      } else if (evacueeModalMode === "edit" && selectedEvacuee?.id) {
+        const url = `http://localhost:3000/api/v1/evacuees/${selectedEvacuee.id}`;
+        console.log("[handleRegisterEvacuee] PUT", url);
+        const resp = await axios.put(url, payload);
+        console.log("[handleRegisterEvacuee] PUT OK", resp.status, resp.data);
+      } else {
+        console.warn(
+          "[handleRegisterEvacuee] Edit mode but no selectedEvacuee.id"
+        );
+        return;
+      }
+
+      setEvacueeModalOpen(false);
+    } catch (error: any) {
+      const status = error?.response?.status;
+      const data = error?.response?.data;
+      console.error("❌ Error registering/updating evacuee", {
+        status,
+        data,
+        error,
+      });
+    }
+  };
+
+  if (!detail || !statistics) return <div className="p-6">Loading...</div>;
 
   const disaster = {
-  name: detail?.disaster?.disaster_name || "Unknown",
-  type: detail?.disaster?.disaster_type_name || "Unknown",
-  start: detail?.disaster?.disaster_start_date || "N/A",
-};
+    name: detail?.disaster?.disaster_name || "Unknown",
+    type: detail?.disaster?.disaster_type_name || "Unknown",
+    start: detail?.disaster?.disaster_start_date || "N/A",
+  };
 
   const centerName = detail.evacuation_center.evacuation_center_name;
-  const centerBarangay = detail.evacuation_center.evacuation_center_barangay_name;
+  const centerBarangay =
+    detail.evacuation_center.evacuation_center_barangay_name;
   const familiesCount = detail.evacuation_summary.total_no_of_family;
   const evacueesCount = detail.evacuation_summary.total_no_of_individuals;
   const capacityCount = detail.evacuation_summary.evacuation_center_capacity;
 
   return (
-<div className="text-black p-6 space-y-6">
-  {/* Header with Breadcrumb */}
-  <div className="space-y-5">
-    <h1 className="text-3xl font-bold text-green-800">Evacuation Information</h1>
-    <div className="flex items-center text-sm text-gray-600">
-      <button
-        onClick={() => navigate("/evacuation-information")}
-        className="hover:text-green-700 transition-colors cursor-pointer"
-      >
-        Disaster
-      </button>
-      <ChevronRight className="w-4 h-4 mx-2" />
-      <button
-        onClick={() => navigate(`/evacuation-information/${encodeId(disasterId)}`)}
-        className="hover:text-green-700 transition-colors cursor-pointer"
-      >
-        {disaster?.name}
-      </button>
-      <ChevronRight className="w-4 h-4 mx-2" />
-      {/* Highlight current page */}
-      <span className="text-gray-900 font-semibold">{centerName}</span>
-    </div>
-  </div>
-
-  {/* Disaster Information Card */}
-  <div className="py-3">
-    <div className="space-y-3">
-      <div
-        className={`inline-block rounded px-3 py-1 text-sm font-semibold ${getTagColor(
-          disaster.type
-        )}`}
-      >
-        {disaster.type}
-      </div>
-      <h2 className={`text-3xl font-bold ${getTypeColor(disaster.type)}`}>
-        {disaster.name}
-      </h2>
-      {detail?.disaster?.disaster_start_date && (
-        <div className="flex items-center gap-2 text-gray-600">
-          <Calendar className="w-4 h-4" />
-          <span className="text-sm">
-            {formatDate(detail.disaster.disaster_start_date)}
-          </span>
+    <div className="text-black p-6 space-y-6">
+      {/* Header with Breadcrumb */}
+      <div className="space-y-5">
+        <h1 className="text-3xl font-bold text-green-800">
+          Evacuation Information
+        </h1>
+        <div className="flex items-center text-sm text-gray-600">
+          <button
+            onClick={() => navigate("/evacuation-information")}
+            className="hover:text-green-700 transition-colors cursor-pointer"
+          >
+            Disaster
+          </button>
+          <ChevronRight className="w-4 h-4 mx-2" />
+          <button
+            onClick={() =>
+              navigate(`/evacuation-information/${encodeId(disasterId)}`)
+            }
+            className="hover:text-green-700 transition-colors cursor-pointer"
+          >
+            {disaster?.name}
+          </button>
+          <ChevronRight className="w-4 h-4 mx-2" />
+          {/* Highlight current page */}
+          <span className="text-gray-900 font-semibold">{centerName}</span>
         </div>
-      )}
-    </div>
-  </div>
+      </div>
 
+      {/* Disaster Information Card */}
+      <div className="py-3">
+        <div className="space-y-3">
+          <div
+            className={`inline-block rounded px-3 py-1 text-sm font-semibold ${getTagColor(
+              disaster.type
+            )}`}
+          >
+            {disaster.type}
+          </div>
+          <h2 className={`text-3xl font-bold ${getTypeColor(disaster.type)}`}>
+            {disaster.name}
+          </h2>
+          {detail?.disaster?.disaster_start_date && (
+            <div className="flex items-center gap-2 text-gray-600">
+              <Calendar className="w-4 h-4" />
+              <span className="text-sm">
+                {formatDate(detail.disaster.disaster_start_date)}
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Center Summary & Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
         <div className="md:col-span-1">
-          <EvacuationCenterNameCard name={centerName} barangay={centerBarangay} />
+          <EvacuationCenterNameCard
+            name={centerName}
+            barangay={centerBarangay}
+          />
           <div className="flex flex-col gap-6 mt-5">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <RegisteredFamiliesCard count={familiesCount} />
@@ -508,7 +550,9 @@ if (!detail || !statistics) return <div className="p-6">Loading...</div>;
         </div>
         <Card className="md:col-span-1 shadow-sm border border-border">
           <CardHeader className="pb-2">
-            <CardTitle className="text-xl font-bold leading-tight mb-0">Evacuees Statistics</CardTitle>
+            <CardTitle className="text-xl font-bold leading-tight mb-0">
+              Evacuees Statistics
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <EvacueeStatisticsChart data={chartData} />
@@ -522,7 +566,9 @@ if (!detail || !statistics) return <div className="p-6">Loading...</div>;
           <div className="flex items-center justify-between">
             <h3 className="text-2xl font-bold">
               Registered Evacuees
-              <span className="ml-2 text-md text-muted-foreground">(per Family)</span>
+              <span className="ml-2 text-md text-muted-foreground">
+                (per Family)
+              </span>
             </h3>
           </div>
 
@@ -531,7 +577,7 @@ if (!detail || !statistics) return <div className="p-6">Loading...</div>;
               <Input
                 placeholder="Search"
                 value={search}
-                onChange={e => setSearch(e.target.value)}
+                onChange={(e) => setSearch(e.target.value)}
                 className="w-full border-border"
               />
             </div>
@@ -547,18 +593,31 @@ if (!detail || !statistics) return <div className="p-6">Loading...</div>;
             <Table>
               <TableHeader className="bg-gray-50">
                 <TableRow>
-                  <TableHead className="text-left font-semibold">Family Head</TableHead>
-                  <TableHead className="text-left font-semibold">Barangay</TableHead>
-                  <TableHead className="text-left font-semibold">Total Individuals</TableHead>
-                  <TableHead className="text-left font-semibold">Room Name</TableHead>
-                  <TableHead className="text-left font-semibold">Decampment</TableHead>
+                  <TableHead className="text-left font-semibold">
+                    Family Head
+                  </TableHead>
+                  <TableHead className="text-left font-semibold">
+                    Barangay
+                  </TableHead>
+                  <TableHead className="text-left font-semibold">
+                    Total Individuals
+                  </TableHead>
+                  <TableHead className="text-left font-semibold">
+                    Room Name
+                  </TableHead>
+                  <TableHead className="text-left font-semibold">
+                    Decampment
+                  </TableHead>
                   <TableHead />
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {paginatedEvacuees.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                    <TableCell
+                      colSpan={6}
+                      className="text-center text-muted-foreground py-8"
+                    >
                       No results.
                     </TableCell>
                   </TableRow>
@@ -569,11 +628,21 @@ if (!detail || !statistics) return <div className="p-6">Loading...</div>;
                       className="cursor-pointer hover:bg-gray-50"
                       onClick={() => handleRowClick(evac.id)}
                     >
-                      <TableCell className="text-foreground font-medium">{evac.family_head_full_name}</TableCell>
-                      <TableCell className="text-foreground">{evac.barangay}</TableCell>
-                      <TableCell className="text-foreground">{evac.total_individuals.toLocaleString()}</TableCell>
-                      <TableCell className="text-foreground">{evac.room_name}</TableCell>
-                      <TableCell className="text-foreground">{evac.decampment_timestamp || "—"}</TableCell>
+                      <TableCell className="text-foreground font-medium">
+                        {evac.family_head_full_name}
+                      </TableCell>
+                      <TableCell className="text-foreground">
+                        {evac.barangay}
+                      </TableCell>
+                      <TableCell className="text-foreground">
+                        {evac.total_individuals.toLocaleString()}
+                      </TableCell>
+                      <TableCell className="text-foreground">
+                        {evac.room_name}
+                      </TableCell>
+                      <TableCell className="text-foreground">
+                        {evac.decampment_timestamp || "—"}
+                      </TableCell>
                       <TableCell className="flex justify-end items-center text-foreground">
                         <ArrowRight className="w-4 h-4 text-muted-foreground" />
                       </TableCell>
@@ -594,46 +663,49 @@ if (!detail || !statistics) return <div className="p-6">Loading...</div>;
               onPageChange={setPage}
               rowsPerPage={rowsPerPage}
               totalRows={totalRows}
-              onRowsPerPageChange={value => setRowsPerPage(Number(value))}
+              onRowsPerPageChange={(value) => setRowsPerPage(Number(value))}
             />
           </div>
 
-<FamilyDetailsModal
-  isOpen={!!selectedFamily}
-  onClose={handleCloseModal}
-  evacuee={selectedFamily}
-  centerName={selectedFamily?.view_family?.evacuation_center_name || ""}
-  onEditMember={handleEditMember}
-/>
+          <FamilyDetailsModal
+            isOpen={!!selectedFamily}
+            onClose={handleCloseModal}
+            evacuee={selectedFamily}
+            centerName={
+              selectedFamily?.view_family?.evacuation_center_name || ""
+            }
+            onEditMember={handleEditMember}
+          />
 
-<RegisterEvacueeModal
-  isOpen={evacueeModalOpen}
-  onClose={handleEvacueeModalClose}
-  mode={evacueeModalMode}
-  formData={formData}
-  onFormChange={handleFormInputChange}
-  onVulnerabilityChange={handleVulnerabilityChange}
-  onSave={handleRegisterEvacuee}
-  onFamilyHeadSearch={handleFamilyHeadSearchClick}
-  centerId={centerId} 
-/>
+          <RegisterEvacueeModal
+            isOpen={evacueeModalOpen}
+            onClose={handleEvacueeModalClose}
+            mode={evacueeModalMode}
+            formData={formData}
+            onFormChange={handleFormInputChange}
+            onVulnerabilityChange={handleVulnerabilityChange}
+            onSave={handleRegisterEvacuee}
+            onFamilyHeadSearch={handleFamilyHeadSearchClick}
+            centerId={centerId}
+          />
 
-<SearchEvacueeModal
-  isOpen={showSearchModal}
-  onClose={() => setShowSearchModal(false)}
-  searchName={searchName}
-  onSearchChange={handleSearchChange}
-  searchResults={searchResults}
-  onSelectEvacuee={handleSelectEvacuee}
-  onManualRegister={handleManualRegister}
-/>
-            <FamilyHeadSearchModal
-              isOpen={showFamilyHeadSearchModal}
-              onClose={() => setShowFamilyHeadSearchModal(false)}
-              searchTerm={familyHeadSearchTerm}
-              onSearchChange={handleFamilyHeadSearchChange}
-              searchResults={familyHeadSearchResults}
-              onSelectFamilyHead={handleFamilyHeadSelect}
+          <SearchEvacueeModal
+            isOpen={showSearchModal}
+            onClose={() => setShowSearchModal(false)}
+            searchName={searchName}
+            onSearchChange={handleSearchChange}
+            searchResults={searchResults}
+            onSelectEvacuee={handleSelectEvacuee}
+            onManualRegister={handleManualRegister}
+          />
+          <FamilyHeadSearchModal
+            isOpen={showFamilyHeadSearchModal}
+            onClose={() => setShowFamilyHeadSearchModal(false)}
+            searchTerm={familyHeadSearchTerm}
+            onSearchChange={handleFamilyHeadSearchChange}
+            searchResults={familyHeadSearchResults}
+            onSelectFamilyHead={handleFamilyHeadSelect}
+            loading={fhLoading}
           />
         </div>
       </div>

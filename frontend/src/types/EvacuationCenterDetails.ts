@@ -1,11 +1,12 @@
 //EvacuationCenterDetails.ts
+
 export type EvacuationCenterDetail = {
   disaster: {
     disaster_types_id: number;
     disaster_type_name: string;
     disasters_id: number;
     disaster_name: string;
-    disaster_start_date: string; // NOT DONE WRONG OUTPUT
+    disaster_start_date: string; 
     disaster_end_date: string | null;
   };
   evacuation_center: {
@@ -81,7 +82,6 @@ export type FamilyEvacueeInformation = {
   };
 };
 
-// Define this above or in your types file
 export interface Evacuee {
   evacuee_resident_id: number;
   first_name: string;
@@ -91,6 +91,7 @@ export interface Evacuee {
   birthdate: string;
   sex: string;
   barangay_of_origin: string;
+  barangay_name?: string | null;
   marital_status: string;
   educational_attainment: string;
   school_of_origin: string;
@@ -107,21 +108,24 @@ export interface Evacuee {
   vulnerability_type_ids: string[];
 }
 
-
-
 export type Barangay = {
-  id: number; 
+  id: number;
   name: string;
+};
+
+export type RoomOption = {
+  id: number;
+  room_name: string;
 };
 
 export type RegisterEvacuee = {
   first_name: string;
   middle_name: string;
   last_name: string;
-  suffix?: string;
+  suffix?: string | null;
   birthdate: string;
   sex: string;
-  barangay_of_origin: string;
+  barangay_of_origin: number;
   marital_status: string;
   educational_attainment: string;
   school_of_origin?: string;
@@ -142,4 +146,42 @@ export type RegisterEvacuee = {
 
   ec_rooms_id: number;
   disaster_evacuation_event_id: number;
+};
+
+export type FamilyHeadResult = {
+  family_head_id: number;
+  family_head_full_name: string;
+  barangay: string;
+  barangay_id: number | null;
+  purok: string | null;
+  evacuation_room: string | null;
+};
+
+export type EditEvacueeApi = {
+  first_name: string;
+  middle_name?: string | null;
+  last_name: string;
+  suffix?: string | null;
+  birthdate?: string | null; 
+  sex: string; 
+  barangay_of_origin?: number | null;
+  // evacuee_residents fields
+  marital_status?: string | null;
+  educational_attainment?: string | null;
+  school_of_origin?: string | null;
+  occupation?: string | null;
+  purok?: string | number | null;
+  relationship_to_family_head: string; 
+  // head/registration helpers
+  family_head_id?: number | null; 
+  family_head_full_name?: string | null;
+  ec_rooms_id?: number | null; 
+  room_name?: string | null; 
+  // vulnerabilities (IDs like 4=PWD, 5=Pregnant, 6=Lactating, etc.)
+  vulnerability_type_ids?: number[];
+};
+
+export type SelectedEvacuee = {
+  id: number; 
+  registration_ec_rooms_id: number | null;
 };
