@@ -392,7 +392,7 @@ export default function RoleModuleConfig() {
         }
     };
     
-    // Handle delete role
+    // Handle delete role with user-friendly error
     const handleDeleteRole = async (roleId: number) => {
         try {
             const response = await fetch(`/api/v1/roles/${roleId}`, {
@@ -401,16 +401,21 @@ export default function RoleModuleConfig() {
             });
 
             if (!response.ok) {
-                throw new Error('Failed to delete role');
+                const errorData = await response.json().catch(() => ({}));
+                let errorMsg = 'Failed to delete role';
+                if (errorData && errorData.message) {
+                    errorMsg = errorData.message;
+                }
+                alert(errorMsg);
+                return;
             }
 
             // Refresh roles list
             await fetchRoles();
             setDeleteConfirmRole(null);
-            
         } catch (err) {
             console.error('Error deleting role:', err);
-            // You could add error state handling here
+            alert('An error occurred while deleting the role.');
         }
     };
     

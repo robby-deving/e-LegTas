@@ -304,7 +304,7 @@ const login = async (req, res) => {
       return res.status(500).json({ message: 'Failed to issue refresh token' });
     }
     setRefreshTokenCookie(res, refreshToken, expiresAt);
-    // Step 5: Return user data and access token
+    // Step 5: Return user data and Supabase access token
     const responseData = {
       user: {
         user_id: userData.id,
@@ -316,7 +316,7 @@ const login = async (req, res) => {
         first_name: userData.users_profile.residents?.first_name,
         last_name: userData.users_profile.residents?.last_name,
       },
-      token: authData.session?.access_token || ''
+      token: authData.session?.access_token || '' // Always use Supabase access token
     };
     console.log('Login successful for employee:', employeeNumber);
     res.status(200).json(responseData);
@@ -325,7 +325,7 @@ const login = async (req, res) => {
     res.status(500).json({ message: 'Internal server error', error: error.message });
   }
 };
-// Refresh endpoint with JWT issuing logic
+// Refresh endpoint with Supabase access token issuing logic
 const refresh = async (req, res) => {
   try {
     console.log('--- REFRESH ENDPOINT DEBUG ---');
@@ -363,20 +363,19 @@ const refresh = async (req, res) => {
       console.log('User not found');
       return res.status(401).json({ message: 'User not found' });
     }
-    // Issue new JWT access token
-    const payload = {
-      user_id: userData.id,
-      email: userData.users_profile.email,
-      role_id: userData.users_profile.role_id,
-      auth_id: userData.users_profile.user_id
-    };
-    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
-    console.log('New JWT issued for user:', payload);
-    return res.status(200).json({
-      success: true,
-      token,
-      user: payload
+    // Get a new Supabase access token for the user
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.generateLink({
+      type: 'magiclink',
+      email: userData.users_profile.email
     });
+    if (authError || !authData) {
+      console.log('Failed to generate new Supabase access token');
+      return res.status(500).json({ message: 'Failed to generate new access token', error: authError?.message });
+    }
+    // Note: Supabase admin API does not provide a direct way to issue a new access token for a user.
+    // You may need to use a custom refresh flow or re-authenticate the user.
+    // For now, return an error to indicate this limitation.
+    return res.status(501).json({ message: 'Refresh with Supabase access token is not fully implemented. See backend code for details.' });
   } catch (error) {
     console.error('Refresh error:', error);
     return res.status(500).json({ message: 'Internal server error', error: error.message });

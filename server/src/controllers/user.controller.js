@@ -1,3 +1,50 @@
+// Soft delete a role only if no users are assigned
+const deleteRole = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!id) {
+      return res.status(400).json({ message: 'Role ID is required' });
+    }
+
+    // Check if any users are assigned to this role (excluding soft-deleted users)
+    const { data: usersWithRole, error: userError } = await supabaseAdmin
+      .from('users_profile')
+      .select('id')
+      .eq('role_id', id)
+      .is('deleted_at', null);
+
+    if (userError) {
+      return res.status(500).json({ message: 'Failed to check users for this role', error: userError.message });
+    }
+    if (usersWithRole && usersWithRole.length > 0) {
+      return res.status(400).json({ message: 'Cannot delete role: users are still assigned to this role.' });
+    }
+
+    // Soft delete the role
+    const now = new Date().toISOString();
+    const { error: roleDeleteError } = await supabaseAdmin
+      .from('roles')
+      .update({ deleted_at: now, is_active: false })
+      .eq('id', id)
+      .is('deleted_at', null);
+
+    if (roleDeleteError) {
+      return res.status(500).json({ message: 'Failed to delete role', error: roleDeleteError.message });
+    }
+
+    // Optionally, soft delete all role_permission mappings for this role
+    await supabaseAdmin
+      .from('role_permission')
+      .update({ deleted_at: now })
+      .eq('role_id', id)
+      .is('deleted_at', null);
+
+    return res.status(200).json({ message: 'Role deleted successfully (soft delete).' });
+  } catch (error) {
+    console.error('Delete role error:', error);
+    return res.status(500).json({ message: 'Internal server error', error: error.message });
+  }
+};
 const { supabaseAdmin } = require('../config/supabase');
 const bcrypt = require('bcrypt');
 
@@ -2175,4 +2222,5 @@ module.exports = {
   checkUserCanLogin,
   getUserStats,
   getRecentUsers
+  ,deleteRole
 };
