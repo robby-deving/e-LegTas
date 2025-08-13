@@ -1,7 +1,7 @@
 // EvacuationCenterDetail.tsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ChevronRight, Calendar, ArrowRight } from "lucide-react";
+import { ChevronRight, Calendar, ArrowRight, ArrowUpDown } from "lucide-react";
 import axios from "axios";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
@@ -15,7 +15,7 @@ import { EvacuationCenterNameCard } from "../components/cards/EvacuationCenterNa
 import EvacueeStatisticsChart from "../components/EvacueeStatisticsChart";
 import { getTypeColor, getTagColor } from "@/constants/disasterTypeColors";
 import { decodeId } from "@/utils/secureId";
-import type { EvacuationCenterDetail, EvacueeStatistics, FamilyEvacueeInformation, RegisterEvacuee, FamilyMember, FamilyHeadResult, EditEvacueeApi, SelectedEvacuee } from "@/types/EvacuationCenterDetails";
+import type { EvacuationCenterDetail, EvacueeStatistics, FamilyEvacueeInformation, RegisterEvacuee, FamilyMember, FamilyHeadResult, EditEvacueeApi, SelectedEvacuee,  } from "@/types/EvacuationCenterDetails";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { encodeId } from "@/utils/secureId";
 import { formatDate } from "@/utils/dateFormatter";
@@ -25,24 +25,91 @@ import { SearchEvacueeModal } from "../components/modals/SearchEvacueeModal";
 import { FamilyHeadSearchModal } from "../components/modals/FamilyHeadSearchModal";
 import { differenceInYears } from "date-fns";
 import { mapEditPayloadToForm, mapSearchPayloadToForm } from "@/utils/mapEvacueePayload";
+import type { SortKey, SortState } from "@/types/EvacuationCenterDetails";
 
 export default function EvacuationCenterDetail() {
   const navigate = useNavigate();
-  const { id: encodedDisasterId, disasterEvacuationEventId: encodedCenterId } =
-    useParams();
+  const { id: encodedDisasterId, disasterEvacuationEventId: encodedCenterId } = useParams();
   const disasterId = decodeId(encodedDisasterId!);
   const centerId = decodeId(encodedCenterId!);
   const [detail, setDetail] = useState<EvacuationCenterDetail | null>(null);
   const [statistics, setStatistics] = useState<EvacueeStatistics | null>(null);
   const [evacuees, setEvacuees] = useState<FamilyEvacueeInformation[]>([]);
-  const [selectedFamily, setSelectedFamily] =
-    useState<FamilyEvacueeInformation | null>(null);
+  const [selectedFamily, setSelectedFamily] = useState<FamilyEvacueeInformation | null>(null);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [selectedEvacuee, setSelectedEvacuee] =
-    useState<SelectedEvacuee | null>(null);
+  useEffect(() => setPage(1), [search, rowsPerPage]);
+  const [selectedEvacuee, setSelectedEvacuee] = useState<SelectedEvacuee | null>(null);
   const [searchResults, setSearchResults] = useState<any[]>([]);
+
+  // --- sorting state & helpers ---
+  const [sort, setSort] = useState<SortState>(null);
+  const toggleSort = (key: SortKey) => {
+    setSort((prev) => {
+      if (!prev || prev.key !== key) return { key, dir: "asc" };
+      if (prev.dir === "asc") return { key, dir: "desc" };
+      return null; 
+    });
+    setPage(1); 
+  };
+
+  // Filter Registered Evacuees Table
+  const sortRows = (rows: FamilyEvacueeInformation[], s: SortState) => {
+    if (!s) return rows;
+    const { key, dir } = s;
+    const factor = dir === "asc" ? 1 : -1;
+
+    return [...rows].sort((a, b) => {
+      // numeric
+      if (key === "total_individuals") {
+        const res = (a.total_individuals ?? 0) - (b.total_individuals ?? 0);
+        return res * factor;
+      }
+
+    // date — keep nulls LAST in both asc and desc
+    if (key === "decampment_timestamp") {
+      const aNull = !a.decampment_timestamp;
+      const bNull = !b.decampment_timestamp;
+      if (aNull && bNull) return 0;
+      if (aNull) return 1;   
+      if (bNull) return -1;  
+
+      const ta = new Date(a.decampment_timestamp!).getTime();
+      const tb = new Date(b.decampment_timestamp!).getTime();
+      return (ta - tb) * factor;
+    }
+
+    // text (case-insensitive) — e.g., family_head_full_name
+    const va = String((a as any)[key] ?? "");
+    const vb = String((b as any)[key] ?? "");
+    return va.localeCompare(vb, undefined, { sensitivity: "base" }) * factor;
+  });
+};
+
+// Gather all evacuee IDs currently shown in the Registered Evacuees table
+const registeredEvacueeIds = useMemo(() => {
+  const ids = new Set<number>();
+  for (const fam of evacuees) {
+    const members = fam?.list_of_family_members?.family_members ?? [];
+    for (const m of members as any[]) {
+      if (typeof m?.evacuee_resident_id === "number") ids.add(m.evacuee_resident_id);
+      if (typeof m?.evacuee_id === "number") ids.add(m.evacuee_id);
+    }
+  }
+  return ids;
+}, [evacuees]);
+
+// latest registration time in a family (used for default ordering)
+const getRegisteredAt = (f: FamilyEvacueeInformation) => {
+  const members = f?.list_of_family_members?.family_members ?? [];
+  let maxTs = Number.NEGATIVE_INFINITY;
+  for (const m of members as any[]) {
+    const t = Date.parse(m?.arrival_timestamp ?? "");
+    if (!Number.isNaN(t)) maxTs = Math.max(maxTs, t);
+  }
+  return maxTs; // newer first
+};
 
   const chartData = statistics
     ? [
@@ -130,22 +197,42 @@ export default function EvacuationCenterDetail() {
     fetchEvacuees();
   }, [centerId]);
 
-  const filteredEvacuees = Array.isArray(evacuees)
-    ? evacuees.filter(
-        (evac) =>
-          evac.family_head_full_name
-            .toLowerCase()
-            .includes(search.toLowerCase()) ||
-          evac.barangay.toLowerCase().includes(search.toLowerCase())
-      )
-    : [];
+const { paginatedEvacuees, totalRows, totalPages } = useMemo(() => {
+  const base = Array.isArray(evacuees) ? evacuees : [];
 
-  const totalRows = filteredEvacuees.length;
-  const totalPages = Math.ceil(totalRows / rowsPerPage);
-  const paginatedEvacuees = filteredEvacuees.slice(
-    (page - 1) * rowsPerPage,
-    page * rowsPerPage
+  // text search
+  const q = search.trim().toLowerCase();
+  const searched = q
+    ? base.filter(
+        (evac) =>
+          evac.family_head_full_name.toLowerCase().includes(q) ||
+          evac.barangay.toLowerCase().includes(q)
+      )
+    : base;
+
+  // default: newest registrations first
+  const defaultSorted = [...searched].sort(
+    (a, b) => getRegisteredAt(b) - getRegisteredAt(a)
   );
+
+  // apply column sort (if user clicked headers)
+  const sorted = sort ? sortRows(defaultSorted, sort) : defaultSorted;
+
+  // paginate
+  const totalRows = sorted.length;
+  const totalPages = Math.max(1, Math.ceil(totalRows / rowsPerPage));
+  const start = (page - 1) * rowsPerPage;
+  const end = start + rowsPerPage;
+
+  return {
+    paginatedEvacuees: sorted.slice(start, end),
+    totalRows,
+    totalPages,
+  };
+}, [evacuees, search, sort, page, rowsPerPage]);
+
+
+
 
   // Add state for modal mode and form data
   const [evacueeModalOpen, setEvacueeModalOpen] = useState(false);
@@ -479,6 +566,8 @@ export default function EvacuationCenterDetail() {
   const familiesCount = detail.evacuation_summary.total_no_of_family;
   const evacueesCount = detail.evacuation_summary.total_no_of_individuals;
   const capacityCount = detail.evacuation_summary.evacuation_center_capacity;
+  
+
 
   return (
     <div className="text-black p-6 space-y-6">
@@ -589,25 +678,74 @@ export default function EvacuationCenterDetail() {
             </Button>
           </div>
 
-          <div className="rounded-md border border-input">
-            <Table>
+              <div className="rounded-md border border-input">
+                <div className="max-h-[70vh] overflow-x-auto overflow-y-auto pr-2 pb-2 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-corner]:bg-transparent dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500 [scrollbar-width:thin] [scrollbar-color:rgb(209_213_219)_transparent] dark:[scrollbar-color:rgb(115_115_115)_transparent]">
+              <Table className ="text-sm">
               <TableHeader className="bg-gray-50">
                 <TableRow>
+                  {/* Family Head - sortable, static icon */}
                   <TableHead className="text-left font-semibold">
-                    Family Head
+                    <button
+                      type="button"
+                      onClick={() => toggleSort("family_head_full_name")}
+                      className="inline-flex items-center gap-1 hover:text-gray-900"
+                      aria-sort={
+                        sort?.key === "family_head_full_name"
+                          ? sort.dir === "asc"
+                            ? "ascending"
+                            : "descending"
+                          : "none"
+                      }
+                    >
+                      Family Head
+                      <ArrowUpDown className="w-4 h-4 text-muted-foreground" />
+                    </button>
                   </TableHead>
+
+                  {/* Barangay - NOT sortable */}
+                  <TableHead className="text-left font-semibold">Barangay</TableHead>
+
+                  {/* Total Individuals - sortable, static icon */}
                   <TableHead className="text-left font-semibold">
-                    Barangay
+                    <button
+                      type="button"
+                      onClick={() => toggleSort("total_individuals")}
+                      className="inline-flex items-center gap-1 hover:text-gray-900"
+                      aria-sort={
+                        sort?.key === "total_individuals"
+                          ? sort.dir === "asc"
+                            ? "ascending"
+                            : "descending"
+                          : "none"
+                      }
+                    >
+                      Total Individuals
+                      <ArrowUpDown className="w-4 h-4 text-muted-foreground" />
+                    </button>
                   </TableHead>
+
+                  {/* Room Name - NOT sortable */}
+                  <TableHead className="text-left font-semibold">Room Name</TableHead>
+
+                  {/* Decampment - sortable, static icon */}
                   <TableHead className="text-left font-semibold">
-                    Total Individuals
+                    <button
+                      type="button"
+                      onClick={() => toggleSort("decampment_timestamp")}
+                      className="inline-flex items-center gap-1 hover:text-gray-900"
+                      aria-sort={
+                        sort?.key === "decampment_timestamp"
+                          ? sort.dir === "asc"
+                            ? "ascending"
+                            : "descending"
+                          : "none"
+                      }
+                    >
+                      Decampment
+                      <ArrowUpDown className="w-4 h-4 text-muted-foreground" />
+                    </button>
                   </TableHead>
-                  <TableHead className="text-left font-semibold">
-                    Room Name
-                  </TableHead>
-                  <TableHead className="text-left font-semibold">
-                    Decampment
-                  </TableHead>
+
                   <TableHead />
                 </TableRow>
               </TableHeader>
@@ -651,6 +789,7 @@ export default function EvacuationCenterDetail() {
                 )}
               </TableBody>
             </Table>
+          </div>
           </div>
 
           <div className="flex items-center justify-between">
@@ -697,6 +836,7 @@ export default function EvacuationCenterDetail() {
             searchResults={searchResults}
             onSelectEvacuee={handleSelectEvacuee}
             onManualRegister={handleManualRegister}
+            registeredIds={registeredEvacueeIds}
           />
           <FamilyHeadSearchModal
             isOpen={showFamilyHeadSearchModal}

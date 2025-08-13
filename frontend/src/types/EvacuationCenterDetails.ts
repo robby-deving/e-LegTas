@@ -177,7 +177,7 @@ export type EditEvacueeApi = {
   family_head_full_name?: string | null;
   ec_rooms_id?: number | null; 
   room_name?: string | null; 
-  // vulnerabilities (IDs like 4=PWD, 5=Pregnant, 6=Lactating, etc.)
+  // vulnerabilities
   vulnerability_type_ids?: number[];
 };
 
@@ -185,3 +185,7 @@ export type SelectedEvacuee = {
   id: number; 
   registration_ec_rooms_id: number | null;
 };
+
+export type SortKey = "family_head_full_name" | "total_individuals" | "decampment_timestamp";
+export type SortDir = "asc" | "desc";
+export type SortState = { key: SortKey; dir: SortDir } | null;

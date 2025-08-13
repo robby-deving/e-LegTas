@@ -1,7 +1,9 @@
 // SearchEvacueeModal.tsx
+import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "../ui/dialog";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
+import { DuplicateWarningDialog } from "@/components/modals/DuplicateWarningDialog";
 import type { Evacuee } from "@/types/EvacuationCenterDetails";
 
 interface SearchEvacueeModalProps {
@@ -12,6 +14,7 @@ interface SearchEvacueeModalProps {
   searchResults: Evacuee[];
   onSelectEvacuee: (evacuee: Evacuee) => void;
   onManualRegister: () => void;
+  registeredIds?: Set<number>;
 }
 
 export const SearchEvacueeModal = ({
@@ -21,17 +24,29 @@ export const SearchEvacueeModal = ({
   onSearchChange,
   searchResults,
   onSelectEvacuee,
-  onManualRegister
+  onManualRegister,
+  registeredIds,
 }: SearchEvacueeModalProps) => {
   if (!isOpen) return null;
 
+  const [warnOpen, setWarnOpen] = useState(false);
+  const [conflictName, setConflictName] = useState<string>("");
+
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle className="text-green-700 text-xl font-bold">Search Registered Evacuee</DialogTitle>
+          <DialogTitle className="text-green-700 text-xl font-bold">
+            Search Registered Evacuee
+          </DialogTitle>
           <DialogDescription>
-            Search for an evacuee by name. Select one to register, or proceed with manual registration if not found.
+            Search for an evacuee by name. Select one to register, or proceed
+            with manual registration if not found.
           </DialogDescription>
         </DialogHeader>
 
@@ -45,30 +60,30 @@ export const SearchEvacueeModal = ({
           />
 
           {searchResults.length > 0 ? (
-            <div
-              className="space-y-1 max-h-60 overflow-y-auto pr-2
-                         [&::-webkit-scrollbar]:w-2
-                         [&::-webkit-scrollbar-track]:rounded-full
-                         [&::-webkit-scrollbar-track]:bg-gray-100
-                         [&::-webkit-scrollbar-thumb]:rounded-full
-                         [&::-webkit-scrollbar-thumb]:bg-gray-300
-                         dark:[&::-webkit-scrollbar-track]:bg-neutral-700
-                         dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500"
-            >
-              {searchResults.map((evacuee: Evacuee) => {
-                const fullName = [evacuee.first_name, evacuee.middle_name, evacuee.last_name, evacuee.suffix]
+            <div className="space-y-1 max-h-60 overflow-y-auto pr-2 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500">{searchResults.map((evacuee: Evacuee) => {
+                const fullName = [
+                  evacuee.first_name,
+                  evacuee.middle_name,
+                  evacuee.last_name,
+                  evacuee.suffix,
+                ]
                   .filter(Boolean)
                   .join(" ")
                   .replace(/\s+/g, " ")
                   .trim();
-                const raw = (evacuee as any).barangay_name ?? evacuee.barangay_of_origin ?? "";
+                const raw =
+                  (evacuee as any).barangay_name ??
+                  evacuee.barangay_of_origin ??
+                  "";
                 const barangayLabel = raw
-                  ? (/^\s*(bgy\.?|barangay)\b/i.test(String(raw)) ? String(raw) : `Bgy. ${raw}`)
+                  ? /^\s*(bgy\.?|barangay)\b/i.test(String(raw))
+                    ? String(raw)
+                    : `Bgy. ${raw}`
                   : "Unknown";
 
                 const subline = [
                   barangayLabel,
-                  evacuee.purok ? `Purok ${evacuee.purok}` : null
+                  evacuee.purok ? `Purok ${evacuee.purok}` : null,
                 ]
                   .filter(Boolean)
                   .join(" • ");
@@ -78,21 +93,48 @@ export const SearchEvacueeModal = ({
                     key={evacuee.evacuee_resident_id}
                     type="button"
                     className="w-full text-left cursor-pointer p-2 hover:bg-gray-100 rounded transition-colors"
-                    onClick={() => onSelectEvacuee(evacuee)}
+                    onClick={() => {
+                      const id = Number(evacuee.evacuee_resident_id);
+                      if (registeredIds?.has(id)) {
+                        setConflictName(fullName);
+                        setWarnOpen(true);
+                        return;
+                      }
+                      onSelectEvacuee(evacuee);
+                    }}
                   >
                     <div className="font-medium text-sm">{fullName}</div>
-                    {subline && <div className="text-xs text-gray-500">{subline}</div>}
+                    {subline && (
+                      <div className="text-xs text-gray-500">{subline}</div>
+                    )}
                   </button>
                 );
               })}
             </div>
           ) : searchName.trim() ? (
-            <p className="text-gray-500 text-center text-sm py-4">No results found</p>
+            <p className="text-gray-500 text-center text-sm py-4">
+              No results found
+            </p>
           ) : null}
         </div>
 
+        {/* Reusable duplicate-warning dialog */}
+        <DuplicateWarningDialog
+          open={warnOpen}
+          onOpenChange={setWarnOpen}
+          personName={conflictName}
+          onManualRegister={onManualRegister}
+          centerLabel="this evacuation center"
+          // cancelLabel="Close"         // optional override
+          // proceedLabel="Manual Register" // optional override
+        />
+
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} className="px-6 cursor-pointer">
+          <Button
+            variant="outline"
+            onClick={onClose}
+            className="px-6 cursor-pointer"
+          >
             Cancel
           </Button>
           <Button

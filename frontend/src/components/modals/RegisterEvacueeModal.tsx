@@ -33,9 +33,11 @@ export const RegisterEvacueeModal = ({
   const suffixOptions = ["Jr.", "Sr.", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
   const sexOptions = ["Male", "Female"];
   const maritalStatusOptions = ["Single", "Married", "Widowed", "Separated"];
-  const educationalAttainmentOptions = ["No Formal Education","Elementary Level","Elementary Graduate","High School Level","High School Graduate","Senior High School Level","Senior High School Graduate","Vocational/Technical","College Level","College Graduate","Postgraduate/Master’s Level","Master’s Graduate","Doctorate Level","Doctorate Graduate"];
+  const educationalAttainmentOptions = ["No Formal Education", "Elementary Level", "Elementary Graduate", "High School Level", "High School Graduate", "Senior High School Level", "Senior High School Graduate", "Vocational/Technical", "College Level", "College Graduate", "Postgraduate/Master’s Level", "Master’s Graduate", "Doctorate Level", "Doctorate Graduate"];
   const purokOptions = Array.from({ length: 20 }, (_, i) => (i + 1).toString());
-  const relationshipOptions = ["Head","Spouse","Child","Parent","Sibling","Grandparent","Grandchild","In-law","Relative","Household Member","Boarder","Partner"];
+  const relationshipOptions = ["Head", "Spouse", "Child", "Parent", "Sibling", "Grandparent", "Grandchild", "In-law", "Relative", "Household Member", "Boarder", "Partner"];
+  
+  const isEdit = mode === "edit";
 
   useEffect(() => {
     const fetchBarangays = async () => {
@@ -114,9 +116,7 @@ export const RegisterEvacueeModal = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* First Name * */}
                 <div>
-                  <label className="block text-sm font-medium mb-2">
-                    First Name:<span className="text-red-500">*</span>
-                  </label>
+                  <label className="block text-sm font-medium mb-2">First Name:<span className="text-red-500">*</span></label>
                   <Input
                     placeholder="First Name"
                     value={formData.firstName}
@@ -127,9 +127,7 @@ export const RegisterEvacueeModal = ({
 
                 {/* Middle Name (optional) */}
                 <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Middle Name:
-                  </label>
+                  <label className="block text-sm font-medium mb-2">Middle Name:</label>
                   <Input
                     placeholder="Middle Name"
                     value={formData.middleName}
@@ -139,9 +137,7 @@ export const RegisterEvacueeModal = ({
 
                 {/* Last Name * */}
                 <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Last Name:<span className="text-red-500">*</span>
-                  </label>
+                  <label className="block text-sm font-medium mb-2">Last Name:<span className="text-red-500">*</span></label>
                   <Input
                     placeholder="Last Name"
                     value={formData.lastName}
@@ -152,9 +148,7 @@ export const RegisterEvacueeModal = ({
 
                 {/* Suffix (optional) */}
                 <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Suffix:
-                  </label>
+                  <label className="block text-sm font-medium mb-2">Suffix:</label>
                   <Select
                     value={formData.suffix}
                     onValueChange={(v) => onFormChange("suffix", v)}
@@ -174,9 +168,7 @@ export const RegisterEvacueeModal = ({
 
                 {/* Sex * */}
                 <div className="relative">
-                  <label className="block text-sm font-medium mb-2">
-                    Sex:<span className="text-red-500">*</span>
-                  </label>
+                  <label className="block text-sm font-medium mb-2">Sex:<span className="text-red-500">*</span></label>
                   <Select
                     value={formData.sex}
                     onValueChange={(v) => onFormChange("sex", v)}
@@ -212,9 +204,7 @@ export const RegisterEvacueeModal = ({
 
                 {/* Marital Status * */}
                 <div className="relative">
-                  <label className="block text-sm font-medium mb-2">
-                    Marital Status:<span className="text-red-500">*</span>
-                  </label>
+                  <label className="block text-sm font-medium mb-2">Marital Status:<span className="text-red-500">*</span></label>
                   <Select
                     value={formData.maritalStatus}
                     onValueChange={(v) => onFormChange("maritalStatus", v)}
@@ -250,12 +240,8 @@ export const RegisterEvacueeModal = ({
 
                 {/* Birthday * */}
                 <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Birthday:<span className="text-red-500">*</span>
-                  </label>
-
+                  <label className="block text-sm font-medium mb-2">Birthday:<span className="text-red-500">*</span></label>
                   <div className="relative w-full">
-                    {/* Your styled DatePicker */}
                     <ReactDatePicker
                       wrapperClassName="w-full"
                       popperPlacement="bottom"
@@ -291,10 +277,7 @@ export const RegisterEvacueeModal = ({
 
                 {/* Educational Attainment * */}
                 <div className="relative">
-                  <label className="block text-sm font-medium mb-2">
-                    Educational Attainment:
-                    <span className="text-red-500">*</span>
-                  </label>
+                  <label className="block text-sm font-medium mb-2">Educational Attainment:<span className="text-red-500">*</span></label>
                   <Select
                     value={formData.educationalAttainment}
                     onValueChange={(v) =>
@@ -332,9 +315,7 @@ export const RegisterEvacueeModal = ({
 
                 {/* Occupation (optional) */}
                 <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Occupation:
-                  </label>
+                    <label className="block text-sm font-medium mb-2">Occupation:</label>
                   <Input
                     placeholder="Occupation"
                     value={formData.occupation}
@@ -344,9 +325,7 @@ export const RegisterEvacueeModal = ({
 
                 {/* School of Origin (optional) */}
                 <div>
-                  <label className="block text-sm font-medium mb-2">
-                    School of Origin:
-                  </label>
+                  <label className="block text-sm font-medium mb-2">School of Origin:</label>
                   <Input
                     placeholder="School of Origin"
                     value={formData.schoolOfOrigin}
@@ -366,9 +345,7 @@ export const RegisterEvacueeModal = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Barangay of Origin * */}
                 <div className="relative">
-                  <label className="block text-sm font-medium mb-2">
-                    Barangay of Origin:<span className="text-red-500">*</span>
-                  </label>
+                  <label className="block text-sm font-medium mb-2">Barangay of Origin:<span className="text-red-500">*</span></label>
                   <Select
                     value={formData.barangayOfOrigin}
                     onValueChange={(v) => onFormChange("barangayOfOrigin", v)}
@@ -404,9 +381,7 @@ export const RegisterEvacueeModal = ({
 
                 {/* Purok * */}
                 <div className="relative">
-                  <label className="block text-sm font-medium mb-2">
-                    Purok:<span className="text-red-500">*</span>
-                  </label>
+                  <label className="block text-sm font-medium mb-2">Purok:<span className="text-red-500">*</span></label>
                   <Select
                     value={formData.purok}
                     onValueChange={(v) => onFormChange("purok", v)}
@@ -445,26 +420,34 @@ export const RegisterEvacueeModal = ({
             {/* --- Family Head / Vulnerabilities --- */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-4">
-
                 {/* Is Family Head? * */}
                 <div className="relative">
-                  <label className="block text-sm font-medium mb-2">
-                    Is Family Head?<span className="text-red-500">*</span>
-                  </label>
+                  <label className="block text-sm font-medium mb-2">Is Family Head?<span className="text-red-500">*</span></label>
+
                   <RadioGroup
                     value={formData.isFamilyHead}
-                    onValueChange={(v) => onFormChange("isFamilyHead", v)}
-                    className="flex items-center space-x-4"
+                    // lock the group in Edit mode
+                    onValueChange={
+                      isEdit
+                        ? undefined
+                        : (v) => onFormChange("isFamilyHead", v)
+                    }
+                    className={`flex items-center space-x-4 ${
+                      isEdit ? "opacity-80 cursor-not-allowed" : ""
+                    }`}
+                    aria-disabled={isEdit}
                   >
                     <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="Yes" id="r1" />
-                      <label htmlFor="r1">Yes</label>
+                      <RadioGroupItem value="Yes" id="r1" disabled={isEdit} />
+                      <label htmlFor="r1" className={isEdit ? "text-gray-400" : ""}>Yes</label>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="No" id="r2" />
-                      <label htmlFor="r2">No</label>
+                      <RadioGroupItem value="No" id="r2" disabled={isEdit} />
+                      <label htmlFor="r2" className={isEdit ? "text-gray-400" : ""}>No</label>
                     </div>
                   </RadioGroup>
+
+                  {/* native inputs only enforce "required" in Register mode */}
                   <div className="absolute inset-0 opacity-0 pointer-events-none">
                     <input
                       type="radio"
@@ -472,7 +455,8 @@ export const RegisterEvacueeModal = ({
                       value="Yes"
                       checked={formData.isFamilyHead === "Yes"}
                       onChange={() => {}}
-                      required
+                      required={!isEdit}
+                      disabled={isEdit}
                     />
                     <input
                       type="radio"
@@ -480,6 +464,8 @@ export const RegisterEvacueeModal = ({
                       value="No"
                       checked={formData.isFamilyHead === "No"}
                       onChange={() => {}}
+                      required={!isEdit}
+                      disabled={isEdit}
                     />
                   </div>
                 </div>
@@ -488,9 +474,7 @@ export const RegisterEvacueeModal = ({
                   <>
                     {/* Family Head * (conditional) */}
                     <div className="relative">
-                      <label className="block text-sm font-medium mb-2">
-                        Family Head:<span className="text-red-500">*</span>
-                      </label>
+                      <label className="block text-sm font-medium mb-2">Family Head:<span className="text-red-500">*</span></label>
                       <div className="relative">
                         <Input
                           placeholder="Search Family Head"
@@ -525,10 +509,7 @@ export const RegisterEvacueeModal = ({
 
                     {/* Relationship to Family Head * (conditional) */}
                     <div className="relative">
-                      <label className="block text-sm font-medium mb-2">
-                        Relationship to Family Head:
-                        <span className="text-red-500">*</span>
-                      </label>
+                      <label className="block text-sm font-medium mb-2">Relationship to Family Head:<span className="text-red-500">*</span></label>
                       <Select
                         value={formData.relationshipToFamilyHead}
                         onValueChange={(v) =>
@@ -567,9 +548,7 @@ export const RegisterEvacueeModal = ({
 
               {/* Evacuation Room * */}
               <div className="relative">
-                <label className="block text-sm font-medium mb-2">
-                  Evacuation Room:<span className="text-red-500">*</span>
-                </label>
+                <label className="block text-sm font-medium mb-2">Evacuation Room:<span className="text-red-500">*</span></label>
                 <Select
                   value={formData.searchEvacuationRoom}
                   onValueChange={(v) => onFormChange("searchEvacuationRoom", v)}
@@ -632,12 +611,7 @@ export const RegisterEvacueeModal = ({
                     checked={formData.vulnerabilities.pwd}
                     onCheckedChange={(c) => onVulnerabilityChange("pwd", !!c)}
                   />
-                  <label
-                    htmlFor="pwd"
-                    className="text-sm font-medium leading-none"
-                  >
-                    Person with Disability (PWD)
-                  </label>
+                  <label htmlFor="pwd" className="text-sm font-medium leading-none">Person with Disability (PWD)</label>
                 </div>
 
                 <div className="flex items-center space-x-3">
@@ -648,12 +622,7 @@ export const RegisterEvacueeModal = ({
                       onVulnerabilityChange("pregnant", !!c)
                     }
                   />
-                  <label
-                    htmlFor="pregnant"
-                    className="text-sm font-medium leading-none"
-                  >
-                    Pregnant
-                  </label>
+                  <label htmlFor="pregnant" className="text-sm font-medium leading-none">Pregnant</label>
                 </div>
 
                 <div className="flex items-center space-x-3">
@@ -664,12 +633,7 @@ export const RegisterEvacueeModal = ({
                       onVulnerabilityChange("lactatingMother", !!c)
                     }
                   />
-                  <label
-                    htmlFor="lactating"
-                    className="text-sm font-medium leading-none"
-                  >
-                    Lactating Mother
-                  </label>
+                  <label htmlFor="lactating" className="text-sm font-medium leading-none">Lactating Mother</label>
                 </div>
               </div>
             </div>
