@@ -13,7 +13,7 @@ const barangayRoutes = require('./barangay.routes');
 const authRoutes = require('./auth.routes');
 const userRoutes = require('./user.routes');
 const permissionRoutes = require('./permission.routes');
-const dashboardRoutes = require('./dashboard.routes'); 
+const notificationRoutes = require('./notification.routes'); const dashboardRoutes = require('./dashboard.routes'); 
 
 // Base API path
 const baseAPI = '/api/v1';
@@ -29,6 +29,7 @@ router.use('/disaster-events', disasterEventRoutes);
 router.use('/dashboard', dashboardRoutes);
 router.use('/evacuees', evacueesRoutes);
 router.use('/barangays', barangayRoutes);
+router.use('/notifications', notificationRoutes);
 
 // Health check route
 router.get('/health', (req, res) => {
