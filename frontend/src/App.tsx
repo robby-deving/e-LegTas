@@ -4,7 +4,6 @@ import { selectIsAuthenticated } from './features/auth/authSlice';
 import { PermissionProvider } from './contexts/PermissionContext';
 import TopNav from './components/TopNav';
 import SideNav from './components/SideNav';
-
 import Dashboard from './pages/Dashboard';
 import Map from './pages/Map';
 import EvacuationCenters from './pages/EvacuationCenters';
