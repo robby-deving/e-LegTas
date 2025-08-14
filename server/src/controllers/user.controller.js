@@ -1,3 +1,41 @@
+// Get user counts for all roles (excluding soft-deleted users)
+const getUserCountsByRole = async (req, res) => {
+  try {
+    // Get all roles (active and not soft-deleted)
+    const { data: roles, error: rolesError } = await supabaseAdmin
+      .from('roles')
+      .select('id')
+      .is('deleted_at', null);
+    if (rolesError) {
+      return res.status(500).json({ message: 'Failed to fetch roles', error: rolesError.message });
+    }
+
+    // Get all users (excluding soft-deleted users)
+    const { data: users, error: usersError } = await supabaseAdmin
+      .from('users_profile')
+      .select('role_id')
+      .is('deleted_at', null);
+    if (usersError) {
+      return res.status(500).json({ message: 'Failed to fetch users', error: usersError.message });
+    }
+
+    // Aggregate user counts by role_id
+    const countsMap = {};
+    for (const role of roles) {
+      countsMap[role.id] = 0;
+    }
+    for (const user of users) {
+      if (user.role_id && countsMap.hasOwnProperty(user.role_id)) {
+  countsMap[user.role_id]++;
+      }
+    }
+
+    return res.status(200).json({ roleCounts: countsMap });
+  } catch (error) {
+    console.error('Get user counts by role error:', error);
+    return res.status(500).json({ message: 'Internal server error', error: error.message });
+  }
+};
 // Soft delete a role only if no users are assigned
 const deleteRole = async (req, res) => {
   try {
@@ -1812,8 +1850,28 @@ const getUsersWithRoleFourAndFive = async (req, res) => {
 
     const totalCount = allUsers ? allUsers.length : 0;
 
+    // Normalize shape to match getUsers response
+    const mappedUsers = (usersWithEvacuationCenters || []).map(user => ({
+      user_id: user.id,
+      auth_id: user.users_profile?.user_id || null,
+      first_name: user.users_profile?.residents?.first_name,
+      middle_name: user.users_profile?.residents?.middle_name,
+      last_name: user.users_profile?.residents?.last_name,
+      suffix: user.users_profile?.residents?.suffix,
+      sex: user.users_profile?.residents?.sex,
+      birthdate: user.users_profile?.residents?.birthdate,
+      barangay_of_origin: user.users_profile?.residents?.barangay_of_origin,
+      barangay_of_origin_id: user.users_profile?.residents?.barangays?.id,
+      employee_number: user.employee_number,
+      email: user.users_profile?.email,
+      role_id: user.users_profile?.role_id,
+      role_name: user.users_profile?.roles?.role_name,
+      assigned_evacuation_center: user.assigned_evacuation_center || null,
+      is_active: user.users_profile?.is_active
+    }));
+
     res.status(200).json({
-      users: usersWithEvacuationCenters,
+      users: mappedUsers,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -2221,6 +2279,7 @@ module.exports = {
   deleteUser,
   checkUserCanLogin,
   getUserStats,
-  getRecentUsers
-  ,deleteRole
+  getRecentUsers,
+  deleteRole,
+  getUserCountsByRole
 };

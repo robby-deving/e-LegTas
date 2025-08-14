@@ -209,24 +209,37 @@ const filterUsersByRole = () => {
       }
 
       const roleConfig = getRoleConfig(req.user.role_id);
-      
+
+      // If role isn't in ROLE_CONFIGS, restrict to same-role users only
       if (!roleConfig) {
-        return res.status(403).json({ 
-          message: 'Invalid role configuration',
-          error: 'User role is not properly configured',
-          userRole: req.user.role_id
-        });
+        const originalJson = res.json;
+        res.json = function(data) {
+          if (data && data.users && Array.isArray(data.users)) {
+            data.users = data.users.filter(user => {
+              const userRoleId = user.users_profile?.role_id || user.role_id;
+              return userRoleId === req.user.role_id;
+            });
+          }
+          return originalJson.call(this, data);
+        };
+        req.userFilter = {
+          allowedRoleIds: [req.user.role_id],
+          roleConfig: null
+        };
+        return next();
       }
 
       // Add filter function to response
       const originalJson = res.json;
       res.json = function(data) {
         if (data && data.users && Array.isArray(data.users)) {
-          // Filter users based on role configuration
-          data.users = data.users.filter(user => {
-            const userRoleId = user.users_profile?.role_id || user.role_id;
-            return roleConfig.allowedRoleIds.includes(userRoleId);
-          });
+          // If allowedRoleIds is 'all', do not filter; otherwise filter by list
+          if (Array.isArray(roleConfig.allowedRoleIds)) {
+            data.users = data.users.filter(user => {
+              const userRoleId = user.users_profile?.role_id || user.role_id;
+              return roleConfig.allowedRoleIds.includes(userRoleId);
+            });
+          }
         }
         return originalJson.call(this, data);
       };
@@ -334,7 +347,9 @@ const requireRoleAssignmentPermission = () => {
       const targetRoleId = req.body?.roleId || req.body?.role_id;
       
       if (targetRoleId) {
-        if (!roleConfig.assignableRoleIds.includes(parseInt(targetRoleId))) {
+        const assignable = roleConfig.assignableRoleIds;
+        // If assignable is 'all', allow; otherwise ensure the role ID is whitelisted
+        if (Array.isArray(assignable) && !assignable.includes(parseInt(targetRoleId))) {
           return res.status(403).json({ 
             message: 'Insufficient permissions',
             error: `Cannot assign role ${targetRoleId}. Allowed roles: ${roleConfig.assignableRoleIds.join(', ')}`,

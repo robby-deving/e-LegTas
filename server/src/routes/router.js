@@ -2,10 +2,17 @@ const express = require('express');
 const authRoutes = require('./auth.routes');
 const userRoutes = require('./user.routes');
 const permissionRoutes = require('./permission.routes');
-const { createRole, deleteRole } = require('../controllers/user.controller');
-const { authenticateUser, requireRoleGroup, requireUserManagementAccess } = require('../middleware');
 
+const { authenticateUser, requireRoleGroup, requireUserManagementAccess } = require('../middleware');
 const router = express.Router();
+const { createRole, deleteRole, getUserCountsByRole } = require('../controllers/user.controller');
+
+// User counts by role (GET /api/v1/users/role-counts)
+router.get('/users/role-counts',
+  authenticateUser,
+  requireRoleGroup('SYSTEM_ADMIN_GROUP'),
+  getUserCountsByRole
+);
 const baseAPI = '/api/v1';
 
 // Mount routes
