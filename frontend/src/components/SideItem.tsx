@@ -22,7 +22,7 @@ export default function SideItem({ icon, label, to, collapsed }: SideItemProps) 
             className={`w-6 h-6 object-contain ${isActive ? 'filter brightness-0 invert' : ''}`}
           />
           {!collapsed && (
-            <span className="text-lg font-medium whitespace-nowrap">{label}</span>
+            <span className="text-l font-medium whitespace-nowrap">{label}</span>
           )}
 
           {/* tool tip */}

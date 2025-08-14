@@ -1,12 +1,16 @@
+// app.js
 
+// Import necessary modules
 const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const dotenv = require('dotenv');
 const { router, baseAPI } = require('./routes/router');
 
+// Load environment variables
 dotenv.config();
 
+// Initialize the Express application
 const app = express();
 
 // Environment variables check

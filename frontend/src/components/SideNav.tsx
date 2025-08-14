@@ -76,7 +76,7 @@ export default function SideNav() {
       <div className={`flex items-center gap-3 mb-7 px-3 ${collapsed ? 'justify-center' : ''}`}>
         <img src={logo} alt="Logo" className={`transition-all duration-300 ${collapsed ? 'h-12 w-12' : 'h-12 w-12'}`} />
         {!collapsed && (
-          <h2 className="font-black text-3xl whitespace-nowrap">
+          <h2 className="font-black text-3xl whitespace-nowrap ">
             <span className="text-gray-500">e-</span>
             <span className="text-[#2BB673]">Leg</span>
             <span className="text-[#038B53]">Tas</span>
@@ -98,7 +98,7 @@ export default function SideNav() {
         // All other roles - Show all other menu items
         <>
           <SideItem collapsed={collapsed} icon={mapIcon} label="Map" to="/map" />
-          <SideItem collapsed={collapsed} icon={evacueeIcon} label="Evacuee Informations" to="/evacuee-informations" />
+          <SideItem collapsed={collapsed} icon={evacueeIcon} label="Evacuee Informations" to="/evacuation-information" />
           <SideItem collapsed={collapsed} icon={evacuationCenterIcon} label="Evacuation Centers" to="/evacuation-centers" />
           <SideItem collapsed={collapsed} icon={reportIcon} label="Reports" to="/reports" />
           <SideItem collapsed={collapsed} icon={emergencyHotlineIcon} label="Emergency Hotlines" to="/emergency-hotlines" />
