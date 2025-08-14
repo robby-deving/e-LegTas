@@ -98,7 +98,7 @@ export default function SideNav() {
         // All other roles - Show all other menu items
         <>
           <SideItem collapsed={collapsed} icon={mapIcon} label="Map" to="/map" />
-          <SideItem collapsed={collapsed} icon={evacueeIcon} label="Evacuee Informations" to="/evacuee-informations" />
+          <SideItem collapsed={collapsed} icon={evacueeIcon} label="Evacuee Informations" to="/evacuation-information" />
           <SideItem collapsed={collapsed} icon={evacuationCenterIcon} label="Evacuation Centers" to="/evacuation-centers" />
           <SideItem collapsed={collapsed} icon={reportIcon} label="Reports" to="/reports" />
           <SideItem collapsed={collapsed} icon={emergencyHotlineIcon} label="Emergency Hotlines" to="/emergency-hotlines" />

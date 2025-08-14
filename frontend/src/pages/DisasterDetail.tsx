@@ -1,31 +1,23 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { Input } from "../components/ui/input";
-import {
-  Table,
-  TableHeader,
-  TableRow,
-  TableHead,
-  TableBody,
-  TableCell
-} from "../components/ui/table";
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "../components/ui/table";
 import { ChevronRight, Calendar, ArrowRight } from "lucide-react";
 import { Pagination } from "../components/ui/pagination";
 import { decodeId } from "@/utils/secureId";
-import axios from 'axios';
+import axios from "axios";
 import type { Disaster } from "@/types/disaster";
 import type { ActiveEvacuation } from "@/types/EvacuationCenter";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { formatDate } from "@/utils/dateFormatter";
-import { getTypeColor, getTagColor } from '@/constants/disasterTypeColors';
-
-
+import { getTypeColor, getTagColor } from "@/constants/disasterTypeColors";
+import { encodeId } from "@/utils/secureId";
 
 export default function DisasterDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [evacuationCenters, setCenters] = useState<ActiveEvacuation[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -39,7 +31,7 @@ export default function DisasterDetail() {
     if (storedDisasters) {
       try {
         const parsed: Disaster[] = JSON.parse(storedDisasters);
-        const disasterDetails = parsed.find(d => d.id === disasterId);
+        const disasterDetails = parsed.find((d) => d.id === disasterId);
         if (disasterDetails) setDisaster(disasterDetails);
       } catch (e) {
         console.error("Error parsing disasters from localStorage", e);
@@ -49,8 +41,6 @@ export default function DisasterDetail() {
 
   usePageTitle(disaster?.name ?? "");
 
-  // Filter evacuation centers based on search term
-  // Reset to first page when filtering
   useEffect(() => {
     const fetchEvacuationCenters = async () => {
       if (!disasterId || isNaN(disasterId)) return;
@@ -68,7 +58,6 @@ export default function DisasterDetail() {
     fetchEvacuationCenters();
   }, [disasterId]);
 
-  // Handle rows per page change
   const handleRowsPerPageChange = (value: string) => {
     setRowsPerPage(Number(value));
     setCurrentPage(1);
@@ -78,10 +67,14 @@ export default function DisasterDetail() {
     return <div className="text-red-500 p-6">Disaster not found</div>;
   }
 
- 
-  const filteredCenters = evacuationCenters.filter(center =>
-    center.evacuation_center_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    center.evacuation_center_barangay_name.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredCenters = evacuationCenters.filter(
+    (center) =>
+      center.evacuation_center_name
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
+      center.evacuation_center_barangay_name
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase())
   );
 
   const totalRows = filteredCenters.length;
@@ -93,7 +86,9 @@ export default function DisasterDetail() {
   return (
     <div className="text-black p-6 space-y-6 flex flex-col min-h-screen">
       <div className="space-y-5">
-        <h1 className="text-3xl font-bold text-green-800">Evacuation Information</h1>
+        <h1 className="text-3xl font-bold text-green-800">
+          Evacuation Information
+        </h1>
         <div className="flex items-center text-sm text-gray-600">
           <button
             onClick={() => navigate("/evacuation-information")}
@@ -108,10 +103,16 @@ export default function DisasterDetail() {
 
       <div className="py-3">
         <div className="space-y-3">
-          <div className={`inline-block rounded px-3 py-1 text-sm font-semibold ${getTagColor(disaster.type)}`}>
+          <div
+            className={`inline-block rounded px-3 py-1 text-sm font-semibold ${getTagColor(
+              disaster.type
+            )}`}
+          >
             {disaster.type}
           </div>
-          <h2 className={`text-3xl font-bold ${getTypeColor(disaster.type)}`}>{disaster.name}</h2>
+          <h2 className={`text-3xl font-bold ${getTypeColor(disaster.type)}`}>
+            {disaster.name}
+          </h2>
           <div className="flex items-center gap-2 text-gray-600">
             <Calendar className="w-4 h-4" />
             <span className="text-sm">{formatDate(disaster.start_date)}</span>
@@ -135,45 +136,65 @@ export default function DisasterDetail() {
           </div>
 
           <div className="rounded-md border border-input overflow-x-auto">
-            <Table>
-              <TableHeader className="bg-gray-50">
-                <TableRow>
-                  <TableHead className="text-left">Evacuation Center</TableHead>
-                  <TableHead className="text-left">Barangay</TableHead>
-                  <TableHead className="text-left">Total Families</TableHead>
-                  <TableHead className="text-left">Total Evacuees</TableHead>
-                  <TableHead className="text-left">Camp Manager</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {currentRows.length === 0 ? (
+            <div className="max-h-[70vh] overflow-x-auto overflow-y-auto pr-2 pb-2 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-corner]:bg-transparent dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500 [scrollbar-width:thin] [scrollbar-color:rgb(209_213_219)_transparent] dark:[scrollbar-color:rgb(115_115_115)_transparent]">
+              <Table className="text-sm">
+                <TableHeader className="bg-gray-50">
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-4 text-gray-500">
-                      No evacuation operations found
-                    </TableCell>
+                    <TableHead className="text-left">
+                      Evacuation Center
+                    </TableHead>
+                    <TableHead className="text-left">Barangay</TableHead>
+                    <TableHead className="text-left">Total Families</TableHead>
+                    <TableHead className="text-left">Total Evacuees</TableHead>
+                    <TableHead className="text-left">Camp Manager</TableHead>
                   </TableRow>
-                ) : (
-                  currentRows.map((center) => (
-                    <TableRow
-                      key={center.evacuation_center_id}
-                      className="cursor-pointer hover:bg-gray-50"
-                      onClick={() => navigate(`/evacuation-information/${id}/${center.evacuation_center_id}`)}
-                    >
-                      <TableCell className="text-foreground font-medium">{center.evacuation_center_name}</TableCell>
-                      <TableCell className="text-foreground">{center.evacuation_center_barangay_name}</TableCell>
-                      <TableCell className="text-foreground">{center.total_no_of_family} Family</TableCell>
-                      <TableCell className="text-foreground">
-                        {center.total_no_of_individuals} / {center.evacuation_center_total_capacity} Persons
-                      </TableCell>
-                      <TableCell className="flex items-center justify-between text-foreground">
-                        {center.assigned_user_name}
-                        <ArrowRight className="w-4 h-4 text-muted-foreground" />
+                </TableHeader>
+                <TableBody>
+                  {currentRows.length === 0 ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={5}
+                        className="text-center py-4 text-gray-500"
+                      >
+                        No evacuation operations found
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                  ) : (
+                    currentRows.map((center) => (
+                      <TableRow
+                        key={center.evacuation_center_id}
+                        className="cursor-pointer hover:bg-gray-50"
+                        onClick={() =>
+                          navigate(
+                            `/evacuation-information/${encodeId(
+                              disasterId
+                            )}/${encodeId(center.id)}`
+                          )
+                        }
+                      >
+                        <TableCell className="text-foreground font-medium">
+                          {center.evacuation_center_name}
+                        </TableCell>
+                        <TableCell className="text-foreground">
+                          {center.evacuation_center_barangay_name}
+                        </TableCell>
+                        <TableCell className="text-foreground">
+                          {center.total_no_of_family} Family
+                        </TableCell>
+                        <TableCell className="text-foreground">
+                          {center.total_no_of_individuals} /{" "}
+                          {center.evacuation_center_total_capacity} Persons
+                        </TableCell>
+                        <TableCell className="flex items-center justify-between text-foreground">
+                          {center.assigned_user_name}
+                          <ArrowRight className="w-4 h-4 text-muted-foreground" />
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </div>
 
           <div className="flex items-center justify-between mt-auto pt-4">

@@ -41,9 +41,9 @@ function ProtectedRoute({ children }: ProtectedRouteProps) {
 // Layout Component for authenticated pages
 function AppLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex h-screen w-screen">
+    <div className="flex h-screen w-screen overflow-hidden md:flex-row">
       <SideNav />
-      <div className="flex flex-col flex-1">
+      <div className="flex flex-col flex-1 overflow-hidden">
         <TopNav />
         <div className="flex-1 p-4 overflow-y-auto">
           {children}
@@ -185,6 +185,7 @@ function App() {
             </AppLayout>
           </ProtectedRoute>
         } />
+        
 
         <Route path="/evacuation-information/:id" element={
           <ProtectedRoute>
@@ -193,14 +194,14 @@ function App() {
             </AppLayout>
           </ProtectedRoute>
         } />
-
-        <Route path="/evacuation-information/:disasterName/:centerName" element={
+        <Route path="/evacuation-information/:id/:disasterEvacuationEventId" element={
           <ProtectedRoute>
             <AppLayout>
               <EvacuationCenterDetail />
             </AppLayout>
           </ProtectedRoute>
         } />
+
       </Routes>
     </PermissionProvider>
   );
