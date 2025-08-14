@@ -1,6 +1,6 @@
 // disaster_event.controller.js
 
-const supabase = require('../config/supabase'); // Import the centralized Supabase client
+const { supabase } = require('../config/supabase'); // Import the centralized Supabase client
 // const { logAudit } = require('../utils/auditLogger'); // REMOVED: Import logAudit for auditing
 
 const TABLE_NAME = 'disaster_evacuation_event'; // Main table for this controller

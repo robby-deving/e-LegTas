@@ -1,5 +1,5 @@
 // Import the centralized Supabase client
-const supabase = require('../config/supabase');
+const { supabase } = require('../config/supabase');
 const admin = require('../config/firebase-admin'); // Assume you have a centralized Firebase Admin setup
 
 // Define the table names

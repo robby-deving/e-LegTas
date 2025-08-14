@@ -1,6 +1,6 @@
 // disaster.controller.js
 
-const supabase = require('../config/supabase');
+const { supabase } = require('../config/supabase');
 
 const TABLE_NAME = 'disasters'; 
 

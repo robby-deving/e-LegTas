@@ -1,6 +1,6 @@
 //dashboard.controller.js
 
-const supabase = require('../config/supabase');
+const { supabase } = require('../config/supabase');
 
 // --- Helper for Custom API Errors ---
 class ApiError extends Error {

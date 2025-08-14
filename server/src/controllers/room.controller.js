@@ -1,6 +1,6 @@
 // room.controller.js
 
-const supabase = require('../config/supabase'); // Import the centralized Supabase client
+const { supabase } = require('../config/supabase'); // Import the centralized Supabase client
 
 const TABLE_NAME = 'evacuation_center_rooms'; // IMPORTANT: Ensure this matches your Supabase table name
 

@@ -1,7 +1,7 @@
 // evacuation.controller.js
 
 // Import the centralized Supabase client
-const supabase = require('../config/supabase'); 
+const { supabase } = require('../config/supabase'); 
 
 // Define the table name for evacuation centers
 const TABLE_NAME = 'evacuation_centers'; 

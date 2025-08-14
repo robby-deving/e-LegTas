@@ -6,9 +6,9 @@ import { useEffect, useState, useCallback } from 'react';
 import { Input } from "../../components/ui/input";
 import { Calendar, ExternalLink } from "lucide-react";
 
-import activeEC from '../assets/activeEC.svg';
-import registeredEvacuees from '../assets/registeredEvacuees.svg';
-import registeredFamilies from '../assets/registeredFamilies.svg';
+import activeEC from '../../assets/activeEC.svg';
+import registeredEvacuees from '../../assets/registeredEvacuees.svg';
+import registeredFamilies from '../../assets/registeredFamilies.svg';
 
 import StatCard from '../../components/StatCard';
 import EvacueeStatisticsChart from '../../components/EvacueeStatisticsChart';
