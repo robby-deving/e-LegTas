@@ -12,8 +12,9 @@ const ROLE_CONFIGS = {
     canSeeEvacCenter: true,
     canSelectRole: true,
     canManageEvacCenter: true,
-    allowedRoleIds: [1, 2, 3, 4, 5], // Can see all users
-    assignableRoleIds: [1, 2, 3, 4, 5], // Can assign any role
+    // Allow ALL roles (including newly added roles) instead of a hardcoded list
+    allowedRoleIds: 'all',
+    assignableRoleIds: 'all',
     permissions: ['view_user_management', 'add_user', 'update_user', 'delete_user', 'manage_evacuation_centers']
   },
   BARANGAY_GROUP: {
@@ -475,7 +476,8 @@ const requireUserDataAccess = () => {
         }
 
         // Check if current user can access target user based on role
-        if (!roleConfig.allowedRoleIds.includes(targetUserProfile.role_id)) {
+        const allowed = roleConfig.allowedRoleIds;
+        if (Array.isArray(allowed) && !allowed.includes(targetUserProfile.role_id)) {
           return res.status(403).json({ 
             message: 'Insufficient permissions',
             error: 'Cannot access user with this role',

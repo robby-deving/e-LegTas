@@ -41,6 +41,8 @@ export default function RoleModuleConfig() {
         campManager: 0,
         allUsers: 0
     });
+    // New: user counts by roleId
+    const [userCountsByRole, setUserCountsByRole] = useState<Record<number, number>>({});
     const [rolePermissions, setRolePermissions] = useState<Record<number, number>>({});
     const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
@@ -58,6 +60,12 @@ export default function RoleModuleConfig() {
     const [dropdownOpen, setDropdownOpen] = useState<number | null>(null);
     const [dropdownPosition, setDropdownPosition] = useState<{showAbove: boolean; left: number; top: number} | null>(null);
     const [deleteConfirmRole, setDeleteConfirmRole] = useState<Role | null>(null);
+    // Toast notification state
+    const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+    const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+        setToast({ message, type });
+        window.setTimeout(() => setToast(null), 3000);
+    };
     
     // Get unique permission groups - manually map permissions to groups
     const getPermissionGroup = (permissionName: string): string => {
@@ -121,12 +129,14 @@ export default function RoleModuleConfig() {
             // Filter out System Admin role (id: 1)
             const filteredRoles = (data.roles || []).filter((role: Role) => role.id !== 1);
             setRoles(filteredRoles);
+            return filteredRoles as Role[];
         } catch (err) {
             console.error('Error fetching roles:', err);
+            return [] as Role[];
         }
     };
     
-    // Fetch user statistics
+    // Fetch user statistics (legacy, can be removed if not used elsewhere)
     const fetchUserStats = async () => {
         try {
             const response = await fetch('/api/v1/users/stats', {
@@ -152,6 +162,23 @@ export default function RoleModuleConfig() {
             });
         }
     };
+
+    // Fetch user counts by role from backend
+    const fetchUserCountsByRole = async () => {
+        try {
+            const response = await fetch('/api/v1/users/role-counts', {
+                headers: getAuthHeaders()
+            });
+            if (!response.ok) {
+                throw new Error('Failed to fetch user counts by role');
+            }
+            const data = await response.json();
+            setUserCountsByRole(data.roleCounts || {});
+        } catch (err) {
+            console.error('Error fetching user counts by role:', err);
+            setUserCountsByRole({});
+        }
+    };
     
     // Fetch role permissions count
     const fetchRolePermissions = async (roleId: number) => {
@@ -175,10 +202,31 @@ export default function RoleModuleConfig() {
     useEffect(() => {
         const loadData = async () => {
             setLoading(true);
-            await Promise.all([fetchRoles(), fetchUserStats(), fetchPermissions()]);
+
+            // Load roles first to know which permission counts to fetch
+            const loadedRoles = await fetchRoles();
+
+            // Load other data in parallel
+            await Promise.all([
+                fetchUserStats(),
+                fetchPermissions(),
+                fetchUserCountsByRole()
+            ]);
+
+            // Fetch permission counts per role in parallel before rendering
+            if (loadedRoles && loadedRoles.length > 0) {
+                const counts = await Promise.all(
+                    loadedRoles.map((role) => fetchRolePermissions(role.id))
+                );
+                const permissionsMap: Record<number, number> = {};
+                loadedRoles.forEach((role, idx) => {
+                    permissionsMap[role.id] = counts[idx] || 0;
+                });
+                setRolePermissions(permissionsMap);
+            }
+
             setLoading(false);
         };
-        
         loadData();
     }, []);
     
@@ -186,16 +234,19 @@ export default function RoleModuleConfig() {
     useEffect(() => {
         const loadRolePermissions = async () => {
             if (roles.length > 0) {
-                const permissions: Record<number, number> = {};
-                for (const role of roles) {
-                    permissions[role.id] = await fetchRolePermissions(role.id);
-                }
-                setRolePermissions(permissions);
+                // If all current roles already have counts, skip reloading
+                const hasAllCounts = roles.every((r) => rolePermissions[r.id] !== undefined);
+                if (hasAllCounts) return;
+
+                const entries = await Promise.all(
+                    roles.map(async (role) => [role.id, await fetchRolePermissions(role.id)] as [number, number])
+                );
+                setRolePermissions(Object.fromEntries(entries));
             }
         };
-        
+
         loadRolePermissions();
-    }, [roles]);
+    }, [roles, rolePermissions]);
     
     // Close dropdown when clicking outside
     useEffect(() => {
@@ -280,6 +331,10 @@ export default function RoleModuleConfig() {
         setEditingRole(role);
         
         try {
+            // Ensure the permission catalog is available so modal can reflect selections
+            if (permissions.length === 0) {
+                await fetchPermissions();
+            }
             // Fetch current role permissions
             const response = await fetch(`/api/v1/permissions/role/${role.id}`, {
                 headers: getAuthHeaders()
@@ -367,6 +422,7 @@ export default function RoleModuleConfig() {
             console.log('Sending permission IDs:', permissionIds);
             console.log('All available permissions:', permissions);
 
+            const roleId = editingRole.id;
             const response = await fetch(`/api/v1/permissions/role/${editingRole.id}`, {
                 method: 'PUT',
                 headers: getAuthHeaders(),
@@ -384,6 +440,9 @@ export default function RoleModuleConfig() {
             
             // Refresh roles list
             await fetchRoles();
+            // Refresh permission count for this role
+            const updatedCount = await fetchRolePermissions(roleId);
+            setRolePermissions(prev => ({ ...prev, [roleId]: updatedCount }));
             
         } catch (err) {
             console.error('Error updating role:', err);
@@ -406,16 +465,17 @@ export default function RoleModuleConfig() {
                 if (errorData && errorData.message) {
                     errorMsg = errorData.message;
                 }
-                alert(errorMsg);
+                showToast(errorMsg, 'error');
                 return;
             }
 
             // Refresh roles list
             await fetchRoles();
             setDeleteConfirmRole(null);
+            showToast('Role deleted successfully', 'success');
         } catch (err) {
             console.error('Error deleting role:', err);
-            alert('An error occurred while deleting the role.');
+            showToast('An error occurred while deleting the role.', 'error');
         }
     };
     
@@ -432,15 +492,9 @@ export default function RoleModuleConfig() {
         };
     };
     
-    // Get user count by role
+    // Get user count by role (from backend mapping)
     const getUserCountByRole = (roleId: number) => {
-        switch (roleId) {
-            case 2: return userStats.cdrrmo || 0;
-            case 3: return userStats.cswdo || 0;
-            case 4: 
-            case 5: return userStats.campManager || 0;
-            default: return 0;
-        }
+        return userCountsByRole[roleId] ?? 0;
     };
     
     // Pagination calculations
@@ -824,6 +878,17 @@ export default function RoleModuleConfig() {
                             </button>
                         </div>
                     </div>
+                </div>
+            )}
+
+            {/* Toast Notification */}
+            {toast && (
+                <div
+                    className={`fixed bottom-4 right-4 z-[10000] px-4 py-3 rounded-md shadow-lg text-white ${
+                        toast.type === 'success' ? 'bg-green-600' : toast.type === 'error' ? 'bg-red-600' : 'bg-gray-800'
+                    }`}
+                >
+                    <span className="text-sm font-medium">{toast.message}</span>
                 </div>
             )}
         </div>

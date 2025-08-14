@@ -34,6 +34,9 @@ export default function UserManagement(){
     const hasAddUser = hasPermission('add_user');
     const hasUpdateUser = hasPermission('update_user');
     const hasDeleteUser = hasPermission('delete_user');
+    // Evac center capabilities are derived from granular permissions (no single 'manage_evacuation_centers' permission exists)
+    const canSeeEvacColumn = hasPermission('view_evacuation_centers');
+    const canManageEvacGlobally = hasPermission('create_evacuation_center') || hasPermission('update_evacuation_center') || hasPermission('delete_evacuation_center');
     
     // All useState hooks must be called before any conditional returns
     const [searchTerm, setSearchTerm] = useState('');
@@ -137,7 +140,7 @@ export default function UserManagement(){
 
     // Helper function to determine if evacuation center should be available based on user being edited
     const canManageEvacuationCenterForUser = (targetUserRoleId?: number) => {
-        if (!currentRoleConfig) return false;
+        if (!currentRoleConfig) return canManageEvacGlobally;
         
         // Barangay Group (roles 2 & 3) cannot manage evacuation centers at all
         if (currentRoleConfig.roles.includes(2) || currentRoleConfig.roles.includes(3)) {
@@ -161,7 +164,7 @@ export default function UserManagement(){
 
     // Helper function to get assignable roles for current user
     const getAssignableRoles = () => {
-        if (!currentRoleConfig || !currentRoleConfig.assignableRoleIds) return [];
+        if (!currentRoleConfig || !currentRoleConfig.assignableRoleIds) return roles;
         
         // If "all" is specified, return all roles
         if (currentRoleConfig.assignableRoleIds === "all") {
@@ -376,8 +379,8 @@ export default function UserManagement(){
         );
     }
     
-    // If user doesn't have permission or no role config, show access denied
-    if (!hasViewUserManagement || !currentRoleConfig) {
+    // If user doesn't have permission, show access denied
+    if (!hasViewUserManagement) {
         return (
             <div className="flex items-center justify-center min-h-screen">
                 <div className="text-center">
@@ -428,9 +431,11 @@ export default function UserManagement(){
 
     // Helper function to render table headers dynamically
     const renderTableHeaders = () => {
-        const headers = [];
+        const headers: React.ReactNode[] = [];
+        // Columns are role-driven via currentRoleConfig
+        const columns = currentRoleConfig?.tableColumns || ['user', 'email', 'role'];
         
-        if (currentRoleConfig?.tableColumns.includes('user')) {
+        if (columns.includes('user')) {
             headers.push(
                 <th key="user" className='px-6 py-3 text-left text-base font-medium text-gray-500'>
                     User
@@ -438,7 +443,7 @@ export default function UserManagement(){
             );
         }
         
-        if (currentRoleConfig?.tableColumns.includes('email')) {
+        if (columns.includes('email')) {
             headers.push(
                 <th key="email" className='px-6 py-3 text-left text-base font-medium text-gray-500'>
                     Email
@@ -446,7 +451,7 @@ export default function UserManagement(){
             );
         }
         
-        if (currentRoleConfig?.tableColumns.includes('role')) {
+        if (columns.includes('role')) {
             headers.push(
                 <th key="role" className='px-6 py-3 text-left text-base font-medium text-gray-500'>
                     Role
@@ -454,7 +459,7 @@ export default function UserManagement(){
             );
         }
         
-        if (currentRoleConfig?.tableColumns.includes('evacuation_center')) {
+        if (columns.includes('evacuation_center')) {
             headers.push(
                 <th key="evacuation_center" className='px-6 py-3 text-left text-base font-medium text-gray-500'>
                     Assigned Evacuation Center
@@ -462,7 +467,7 @@ export default function UserManagement(){
             );
         }
         
-        if (currentRoleConfig?.tableColumns.includes('actions')) {
+        if (columns.includes('actions')) {
             headers.push(
                 <th key="actions" className='px-6 py-3 text-right text-base font-medium text-gray-500'>
                     {/* Empty header for actions column */}
@@ -475,9 +480,11 @@ export default function UserManagement(){
 
     // Helper function to render table cells dynamically
     const renderTableCells = (user: User) => {
-        const cells = [];
+        const cells: React.ReactNode[] = [];
+        // Columns are role-driven via currentRoleConfig
+        const columns = currentRoleConfig?.tableColumns || ['user', 'email', 'role'];
         
-        if (currentRoleConfig?.tableColumns.includes('user')) {
+        if (columns.includes('user')) {
             cells.push(
                 <td key="user" className='px-6 py-4 whitespace-nowrap'>
                     <div className='text-base font-medium text-gray-900'>
@@ -487,7 +494,7 @@ export default function UserManagement(){
             );
         }
         
-        if (currentRoleConfig?.tableColumns.includes('email')) {
+        if (columns.includes('email')) {
             cells.push(
                 <td key="email" className='px-6 py-4 whitespace-nowrap'>
                     <div className='text-base text-gray-900'>
@@ -497,7 +504,7 @@ export default function UserManagement(){
             );
         }
         
-        if (currentRoleConfig?.tableColumns.includes('role')) {
+        if (columns.includes('role')) {
             const roleColor = getRoleColor(user.role_id);
             cells.push(
                 <td key="role" className='px-6 py-4 whitespace-nowrap'>
@@ -515,7 +522,7 @@ export default function UserManagement(){
             );
         }
         
-        if (currentRoleConfig?.tableColumns.includes('evacuation_center')) {
+        if (columns.includes('evacuation_center')) {
             cells.push(
                 <td key="evacuation_center" className='px-6 py-4 whitespace-nowrap text-base text-gray-900'>
                     {user.assigned_evacuation_center || 'N/A'}
@@ -523,7 +530,7 @@ export default function UserManagement(){
             );
         }
         
-        if (currentRoleConfig?.tableColumns.includes('actions')) {
+        if (columns.includes('actions')) {
             cells.push(
                 <td key="actions" className='px-6 py-4 whitespace-nowrap text-right text-base font-medium'>
                     <div className="relative">
@@ -586,7 +593,7 @@ export default function UserManagement(){
 
     // Get total column count for table spanning
     const getColumnCount = () => {
-        return currentRoleConfig?.tableColumns.length || 3;
+        return (currentRoleConfig?.tableColumns || ['user', 'email', 'role']).length;
     };
 
     const totalRows = filteredUsers.length;
@@ -873,8 +880,8 @@ export default function UserManagement(){
                         />
                     </div>
                     
-                    {/* Add User Button - Show for users with add_user permission */}
-                    {currentRoleConfig && hasAddUser && (
+                    {/* Add User Button - Show for users with add_user permission (independent of role group) */}
+                    {hasAddUser && (
                         <button
                             onClick={() => setIsAddUserModalOpen(true)}
                             className='inline-flex items-center gap-2 px-4 py-2 text-white font-medium text-base rounded-md hover:opacity-90 transition-opacity focus:outline-none'
