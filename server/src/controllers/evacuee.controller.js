@@ -875,22 +875,19 @@ exports.getEvacueeStatisticsByDisasterEvacuationEventId = async (
  */
 exports.getDisasterEvacuationDetails = async (req, res, next) => {
   const { disasterEvacuationEventId } = req.params;
-  console.log(
-    `[INFO] Fetching details for disasterEvacuationEventId: ${disasterEvacuationEventId}`
-  );
+  console.log(`[INFO] Fetching details for disasterEvacuationEventId: ${disasterEvacuationEventId}`);
 
   try {
-    // 1. Fetch disaster event data
+    // 1) Fetch disaster event + related disaster & EC
     const { data: eventData, error: eventError } = await supabase
       .from("disaster_evacuation_event")
-      .select(
-        `
+      .select(`
         id,
-        evacuation_start_date,
-        evacuation_end_date,
         disasters (
           id,
           disaster_name,
+          disaster_start_date,
+          disaster_end_date,
           disaster_types (
             id,
             name
@@ -900,81 +897,49 @@ exports.getDisasterEvacuationDetails = async (req, res, next) => {
           id,
           name,
           barangay_id,
-          barangays (
-            name
-          )
+          barangays ( name )
         )
-      `
-      )
+      `)
       .eq("id", disasterEvacuationEventId)
       .single();
 
     if (eventError) {
-      console.error(
-        `[ERROR] Supabase error fetching disaster event: ${eventError.message}`
-      );
-      return next(
-        new ApiError("Failed to fetch disaster evacuation event.", 500)
-      );
+      console.error(`[ERROR] Supabase error fetching disaster event: ${eventError.message}`);
+      return next(new ApiError("Failed to fetch disaster evacuation event.", 500));
     }
-
     if (!eventData) {
-      console.warn(
-        `[WARN] No disaster event found for ID: ${disasterEvacuationEventId}`
-      );
+      console.warn(`[WARN] No disaster event found for ID: ${disasterEvacuationEventId}`);
       return next(new ApiError("Disaster evacuation event not found.", 404));
     }
 
-    const {
-      disasters,
-      evacuation_centers,
-      evacuation_start_date,
-      evacuation_end_date,
-    } = eventData;
+    const { disasters, evacuation_centers } = eventData;
 
     if (!disasters || !disasters.disaster_types) {
-      console.error(
-        `[ERROR] Missing disaster or disaster type in disaster data.`
-      );
-      return next(
-        new ApiError("Disaster or disaster type data is incomplete.", 500)
-      );
+      console.error(`[ERROR] Missing disaster or disaster type in disaster data.`);
+      return next(new ApiError("Disaster or disaster type data is incomplete.", 500));
     }
-
     if (!evacuation_centers || !evacuation_centers.barangays) {
       console.error(`[ERROR] Missing evacuation center or barangay data.`);
-      return next(
-        new ApiError("Evacuation center or barangay data is incomplete.", 500)
-      );
+      return next(new ApiError("Evacuation center or barangay data is incomplete.", 500));
     }
 
-    // 2. Fetch evacuation summary
+    // 2) Fetch evacuation summary
     const { data: summary, error: summaryError } = await supabase
       .from("evacuation_summaries")
-      .select(
-        `
-        total_no_of_family,
-        total_no_of_individuals
-      `
-      )
+      .select(`total_no_of_family, total_no_of_individuals`)
       .eq("disaster_evacuation_event_id", disasterEvacuationEventId)
       .single();
 
     if (summaryError) {
-      console.error(
-        `[ERROR] Supabase error fetching evacuation summary: ${summaryError.message}`
-      );
+      console.error(`[ERROR] Supabase error fetching evacuation summary: ${summaryError.message}`);
       return next(new ApiError("Failed to fetch evacuation summary.", 500));
     }
-
     if (!summary) {
-      console.warn(
-        `[WARN] No summary found for disasterEvacuationEventId: ${disasterEvacuationEventId}`
-      );
+      console.warn(`[WARN] No summary found for disasterEvacuationEventId: ${disasterEvacuationEventId}`);
       return next(new ApiError("Evacuation summary not found.", 404));
     }
 
-    // 3. Fetch evacuation center capacity directly from evacuation_centers
+    // 3) Capacity (you can also add total_capacity to the select above to avoid this extra query)
     const { data: centerCapacity, error: capacityError } = await supabase
       .from("evacuation_centers")
       .select("total_capacity")
@@ -982,26 +947,21 @@ exports.getDisasterEvacuationDetails = async (req, res, next) => {
       .single();
 
     if (capacityError) {
-      console.error(
-        `[ERROR] Supabase error fetching center capacity: ${capacityError.message}`
-      );
-      return next(
-        new ApiError("Failed to fetch evacuation center capacity.", 500)
-      );
+      console.error(`[ERROR] Supabase error fetching center capacity: ${capacityError.message}`);
+      return next(new ApiError("Failed to fetch evacuation center capacity.", 500));
     }
 
     const totalCapacity = centerCapacity?.total_capacity || 0;
-    console.log(`[INFO] Fetched EC total capacity: ${totalCapacity}`);
 
-    // 4. Final response structure
+    // 4) Response — use disasters.disaster_start_date / disasters.disaster_end_date
     return res.status(200).json({
       disaster: {
         disaster_types_id: disasters.disaster_types.id,
         disaster_type_name: disasters.disaster_types.name,
         disasters_id: disasters.id,
         disaster_name: disasters.disaster_name,
-        disaster_start_date: evacuation_start_date,
-        disaster_end_date: evacuation_end_date,
+        disaster_start_date: disasters.disaster_start_date, 
+        disaster_end_date: disasters.disaster_end_date,     
       },
       evacuation_center: {
         evacuation_center_id: evacuation_centers.id,

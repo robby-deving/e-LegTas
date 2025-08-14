@@ -7,7 +7,7 @@ import { Button } from "../ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Checkbox } from "../ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
-import { Calendar, X as XIcon } from "lucide-react";
+import { Calendar, X as XIcon, Loader2 } from "lucide-react";
 import ReactDatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import type { Barangay, RoomOption } from "@/types/EvacuationCenterDetails";
@@ -29,6 +29,22 @@ export const RegisterEvacueeModal = ({
   const [rooms, setRooms] = useState<RoomOption[]>([]);
   const [roomsLoading, setRoomsLoading] = useState(false);
   const [roomsError, setRoomsError] = useState<string | null>(null);
+
+  const [saving, setSaving] = useState(false);
+
+  const handleClickSave = async () => {
+    // don’t submit if invalid
+    if (formRef.current && !formRef.current.reportValidity()) return;
+
+    try {
+      setSaving(true);
+      // make sure onSave can be async; if it isn’t, Promise.resolve handles it
+      await Promise.resolve(onSave());
+    } finally {
+      setSaving(false);
+    }
+  };
+
 
   const suffixOptions = ["Jr.", "Sr.", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
   const sexOptions = ["Male", "Female"];
@@ -107,7 +123,7 @@ export const RegisterEvacueeModal = ({
           </DialogDescription>
         </DialogHeader>
         <div className="max-h-[70vh] overflow-y-auto pr-2 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500">
-          <form ref={formRef} className="space-y-8">
+          <form ref={formRef} className="space-y-8" onSubmit={(e) => e.preventDefault()}>
             {/* --- Evacuee Information --- */}
             <div className="space-y-4">
               <h3 className="text-sm font-medium text-gray-400">
@@ -637,25 +653,31 @@ export const RegisterEvacueeModal = ({
                 </div>
               </div>
             </div>
-            <DialogFooter className="flex justify-end space-x-3 pt-2">
-              <Button
-                variant="outline"
-                onClick={onClose}
-                className="px-6 cursor-pointer"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={() => {
-                  if (!formRef.current || formRef.current.reportValidity()) {
-                    onSave();
-                  }
-                }}
-                className="bg-green-700 hover:bg-green-800 text-white px-6 cursor-pointer"
-              >
-                {mode === "register" ? "Register" : "Save"}
-              </Button>
-            </DialogFooter>
+<DialogFooter className="flex justify-end space-x-3 pt-2">
+  <Button
+    type="button"                 // <- important
+    variant="outline"
+    onClick={onClose}
+    disabled={saving}
+    className="px-6 cursor-pointer"
+  >
+    Cancel
+  </Button>
+
+  <Button
+    type="button"                 // <- important
+    onClick={handleClickSave}
+    disabled={saving}
+    className="bg-green-700 hover:bg-green-800 text-white px-6 cursor-pointer disabled:opacity-90"
+    aria-busy={saving}
+  >
+    {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />}
+    {mode === "register"
+      ? (saving ? "Registering..." : "Register")
+      : (saving ? "Saving..." : "Save")}
+  </Button>
+</DialogFooter>
+
           </form>
         </div>
       </DialogContent>
