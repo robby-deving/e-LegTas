@@ -1,22 +1,52 @@
-const { createClient } = require('@supabase/supabase-js');
-const bcrypt = require('bcrypt');
-const dotenv = require('dotenv');
+// Soft delete a role only if no users are assigned
+const deleteRole = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!id) {
+      return res.status(400).json({ message: 'Role ID is required' });
+    }
 
-dotenv.config();
+    // Check if any users are assigned to this role (excluding soft-deleted users)
+    const { data: usersWithRole, error: userError } = await supabaseAdmin
+      .from('users_profile')
+      .select('id')
+      .eq('role_id', id)
+      .is('deleted_at', null);
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (userError) {
+      return res.status(500).json({ message: 'Failed to check users for this role', error: userError.message });
+    }
+    if (usersWithRole && usersWithRole.length > 0) {
+      return res.status(400).json({ message: 'Cannot delete role: users are still assigned to this role.' });
+    }
 
-if (!supabaseUrl || !supabaseServiceKey) {
-  throw new Error('Missing Supabase environment variables. Check your .env file.');
-}
+    // Soft delete the role
+    const now = new Date().toISOString();
+    const { error: roleDeleteError } = await supabaseAdmin
+      .from('roles')
+      .update({ deleted_at: now, is_active: false })
+      .eq('id', id)
+      .is('deleted_at', null);
 
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false
+    if (roleDeleteError) {
+      return res.status(500).json({ message: 'Failed to delete role', error: roleDeleteError.message });
+    }
+
+    // Optionally, soft delete all role_permission mappings for this role
+    await supabaseAdmin
+      .from('role_permission')
+      .update({ deleted_at: now })
+      .eq('role_id', id)
+      .is('deleted_at', null);
+
+    return res.status(200).json({ message: 'Role deleted successfully (soft delete).' });
+  } catch (error) {
+    console.error('Delete role error:', error);
+    return res.status(500).json({ message: 'Internal server error', error: error.message });
   }
-});
+};
+const { supabaseAdmin } = require('../config/supabase');
+const bcrypt = require('bcrypt');
 
 // Generate employee number
 const generateEmployeeNumber = () => {
@@ -333,10 +363,10 @@ const createUser = async (req, res) => {
     const responseData = {
       message: 'User created successfully with login capability',
       user: {
-        id: user.id,
+        user_id: user.id, // Numeric users table id
+        auth_id: authUser.user.id, // Supabase Auth UUID
         employee_number: employeeNumber,
         email: email,
-        auth_user_id: authUser.user.id,
         resident: {
           first_name: firstName,
           middle_name: middleName,
@@ -451,8 +481,27 @@ const getUsers = async (req, res) => {
       return res.status(500).json({ message: 'Failed to count users' });
     }
 
+    // Map users to include user_id and auth_id fields
+    const mappedUsers = usersWithEvacuationCenters.map(user => ({
+      user_id: user.id,
+      auth_id: user.users_profile?.user_id || null,
+      first_name: user.users_profile?.residents?.first_name,
+      middle_name: user.users_profile?.residents?.middle_name,
+      last_name: user.users_profile?.residents?.last_name,
+      suffix: user.users_profile?.residents?.suffix,
+      sex: user.users_profile?.residents?.sex,
+      birthdate: user.users_profile?.residents?.birthdate,
+      barangay_of_origin: user.users_profile?.residents?.barangay_of_origin,
+      barangay_of_origin_id: user.users_profile?.residents?.barangays?.id,
+      employee_number: user.employee_number,
+      email: user.users_profile?.email,
+      role_id: user.users_profile?.role_id,
+      role_name: user.users_profile?.roles?.role_name,
+      assigned_evacuation_center: user.assigned_evacuation_center,
+      is_active: user.users_profile?.is_active
+    }));
     res.status(200).json({
-      users: usersWithEvacuationCenters,
+      users: mappedUsers,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -513,7 +562,26 @@ const getUserById = async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    res.status(200).json({ user });
+    // Map user to include user_id and auth_id fields
+    const mappedUser = {
+      user_id: user.id,
+      auth_id: user.users_profile?.user_id || null,
+      first_name: user.users_profile?.residents?.first_name,
+      middle_name: user.users_profile?.residents?.middle_name,
+      last_name: user.users_profile?.residents?.last_name,
+      suffix: user.users_profile?.residents?.suffix,
+      sex: user.users_profile?.residents?.sex,
+      birthdate: user.users_profile?.residents?.birthdate,
+      barangay_of_origin: user.users_profile?.residents?.barangay_of_origin,
+      barangay_of_origin_id: user.users_profile?.residents?.barangays?.id,
+      employee_number: user.employee_number,
+      email: user.users_profile?.email,
+      role_id: user.users_profile?.role_id,
+      role_name: user.users_profile?.roles?.role_name,
+      assigned_evacuation_center: user.assigned_evacuation_center,
+      is_active: user.users_profile?.is_active
+    };
+    res.status(200).json({ user: mappedUser });
 
   } catch (error) {
     console.error('Get user by ID error:', error);
@@ -781,7 +849,8 @@ const updateUser = async (req, res) => {
     const responseData = {
       message: 'User updated successfully',
       user: {
-        id: parseInt(id),
+        user_id: parseInt(id),
+        auth_id: existingUser.users_profile?.user_id || null,
         employee_number: employeeNumber || existingUser.employee_number,
         email: email,
         role_id: parseInt(roleId),
@@ -824,6 +893,103 @@ const getRoles = async (req, res) => {
 
   } catch (error) {
     console.error('Get roles error:', error);
+    res.status(500).json({ 
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
+const createRole = async (req, res) => {
+  try {
+    const { role_name, permissions } = req.body;
+
+    console.log('Creating role:', role_name);
+    console.log('With permissions:', permissions);
+
+    if (!role_name || !role_name.trim()) {
+      return res.status(400).json({ 
+        message: 'Role name is required'
+      });
+    }
+
+    if (!Array.isArray(permissions)) {
+      return res.status(400).json({ 
+        message: 'Permissions must be an array'
+      });
+    }
+
+    // Create the role first
+    const { data: roleData, error: roleError } = await supabaseAdmin
+      .from('roles')
+      .insert({
+        role_name: role_name.trim(),
+        is_active: true
+      })
+      .select()
+      .single();
+
+    if (roleError) {
+      console.error('Error creating role:', roleError);
+      return res.status(500).json({ 
+        message: 'Failed to create role',
+        error: roleError.message
+      });
+    }
+
+    const roleId = roleData.id;
+    console.log('Created role with ID:', roleId);
+
+    // Add permissions to the role if any are provided
+    if (permissions.length > 0) {
+      // Convert permission names to permission IDs
+      const { data: permissionData, error: permError } = await supabaseAdmin
+        .from('permissions')
+        .select('id, permission_name')
+        .in('permission_name', permissions);
+
+      if (permError) {
+        console.error('Error fetching permissions:', permError);
+        return res.status(500).json({ 
+          message: 'Failed to fetch permissions',
+          error: permError.message
+        });
+      }
+
+      const permissionIds = permissionData.map(p => p.id);
+      console.log('Found permission IDs:', permissionIds);
+
+      if (permissionIds.length > 0) {
+        const rolePermissions = permissionIds.map(permissionId => ({
+          role_id: roleId,
+          permission_id: permissionId
+        }));
+
+        const { error: rolePermError } = await supabaseAdmin
+          .from('role_permission')
+          .insert(rolePermissions);
+
+        if (rolePermError) {
+          console.error('Error adding role permissions:', rolePermError);
+          return res.status(500).json({ 
+            message: 'Role created but failed to add permissions',
+            error: rolePermError.message
+          });
+        }
+      }
+    }
+
+    res.status(201).json({ 
+      message: 'Role created successfully',
+      role: {
+        id: roleId,
+        name: role_name.trim(),
+        permission_count: permissions.length
+      }
+    });
+
+  } catch (error) {
+    console.error('Create role error:', error);
     res.status(500).json({ 
       message: 'Internal server error',
       error: error.message
@@ -2043,6 +2209,7 @@ module.exports = {
   updateUser,
   getUsersByRole,
   getRoles,
+  createRole,
   getEvacuationCenters,
   getBarangays,
   getDisasters,
@@ -2055,4 +2222,5 @@ module.exports = {
   checkUserCanLogin,
   getUserStats,
   getRecentUsers
+  ,deleteRole
 };

@@ -5,8 +5,12 @@ const {
   updateRolePermissions,
   getUserPermissions
 } = require('../controllers/permission.controller');
+const { authenticateUser } = require('../middleware/auth');
 
 const router = express.Router();
+
+// Apply authentication middleware to all permission routes
+router.use(authenticateUser);
 
 // Permission routes
 router.get('/', getPermissions);                    // GET /api/v1/permissions

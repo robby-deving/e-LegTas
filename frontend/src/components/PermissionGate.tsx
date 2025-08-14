@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { usePermission } from '../contexts/PermissionContext';
+import { usePermissions } from '../contexts/PermissionContext';
 
 interface PermissionGateProps {
   permission: string;
@@ -12,7 +12,8 @@ export const PermissionGate: React.FC<PermissionGateProps> = ({
   children, 
   fallback = null 
 }) => {
-  const hasPermission = usePermission(permission);
+  const { hasPermission } = usePermissions();
+  const allowed = hasPermission(permission);
   
-  return hasPermission ? <>{children}</> : <>{fallback}</>;
+  return allowed ? <>{children}</> : <>{fallback}</>;
 };

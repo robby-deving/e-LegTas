@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux'; // Add this import
-import { setCredentials } from '../features/auth/authSlice'; // Add this import
+import { setCredentials } from '../features/auth/authSlice';
 import { usePageTitle } from '../hooks/usePageTitle';
 import unionBackground from '../assets/Union.png';
 import legTasLogo from '../assets/LegTas-Logo.png';
@@ -28,6 +28,7 @@ export default function Login(){
                 headers: {
                     'Content-Type': 'application/json',
                 },
+                credentials: 'include', // Allow cookies to be set by backend
                 body: JSON.stringify({
                     employeeNumber,
                     password,
@@ -45,7 +46,6 @@ export default function Login(){
                 user: data.user,
                 token: data.token,
             }));
-            
             console.log('Login successful', data);
             navigate('/dashboard');
         } catch (error: any) {

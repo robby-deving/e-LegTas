@@ -14,6 +14,8 @@ const authRoutes = require('./auth.routes');
 const userRoutes = require('./user.routes');
 const permissionRoutes = require('./permission.routes');
 const notificationRoutes = require('./notification.routes'); const dashboardRoutes = require('./dashboard.routes'); 
+const { createRole, deleteRole } = require('../controllers/user.controller');
+const { authenticateUser, requireRoleGroup, requireUserManagementAccess } = require('../middleware');
 
 // Base API path
 const baseAPI = '/api/v1';
@@ -30,6 +32,22 @@ router.use('/dashboard', dashboardRoutes);
 router.use('/evacuees', evacueesRoutes);
 router.use('/barangays', barangayRoutes);
 router.use('/notifications', notificationRoutes);
+
+// Role creation route (POST /api/v1/roles)
+router.post('/roles',
+  authenticateUser,
+  requireRoleGroup('SYSTEM_ADMIN_GROUP'),
+  requireUserManagementAccess('add'),
+  createRole
+);
+
+// Role deletion route (DELETE /api/v1/roles/:id)
+router.delete('/roles/:id',
+  authenticateUser,
+  requireRoleGroup('SYSTEM_ADMIN_GROUP'),
+  requireUserManagementAccess('delete'),
+  deleteRole
+);
 
 // Health check route
 router.get('/health', (req, res) => {

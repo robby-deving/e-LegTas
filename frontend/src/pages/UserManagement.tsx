@@ -1,19 +1,20 @@
 import { usePageTitle } from '../hooks/usePageTitle';
 import { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
-import { selectCurrentUser } from '../features/auth/authSlice';
+import { selectCurrentUser, selectToken } from '../features/auth/authSlice';
 import { usePermissions } from '../contexts/PermissionContext';
 import { Search, MoreHorizontal, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 
 interface User {
-    id: number;
+    user_id: number; // Numeric users table id
+    auth_id?: string; // Supabase Auth UUID
     first_name: string;
     middle_name?: string;
     last_name: string;
     suffix?: string;
     sex: string;
     barangay_of_origin: string;
-    barangay_of_origin_id?: number; // Add this to store the barangay ID
+    barangay_of_origin_id?: number;
     employee_number: string;
     birthdate: string;
     email: string;
@@ -27,6 +28,7 @@ export default function UserManagement(){
     
     // All hooks must be called before any conditional logic
     const currentUser = useSelector(selectCurrentUser);
+    const token = useSelector(selectToken);
     const { hasPermission, loading: permissionsLoading } = usePermissions();
     const hasViewUserManagement = hasPermission('view_user_management');
     const hasAddUser = hasPermission('add_user');
@@ -49,6 +51,7 @@ export default function UserManagement(){
     const [barangays, setBarangays] = useState<{id: number; name: string}[]>([]);
     const [evacuationCenters, setEvacuationCenters] = useState<{id: number; name: string}[]>([]);
     const [dropdownOpen, setDropdownOpen] = useState<number | null>(null);
+    const [dropdownPosition, setDropdownPosition] = useState<{showAbove: boolean; left: number; top: number} | null>(null);
     const [deleteConfirmUser, setDeleteConfirmUser] = useState<User | null>(null);
     const [roles, setRoles] = useState<{id: number; name: string}[]>([]);
     const [rolesLoading, setRolesLoading] = useState(true);
@@ -70,6 +73,8 @@ export default function UserManagement(){
     });
     
     // Role configuration - Easy to extend for new roles
+    // Use "all" for allowedRoleIds/assignableRoleIds to automatically include all roles
+    // Use array of specific IDs for restricted access
     const ROLE_CONFIGS = {
         SYSTEM_ADMIN_GROUP: {
             roles: [1],
@@ -77,8 +82,8 @@ export default function UserManagement(){
             canSelectRole: true,
             canManageEvacCenter: true,
             apiEndpoint: 'http://localhost:3000/api/v1/users',
-            allowedRoleIds: [1, 2, 3, 4, 5], // Can see all users
-            assignableRoleIds: [1, 2, 3, 4, 5], // Can assign any role
+            allowedRoleIds: "all", // Can see all users - automatically includes new roles
+            assignableRoleIds: "all", // Can assign any role - automatically includes new roles
             tableColumns: ['user', 'email', 'role', 'evacuation_center', 'actions']
         },
         BARANGAY_GROUP: {
@@ -158,14 +163,38 @@ export default function UserManagement(){
     const getAssignableRoles = () => {
         if (!currentRoleConfig || !currentRoleConfig.assignableRoleIds) return [];
         
-        return roles.filter(role => currentRoleConfig.assignableRoleIds.includes(role.id));
+        // If "all" is specified, return all roles
+        if (currentRoleConfig.assignableRoleIds === "all") {
+            return roles;
+        }
+        
+        // Otherwise, filter by the specified role IDs
+        return roles.filter(role => 
+            Array.isArray(currentRoleConfig.assignableRoleIds) && 
+            currentRoleConfig.assignableRoleIds.includes(role.id)
+        );
+    };
+
+    // Helper function to get headers with authentication
+    const getAuthHeaders = () => {
+        const headers: HeadersInit = {
+            'Content-Type': 'application/json',
+        };
+        
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+        
+        return headers;
     };
 
     // Fetch roles from backend
     const fetchRoles = async () => {
         try {
             setRolesLoading(true);
-            const response = await fetch('http://localhost:3000/api/v1/users/data/roles');
+            const response = await fetch('http://localhost:3000/api/v1/users/data/roles', {
+                headers: getAuthHeaders(),
+            });
             
             if (!response.ok) {
                 throw new Error('Failed to fetch roles');
@@ -192,7 +221,14 @@ export default function UserManagement(){
     const filterUsersByRoleGroup = (allUsers: any[]) => {
         if (!currentRoleConfig) return allUsers;
         
+        // If "all" is specified, return all users
+        if (currentRoleConfig.allowedRoleIds === "all") {
+            return allUsers;
+        }
+        
+        // Otherwise, filter by the specified role IDs
         return allUsers.filter((user: any) => 
+            Array.isArray(currentRoleConfig.allowedRoleIds) && 
             currentRoleConfig.allowedRoleIds.includes(user.role_id)
         );
     };
@@ -204,7 +240,9 @@ export default function UserManagement(){
             try {
                 setLoading(true);
                 const endpoint = getUsersApiEndpoint();
-                const response = await fetch(endpoint);
+                const response = await fetch(endpoint, {
+                    headers: getAuthHeaders(),
+                });
                 
                 if (!response.ok) {
                     throw new Error(`Failed to fetch users: ${response.status}`);
@@ -212,29 +250,10 @@ export default function UserManagement(){
                 
                 const data = await response.json();
                 
-                // Transform the backend data to match frontend format
-                const allTransformedUsers = data.users
-                    .filter((user: any) => user.users_profile && user.users_profile.residents) // Filter out users without complete profile data
-                    .map((user: any) => ({
-                        id: user.id,
-                        first_name: user.users_profile.residents.first_name,
-                        middle_name: user.users_profile.residents.middle_name,
-                        last_name: user.users_profile.residents.last_name,
-                        suffix: user.users_profile.residents.suffix,
-                        sex: user.users_profile.residents.sex,
-                        barangay_of_origin: user.users_profile.residents.barangays?.name || 'Unknown',
-                        barangay_of_origin_id: user.users_profile.residents.barangay_of_origin, // Store the actual ID
-                        employee_number: user.employee_number,
-                        birthdate: user.users_profile.residents.birthdate,
-                        email: user.users_profile.email,
-                        role_id: user.users_profile.role_id,
-                        role_name: user.users_profile.roles?.role_name,
-                        assigned_evacuation_center: user.assigned_evacuation_center || null // Get from backend or null
-                    }));
-                
+                // Use backend user shape directly (already matches User interface)
+                const allTransformedUsers = data.users;
                 // Apply role-based filtering
                 const filteredUsersByRole = filterUsersByRoleGroup(allTransformedUsers);
-                
                 setUsers(filteredUsersByRole);
                 setFilteredUsers(filteredUsersByRole);
                 setError(null);
@@ -280,17 +299,23 @@ export default function UserManagement(){
     useEffect(() => {
         const fetchEvacuationCenters = async () => {
             try {
-                const response = await fetch('http://localhost:3000/api/v1/users/data/evacuation-centers');
+                // Add query parameter to only fetch active evacuation centers (where deleted_at IS NULL)
+                const response = await fetch('http://localhost:3000/api/v1/users/data/evacuation-centers?active=true');
                 
                 if (!response.ok) {
                     throw new Error(`Failed to fetch evacuation centers: ${response.status}`);
                 }
                 
                 const data = await response.json();
-                setEvacuationCenters(data.centers?.map((center: any) => ({
+                // Filter out centers that are unavailable or have deleted_at not null
+                const activeCenters = data.centers?.filter((center: any) => 
+                    !center.deleted_at && center.status === 'Available'
+                ) || [];
+                
+                setEvacuationCenters(activeCenters.map((center: any) => ({
                     id: center.id,
                     name: center.name
-                })) || []);
+                })));
             } catch (err) {
                 console.error('Error fetching evacuation centers:', err);
                 // Set some default evacuation centers if fetch fails
@@ -506,7 +531,9 @@ export default function UserManagement(){
                             <button 
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    setDropdownOpen(dropdownOpen === user.id ? null : user.id);
+                                    const position = getDropdownPosition(e);
+                                    setDropdownOpen(dropdownOpen === user.user_id ? null : user.user_id);
+                                    setDropdownPosition(position);
                                 }}
                                 className='text-gray-400 hover:text-gray-600'
                             >
@@ -514,8 +541,15 @@ export default function UserManagement(){
                             </button>
                         )}
                         
-                        {dropdownOpen === user.id && (
-                            <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 border border-gray-200">
+                        {dropdownOpen === user.user_id && dropdownPosition && (
+                            <div 
+                                className="fixed w-48 bg-white rounded-md shadow-lg border border-gray-200"
+                                style={{
+                                    zIndex: 9999,
+                                    left: `${dropdownPosition.left}px`,
+                                    top: `${dropdownPosition.top}px`
+                                }}
+                            >
                                 {hasUpdateUser && (
                                     <button
                                         onClick={(e) => {
@@ -598,9 +632,7 @@ export default function UserManagement(){
 
             const response = await fetch('http://localhost:3000/api/v1/users', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: getAuthHeaders(),
                 body: JSON.stringify(submitData)
             });
 
@@ -625,35 +657,16 @@ export default function UserManagement(){
                 assigned_evacuation_center: ''
             });
             setIsAddUserModalOpen(false);
-            
+
             // Refresh users list with role-based filtering
             const endpoint = getUsersApiEndpoint();
-            const usersResponse = await fetch(endpoint);
+            const usersResponse = await fetch(endpoint, {
+                headers: getAuthHeaders(),
+            });
             const usersData = await usersResponse.json();
-            
-            // Apply the same transformation as in the initial fetch
-            const allTransformedUsers = usersData.users
-                .filter((user: any) => user.users_profile && user.users_profile.residents)
-                .map((user: any) => ({
-                    id: user.id,
-                    first_name: user.users_profile.residents.first_name,
-                    middle_name: user.users_profile.residents.middle_name,
-                    last_name: user.users_profile.residents.last_name,
-                    suffix: user.users_profile.residents.suffix,
-                    sex: user.users_profile.residents.sex,
-                    barangay_of_origin: user.users_profile.residents.barangays?.name || 'Unknown',
-                    barangay_of_origin_id: user.users_profile.residents.barangay_of_origin, // Store the actual ID
-                    employee_number: user.employee_number,
-                    birthdate: user.users_profile.residents.birthdate,
-                    email: user.users_profile.email,
-                    role_id: user.users_profile.role_id,
-                    role_name: user.users_profile.roles?.role_name,
-                    assigned_evacuation_center: user.assigned_evacuation_center || null
-                }));
-            
+            const allTransformedUsers = usersData.users;
             // Apply role-based filtering
             const filteredUsersByRole = filterUsersByRoleGroup(allTransformedUsers);
-            
             setUsers(filteredUsersByRole);
             setFilteredUsers(filteredUsersByRole);
             
@@ -733,11 +746,9 @@ export default function UserManagement(){
                 ...(formData.password && { password: formData.password })
             };
 
-            const response = await fetch(`http://localhost:3000/api/v1/users/${editingUser.id}`, {
+            const response = await fetch(`http://localhost:3000/api/v1/users/${editingUser.user_id}`, {
                 method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: getAuthHeaders(),
                 body: JSON.stringify(submitData)
             });
 
@@ -751,32 +762,13 @@ export default function UserManagement(){
             
             // Refresh users list with role-based filtering
             const endpoint = getUsersApiEndpoint();
-            const usersResponse = await fetch(endpoint);
+            const usersResponse = await fetch(endpoint, {
+                headers: getAuthHeaders(),
+            });
             const usersData = await usersResponse.json();
-            
-            // Apply the same transformation as in the initial fetch
-            const allTransformedUsers = usersData.users
-                .filter((user: any) => user.users_profile && user.users_profile.residents)
-                .map((user: any) => ({
-                    id: user.id,
-                    first_name: user.users_profile.residents.first_name,
-                    middle_name: user.users_profile.residents.middle_name,
-                    last_name: user.users_profile.residents.last_name,
-                    suffix: user.users_profile.residents.suffix,
-                    sex: user.users_profile.residents.sex,
-                    barangay_of_origin: user.users_profile.residents.barangays?.name || 'Unknown',
-                    barangay_of_origin_id: user.users_profile.residents.barangay_of_origin, // Store the actual ID
-                    employee_number: user.employee_number,
-                    birthdate: user.users_profile.residents.birthdate,
-                    email: user.users_profile.email,
-                    role_id: user.users_profile.role_id,
-                    role_name: user.users_profile.roles?.role_name,
-                    assigned_evacuation_center: user.assigned_evacuation_center || null
-                }));
-            
+            const allTransformedUsers = usersData.users;
             // Apply role-based filtering
             const filteredUsersByRole = filterUsersByRoleGroup(allTransformedUsers);
-            
             setUsers(filteredUsersByRole);
             setFilteredUsers(filteredUsersByRole);
             
@@ -788,11 +780,25 @@ export default function UserManagement(){
         }
     };
 
+    // Function to determine dropdown position
+    const getDropdownPosition = (event: React.MouseEvent) => {
+        const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+        const viewportHeight = window.innerHeight;
+        const dropdownHeight = 100; // Estimated dropdown height
+        
+        return {
+            showAbove: rect.bottom + dropdownHeight > viewportHeight,
+            left: rect.right - 192, // 192px = w-48 (48 * 4px)
+            top: rect.bottom + dropdownHeight > viewportHeight ? rect.top - dropdownHeight : rect.bottom + 8
+        };
+    };
+
     // Handle delete user
     const handleDeleteUser = async (userId: number) => {
         try {
             const response = await fetch(`http://localhost:3000/api/v1/users/${userId}`, {
                 method: 'DELETE',
+                headers: getAuthHeaders(),
             });
 
             if (!response.ok) {
@@ -802,32 +808,15 @@ export default function UserManagement(){
 
             // Refresh users list with role-based filtering
             const endpoint = getUsersApiEndpoint();
-            const usersResponse = await fetch(endpoint);
+            const usersResponse = await fetch(endpoint, {
+                headers: getAuthHeaders(),
+            });
             const usersData = await usersResponse.json();
             
-            // Apply the same transformation as in the initial fetch
-            const allTransformedUsers = usersData.users
-                .filter((user: any) => user.users_profile && user.users_profile.residents)
-                .map((user: any) => ({
-                    id: user.id,
-                    first_name: user.users_profile.residents.first_name,
-                    middle_name: user.users_profile.residents.middle_name,
-                    last_name: user.users_profile.residents.last_name,
-                    suffix: user.users_profile.residents.suffix,
-                    sex: user.users_profile.residents.sex,
-                    barangay_of_origin: user.users_profile.residents.barangays?.name || 'Unknown',
-                    barangay_of_origin_id: user.users_profile.residents.barangay_of_origin,
-                    employee_number: user.employee_number,
-                    birthdate: user.users_profile.residents.birthdate,
-                    email: user.users_profile.email,
-                    role_id: user.users_profile.role_id,
-                    role_name: user.users_profile.roles?.role_name,
-                    assigned_evacuation_center: user.assigned_evacuation_center || null
-                }));
-            
+            // Use backend user shape directly
+            const allTransformedUsers = usersData.users;
             // Apply role-based filtering
             const filteredUsersByRole = filterUsersByRoleGroup(allTransformedUsers);
-            
             setUsers(filteredUsersByRole);
             setFilteredUsers(filteredUsersByRole);
             setDeleteConfirmUser(null);
@@ -918,45 +907,43 @@ export default function UserManagement(){
                     }}
                 >
                     <table className='min-w-full'>
-                        <thead className='bg-white border-b border-gray-200'>
-                            <tr>
-                                {renderTableHeaders()}
-                            </tr>
-                        </thead>
-                        <tbody className='bg-white'>
-                            {loading ? (
+                            <thead className='bg-white border-b border-gray-200'>
                                 <tr>
-                                    <td colSpan={getColumnCount()} className='px-6 py-8 text-center text-gray-500'>
-                                        Loading users...
-                                    </td>
+                                    {renderTableHeaders()}
                                 </tr>
-                            ) : error ? (
-                                <tr>
-                                    <td colSpan={getColumnCount()} className='px-6 py-8 text-center text-red-500'>
-                                        Error: {error}
-                                    </td>
-                                </tr>
-                            ) : paginatedUsers.length === 0 ? (
-                                <tr>
-                                    <td colSpan={getColumnCount()} className='px-6 py-8 text-center text-gray-500'>
-                                        {searchTerm ? 'No users found matching your search.' : 'No users found.'}
-                                    </td>
-                                </tr>
-                            ) : (
-                                paginatedUsers.map((user, index) => (
-                                    <tr 
-                                        key={user.id} 
-                                        className={`hover:bg-gray-50 ${index !== paginatedUsers.length - 1 ? 'border-b border-gray-200' : ''}`}
-                                    >
-                                        {renderTableCells(user)}
+                            </thead>
+                            <tbody className='bg-white'>
+                                {loading ? (
+                                    <tr>
+                                        <td colSpan={getColumnCount()} className='px-6 py-8 text-center text-gray-500'>
+                                            Loading users...
+                                        </td>
                                     </tr>
-                                ))
+                                ) : error ? (
+                                    <tr>
+                                        <td colSpan={getColumnCount()} className='px-6 py-8 text-center text-red-500'>
+                                            Error: {error}
+                                        </td>
+                                    </tr>
+                                ) : paginatedUsers.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={getColumnCount()} className='px-6 py-8 text-center text-gray-500'>
+                                            {searchTerm ? 'No users found matching your search.' : 'No users found.'}
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    paginatedUsers.map((user, index) => (
+                                        <tr 
+                                            key={user.user_id} 
+                                            className={`hover:bg-gray-50 ${index !== paginatedUsers.length - 1 ? 'border-b border-gray-200' : ''}`}
+                                        >
+                                            {renderTableCells(user)}
+                                        </tr>
+                                    ))
                             )}
                         </tbody>
                     </table>
-                </div>
-
-                {/* Pagination */}
+                </div>                {/* Pagination */}
                 <div 
                     className='flex items-center justify-between px-6 py-3 pt-5 bg-white'
                     style={{
@@ -1365,7 +1352,7 @@ export default function UserManagement(){
                                     Cancel
                                 </button>
                                 <button
-                                    onClick={() => handleDeleteUser(deleteConfirmUser.id)}
+                                    onClick={() => handleDeleteUser(deleteConfirmUser.user_id)}
                                     className='px-4 py-2 text-white bg-red-600 rounded-md hover:bg-red-700 focus:outline-none'
                                 >
                                     Delete User

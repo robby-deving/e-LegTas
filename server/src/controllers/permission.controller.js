@@ -99,6 +99,9 @@ const updateRolePermissions = async (req, res) => {
     const { roleId } = req.params;
     const { permissionIds } = req.body;
 
+    console.log('Updating role permissions for role:', roleId);
+    console.log('Received permission IDs:', permissionIds);
+
     if (!roleId || isNaN(parseInt(roleId))) {
       return res.status(400).json({ 
         message: 'Invalid role ID provided',
@@ -114,45 +117,119 @@ const updateRolePermissions = async (req, res) => {
 
     const roleIdInt = parseInt(roleId);
 
-    // First, soft delete all existing permissions for this role
-    const { error: deleteError } = await supabaseAdmin
+    // Get current active permissions for this role
+    const { data: currentPermissions, error: fetchError } = await supabaseAdmin
       .from('role_permission')
-      .update({ deleted_at: new Date().toISOString() })
-      .eq('role_id', roleIdInt);
+      .select('permission_id')
+      .eq('role_id', roleIdInt)
+      .is('deleted_at', null);
 
-    if (deleteError) {
-      console.error('Error deleting existing role permissions:', deleteError);
+    if (fetchError) {
+      console.error('Error fetching current permissions:', fetchError);
       return res.status(500).json({ 
-        message: 'Failed to update role permissions',
-        error: deleteError.message
+        message: 'Failed to fetch current permissions',
+        error: fetchError.message
       });
     }
 
-    // Then, insert new permissions
-    if (permissionIds.length > 0) {
-      const newRolePermissions = permissionIds.map(permissionId => ({
-        role_id: roleIdInt,
-        permission_id: parseInt(permissionId),
-        deleted_at: null
-      }));
+    const currentPermissionIds = (currentPermissions || []).map(p => p.permission_id);
+    const newPermissionIds = permissionIds.map(id => parseInt(id));
 
-      const { error: insertError } = await supabaseAdmin
+    console.log('Current active permissions:', currentPermissionIds);
+    console.log('New permissions:', newPermissionIds);
+
+    // Find permissions to remove (soft delete)
+    const permissionsToRemove = currentPermissionIds.filter(id => !newPermissionIds.includes(id));
+    console.log('Permissions to remove:', permissionsToRemove);
+
+    // Find permissions to add
+    const permissionsToAdd = newPermissionIds.filter(id => !currentPermissionIds.includes(id));
+    console.log('Permissions to add:', permissionsToAdd);
+
+    // Remove permissions that are no longer selected
+    if (permissionsToRemove.length > 0) {
+      const { error: deleteError } = await supabaseAdmin
         .from('role_permission')
-        .insert(newRolePermissions);
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('role_id', roleIdInt)
+        .in('permission_id', permissionsToRemove)
+        .is('deleted_at', null);
 
-      if (insertError) {
-        console.error('Error inserting new role permissions:', insertError);
+      if (deleteError) {
+        console.error('Error removing permissions:', deleteError);
         return res.status(500).json({ 
-          message: 'Failed to update role permissions',
-          error: insertError.message
+          message: 'Failed to remove permissions',
+          error: deleteError.message
         });
+      }
+    }
+
+    // Add new permissions (restore soft-deleted ones or create new ones)
+    if (permissionsToAdd.length > 0) {
+      for (const permissionId of permissionsToAdd) {
+        // First, check if this permission was previously soft-deleted
+        const { data: existingRecord, error: checkError } = await supabaseAdmin
+          .from('role_permission')
+          .select('id, deleted_at')
+          .eq('role_id', roleIdInt)
+          .eq('permission_id', permissionId)
+          .single();
+
+        if (checkError && checkError.code !== 'PGRST116') {
+          // PGRST116 is "not found" error, which is expected for new permissions
+          console.error('Error checking existing permission record:', checkError);
+          return res.status(500).json({ 
+            message: 'Failed to check existing permissions',
+            error: checkError.message
+          });
+        }
+
+        if (existingRecord && existingRecord.deleted_at) {
+          // Restore soft-deleted permission by setting deleted_at to null
+          console.log(`Restoring soft-deleted permission: role ${roleIdInt}, permission ${permissionId}`);
+          
+          const { error: restoreError } = await supabaseAdmin
+            .from('role_permission')
+            .update({ deleted_at: null })
+            .eq('role_id', roleIdInt)
+            .eq('permission_id', permissionId);
+
+          if (restoreError) {
+            console.error('Error restoring soft-deleted permission:', restoreError);
+            return res.status(500).json({ 
+              message: 'Failed to restore permission',
+              error: restoreError.message
+            });
+          }
+        } else if (!existingRecord) {
+          // Create new permission record
+          console.log(`Creating new permission: role ${roleIdInt}, permission ${permissionId}`);
+          
+          const { error: insertError } = await supabaseAdmin
+            .from('role_permission')
+            .insert({
+              role_id: roleIdInt,
+              permission_id: permissionId
+            });
+
+          if (insertError) {
+            console.error('Error inserting new role permission:', insertError);
+            return res.status(500).json({ 
+              message: 'Failed to add new permission',
+              error: insertError.message
+            });
+          }
+        }
+        // If existingRecord exists but deleted_at is null, the permission is already active - skip
       }
     }
 
     res.status(200).json({ 
       message: 'Role permissions updated successfully',
       roleId: roleIdInt,
-      permissionCount: permissionIds.length
+      permissionCount: newPermissionIds.length,
+      added: permissionsToAdd.length,
+      removed: permissionsToRemove.length
     });
 
   } catch (error) {

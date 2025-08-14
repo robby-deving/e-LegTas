@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
-import { useSelector } from 'react-redux';
-import { selectCurrentUser } from '../features/auth/authSlice';
+import { useSelector, useDispatch } from 'react-redux';
+import { selectCurrentUser, selectToken, logout } from '../features/auth/authSlice';
 
 interface Permission {
   id: number;
@@ -33,10 +33,12 @@ export const PermissionProvider: React.FC<PermissionProviderProps> = ({ children
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const currentUser = useSelector(selectCurrentUser);
+  const token = useSelector(selectToken);
+  const dispatch = useDispatch();
 
   useEffect(() => {
     const fetchUserPermissions = async () => {
-      if (!currentUser?.role_id) {
+      if (!currentUser?.role_id || !token) {
         setPermissions([]);
         setLoading(false);
         return;
@@ -46,12 +48,22 @@ export const PermissionProvider: React.FC<PermissionProviderProps> = ({ children
       setError(null);
 
       try {
-        const response = await fetch(`http://localhost:3000/api/v1/permissions/role/${currentUser.role_id}`);
-        
+        const response = await fetch(`/api/v1/permissions/role/${currentUser.role_id}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        if (response.status === 401) {
+          // Unauthorized, auto-logout
+          dispatch(logout());
+          setPermissions([]);
+          setLoading(false);
+          return;
+        }
         if (!response.ok) {
           throw new Error('Failed to fetch permissions');
         }
-
         const data = await response.json();
         setPermissions(data.permissions || []);
       } catch (err) {
@@ -64,7 +76,7 @@ export const PermissionProvider: React.FC<PermissionProviderProps> = ({ children
     };
 
     fetchUserPermissions();
-  }, [currentUser?.role_id]);
+  }, [currentUser?.role_id, token]);
 
   const hasPermission = (permissionName: string): boolean => {
     return permissions.some(permission => permission.permission_name === permissionName);
@@ -92,7 +104,3 @@ export const usePermissions = (): PermissionContextType => {
   return context;
 };
 
-export const usePermission = (permissionName: string): boolean => {
-  const { hasPermission } = usePermissions();
-  return hasPermission(permissionName);
-};
