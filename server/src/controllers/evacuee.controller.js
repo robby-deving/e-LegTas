@@ -592,23 +592,28 @@ function buildFullName({ first_name, middle_name, last_name, suffix }) {
 }
 
 /**
- * @desc Get detailed evacuee data by disaster evacuation event ID, includes summary, room details, and full list of evacuees
- * @route GET /api/v1/evacuees/:disasterEvacuationEventId/evacuees-information
+ * @desc Get detailed evacuee data by disaster evacuation event ID
+ * @route GET /api/v1/evacuees/:disasterEvacuationEventId/evacuees-information  (also supports :id)
  * @access Private (Camp Manager only)
  */
-exports.getEvacueesInformationbyDisasterEvacuationEventId = async (
-  req,
-  res,
-  next
-) => {
-  const { disasterEvacuationEventId } = req.params;
+exports.getEvacueesInformationbyDisasterEvacuationEventId = async (req, res, next) => {
+  const eventId = Number(req.params.disasterEvacuationEventId ?? req.params.id);
+  if (!Number.isFinite(eventId)) {
+    return next(new ApiError("Invalid disaster evacuation event id.", 400));
+  }
+
+  // tiny helper so we don’t rely on a global buildFullName
+  const buildFullName = ({ first_name, middle_name, last_name, suffix }) => {
+    const parts = [first_name, middle_name, last_name].filter(Boolean);
+    const full = parts.join(" ");
+    return suffix ? `${full} ${suffix}` : full;
+  };
 
   try {
-    // Step 1: Fetch registrations + resident details (include middle_name & suffix)
+    // Step 1: registrations + resident + room
     const { data: registrations, error: regError } = await supabase
       .from("evacuation_registrations")
-      .select(
-        `
+      .select(`
         id,
         arrival_timestamp,
         evacuee_resident_id,
@@ -637,45 +642,51 @@ exports.getEvacueesInformationbyDisasterEvacuationEventId = async (
           room_name,
           evacuation_centers ( name )
         )
-      `
-      )
-      .eq("disaster_evacuation_event_id", disasterEvacuationEventId);
+      `)
+      .eq("disaster_evacuation_event_id", eventId);
 
     if (regError) {
-      console.error("Error fetching registrations:", regError);
+      console.error("[ERROR] fetching registrations:", regError);
       return next(new ApiError("Failed to fetch registrations", 500));
     }
+
+    // EMPTY STATE: return an empty array instead of 404
     if (!registrations || registrations.length === 0) {
-      return next(new ApiError("No registrations found for this event.", 404));
+      return res.status(200).json([]);
     }
 
     // Group by family_head_id
     const familyGroups = new Map();
-    for (const record of registrations) {
-      const fhId = record.family_head_id;
+    for (const r of registrations) {
+      const fhId = r.family_head_id ?? null;
       if (!familyGroups.has(fhId)) familyGroups.set(fhId, []);
-      familyGroups.get(fhId).push(record);
+      familyGroups.get(fhId).push(r);
     }
 
     const response = [];
 
     for (const [familyHeadId, members] of familyGroups.entries()) {
-      const evacueeIds = members.map((m) => m.evacuee_resident_id);
+      const evacueeIds = members.map((m) => m.evacuee_resident_id).filter(Boolean);
 
-      // Vulnerabilities for all family members
-      const { data: vulnerabilities } = await supabase
+      // Vulnerabilities (safe on empty)
+      const { data: vulnerabilities, error: vulnErr } = await supabase
         .from("resident_vulnerabilities")
         .select("evacuee_resident_id, vulnerability_types(name)")
-        .in("evacuee_resident_id", evacueeIds);
+        .in("evacuee_resident_id", evacueeIds.length ? evacueeIds : [-1]); // avoid empty IN()
+
+      if (vulnErr) {
+        console.error("[WARN] fetching vulnerabilities:", vulnErr);
+      }
 
       const vulnerabilityMap = new Map();
       for (const v of vulnerabilities || []) {
         const arr = vulnerabilityMap.get(v.evacuee_resident_id) || [];
-        if (v.vulnerability_types?.name) arr.push(v.vulnerability_types.name);
+        const nm = v?.vulnerability_types?.name;
+        if (nm) arr.push(nm);
         vulnerabilityMap.set(v.evacuee_resident_id, arr);
       }
 
-      // Build summary + member list
+      // per-family summary + members
       const summary = {
         total_no_of_male: 0,
         total_no_of_female: 0,
@@ -692,48 +703,45 @@ exports.getEvacueesInformationbyDisasterEvacuationEventId = async (
       };
 
       const familyMembers = members.map((member) => {
-        const evacuee = member.residents;
-        const resident = evacuee.residents;
+        const evacuee = member?.residents ?? {};
+        const resident = evacuee?.residents ?? {};
 
-        // Age bucketing (kept as in your code)
-        const birth = new Date(resident.birthdate);
-        const today = new Date();
+        // age bucket
         let ageStr = "";
-        const years = today.getFullYear() - birth.getFullYear();
-        const monthDiff = today.getMonth() - birth.getMonth();
-        const dateDiff = today.getDate() - birth.getDate();
-        let totalMonths = years * 12 + monthDiff;
-        if (dateDiff < 0) totalMonths--;
-        totalMonths = Math.max(0, totalMonths);
+        if (resident.birthdate) {
+          const birth = new Date(resident.birthdate);
+          const today = new Date();
+          const years = today.getFullYear() - birth.getFullYear();
+          const monthDiff = today.getMonth() - birth.getMonth();
+          const dateDiff = today.getDate() - birth.getDate();
+          let totalMonths = years * 12 + monthDiff - (dateDiff < 0 ? 1 : 0);
+          totalMonths = Math.max(0, totalMonths);
 
-        if (totalMonths <= 12) {
-          ageStr = `${totalMonths} month${totalMonths === 1 ? "" : "s"}`;
-          summary.total_no_of_infant++;
-        } else {
-          const hadBirthday =
-            today.getMonth() > birth.getMonth() ||
-            (today.getMonth() === birth.getMonth() &&
-              today.getDate() >= birth.getDate());
-          const adjustedYears = hadBirthday ? years : years - 1;
-          ageStr = `${adjustedYears}`;
+          if (totalMonths <= 12) {
+            ageStr = `${totalMonths} month${totalMonths === 1 ? "" : "s"}`;
+            summary.total_no_of_infant++;
+          } else {
+            const hadBirthday =
+              today.getMonth() > birth.getMonth() ||
+              (today.getMonth() === birth.getMonth() && today.getDate() >= birth.getDate());
+            const adjustedYears = hadBirthday ? years : years - 1;
+            ageStr = `${adjustedYears}`;
 
-          if (adjustedYears <= 12) summary.total_no_of_children++;
-          else if (adjustedYears <= 17) summary.total_no_of_youth++;
-          else if (adjustedYears <= 59) summary.total_no_of_adult++;
-          else summary.total_no_of_seniors++;
+            if (adjustedYears <= 12) summary.total_no_of_children++;
+            else if (adjustedYears <= 17) summary.total_no_of_youth++;
+            else if (adjustedYears <= 59) summary.total_no_of_adult++;
+            else summary.total_no_of_seniors++;
+          }
         }
 
         if (resident.sex === "Male") summary.total_no_of_male++;
         else if (resident.sex === "Female") summary.total_no_of_female++;
 
         const vtypes = vulnerabilityMap.get(member.evacuee_resident_id) || [];
-        if (vtypes.includes("Person with Disability"))
-          summary.total_no_of_pwd++;
+        if (vtypes.includes("Person with Disability")) summary.total_no_of_pwd++;
         if (vtypes.includes("Pregnant Woman")) summary.total_no_of_pregnant++;
-        if (vtypes.includes("Lactating Woman"))
-          summary.total_no_of_lactating_women++;
+        if (vtypes.includes("Lactating Woman")) summary.total_no_of_lactating_women++;
 
-        // 🔥 Full name for each family member
         const memberFullName = buildFullName({
           first_name: resident.first_name,
           middle_name: resident.middle_name,
@@ -743,100 +751,100 @@ exports.getEvacueesInformationbyDisasterEvacuationEventId = async (
 
         return {
           evacuee_id: member.evacuee_resident_id,
-          resident_id: resident.id,
-          full_name: memberFullName, 
-          age: ageStr,
-          barangay_of_origin: resident.barangays?.name || "Unknown",
-          sex: resident.sex,
+          resident_id: resident.id ?? null,
+          full_name: memberFullName || "Unknown",
+          age: ageStr || "—",
+          barangay_of_origin: resident?.barangays?.name || "Unknown",
+          sex: resident.sex || "Unknown",
           vulnerability_types: vtypes,
-          room_name: member.ec_rooms?.room_name || "Unknown",
-          arrival_timestamp: member.arrival_timestamp,
-          relationship_to_family_head: evacuee.relationship_to_family_head,
+          room_name: member?.ec_rooms?.room_name || "Unknown",
+          arrival_timestamp: member.arrival_timestamp || null,
+          relationship_to_family_head: evacuee.relationship_to_family_head || null,
         };
       });
 
-      // Fetch the actual family head resident (include middle/suffix)
-      const { data: headRow, error: headError } = await supabase
-        .from("family_head")
-        .select(
-          `
-          id,
-          resident_id,
-          residents (
-            first_name,
-            middle_name,
-            last_name,
-            suffix,
-            barangays ( name )
-          )
-        `
-        )
-        .eq("id", familyHeadId)
-        .single();
-
+      // family head display
       let family_head_full_name = "Unknown";
       let family_head_barangay = "Unknown";
 
-      if (!headError && headRow?.residents) {
-        const fh = headRow.residents;
-        family_head_full_name = buildFullName({
-          first_name: fh.first_name,
-          middle_name: fh.middle_name,
-          last_name: fh.last_name,
-          suffix: fh.suffix,
-        });
-        family_head_barangay = fh.barangays?.name || "Unknown";
-      } else {
-        console.error("Failed to fetch head of family:", headError);
+      if (familyHeadId) {
+        const { data: headRow, error: headError } = await supabase
+          .from("family_head")
+          .select(`
+            id,
+            resident_id,
+            residents (
+              first_name,
+              middle_name,
+              last_name,
+              suffix,
+              barangays ( name )
+            )
+          `)
+          .eq("id", familyHeadId)
+          .single();
+
+        if (!headError && headRow?.residents) {
+          const fh = headRow.residents;
+          family_head_full_name = buildFullName({
+            first_name: fh.first_name,
+            middle_name: fh.middle_name,
+            last_name: fh.last_name,
+            suffix: fh.suffix,
+          });
+          family_head_barangay = fh?.barangays?.name || "Unknown";
+        } else if (headError) {
+          console.warn("[WARN] head of family fetch:", headError?.message);
+        }
       }
 
+      // choose a stable room/decamp field (first member or any)
+      const first = members[0] || {};
       response.push({
         id: familyHeadId,
-        disaster_evacuation_event_id: disasterEvacuationEventId,
-        family_head_full_name, 
-        barangay: family_head_barangay || "Unknown",
+        disaster_evacuation_event_id: eventId,
+        family_head_full_name,
+        barangay: family_head_barangay,
         total_individuals: members.length,
-        room_name: members[0]?.ec_rooms?.room_name || "Unknown",
-        decampment_timestamp: members[0]?.decampment_timestamp || null,
+        room_name: first?.ec_rooms?.room_name || "Unknown",
+        decampment_timestamp: first?.decampment_timestamp || null,
 
         view_family: {
-          evacuation_center_name:
-            members[0]?.ec_rooms?.evacuation_centers?.name || "Unknown",
-          head_of_family: family_head_full_name, 
-          decampment: members[0]?.decampment_timestamp || null,
+          evacuation_center_name: first?.ec_rooms?.evacuation_centers?.name || "Unknown",
+          head_of_family: family_head_full_name,
+          decampment: first?.decampment_timestamp || null,
           summary_per_family: summary,
         },
 
         list_of_family_members: {
-          family_members: familyMembers, 
+          family_members: familyMembers,
         },
       });
     }
 
     return res.status(200).json(response);
   } catch (error) {
-    console.error("Unexpected error:", error);
+    console.error("[FATAL] evacuees-information:", error);
     return next(new ApiError("Internal server error", 500));
   }
 };
 
+
 /**
  * @desc Get evacuee demographic statistics by disaster evacuation event ID
- * @route GET /api/v1/evacuees/:disasterEvacuationEventId/evacuee-statistics
+ * @route GET /api/v1/evacuees/:disasterEvacuationEventId/evacuee-statistics 
  * @access Public
  */
-exports.getEvacueeStatisticsByDisasterEvacuationEventId = async (
-  req,
-  res,
-  next
-) => {
-  const { disasterEvacuationEventId } = req.params;
+exports.getEvacueeStatisticsByDisasterEvacuationEventId = async (req, res, next) => {
+  const eventId = Number(req.params.disasterEvacuationEventId ?? req.params.id);
+  if (!Number.isFinite(eventId)) {
+    return next(new ApiError("Invalid disaster evacuation event id.", 400));
+  }
 
   try {
     const { data, error } = await supabase
       .from("evacuation_summaries")
-      .select(
-        `
+      .select(`
         total_no_of_male,
         total_no_of_female,
         total_no_of_infant,
@@ -847,38 +855,54 @@ exports.getEvacueeStatisticsByDisasterEvacuationEventId = async (
         total_no_of_pwd,
         total_no_of_pregnant,
         total_no_of_lactating_women
-      `
-      )
-      .eq("disaster_evacuation_event_id", disasterEvacuationEventId)
-      .single();
+      `)
+      .eq("disaster_evacuation_event_id", eventId)
+      .maybeSingle(); // return null instead of 404 when the row doesn't exist
 
-    if (error || !data) {
-      return next(
-        new ApiError("Evacuee summary not found for this event.", 404)
-      );
+    if (error) {
+      console.error("[ERROR] fetching evacuee statistics:", error);
+      return next(new ApiError("Failed to fetch evacuee statistics.", 500));
     }
+
+    const summary = {
+      total_no_of_male:             data?.total_no_of_male ?? 0,
+      total_no_of_female:           data?.total_no_of_female ?? 0,
+      total_no_of_infant:           data?.total_no_of_infant ?? 0,
+      total_no_of_children:         data?.total_no_of_children ?? 0,
+      total_no_of_youth:            data?.total_no_of_youth ?? 0,
+      total_no_of_adult:            data?.total_no_of_adult ?? 0,
+      total_no_of_seniors:          data?.total_no_of_seniors ?? 0,
+      total_no_of_pwd:              data?.total_no_of_pwd ?? 0,
+      total_no_of_pregnant:         data?.total_no_of_pregnant ?? 0,
+      total_no_of_lactating_women:  data?.total_no_of_lactating_women ?? 0,
+    };
 
     return res.status(200).json({
       title: "Evacuees Statistics",
-      summary: data,
+      summary,
     });
   } catch (err) {
-    console.error("Error fetching evacuee statistics:", err);
+    console.error("[FATAL] evacuee-statistics:", err);
     return next(new ApiError("Internal server error.", 500));
   }
 };
 
 /**
- * @desc Get disaster and evacuation center information for a given disaster evacuation event
- * @route GET /api/v1/evacuees/:disasterEvacuationEventId/details
+ * @desc Get disaster + evacuation center info for a disaster evacuation event (empty-state friendly)
+ * @route GET /api/v1/evacuees/:disasterEvacuationEventId/details  (also supports :id)
  * @access Public
  */
 exports.getDisasterEvacuationDetails = async (req, res, next) => {
-  const { disasterEvacuationEventId } = req.params;
-  console.log(`[INFO] Fetching details for disasterEvacuationEventId: ${disasterEvacuationEventId}`);
+  const disasterEvacuationEventId = Number(
+    req.params.disasterEvacuationEventId ?? req.params.id
+  );
+
+  if (!Number.isFinite(disasterEvacuationEventId)) {
+    return next(new ApiError("Invalid disaster evacuation event id.", 400));
+  }
 
   try {
-    // 1) Fetch disaster event + related disaster & EC
+    // 1) Event + related disaster + EC (pull capacity here to avoid extra query)
     const { data: eventData, error: eventError } = await supabase
       .from("disaster_evacuation_event")
       .select(`
@@ -889,97 +913,73 @@ exports.getDisasterEvacuationDetails = async (req, res, next) => {
           disaster_start_date,
           disaster_end_date,
           disaster_types (
-            id,
-            name
+            id, name
           )
         ),
         evacuation_centers (
           id,
           name,
           barangay_id,
-          barangays ( name )
+          total_capacity,
+          barangays ( id, name )
         )
       `)
       .eq("id", disasterEvacuationEventId)
-      .single();
+      .maybeSingle(); // ← no error if not found
 
     if (eventError) {
-      console.error(`[ERROR] Supabase error fetching disaster event: ${eventError.message}`);
+      console.error("[ERROR] fetching event:", eventError);
       return next(new ApiError("Failed to fetch disaster evacuation event.", 500));
     }
     if (!eventData) {
-      console.warn(`[WARN] No disaster event found for ID: ${disasterEvacuationEventId}`);
       return next(new ApiError("Disaster evacuation event not found.", 404));
     }
 
-    const { disasters, evacuation_centers } = eventData;
+    const disasters = eventData.disasters ?? null;
+    const ec = eventData.evacuation_centers ?? null;
 
-    if (!disasters || !disasters.disaster_types) {
-      console.error(`[ERROR] Missing disaster or disaster type in disaster data.`);
-      return next(new ApiError("Disaster or disaster type data is incomplete.", 500));
-    }
-    if (!evacuation_centers || !evacuation_centers.barangays) {
-      console.error(`[ERROR] Missing evacuation center or barangay data.`);
-      return next(new ApiError("Evacuation center or barangay data is incomplete.", 500));
-    }
-
-    // 2) Fetch evacuation summary
+    // 2) Summary (ok if missing — return zeros)
     const { data: summary, error: summaryError } = await supabase
       .from("evacuation_summaries")
       .select(`total_no_of_family, total_no_of_individuals`)
       .eq("disaster_evacuation_event_id", disasterEvacuationEventId)
-      .single();
+      .maybeSingle();
 
     if (summaryError) {
-      console.error(`[ERROR] Supabase error fetching evacuation summary: ${summaryError.message}`);
+      console.error("[ERROR] fetching summary:", summaryError);
       return next(new ApiError("Failed to fetch evacuation summary.", 500));
     }
-    if (!summary) {
-      console.warn(`[WARN] No summary found for disasterEvacuationEventId: ${disasterEvacuationEventId}`);
-      return next(new ApiError("Evacuation summary not found.", 404));
-    }
 
-    // 3) Capacity (you can also add total_capacity to the select above to avoid this extra query)
-    const { data: centerCapacity, error: capacityError } = await supabase
-      .from("evacuation_centers")
-      .select("total_capacity")
-      .eq("id", evacuation_centers.id)
-      .single();
+    const safeSummary = {
+      total_no_of_family: summary?.total_no_of_family ?? 0,
+      total_no_of_individuals: summary?.total_no_of_individuals ?? 0,
+      evacuation_center_capacity: ec?.total_capacity ?? 0,
+    };
 
-    if (capacityError) {
-      console.error(`[ERROR] Supabase error fetching center capacity: ${capacityError.message}`);
-      return next(new ApiError("Failed to fetch evacuation center capacity.", 500));
-    }
-
-    const totalCapacity = centerCapacity?.total_capacity || 0;
-
-    // 4) Response — use disasters.disaster_start_date / disasters.disaster_end_date
+    // 3) Respond with null/“Unknown” fallbacks instead of 500s
     return res.status(200).json({
       disaster: {
-        disaster_types_id: disasters.disaster_types.id,
-        disaster_type_name: disasters.disaster_types.name,
-        disasters_id: disasters.id,
-        disaster_name: disasters.disaster_name,
-        disaster_start_date: disasters.disaster_start_date, 
-        disaster_end_date: disasters.disaster_end_date,     
+        disaster_types_id: disasters?.disaster_types?.id ?? null,
+        disaster_type_name: disasters?.disaster_types?.name ?? "Unknown",
+        disasters_id: disasters?.id ?? null,
+        disaster_name: disasters?.disaster_name ?? "Unknown",
+        disaster_start_date: disasters?.disaster_start_date ?? null,
+        disaster_end_date: disasters?.disaster_end_date ?? null,
       },
       evacuation_center: {
-        evacuation_center_id: evacuation_centers.id,
-        evacuation_center_name: evacuation_centers.name,
-        evacuation_center_barangay_id: evacuation_centers.barangay_id,
-        evacuation_center_barangay_name: evacuation_centers.barangays.name,
+        evacuation_center_id: ec?.id ?? null,
+        evacuation_center_name: ec?.name ?? "Unknown",
+        evacuation_center_barangay_id: ec?.barangay_id ?? null,
+        evacuation_center_barangay_name: ec?.barangays?.name ?? "Unknown",
       },
-      evacuation_summary: {
-        total_no_of_family: summary.total_no_of_family,
-        total_no_of_individuals: summary.total_no_of_individuals,
-        evacuation_center_capacity: totalCapacity,
-      },
+      evacuation_summary: safeSummary,
     });
   } catch (err) {
-    console.error("[FATAL] Uncaught server error:", err);
+    console.error("[FATAL] getDisasterEvacuationDetails:", err);
     return next(new ApiError("Internal server error", 500));
   }
 };
+
 
 /**
  * @desc Get all rooms for the evacuation center tied to a disaster evacuation event

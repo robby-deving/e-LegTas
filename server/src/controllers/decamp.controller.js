@@ -30,7 +30,6 @@ exports.decampFamily = async (req, res, next) => {
         .json({ message: "disasterEvacuationEventId and familyHeadId are required path params." });
     }
 
-    // Ensure the event exists and get its disaster_id
     const { data: eventRow, error: eventErr } = await supabase
       .from("disaster_evacuation_event")
       .select("id, disaster_id")
@@ -41,7 +40,6 @@ exports.decampFamily = async (req, res, next) => {
       return res.status(404).json({ message: "Disaster evacuation event not found." });
     }
 
-    // ---- CLEAR branch (make NULL again) ------------------------------------
     if (rawTs === null || (typeof rawTs === "string" && rawTs.trim() === "")) {
       const { data: clearedRows, error: clearErr } = await supabase
         .from("evacuation_registrations")
@@ -63,7 +61,6 @@ exports.decampFamily = async (req, res, next) => {
       });
     }
 
-    // ---- SET/UPDATE branch --------------------------------------------------
     if (typeof rawTs !== "string") {
       return res.status(400).json({ message: "decampment_timestamp must be ISO string or null." });
     }
@@ -72,7 +69,6 @@ exports.decampFamily = async (req, res, next) => {
       return res.status(400).json({ message: "Invalid decampment_timestamp (must be ISO 8601)." });
     }
 
-    // Validate against disaster start
     const { data: disasterRow, error: disasterErr } = await supabase
       .from("disasters")
       .select("disaster_start_date")
@@ -88,7 +84,6 @@ exports.decampFamily = async (req, res, next) => {
       return res.status(400).json({ message: "Decampment must be after the disaster_start_date." });
     }
 
-    // Find earliest arrival — prefer ACTIVE rows, else ANY rows (edit mode)
     const { data: earliestActive, error: eaErr } = await supabase
       .from("evacuation_registrations")
       .select("arrival_timestamp")
@@ -136,7 +131,6 @@ exports.decampFamily = async (req, res, next) => {
         .json({ message: "Decampment must be later than the family's earliest arrival." });
     }
 
-    // Update ALL rows for this family/event (initial + edit cases)
     const { data: updatedRows, error: updateErr } = await supabase
       .from("evacuation_registrations")
       .update({
@@ -157,7 +151,6 @@ exports.decampFamily = async (req, res, next) => {
       return res.status(500).json({ message: `Failed to update decampment: ${updateErr.message}` });
     }
 
-    // Single success log for EDIT scenario
     if (earliestSource === "any") {
       console.log("[decampFamily] success edit decampment time and date", {
         eventId,
