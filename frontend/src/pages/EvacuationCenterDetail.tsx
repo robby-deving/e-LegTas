@@ -15,7 +15,7 @@ import { EvacuationCenterNameCard } from "../components/cards/EvacuationCenterNa
 import EvacueeStatisticsChart from "../components/EvacueeStatisticsChart";
 import { getTypeColor, getTagColor } from "@/constants/disasterTypeColors";
 import { decodeId } from "@/utils/secureId";
-import type { EvacuationCenterDetail, EvacueeStatistics, FamilyEvacueeInformation, RegisterEvacuee, FamilyMember, FamilyHeadResult, EditEvacueeApi, SelectedEvacuee,  } from "@/types/EvacuationCenterDetails";
+import type { EvacuationCenterDetail, EvacueeStatistics, FamilyEvacueeInformation, RegisterEvacuee, FamilyMember, FamilyHeadResult, EditEvacueeApi, SelectedEvacuee, Evacuee } from "@/types/EvacuationCenterDetails";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { encodeId } from "@/utils/secureId";
 import { formatDate } from "@/utils/dateFormatter";
@@ -42,7 +42,8 @@ export default function EvacuationCenterDetail() {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   useEffect(() => setPage(1), [search, rowsPerPage]);
   const [selectedEvacuee, setSelectedEvacuee] = useState<SelectedEvacuee | null>(null);
-  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchResults, setSearchResults] = useState<Evacuee[]>([]);
+
 
   // --- sorting state & helpers ---
   const [sort, setSort] = useState<SortState>(null);
@@ -173,11 +174,11 @@ const getRegisteredAt = (f: FamilyEvacueeInformation) => {
       }
     };
 
-
     fetchDetails();
     fetchStatistics();
     fetchEvacuees();
   }, [centerId]);
+  
 
 const { paginatedEvacuees, totalRows, totalPages } = useMemo(() => {
   const base = Array.isArray(evacuees) ? evacuees : [];
@@ -192,12 +193,17 @@ const { paginatedEvacuees, totalRows, totalPages } = useMemo(() => {
       )
     : base;
 
-  // default: newest registrations first
-  const defaultSorted = [...searched].sort(
-    (a, b) => getRegisteredAt(b) - getRegisteredAt(a)
-  );
+  // 🔸 default: ACTIVE first (no decampment), then newest registrations first inside each group
+  const defaultSorted = [...searched].sort((a, b) => {
+    const aDecamped = Boolean(a.decampment_timestamp);
+    const bDecamped = Boolean(b.decampment_timestamp);
+    if (aDecamped !== bDecamped) return aDecamped ? 1 : -1; // dated = sink
 
-  // apply column sort (if user clicked headers)
+    // tie-break inside the same group by newest registration
+    return getRegisteredAt(b) - getRegisteredAt(a);
+  });
+
+  // 🔹 apply column sort (still preserves active-first because of the primary check in sortRows)
   const sorted = sort ? sortRows(defaultSorted, sort) : defaultSorted;
 
   // paginate
@@ -212,8 +218,6 @@ const { paginatedEvacuees, totalRows, totalPages } = useMemo(() => {
     totalPages,
   };
 }, [evacuees, search, sort, page, rowsPerPage]);
-
-
 
 
   // Add state for modal mode and form data
@@ -848,16 +852,20 @@ const { paginatedEvacuees, totalRows, totalPages } = useMemo(() => {
             centerId={centerId}
           />
 
-          <SearchEvacueeModal
-            isOpen={showSearchModal}
-            onClose={() => setShowSearchModal(false)}
-            searchName={searchName}
-            onSearchChange={handleSearchChange}
-            searchResults={searchResults}
-            onSelectEvacuee={handleSelectEvacuee}
-            onManualRegister={handleManualRegister}
-            registeredIds={registeredEvacueeIds}
-          />
+<SearchEvacueeModal
+  isOpen={showSearchModal}
+  onClose={() => setShowSearchModal(false)}
+  searchName={searchName}
+  onSearchChange={handleSearchChange}
+  searchResults={searchResults}
+  onSelectEvacuee={handleSelectEvacuee}
+  onManualRegister={handleManualRegister}
+  registeredIds={registeredEvacueeIds}
+  currentEventId={centerId}
+  currentEcId={detail?.evacuation_center?.evacuation_center_id ?? null}
+  currentDisasterId={detail?.disaster?.disasters_id ?? null} 
+/>
+
           <FamilyHeadSearchModal
             isOpen={showFamilyHeadSearchModal}
             onClose={() => setShowFamilyHeadSearchModal(false)}

@@ -106,7 +106,17 @@ export interface Evacuee {
   ec_rooms_id: number;
   family_head_id: number;
   vulnerability_type_ids: string[];
+
+  is_active?: boolean;
+  active_event_id?: number | null;
+  active_disaster_id?: number | null;
+  active_ec_id?: number | null;
+  active_ec_name?: string | null;
+
+  family_head_full_name?: string | null;
 }
+
+
 
 export type Barangay = {
   id: number;

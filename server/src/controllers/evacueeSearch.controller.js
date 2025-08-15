@@ -20,6 +20,7 @@ const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
  * @route GET /api/v1/evacuees/search
  * @access Public
  */
+
 exports.searchEvacueeByName = async (req, res, next) => {
   const { name } = req.query;
   if (!name || name.trim() === "") {
@@ -28,102 +29,149 @@ exports.searchEvacueeByName = async (req, res, next) => {
 
   try {
     const now = Date.now();
-    let evacueeData = [];
+    let rows = [];
 
     if (evacueeCache && cacheTimestamp && now - cacheTimestamp < CACHE_TTL_MS) {
-      evacueeData = evacueeCache;
-      console.log("[CACHE HIT] Using cached evacuee data.");
+      rows = evacueeCache;
+      console.log("[CACHE HIT] evacuees");
     } else {
-      console.log("[CACHE MISS] Fetching from Supabase...");
-      const { data, error } = await supabase.from("evacuation_registrations")
+      console.log("[CACHE MISS] fetching from Supabase…");
+      const { data, error } = await supabase
+        .from("evacuation_registrations")
         .select(`
-                id,
-                evacuee_resident_id,
-                disaster_evacuation_event_id,
-                family_head_id,
-                arrival_timestamp,
-                decampment_timestamp,
-                reported_age_at_arrival,
-                ec_rooms_id,
+          id,
+          evacuee_resident_id,
+          disaster_evacuation_event_id,
+          family_head_id,
+          arrival_timestamp,
+          decampment_timestamp,
+          reported_age_at_arrival,
+          ec_rooms_id,
 
-                evacuee_residents!evacuee_resident_id (
-                id,
-                resident_id,
-                marital_status,
-                educational_attainment,
-                school_of_origin,
-                occupation,
-                purok,
-                relationship_to_family_head,
-                date_registered,
-                residents (
-                    id,
-                    first_name,
-                    middle_name,
-                    last_name,
-                    suffix,
-                    birthdate,
-                    sex,
-                    barangay_of_origin,
-                    barangays (name)
-                ),
-                resident_vulnerabilities (vulnerability_type_id)
-                ),
-                family_head:family_head_id (
-                id,
-                residents:resident_id (
-                    first_name,
-                    middle_name,
-                    last_name,
-                    suffix
-                )
-                )
-            `);
+          evacuee_residents!evacuee_resident_id (
+            id,
+            resident_id,
+            marital_status,
+            educational_attainment,
+            school_of_origin,
+            occupation,
+            purok,
+            relationship_to_family_head,
+            date_registered,
+            residents (
+              id,
+              first_name,
+              middle_name,
+              last_name,
+              suffix,
+              birthdate,
+              sex,
+              barangay_of_origin,
+              barangays ( name )
+            ),
+            resident_vulnerabilities (vulnerability_type_id)
+          ),
+
+          family_head:family_head_id (
+            id,
+            residents:resident_id (
+              first_name, middle_name, last_name, suffix
+            )
+          ),
+
+          disaster_evacuation_event:disaster_evacuation_event_id (
+            id,
+            disasters ( id ),
+            evacuation_centers ( id, name )
+          )
+        `);
+
       if (error) {
         console.error("Supabase error:", error);
         return next(new ApiError("Failed to fetch evacuee records.", 500));
       }
 
-      evacueeData = data;
-      evacueeCache = data;
+      rows = data || [];
+      evacueeCache = rows;
       cacheTimestamp = now;
     }
 
-    const query = name.toLowerCase();
-
-    // Filter evacuees based on the search query
-    const filtered = evacueeData.filter((entry) => {
-      const r = entry.evacuee_residents?.residents;
+    // Build full-name string for filtering
+    const q = name.toLowerCase();
+    const filtered = rows.filter((entry) => {
+      const r = entry?.evacuee_residents?.residents;
       if (!r) return false;
-
-      const first = r.first_name?.toLowerCase() || "";
-      const middle = r.middle_name?.toLowerCase() || "";
-      const last = r.last_name?.toLowerCase() || "";
-      const suffix = r.suffix?.toLowerCase() || "";
-      const fullName = `${first} ${middle} ${last} ${suffix}`.trim();
-      console.log("Constructed Full Name:", fullName);
-
-      // Search by first name, middle name, last name, or full name
+      const first = (r.first_name || "").toLowerCase();
+      const middle = (r.middle_name || "").toLowerCase();
+      const last = (r.last_name || "").toLowerCase();
+      const suffix = (r.suffix || "").toLowerCase();
+      const full = `${first} ${middle} ${last} ${suffix}`.replace(/\s+/g, " ").trim();
       return (
-        first.includes(query) ||
-        middle.includes(query) ||
-        last.includes(query) ||
-        suffix.includes(query) ||
-        fullName.includes(query)
+        first.includes(q) ||
+        middle.includes(q) ||
+        last.includes(q) ||
+        suffix.includes(q) ||
+        full.includes(q)
       );
     });
-    const result = filtered.map((entry) => {
+
+    // Unique evacuees we need active status for
+    const ids = [...new Set(filtered.map((r) => r.evacuee_resident_id))];
+
+    // Query ACTIVE registrations for those evacuees (decampment IS NULL)
+    // Pull event -> disaster + EC here so we can return active_disaster_id and EC name.
+    const { data: activeRows, error: activeErr } = await supabase
+      .from("evacuation_registrations")
+      .select(`
+        evacuee_resident_id,
+        disaster_evacuation_event_id,
+        decampment_timestamp,
+        disaster_evacuation_event:disaster_evacuation_event_id (
+          id,
+          disasters ( id ),
+          evacuation_centers ( id, name )
+        )
+      `)
+      .in("evacuee_resident_id", ids.length ? ids : [-1])
+      .is("decampment_timestamp", null);
+
+    if (activeErr) {
+      console.error("Supabase active query error:", activeErr);
+      return next(new ApiError("Failed to fetch active registration info.", 500));
+    }
+
+    // Map evacuee_resident_id -> active info
+    const activeMap = new Map();
+    for (const r of activeRows || []) {
+      const dee = r.disaster_evacuation_event || null;
+      activeMap.set(r.evacuee_resident_id, {
+        active_event_id: dee?.id ?? r.disaster_evacuation_event_id ?? null,
+        active_disaster_id: dee?.disasters?.id ?? null,          // 👈 NEW
+        active_ec_id: dee?.evacuation_centers?.id ?? null,
+        active_ec_name: dee?.evacuation_centers?.name ?? null,
+      });
+    }
+
+    // Dedupe to one row per evacuee_resident_id (pick most recent arrival)
+    const latest = new Map(); // id -> row
+    for (const entry of filtered) {
+      const key = entry.evacuee_resident_id;
+      const prev = latest.get(key);
+      if (!prev) latest.set(key, entry);
+      else {
+        const a = Date.parse(entry.arrival_timestamp || "") || 0;
+        const b = Date.parse(prev.arrival_timestamp || "") || 0;
+        if (a > b) latest.set(key, entry);
+      }
+    }
+
+    const result = Array.from(latest.values()).map((entry) => {
       const resident = entry.evacuee_residents.residents;
-      const evacuee = entry.evacuee_residents;
+      const evacuee  = entry.evacuee_residents;
 
       const headRes = entry.family_head?.residents;
       const family_head_full_name = headRes
-        ? [
-            headRes.first_name,
-            headRes.middle_name,
-            headRes.last_name,
-            headRes.suffix,
-          ]
+        ? [headRes.first_name, headRes.middle_name, headRes.last_name, headRes.suffix]
             .filter(Boolean)
             .join(" ")
             .replace(/\s+/g, " ")
@@ -131,8 +179,9 @@ exports.searchEvacueeByName = async (req, res, next) => {
         : null;
 
       const vulnerabilities =
-        evacuee.resident_vulnerabilities?.map((v) => v.vulnerability_type_id) ||
-        [];
+        evacuee.resident_vulnerabilities?.map((v) => v.vulnerability_type_id) || [];
+
+      const active = activeMap.get(entry.evacuee_resident_id);
 
       return {
         evacuee_resident_id: entry.evacuee_resident_id,
@@ -163,16 +212,23 @@ exports.searchEvacueeByName = async (req, res, next) => {
         family_head_full_name,
 
         vulnerability_type_ids: vulnerabilities,
+
+        // Active flags for blocking in UI
+        is_active: !!active,
+        active_event_id: active?.active_event_id ?? null,
+        active_disaster_id: active?.active_disaster_id ?? null,  // 👈 NEW
+        active_ec_id: active?.active_ec_id ?? null,
+        active_ec_name: active?.active_ec_name ?? null,
       };
     });
+
     return res.status(200).json(result);
   } catch (err) {
     console.error("Evacuee search error:", err);
-    return next(
-      new ApiError("Internal server error during evacuee search.", 500)
-    );
+    return next(new ApiError("Internal server error during evacuee search.", 500));
   }
 };
+
 
 /**
  * @desc Search family heads for a disaster event (by name)
