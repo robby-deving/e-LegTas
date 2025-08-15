@@ -1,14 +1,15 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import axios from "axios";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../ui/dialog";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "../ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
-import { Pencil } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Pencil, Calendar, Clock } from "lucide-react";
 import type { FamilyMember } from "@/types/EvacuationCenterDetails";
 import { formatDate } from "@/utils/dateFormatter";
+import "react-datepicker/dist/react-datepicker.css";
+import ReactDatePicker from "react-datepicker";
 
 const INVERSE_REL: Record<string, string> = {
   Spouse: "Spouse",
@@ -24,31 +25,162 @@ const INVERSE_REL: Record<string, string> = {
   Boarder: "Boarder",
 };
 
-export const FamilyDetailsModal = ({
+// Local props type (no external imports)
+type FamilyDetailsModalProps = {
+  isOpen: boolean;
+  onClose: () => void;
+  evacuee: any;                     // keep any for now
+  centerName: string;
+  onEditMember: (m: any) => void;   // keep any for now
+  disasterStartDate?: string | null; // NEW: pass raw ISO date from parent
+};
+
+export const FamilyDetailsModal: React.FC<FamilyDetailsModalProps> = ({
   isOpen,
   onClose,
   evacuee,
   centerName,
   onEditMember,
-}: any) => {
-  const navigate = useNavigate();
+  disasterStartDate, // NEW
+}) => {
+  // --- stays ---
+  const [savingDecamp, setSavingDecamp] = useState(false);
 
-  // modal state for transfer-head
+  // derive if this family already had a decampment (declare BEFORE touched)
+  const hadExistingDecamp = Boolean(evacuee?.decampment_timestamp);
+
+  // track whether the user has explicitly picked date/time this session
+  const [touched, setTouched] = useState<{ date: boolean; time: boolean }>(() => ({
+    date: hadExistingDecamp,
+    time: hadExistingDecamp,
+  }));
+
+  const [decampDate, setDecampDate] = useState<Date | null>(
+    evacuee?.decampment_timestamp ? new Date(evacuee.decampment_timestamp) : null
+  );
+
+  useEffect(() => {
+    setDecampDate(
+      evacuee?.decampment_timestamp ? new Date(evacuee.decampment_timestamp) : null
+    );
+    setTouched({
+      date: Boolean(evacuee?.decampment_timestamp),
+      time: Boolean(evacuee?.decampment_timestamp),
+    });
+  }, [evacuee?.decampment_timestamp]);
+
+  // keep these for dirty-check
+  const originalDecamp = evacuee?.decampment_timestamp
+    ? new Date(evacuee.decampment_timestamp)
+    : null;
+
+  const hasChanges =
+    (originalDecamp ? originalDecamp.getTime() : null) !==
+    (decampDate ? decampDate.getTime() : null);
+
+  // helpers for split date/time display
+  const fmtDateOnly = (d: Date) =>
+    new Intl.DateTimeFormat(undefined, {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }).format(d);
+
+  const fmtTimeOnly = (d: Date) =>
+    new Intl.DateTimeFormat(undefined, {
+      hour: "numeric",
+      minute: "2-digit",
+    }).format(d);
+
+  // Build a local start-of-day Date (avoids timezone shift of ISO)
+  const toLocalStartOfDay = (v: string | Date) => {
+    const d = new Date(v);
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+  };
+
+  // DATE bounds
+  // minDate: disaster start (inclusive) — blocks all days before start
+  const minDate =
+    disasterStartDate
+      ? toLocalStartOfDay(disasterStartDate)
+      : evacuee?.disaster_start_date
+      ? toLocalStartOfDay(evacuee.disaster_start_date)
+      : undefined;
+
+  // maxDate: today (change/remove if you want later dates allowed)
+  const maxDate = new Date();
+
+  const missingTimeForNew = !hadExistingDecamp && touched.date && !touched.time;
+  const canSaveDecamp = hasChanges && !savingDecamp && !missingTimeForNew;
+
+  // merge handlers for split pickers
+  const handleChangeDateOnly = (picked: Date | null) => {
+    if (!picked) {
+      setDecampDate(null);
+      setTouched({ date: false, time: false }); // reset both when clearing
+      return;
+    }
+    const h = decampDate ? decampDate.getHours() : 0;
+    const m = decampDate ? decampDate.getMinutes() : 0;
+    setDecampDate(
+      new Date(
+        picked.getFullYear(),
+        picked.getMonth(),
+        picked.getDate(),
+        h,
+        m,
+        0,
+        0
+      )
+    );
+    setTouched((t) => ({ ...t, date: true }));
+  };
+
+  const handleChangeTimeOnly = (picked: Date | null) => {
+    if (!picked || !decampDate) return; // require a date first
+    setDecampDate(
+      new Date(
+        decampDate.getFullYear(),
+        decampDate.getMonth(),
+        decampDate.getDate(),
+        picked.getHours(),
+        picked.getMinutes(),
+        0,
+        0
+      )
+    );
+    setTouched((t) => ({ ...t, time: true }));
+  };
+
+  // --- stays: transfer state/logic ---
   const [transferOpen, setTransferOpen] = useState(false);
   const [newHeadEvacueeId, setNewHeadEvacueeId] = useState<string>("");
   const [oldHeadNewRel, setOldHeadNewRel] = useState<string>("");
   const [transferring, setTransferring] = useState(false);
 
-  if (!isOpen || !evacuee) return null;
+ 
 
   const members: any[] = evacuee?.list_of_family_members?.family_members ?? [];
 
-  // exclude current head
+    const orderedMembers = useMemo(() => {
+    const isHead = (m: any) =>
+      m?.relationship_to_family_head === "Head" ||
+      m?.full_name === evacuee?.family_head_full_name;
+
+    return [...members].sort((a, b) => Number(!isHead(a)) - Number(!isHead(b)));
+  }, [members, evacuee?.family_head_full_name]);
+
+   if (!isOpen || !evacuee) return null;
+
   const transferCandidates: any[] = members.filter(
     (m) => m.full_name !== evacuee.family_head_full_name
   );
 
+  // Keep this based on server state, so transfer is locked only when the family is actually decamped in DB
+  const isDecamped = Boolean(evacuee?.decampment_timestamp);
+
   const canTransfer =
+    !isDecamped &&
     transferCandidates.length > 0 &&
     Boolean(evacuee?.id) &&
     Boolean(evacuee?.disaster_evacuation_event_id);
@@ -58,9 +190,7 @@ export const FamilyDetailsModal = ({
     const cand = transferCandidates.find((m) => String(m.evacuee_id) === value);
     const relToOldHead: string | undefined = cand?.relationship_to_family_head;
     const inverse =
-      relToOldHead && INVERSE_REL[relToOldHead]
-        ? INVERSE_REL[relToOldHead]
-        : "Relative";
+      relToOldHead && INVERSE_REL[relToOldHead] ? INVERSE_REL[relToOldHead] : "Relative";
     setOldHeadNewRel(inverse);
   };
 
@@ -69,7 +199,6 @@ export const FamilyDetailsModal = ({
       if (!newHeadEvacueeId) return;
       setTransferring(true);
 
-      // ensure inverse relationship is set
       let rel = oldHeadNewRel;
       if (!rel) {
         const cand = transferCandidates.find(
@@ -92,7 +221,7 @@ export const FamilyDetailsModal = ({
 
       await axios.post(url, body);
       setTransferOpen(false);
-      onClose(); // parent can refetch if needed
+      onClose();
     } catch (e: any) {
       console.error("Transfer head failed", e?.response?.data || e);
     } finally {
@@ -100,6 +229,27 @@ export const FamilyDetailsModal = ({
     }
   };
 
+  // --- save handler (unchanged logic) ---
+  const handleSaveDecampment = async () => {
+    try {
+      setSavingDecamp(true);
+
+      const eventId = Number(evacuee.disaster_evacuation_event_id);
+      const familyHeadId = Number(evacuee.id);
+
+      const url = `http://localhost:3000/api/v1/evacuees/${eventId}/families/${familyHeadId}/decamp`;
+      const body = {
+        decampment_timestamp: decampDate ? decampDate.toISOString() : null,
+      };
+
+      await axios.post(url, body);
+      onClose();
+    } catch (e: any) {
+      console.error("Save decampment failed:", e?.response?.data || e);
+    } finally {
+      setSavingDecamp(false);
+    }
+  };
   return (
     <>
       <Dialog
@@ -151,32 +301,110 @@ export const FamilyDetailsModal = ({
                     disabled={!canTransfer}
                     title={
                       !canTransfer
-                        ? "No other members to transfer to"
+                        ? (isDecamped
+                            ? "Cannot transfer head: this family is already decamped."
+                            : "No other eligible members to transfer to.")
                         : "Transfer Head"
                     }
+                    aria-disabled={!canTransfer}
                   >
                     Transfer Head
                   </Button>
-                </div>
-              </div>
 
-              <div className="flex items-center gap-4">
-                <div className="w-full">
-                  <label className="block text-sm font-semibold mb-2">Decampment:</label>
-                  <Input
-                    value={evacuee.decampment || "Not Decamped"}
-                    readOnly
-                    className="w-full bg-gray-50"
-                  />
-                </div>
-                <Button
-                  className="bg-green-700 hover:bg-green-800 text-white px-3 py-1 text-sm cursor-pointer self-end"
-                  onClick={() => navigate(`/decampment/${evacuee.id}`)}
-                >
-                  Decamp
-                </Button>
-              </div>
-            </div>
+                                  </div>
+                                </div>
+                  <div className="w-full">
+                    <label className="block text-sm font-semibold mb-2">Decampment:</label>
+
+                    <div className="flex flex-wrap items-center gap-3">
+                      {/* DATE (calendar only) */}
+                      <div className="relative flex-1 min-w-[12rem]">
+                        <ReactDatePicker
+                          selected={decampDate}
+                          onChange={handleChangeDateOnly}
+                          placeholderText={decampDate ? fmtDateOnly(decampDate) : "MM/DD/YYYY"}
+                          dateFormat="MM/dd/yyyy"
+                          minDate={minDate}                         // blocks days before disaster start
+                          maxDate={maxDate}                         // blocks future days (today is max)
+                          filterDate={(d) =>
+                            (!minDate || d >= minDate) && (!maxDate || d <= maxDate)
+                          }
+                          openToDate={decampDate ?? minDate ?? new Date()}
+                          isClearable={false}
+                          wrapperClassName="w-full"
+                          popperPlacement="bottom"
+                          customInput={<Input className="w-full pl-10 pr-10 h-10" />}
+                        />
+
+                        {/* Left calendar icon */}
+                        <Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+
+                        {/* Small circular green clear button */}
+                        {decampDate && (
+                          <button
+                            type="button"
+                            aria-label="Clear decampment date"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDecampDate(null);
+                              setTouched({ date: false, time: false });
+                            }}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 z-20 inline-flex h-5 w-5 items-center justify-center rounded-full bg-green-700 text-white hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-green-600 cursor-pointer"
+                          >
+                            ×
+                          </button>
+                        )}
+                      </div>
+
+                      {/* TIME (time-only) */}
+                      <div className="relative w-40 sm:w-44 md:w-48">
+                        <ReactDatePicker
+                          selected={touched.time ? decampDate : null}   
+                          onChange={handleChangeTimeOnly}
+                          showTimeSelect
+                          showTimeSelectOnly
+                          timeIntervals={5}
+                          timeCaption="Time"
+                          dateFormat="h:mm aa"
+                          disabled={!decampDate}                        
+                          placeholderText={
+                            touched.time && decampDate ? fmtTimeOnly(decampDate) : "HH:MM AM/PM"
+                          }
+                          popperPlacement="bottom"
+                          customInput={
+                            <Input
+                              className={`h-10 w-full pl-10 pr-3 bg-gray-50 ${
+                                !decampDate ? "opacity-60 cursor-not-allowed" : ""
+                              }`}
+                            />
+                          }
+                        />
+                        <Clock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                      </div>
+
+                      {/* SAVE */}
+                      <Button
+                        className="h-10 bg-green-700 hover:bg-green-800 text-white px-4 text-sm cursor-pointer disabled:opacity-60"
+                        onClick={handleSaveDecampment}
+                        disabled={!canSaveDecamp}
+                        title={
+                          !hasChanges
+                            ? "No changes to save"
+                            : missingTimeForNew
+                            ? "Please choose a time"
+                            : "Save decampment"
+                        }
+                      >
+                        {savingDecamp ? "Saving..." : "Save Decampment"}
+                      </Button>
+                    </div>
+
+                    <p className="mt-1 text-xs text-gray-500">
+                      To clear the decampment, clear the date and click “Save Decampment”.
+                    </p>
+                  </div>
+                  </div>
 
             {/* Breakdown table */}
             <div>
@@ -342,7 +570,7 @@ export const FamilyDetailsModal = ({
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {members.map((member: any, idx: number) => (
+                      {orderedMembers.map((member: any, idx: number) => (
                         <TableRow key={idx} className="group hover:bg-gray-50">
                           <TableCell className="font-medium">
                             {member.full_name}

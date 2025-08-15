@@ -256,35 +256,51 @@ export const RegisterEvacueeModal = ({
 
                 {/* Birthday * */}
                 <div>
-                  <label className="block text-sm font-medium mb-2">Birthday:<span className="text-red-500">*</span></label>
+                  <label className="block text-sm font-medium mb-2">
+                    Birthday:<span className="text-red-500">*</span>
+                  </label>
+
                   <div className="relative w-full">
                     <ReactDatePicker
                       wrapperClassName="w-full"
                       popperPlacement="bottom"
-                      selected={
-                        formData.birthday ? new Date(formData.birthday) : null
-                      }
+                      selected={formData.birthday ? new Date(formData.birthday) : null}
                       onChange={(date) =>
-                        onFormChange(
-                          "birthday",
-                          date ? date.toISOString().substring(0, 10) : ""
-                        )
+                        onFormChange("birthday", date ? date.toISOString().substring(0, 10) : "")
                       }
                       placeholderText="MM/DD/YYYY"
-                      customInput={<Input className="w-full pl-10 h-10" />}
                       dateFormat="MM/dd/yyyy"
+                      /* space for calendar (left) + clear (right) */
+                      customInput={<Input className="w-full pl-10 pr-10 h-10" />}
                     />
 
                     {/* Left calendar icon */}
                     <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
 
+                    {/* Small circular green clear button */}
+                    {formData.birthday && (
+                      <button
+                        type="button"
+                        aria-label="Clear date"
+                        onMouseDown={(e) => e.preventDefault()} // prevent datepicker from hijacking
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onFormChange("birthday", "");
+                        }}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 z-20 inline-flex h-5 w-5 items-center justify-center rounded-full bg-green-700 text-white hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-green-600 cursor-pointer"
+                      >
+                        ×
+                      </button>
+                    )}
+
+                    {/* Invisible native input to enforce `required` without blocking clicks */}
                     <input
                       type="text"
                       value={formData.birthday || ""}
                       onChange={() => {}}
                       required
-                      className="absolute inset-y-0 right-0 h-10 w-[calc(100%-2.5rem)] opacity-0 pointer-events-none"
-                      style={{ left: "2.5rem" }}
+                      className="absolute inset-y-0 right-0 h-10 opacity-0 pointer-events-none w-[calc(100%-5rem)]"
+                      style={{ left: "2.5rem" }} /* 2.5rem left icon + 2.5rem right clear */
                       aria-hidden="true"
                       tabIndex={-1}
                     />
