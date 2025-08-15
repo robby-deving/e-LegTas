@@ -6,6 +6,8 @@ import { useAutoLogoutOnTokenExpiry } from './features/auth/useAutoLogoutOnToken
 import { useAutoRefreshToken } from './features/auth/useAutoRefreshToken';
 import TopNav from './components/TopNav';
 import SideNav from './components/SideNav';
+import { PermissionGate } from './components/PermissionGate';
+import AccessDenied from './components/feedback/AccessDenied';
 import Dashboard from './pages/Dashboard';
 import Map from './pages/Map';
 import EvacuationCenters from './pages/EvacuationCenters';
@@ -132,7 +134,9 @@ function App() {
         <Route path="/evacuation-centers" element={
           <ProtectedRoute>
             <AppLayout>
-              <EvacuationCenters />
+              <PermissionGate permission="view_evacuation_centers" fallback={<AccessDenied />}>
+                <EvacuationCenters />
+              </PermissionGate>
             </AppLayout>
           </ProtectedRoute>
         } />

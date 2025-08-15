@@ -4,6 +4,7 @@ import { useSelector } from 'react-redux';
 import { selectCurrentUser, selectToken } from '../features/auth/authSlice';
 import { usePermissions } from '../contexts/PermissionContext';
 import { Search, MoreHorizontal, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import AccessDenied from '../components/feedback/AccessDenied';
 
 interface User {
     user_id: number; // Numeric users table id
@@ -381,14 +382,7 @@ export default function UserManagement(){
     
     // If user doesn't have permission, show access denied
     if (!hasViewUserManagement) {
-        return (
-            <div className="flex items-center justify-center min-h-screen">
-                <div className="text-center">
-                    <h2 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h2>
-                    <p className="text-gray-600">You don't have permission to view this page.</p>
-                </div>
-            </div>
-        );
+        return <AccessDenied />;
     }
 
     // Get the display name for a user
