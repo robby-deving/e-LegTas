@@ -1,5 +1,5 @@
 // EvacuationCenterDetail.tsx
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ChevronRight, Calendar, ArrowRight, ArrowUpDown } from "lucide-react";
 import axios from "axios";
@@ -110,7 +110,7 @@ const getRegisteredAt = (f: FamilyEvacueeInformation) => {
     const t = Date.parse(m?.arrival_timestamp ?? "");
     if (!Number.isNaN(t)) maxTs = Math.max(maxTs, t);
   }
-  return maxTs; // newer first
+  return maxTs; 
 };
 
   const chartData = statistics ? [
@@ -131,54 +131,56 @@ const getRegisteredAt = (f: FamilyEvacueeInformation) => {
       "Evacuation Center Detail"
   );
 
-  useEffect(() => {
-    console.log("✅ Decoded IDs:", { disasterId, centerId });
+  const fetchDetails = useCallback(async () => {
+  try {
+    const res = await axios.get<EvacuationCenterDetail>(
+      `http://localhost:3000/api/v1/evacuees/${centerId}/details`
+    );
+    setDetail(res.data);
+  } catch (err) {
+    console.error("❌ Error fetching details:", err);
+  }
+}, [centerId]);
 
-    if (!centerId || isNaN(Number(centerId))) {
-      console.warn("❌ Invalid decoded centerId:", centerId);
-      return;
-    }
+const fetchStatistics = useCallback(async () => {
+  try {
+    const res = await axios.get<EvacueeStatistics>(
+      `http://localhost:3000/api/v1/evacuees/${centerId}/evacuee-statistics`
+    );
+    setStatistics(res.data);
+  } catch (err) {
+    console.error("❌ Error fetching statistics:", err);
+  }
+}, [centerId]);
 
-    const fetchDetails = async () => {
-      try {
-        const res = await axios.get<EvacuationCenterDetail>(
-          `http://localhost:3000/api/v1/evacuees/${centerId}/details`
-        );
-        setDetail(res.data);
-      } catch (err) {
-        console.error("❌ Error fetching details:", err);
-      }
-    };
-    const fetchStatistics = async () => {
-      try {
-        const res = await axios.get<EvacueeStatistics>(
-          `http://localhost:3000/api/v1/evacuees/${centerId}/evacuee-statistics`
-        );
-        setStatistics(res.data);
-      } catch (err) {
-        console.error("❌ Error fetching statistics:", err);
-      }
-    };
+const fetchEvacueesList = useCallback(async () => {
+  setEvacueesLoading(true);
+  try {
+    const res = await axios.get<FamilyEvacueeInformation[]>(
+      `http://localhost:3000/api/v1/evacuees/${centerId}/evacuees-information`
+    );
+    setEvacuees(Array.isArray(res.data) ? res.data : []);
+  } catch (err) {
+    console.error("❌ Error fetching evacuees:", err);
+  } finally {
+    setEvacueesLoading(false);
+  }
+}, [centerId]);
 
-    const fetchEvacuees = async () => {
-      setEvacueesLoading(true);
-      try {
-        const res = await axios.get<FamilyEvacueeInformation[]>(
-          `http://localhost:3000/api/v1/evacuees/${centerId}/evacuees-information`
-        );
-        setEvacuees(Array.isArray(res.data) ? res.data : []);
-      } catch (err) {
-        console.error("❌ Error fetching evacuees:", err);
-      } finally {
-        setEvacueesLoading(false);
-      }
-    };
+// optional helper to refresh all at once
+const refreshAll = useCallback(async () => {
+  await Promise.all([fetchEvacueesList(), fetchDetails(), fetchStatistics()]);
+}, [fetchEvacueesList, fetchDetails, fetchStatistics]);
 
-    fetchDetails();
-    fetchStatistics();
-    fetchEvacuees();
-  }, [centerId]);
-  
+useEffect(() => {
+  console.log("✅ Decoded IDs:", { disasterId, centerId });
+  if (!centerId || isNaN(Number(centerId))) {
+    console.warn("❌ Invalid decoded centerId:", centerId);
+    return;
+  }
+  refreshAll();
+}, [centerId, disasterId, refreshAll]);
+
 
 const { paginatedEvacuees, totalRows, totalPages } = useMemo(() => {
   const base = Array.isArray(evacuees) ? evacuees : [];
@@ -193,17 +195,14 @@ const { paginatedEvacuees, totalRows, totalPages } = useMemo(() => {
       )
     : base;
 
-  // 🔸 default: ACTIVE first (no decampment), then newest registrations first inside each group
   const defaultSorted = [...searched].sort((a, b) => {
     const aDecamped = Boolean(a.decampment_timestamp);
     const bDecamped = Boolean(b.decampment_timestamp);
-    if (aDecamped !== bDecamped) return aDecamped ? 1 : -1; // dated = sink
+    if (aDecamped !== bDecamped) return aDecamped ? 1 : -1; 
 
-    // tie-break inside the same group by newest registration
     return getRegisteredAt(b) - getRegisteredAt(a);
   });
 
-  // 🔹 apply column sort (still preserves active-first because of the primary check in sortRows)
   const sorted = sort ? sortRows(defaultSorted, sort) : defaultSorted;
 
   // paginate
@@ -249,6 +248,7 @@ const { paginatedEvacuees, totalRows, totalPages } = useMemo(() => {
       pregnant: false,
       lactatingMother: false,
     },
+    existingEvacueeResidentId: null as number | null,
   });
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [showFamilyHeadSearchModal, setShowFamilyHeadSearchModal] = useState(false);
@@ -257,6 +257,8 @@ const { paginatedEvacuees, totalRows, totalPages } = useMemo(() => {
   const [familyHeadSearchResults, setFamilyHeadSearchResults] = useState<FamilyHeadResult[]>([]);
 
   const [fhLoading, setFhLoading] = useState(false);
+
+  
 
   const handleEditMember = async (member: FamilyMember) => {
     try {
@@ -274,6 +276,7 @@ const { paginatedEvacuees, totalRows, totalPages } = useMemo(() => {
         ...prev,
         ...mapped,
         evacuationRoomName: member.room_name || prev.evacuationRoomName || "",
+         searchEvacuationRoom: String(data.ec_rooms_id ?? ""),
       }));
 
       setSelectedEvacuee({
@@ -365,6 +368,7 @@ const { paginatedEvacuees, totalRows, totalPages } = useMemo(() => {
     setFormData((prev) => ({
       ...prev,
       ...mapped,
+      existingEvacueeResidentId: Number(evacuee.evacuee_resident_id) || null,
     }));
     setShowSearchModal(false);
     setEvacueeModalMode("register");
@@ -397,6 +401,7 @@ const { paginatedEvacuees, totalRows, totalPages } = useMemo(() => {
         pregnant: false,
         lactatingMother: false,
       },
+       existingEvacueeResidentId: null,
     });
 
     setShowSearchModal(false);
@@ -501,30 +506,31 @@ const { paginatedEvacuees, totalRows, totalPages } = useMemo(() => {
         is_lactating: formData.vulnerabilities.lactatingMother,
         ec_rooms_id: parseInt(formData.searchEvacuationRoom),
         disaster_evacuation_event_id: centerId,
-      };
+...(evacueeModalMode === "register" && formData.existingEvacueeResidentId
+      ? { existing_evacuee_resident_id: formData.existingEvacueeResidentId }
+      : {}),
+  };
+
 
       console.log("[handleRegisterEvacuee] payload", payload);
 
-      if (evacueeModalMode === "register") {
-        console.log("[handleRegisterEvacuee] POST /evacuees");
-        const resp = await axios.post(
-          "http://localhost:3000/api/v1/evacuees",
-          payload
-        );
-        console.log("[handleRegisterEvacuee] POST OK", resp.status, resp.data);
-      } else if (evacueeModalMode === "edit" && selectedEvacuee?.id) {
-        const url = `http://localhost:3000/api/v1/evacuees/${selectedEvacuee.id}`;
-        console.log("[handleRegisterEvacuee] PUT", url);
-        const resp = await axios.put(url, payload);
-        console.log("[handleRegisterEvacuee] PUT OK", resp.status, resp.data);
-      } else {
-        console.warn(
-          "[handleRegisterEvacuee] Edit mode but no selectedEvacuee.id"
-        );
-        return;
-      }
+if (evacueeModalMode === "register") {
+  const resp = await axios.post("http://localhost:3000/api/v1/evacuees", payload);
+  console.log("[handleRegisterEvacuee] POST OK", resp.status, resp.data);
+} else if (evacueeModalMode === "edit" && selectedEvacuee?.id) {
+  const url = `http://localhost:3000/api/v1/evacuees/${selectedEvacuee.id}`;
+  const resp = await axios.put(url, payload);
+  console.log("[handleRegisterEvacuee] PUT OK", resp.status, resp.data);
+} else {
+  console.warn("[handleRegisterEvacuee] Edit mode but no selectedEvacuee.id");
+  return;
+}
 
-      setEvacueeModalOpen(false);
+setEvacueeModalOpen(false);
+
+// 🔁 refresh UI so table/stats reflect latest data
+await refreshAll();
+
     } catch (error: any) {
       const status = error?.response?.status;
       const data = error?.response?.data;

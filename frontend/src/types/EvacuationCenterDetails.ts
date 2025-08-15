@@ -156,6 +156,7 @@ export type RegisterEvacuee = {
 
   ec_rooms_id: number;
   disaster_evacuation_event_id: number;
+   existing_evacuee_resident_id?: number;
 };
 
 export type FamilyHeadResult = {
