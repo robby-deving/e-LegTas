@@ -3,7 +3,9 @@ import { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { selectCurrentUser, selectToken } from '../features/auth/authSlice';
 import { usePermissions } from '../contexts/PermissionContext';
-import { Search, MoreHorizontal, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { Search, MoreHorizontal, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Edit, Trash2 } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../components/ui/dropdown-menu';
+import { Button } from '../components/ui/button';
 import AccessDenied from '../components/feedback/AccessDenied';
 
 interface User {
@@ -527,57 +529,35 @@ export default function UserManagement(){
         if (columns.includes('actions')) {
             cells.push(
                 <td key="actions" className='px-6 py-4 whitespace-nowrap text-right text-base font-medium'>
-                    <div className="relative">
-                        {(hasUpdateUser || hasDeleteUser) && (
-                            <button 
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    const position = getDropdownPosition(e);
-                                    setDropdownOpen(dropdownOpen === user.user_id ? null : user.user_id);
-                                    setDropdownPosition(position);
-                                }}
-                                className='text-gray-400 hover:text-gray-600'
-                            >
-                                <MoreHorizontal className='h-5 w-5' />
-                            </button>
-                        )}
-                        
-                        {dropdownOpen === user.user_id && dropdownPosition && (
-                            <div 
-                                className="fixed w-48 bg-white rounded-md shadow-lg border border-gray-200"
-                                style={{
-                                    zIndex: 9999,
-                                    left: `${dropdownPosition.left}px`,
-                                    top: `${dropdownPosition.top}px`
-                                }}
-                            >
+                    {(hasUpdateUser || hasDeleteUser) && (
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                    <MoreHorizontal className="w-4 h-4" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
                                 {hasUpdateUser && (
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleEditUser(user);
-                                            setDropdownOpen(null);
-                                        }}
-                                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-t-md"
+                                    <DropdownMenuItem 
+                                        onClick={() => handleEditUser(user)}
+                                        className="cursor-pointer"
                                     >
-                                        Edit User
-                                    </button>
+                                        <Edit className="w-4 h-4 mr-2" />
+                                        Edit
+                                    </DropdownMenuItem>
                                 )}
                                 {hasDeleteUser && (
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setDeleteConfirmUser(user);
-                                            setDropdownOpen(null);
-                                        }}
-                                        className={`block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 ${hasUpdateUser ? 'rounded-b-md' : 'rounded-md'}`}
+                                    <DropdownMenuItem 
+                                        onClick={() => setDeleteConfirmUser(user)}
+                                        className="cursor-pointer text-red-600"
                                     >
-                                        Delete User
-                                    </button>
+                                        <Trash2 className="w-4 h-4 mr-2" />
+                                        Delete
+                                    </DropdownMenuItem>
                                 )}
-                            </div>
-                        )}
-                    </div>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    )}
                 </td>
             );
         }

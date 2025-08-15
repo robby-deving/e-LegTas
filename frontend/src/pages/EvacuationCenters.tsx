@@ -207,22 +207,24 @@ export default function EvacuationCentersPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem 
-                            disabled={!canUpdateCenter}
-                            onClick={() => { if (!canUpdateCenter) return; handleEditCenter(center); }}
-                            className={`cursor-pointer ${!canUpdateCenter ? 'opacity-50 cursor-not-allowed' : ''}`}
-                          >
-                            <Edit className="w-4 h-4 mr-2" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            disabled={!canDeleteCenter}
-                            onClick={() => { if (!canDeleteCenter) return; handleDeleteCenter(center); }}
-                            className={`cursor-pointer ${canDeleteCenter ? 'text-red-600' : 'text-red-300 opacity-50 cursor-not-allowed'}`}
-                          >
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            Delete
-                          </DropdownMenuItem>
+                          {canUpdateCenter && (
+                            <DropdownMenuItem 
+                              onClick={() => handleEditCenter(center)}
+                              className="cursor-pointer"
+                            >
+                              <Edit className="w-4 h-4 mr-2" />
+                              Edit
+                            </DropdownMenuItem>
+                          )}
+                          {canDeleteCenter && (
+                            <DropdownMenuItem 
+                              onClick={() => handleDeleteCenter(center)}
+                              className="cursor-pointer text-red-600"
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
