@@ -3,7 +3,9 @@ import { useSelector } from 'react-redux';
 import { selectCurrentUser, selectToken } from '../features/auth/authSlice';
 import { Navigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, MoreHorizontal, Edit, Trash2 } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../components/ui/dropdown-menu';
+import { Button } from '../components/ui/button';
 
 interface Role {
     id: number;
@@ -57,8 +59,7 @@ export default function RoleModuleConfig() {
         permissions: [] as string[]
     });
     const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
-    const [dropdownOpen, setDropdownOpen] = useState<number | null>(null);
-    const [dropdownPosition, setDropdownPosition] = useState<{showAbove: boolean; left: number; top: number} | null>(null);
+    // Dropdown state no longer needed with shadcn/ui DropdownMenu
     const [deleteConfirmRole, setDeleteConfirmRole] = useState<Role | null>(null);
     // Toast notification state
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
@@ -248,17 +249,7 @@ export default function RoleModuleConfig() {
         loadRolePermissions();
     }, [roles, rolePermissions]);
     
-    // Close dropdown when clicking outside
-    useEffect(() => {
-        const handleClickOutside = () => {
-            setDropdownOpen(null);
-        };
-
-        document.addEventListener('click', handleClickOutside);
-        return () => {
-            document.removeEventListener('click', handleClickOutside);
-        };
-    }, []);
+    // No-op: dropdown handled by DropdownMenu
     
     // Handle form input changes
     const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -479,18 +470,7 @@ export default function RoleModuleConfig() {
         }
     };
     
-    // Handle dropdown positioning to avoid clipping
-    const getDropdownPosition = (event: React.MouseEvent) => {
-        const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
-        const viewportHeight = window.innerHeight;
-        const dropdownHeight = 100; // Estimated dropdown height
-        
-        return {
-            showAbove: rect.bottom + dropdownHeight > viewportHeight,
-            left: rect.right - 192, // 192px = w-48 (48 * 4px)
-            top: rect.bottom + dropdownHeight > viewportHeight ? rect.top - dropdownHeight : rect.bottom + 8
-        };
-    };
+    // Dropdown positioning handled by DropdownMenu
     
     // Get user count by role (from backend mapping)
     const getUserCountByRole = (roleId: number) => {
@@ -603,54 +583,29 @@ export default function RoleModuleConfig() {
                                     <td className="px-6 py-4 whitespace-nowrap text-gray-900 text-base">
                                         <div className="flex justify-end">
                                             <div className="relative" data-role-id={role.id}>
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        const position = getDropdownPosition(e);
-                                                        setDropdownOpen(dropdownOpen === role.id ? null : role.id);
-                                                        setDropdownPosition(position);
-                                                    }}
-                                                    className="p-2 rounded-full hover:bg-gray-100 transition-colors"
-                                                    title="Actions"
-                                                >
-                                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="17" viewBox="0 0 16 17" fill="none">
-                                                        <path d="M8.0026 9.16536C8.37079 9.16536 8.66927 8.86689 8.66927 8.4987C8.66927 8.13051 8.37079 7.83203 8.0026 7.83203C7.63441 7.83203 7.33594 8.13051 7.33594 8.4987C7.33594 8.86689 7.63441 9.16536 8.0026 9.16536Z" stroke="#020617" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"/>
-                                                        <path d="M12.6667 9.16536C13.0349 9.16536 13.3333 8.86689 13.3333 8.4987C13.3333 8.13051 13.0349 7.83203 12.6667 7.83203C12.2985 7.83203 12 8.13051 12 8.4987C12 8.86689 12.2985 9.16536 12.6667 9.16536Z" stroke="#020617" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"/>
-                                                        <path d="M3.33073 9.16536C3.69892 9.16536 3.9974 8.86689 3.9974 8.4987C3.9974 8.13051 3.69892 7.83203 3.33073 7.83203C2.96254 7.83203 2.66406 8.13051 2.66406 8.4987C2.66406 8.86689 2.96254 9.16536 3.33073 9.16536Z" stroke="#020617" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"/>
-                                                    </svg>
-                                                </button>
-                                                
-                                                {dropdownOpen === role.id && dropdownPosition && (
-                                                    <div 
-                                                        className="fixed w-48 bg-white rounded-md shadow-lg border border-gray-200"
-                                                        style={{
-                                                            zIndex: 9999,
-                                                            left: `${dropdownPosition.left}px`,
-                                                            top: `${dropdownPosition.top}px`
-                                                        }}
-                                                    >
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                handleEditRole(role);
-                                                                setDropdownOpen(null);
-                                                            }}
-                                                            className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-t-md"
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="Actions">
+                                                            <MoreHorizontal className="w-4 h-4" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end">
+                                                        <DropdownMenuItem 
+                                                            onClick={() => handleEditRole(role)}
+                                                            className="cursor-pointer"
                                                         >
-                                                            Edit Role
-                                                        </button>
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                setDeleteConfirmRole(role);
-                                                                setDropdownOpen(null);
-                                                            }}
-                                                            className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 rounded-b-md"
+                                                            <Edit className="w-4 h-4 mr-2" />
+                                                            Edit
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem 
+                                                            onClick={() => setDeleteConfirmRole(role)}
+                                                            className="cursor-pointer text-red-600"
                                                         >
-                                                            Delete Role
-                                                        </button>
-                                                    </div>
-                                                )}
+                                                            <Trash2 className="w-4 h-4 mr-2" />
+                                                            Delete
+                                                        </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
                                             </div>
                                         </div>
                                     </td>
