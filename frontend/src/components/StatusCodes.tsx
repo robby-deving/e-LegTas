@@ -1,6 +1,7 @@
 import React from 'react';
 import { Button } from './ui/button';
 import { cn } from '@/lib/utils';
+import { usePermissions } from '@/contexts/PermissionContext';
 
 import Error401 from '@/assets/401.svg';
 import Error403 from '@/assets/403.svg';
@@ -54,6 +55,15 @@ const StatusCodes: React.FC<StatusCodeProps> = ({
   onActionClick 
 }) => {
   const config = statusConfig[code];
+  const { hasPermission } = usePermissions();
+
+  const getFallbackPath = () => {
+    if (hasPermission('view_dashboard')) return '/dashboard';
+    if (hasPermission('view_user_management')) return '/user-management';
+    if (hasPermission('view_evacuation_centers')) return '/evacuation-centers';
+    if (hasPermission('view_map')) return '/map';
+    return '/evacuation-information';
+  };
 
   const handleActionClick = () => {
     if (onActionClick) {
@@ -62,16 +72,19 @@ const StatusCodes: React.FC<StatusCodeProps> = ({
       // Default actions based on error type
       switch (code) {
         case 401:
-          // Navigate to login page
           window.location.href = '/login';
           break;
         case 403:
-        case 404:
-          // Go back to previous page
-          window.history.back();
+        case 404: {
+          const canGoBack = document.referrer !== '' && window.history.length > 1;
+          if (canGoBack) {
+            window.history.back();
+          } else {
+            window.location.href = getFallbackPath();
+          }
           break;
+        }
         case 500:
-          // Reload the page
           window.location.reload();
           break;
       }

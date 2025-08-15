@@ -109,17 +109,21 @@ function App() {
         {/* Protected routes with layout */}
         <Route path="/dashboard" element={
           <ProtectedRoute>
-            <AppLayout>
-              <Dashboard />
-            </AppLayout>
+            <PermissionGate permission="view_dashboard" fallback={<StatusCodes code={403} /> }>
+              <AppLayout>
+                <Dashboard />
+              </AppLayout>
+            </PermissionGate>
           </ProtectedRoute>
         } />
         
         <Route path="/map" element={
           <ProtectedRoute>
-            <AppLayout>
-              <Map />
-            </AppLayout>
+            <PermissionGate permission="view_map" fallback={<StatusCodes code={403} /> }>
+              <AppLayout>
+                <Map />
+              </AppLayout>
+            </PermissionGate>
           </ProtectedRoute>
         } />
         
