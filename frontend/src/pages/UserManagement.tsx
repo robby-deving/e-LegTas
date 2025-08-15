@@ -6,7 +6,7 @@ import { usePermissions } from '../contexts/PermissionContext';
 import { Search, MoreHorizontal, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Edit, Trash2 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../components/ui/dropdown-menu';
 import { Button } from '../components/ui/button';
-import AccessDenied from '../components/feedback/AccessDenied';
+// StatusCodes full-page 403 is now handled at the route level in App.tsx
 
 interface User {
     user_id: number; // Numeric users table id
@@ -383,9 +383,7 @@ export default function UserManagement(){
     }
     
     // If user doesn't have permission, show access denied
-    if (!hasViewUserManagement) {
-        return <AccessDenied />;
-    }
+    // Access control handled by router-level PermissionGate
 
     // Get the display name for a user
     const getDisplayName = (user: User) => {

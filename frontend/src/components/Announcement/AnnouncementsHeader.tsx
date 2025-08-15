@@ -2,6 +2,7 @@
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { Plus } from "lucide-react";
+import { usePermissions } from "../../contexts/PermissionContext";
 
 type AnnouncementsHeaderProps = {
   searchTerm: string;
@@ -14,6 +15,8 @@ export default function AnnouncementsHeader({
   onSearchChange,
   onAddAnnouncement,
 }: AnnouncementsHeaderProps) {
+  const { hasPermission } = usePermissions();
+  const canPostAnnouncement = hasPermission('post_announcement');
   return (
     <div className="space-y-4">
       <h1 className="text-3xl font-bold text-green-800">
@@ -26,13 +29,15 @@ export default function AnnouncementsHeader({
           onChange={(e) => onSearchChange(e.target.value)}
           className="max-w-sm"
         />
-        <Button
-          onClick={onAddAnnouncement}
-          className="bg-green-700 hover:bg-green-800 text-white px-6 flex gap-2 items-center cursor-pointer"
-        >
-          <Plus className="w-4 h-4" />
-          Add Announcement
-        </Button>
+        {canPostAnnouncement && (
+          <Button
+            onClick={onAddAnnouncement}
+            className="bg-green-700 hover:bg-green-800 text-white px-6 flex gap-2 items-center cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            Add Announcement
+          </Button>
+        )}
       </div>
     </div>
   );
