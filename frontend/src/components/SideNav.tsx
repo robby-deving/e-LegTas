@@ -8,7 +8,6 @@ import SideItem from "./SideItem";
 import dashboardIcon from '../assets/dashboardIcon.svg';
 import mapIcon from '../assets/GISIcon.svg';
 import reportIcon from '../assets/reportsIcon.svg';
-import emergencyHotlineIcon from '../assets/hotlineIcon.svg';
 import announcementIcon from '../assets/announcementIcon.svg';
 import userManagementIcon from '../assets/usersIcon.svg';
 import evacuationCenterIcon from '../assets/evacuationIcon.svg';
@@ -101,7 +100,6 @@ export default function SideNav() {
           <SideItem collapsed={collapsed} icon={evacueeIcon} label="Evacuee Informations" to="/evacuation-information" />
           <SideItem collapsed={collapsed} icon={evacuationCenterIcon} label="Evacuation Centers" to="/evacuation-centers" />
           <SideItem collapsed={collapsed} icon={reportIcon} label="Reports" to="/reports" />
-          <SideItem collapsed={collapsed} icon={emergencyHotlineIcon} label="Emergency Hotlines" to="/emergency-hotlines" />
           <SideItem collapsed={collapsed} icon={announcementIcon} label="Announcements" to="/announcements" />
           <SideItem collapsed={collapsed} icon={userManagementIcon} label="User Management" to="/user-management" />
         </>

@@ -9,7 +9,6 @@ import SideNav from './components/SideNav';
 import Dashboard from './pages/Dashboard';
 import Map from './pages/Map';
 import EvacuationCenters from './pages/EvacuationCenters';
-import EmergencyHotlines from './pages/EmergencyHotlines';
 import Announcements from './pages/Announcements';
 import UserManagement from './pages/UserManagement';
 import RoleModuleConfig from './pages/RoleModuleConfig';
@@ -146,13 +145,7 @@ function App() {
           </ProtectedRoute>
         } />
         
-        <Route path="/emergency-hotlines" element={
-          <ProtectedRoute>
-            <AppLayout>
-              <EmergencyHotlines />
-            </AppLayout>
-          </ProtectedRoute>
-        } />
+
         
         <Route path="/announcements" element={
           <ProtectedRoute>
