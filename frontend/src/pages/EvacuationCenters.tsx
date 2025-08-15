@@ -11,6 +11,7 @@ import { useEvacuationCenters } from '../hooks/useEvacuationCenters';
 import { useEvacuationCenterMutations } from '../hooks/useEvacuationCenterMutations';
 import type { EvacuationCenter } from '../types/evacuation';
 import { evacuationCenterService } from '../services/evacuationCenterService';
+import { usePermissions } from '../contexts/PermissionContext';
 
 const STATUS_COLORS = {
   'Available': 'text-green-600 bg-green-100',
@@ -22,6 +23,9 @@ const STATUS_COLORS = {
 export default function EvacuationCentersPage() {
   usePageTitle('Evacuation Centers');
   
+  const { hasPermission } = usePermissions();
+  const canCreateCenter = hasPermission('create_evacuation_center');
+
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredCenters, setFilteredCenters] = useState<EvacuationCenter[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -35,6 +39,8 @@ export default function EvacuationCentersPage() {
   // Hooks
   const { centers, loading, error, refreshCenters } = useEvacuationCenters();
   const { deleteCenter } = useEvacuationCenterMutations();
+  const canUpdateCenter = hasPermission('update_evacuation_center');
+  const canDeleteCenter = hasPermission('delete_evacuation_center');
 
   // Filter evacuation centers based on search term
   useEffect(() => {
@@ -129,13 +135,15 @@ export default function EvacuationCentersPage() {
             onChange={(e) => setSearchTerm(e.target.value)}
             className="max-w-sm"
           />
-          <Button 
-            onClick={handleAddCenter}
-            className="bg-green-700 hover:bg-green-800 text-white px-6 flex gap-2 items-center"
-          >
-            <Plus className="w-4 h-4" />
-            Add Evacuation Center
-          </Button>
+          {canCreateCenter && (
+            <Button 
+              onClick={handleAddCenter}
+              className="bg-green-700 hover:bg-green-800 text-white px-6 flex gap-2 items-center"
+            >
+              <Plus className="w-4 h-4" />
+              Add Evacuation Center
+            </Button>
+          )}
         </div>
       </div>
 
@@ -199,20 +207,24 @@ export default function EvacuationCentersPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem 
-                            onClick={() => handleEditCenter(center)}
-                            className="cursor-pointer"
-                          >
-                            <Edit className="w-4 h-4 mr-2" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={() => handleDeleteCenter(center)}
-                            className="cursor-pointer text-red-600"
-                          >
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            Delete
-                          </DropdownMenuItem>
+                          {canUpdateCenter && (
+                            <DropdownMenuItem 
+                              onClick={() => handleEditCenter(center)}
+                              className="cursor-pointer"
+                            >
+                              <Edit className="w-4 h-4 mr-2" />
+                              Edit
+                            </DropdownMenuItem>
+                          )}
+                          {canDeleteCenter && (
+                            <DropdownMenuItem 
+                              onClick={() => handleDeleteCenter(center)}
+                              className="cursor-pointer text-red-600"
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
