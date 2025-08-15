@@ -17,6 +17,7 @@ import logo from '../assets/logo.svg';
 import logout from '../assets/logout.svg';
 
 import { ChevronLeft, ChevronRight } from 'lucide-react'; 
+import { usePermissions } from '../contexts/PermissionContext';
 
 export default function SideNav() {
   const [collapsed, setCollapsed] = useState(false);
@@ -25,6 +26,9 @@ export default function SideNav() {
   
   // Get user data using consistent selector pattern
   const user = useSelector(selectCurrentUser);
+  const { hasPermission } = usePermissions();
+  const canViewEvacCenters = hasPermission('view_evacuation_centers');
+  const canViewUserManagement = hasPermission('view_user_management');
 
   const handleLogout = async () => {
     try {
@@ -90,7 +94,9 @@ export default function SideNav() {
       {user?.role_id === 1 ? (
         // System Admin (role_id: 1) - Only Dashboard, User Management, and Role & Module Configuration
         <>
-          <SideItem collapsed={collapsed} icon={userManagementIcon} label="User Management" to="/user-management" />
+          {canViewUserManagement && (
+            <SideItem collapsed={collapsed} icon={userManagementIcon} label="User Management" to="/user-management" />
+          )}
           <SideItem collapsed={collapsed} icon={roleModuleConfigIcon} label="Role & Module Config" to="/role-module-config" />
         </>
       ) : (
@@ -98,10 +104,14 @@ export default function SideNav() {
         <>
           <SideItem collapsed={collapsed} icon={mapIcon} label="Map" to="/map" />
           <SideItem collapsed={collapsed} icon={evacueeIcon} label="Evacuee Information" to="/evacuation-information" />
-          <SideItem collapsed={collapsed} icon={evacuationCenterIcon} label="Evacuation Centers" to="/evacuation-centers" />
+          {canViewEvacCenters && (
+            <SideItem collapsed={collapsed} icon={evacuationCenterIcon} label="Evacuation Centers" to="/evacuation-centers" />
+          )}
           <SideItem collapsed={collapsed} icon={reportIcon} label="Reports" to="/reports" />
           <SideItem collapsed={collapsed} icon={announcementIcon} label="Announcements" to="/announcements" />
-          <SideItem collapsed={collapsed} icon={userManagementIcon} label="User Management" to="/user-management" />
+          {canViewUserManagement && (
+            <SideItem collapsed={collapsed} icon={userManagementIcon} label="User Management" to="/user-management" />
+          )}
         </>
       )}
 
