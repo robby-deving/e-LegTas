@@ -11,15 +11,14 @@ class ApiError extends Error {
   }
 }
 
-/**
- * @desc Register a new evacuee OR reuse an existing evacuee_residents record
+/* @desc Register a new evacuee OR reuse an existing evacuee_residents record
+ *       (event-scoped snapshot/flags written to evacuation_registrations)
  * @route POST /api/v1/evacuees
  * @access Private (Camp Manager only)
- *
  */
 exports.registerEvacuee = async (req, res, next) => {
   const {
-    // person fields (used only when creating new)
+    // person fields (used only when creating new; also allowed to override snapshot on reuse)
     first_name,
     middle_name,
     last_name,
@@ -32,11 +31,11 @@ exports.registerEvacuee = async (req, res, next) => {
     school_of_origin,
     occupation,
     purok,
-    family_head_id,
-    relationship_to_family_head,
+    family_head_id,                 // required if not Head
+    relationship_to_family_head,    // "Head" or other
     date_registered,
 
-    // vulnerability flags (global to the person in your schema)
+    // event-scoped vulnerability flags
     is_infant,
     is_children,
     is_youth,
@@ -50,7 +49,7 @@ exports.registerEvacuee = async (req, res, next) => {
     ec_rooms_id,
     disaster_evacuation_event_id,
 
-    // NEW: reuse existing evacuee
+    // reuse existing evacuee
     existing_evacuee_resident_id,
   } = req.body;
 
@@ -59,19 +58,16 @@ exports.registerEvacuee = async (req, res, next) => {
   let registration_id = null;
   let family_head_inserted_id = null;
 
-  // small helper
   const computeAge = (isoBirthdate) => {
+    if (!isoBirthdate) return 0;
     const today = new Date();
     const birth = new Date(isoBirthdate);
     let age = today.getFullYear() - birth.getFullYear();
     const m = today.getMonth() - birth.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
-      age--;
-    }
-    return age;
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+    return Math.max(0, age);
   };
 
-  // build vulnerability ids from flags (same mapping you use elsewhere)
   const buildVulnIdsFromFlags = () => {
     const ids = [];
     if (is_infant) ids.push(1);
@@ -85,19 +81,58 @@ exports.registerEvacuee = async (req, res, next) => {
     return ids;
   };
 
+  // include relationship_to_family_head so Edit can reflect correct radio state
+  const buildSnapshot = (src = {}, relForThisEvent = null) => ({
+    first_name: src.first_name ?? null,
+    middle_name: src.middle_name ?? null,
+    last_name: src.last_name ?? null,
+    suffix:
+      typeof src.suffix === "string" && src.suffix.trim() !== ""
+        ? src.suffix.trim()
+        : (src.suffix ?? null),
+    sex: src.sex ?? null,
+    marital_status: src.marital_status ?? null,
+    birthdate: src.birthdate ?? null,
+    barangay_of_origin: src.barangay_of_origin ?? null,
+    purok: src.purok ?? null,
+    educational_attainment: src.educational_attainment ?? null,
+    occupation: src.occupation ?? null,
+    school_of_origin: src.school_of_origin ?? null,
+    relationship_to_family_head: relForThisEvent, // <- event-scoped
+  });
+
+  // convenience normalizer
+  const normalizedSuffix =
+    typeof suffix === "string" && suffix.trim() !== "" ? suffix.trim() : null;
+
   try {
     // -------------------------------------------
     // REUSE BRANCH: existing_evacuee_resident_id
     // -------------------------------------------
     if (existing_evacuee_resident_id) {
-      // 0) Load evacuee + resident + family_head_id
+      // 0) Load evacuee + resident (need data for snapshot and head resolution)
       const { data: evacRow, error: evacRowErr } = await supabase
         .from("evacuee_residents")
         .select(`
           id,
           family_head_id,
           resident_id,
-          residents ( id, birthdate )
+          relationship_to_family_head,
+          marital_status,
+          educational_attainment,
+          school_of_origin,
+          occupation,
+          purok,
+          residents (
+            id,
+            first_name,
+            middle_name,
+            last_name,
+            suffix,
+            birthdate,
+            sex,
+            barangay_of_origin
+          )
         `)
         .eq("id", existing_evacuee_resident_id)
         .single();
@@ -107,20 +142,18 @@ exports.registerEvacuee = async (req, res, next) => {
       }
 
       evacuee_id = evacRow.id;
-      family_head_inserted_id = evacRow.family_head_id;
       resident_id = evacRow.resident_id;
 
-      // 1) Fetch the target event to get DISASTER id
+      // 1) Fetch the target event (we reference EC for messaging and disasters if needed)
       const { data: targetEvent, error: targetEventErr } = await supabase
         .from("disaster_evacuation_event")
-        .select(`id, disasters ( id ), evacuation_centers ( id )`)
+        .select(`id, evacuation_centers ( id )`)
         .eq("id", disaster_evacuation_event_id)
         .single();
 
       if (targetEventErr || !targetEvent) {
         return next(new ApiError("Target disaster evacuation event not found.", 404));
       }
-      const targetDisasterId = targetEvent.disasters?.id ?? null;
 
       // 2) Fetch the target room to get EC id
       const { data: targetRoom, error: roomErr } = await supabase
@@ -132,9 +165,8 @@ exports.registerEvacuee = async (req, res, next) => {
       if (roomErr || !targetRoom) {
         return next(new ApiError("Target EC room not found.", 404));
       }
-      const targetEcId = targetRoom.evacuation_center_id;
 
-      // 3) Check ACTIVE registrations for this evacuee
+      // 3) Check ANY ACTIVE registrations for this evacuee (decampment IS NULL)
       const { data: activeRegs, error: activeRegsErr } = await supabase
         .from("evacuation_registrations")
         .select(`
@@ -144,7 +176,6 @@ exports.registerEvacuee = async (req, res, next) => {
           decampment_timestamp,
           disaster_evacuation_event:disaster_evacuation_event_id (
             id,
-            disasters ( id ),
             evacuation_centers ( id, name )
           )
         `)
@@ -155,57 +186,95 @@ exports.registerEvacuee = async (req, res, next) => {
         return next(new ApiError("Failed to verify active registration state.", 500));
       }
 
-      // If there is an ACTIVE reg in the SAME disaster at a DIFFERENT EC -> block
-      const conflict = (activeRegs || []).find((r) => {
-        const activeDisasterId = r?.disaster_evacuation_event?.disasters?.id ?? null;
-        const activeEcId = r?.disaster_evacuation_event?.evacuation_centers?.id ?? null;
-        return (
-          activeDisasterId != null &&
-          targetDisasterId != null &&
-          Number(activeDisasterId) === Number(targetDisasterId) &&
-          activeEcId != null &&
-          Number(activeEcId) !== Number(targetEcId)
+      if ((activeRegs || []).length > 0) {
+        // Already active in THIS event
+        const alreadyInTarget = activeRegs.find(
+          (r) => Number(r.disaster_evacuation_event_id) === Number(disaster_evacuation_event_id)
         );
-      });
+        if (alreadyInTarget) {
+          const ecName =
+            alreadyInTarget?.disaster_evacuation_event?.evacuation_centers?.name ||
+            "this evacuation center";
+          return next(
+            new ApiError(
+              `This evacuee is already actively registered in this event (${ecName}). Use Edit to update the existing record.`,
+              409
+            )
+          );
+        }
 
-      if (conflict) {
-        const name = conflict?.disaster_evacuation_event?.evacuation_centers?.name || "another evacuation center";
+        // Active somewhere else -> block
+        const first = activeRegs[0];
+        const ecName =
+          first?.disaster_evacuation_event?.evacuation_centers?.name ||
+          "another evacuation center";
         return next(
           new ApiError(
-            `This evacuee is already actively registered in "${name}" for this disaster.`,
+            `This evacuee is still actively registered in another event (${ecName}). Please decamp them first before registering here.`,
             409
           )
         );
       }
 
-      // 4) OPTIONAL: upsert vulnerabilities (avoid duplicates)
-      const vulnIds = buildVulnIdsFromFlags();
-      if (vulnIds.length > 0) {
-        const { data: existingV, error: exVErr } = await supabase
-          .from("resident_vulnerabilities")
-          .select("vulnerability_type_id")
-          .eq("evacuee_resident_id", evacuee_id);
+      // 4) Resolve NOT-NULL family_head_id to persist on registration (event intent)
+      const desiredRel =
+        typeof relationship_to_family_head === "string" &&
+        relationship_to_family_head.trim() !== ""
+          ? relationship_to_family_head.trim()
+          : (evacRow.relationship_to_family_head || "Head"); // default to Head when empty
 
-        if (!exVErr) {
-          const existingSet = new Set((existingV || []).map((v) => v.vulnerability_type_id));
-          const newOnes = vulnIds.filter((id) => !existingSet.has(id));
-          if (newOnes.length > 0) {
-            const rows = newOnes.map((vuln_id) => ({
-              evacuee_resident_id: evacuee_id,
-              vulnerability_type_id: vuln_id,
-            }));
-            const { error: insVErr } = await supabase.from("resident_vulnerabilities").insert(rows);
-            if (insVErr) {
-              return next(new ApiError(`Failed to save vulnerabilities: ${insVErr.message}`, 500));
+      if (desiredRel === "Head") {
+        // If evacuee already has a family_head_id, reuse; otherwise create one for this resident
+        if (evacRow.family_head_id) {
+          family_head_inserted_id = evacRow.family_head_id;
+        } else {
+          // Check if a head record exists for this resident_id; reuse or create
+          const { data: existingHead, error: existingHeadErr } = await supabase
+            .from("family_head")
+            .select("id")
+            .eq("resident_id", resident_id)
+            .maybeSingle();
+          if (existingHeadErr) {
+            return next(new ApiError("Failed to look up head record.", 500));
+          }
+          if (existingHead?.id) {
+            family_head_inserted_id = existingHead.id;
+          } else {
+            const { data: newHead, error: newHeadErr } = await supabase
+              .from("family_head")
+              .insert([{ resident_id }])
+              .select()
+              .single();
+            if (newHeadErr) {
+              if (newHeadErr.code === "23505") {
+                return next(
+                  new ApiError(
+                    `Failed to create family head. Duplicate key on 'family_head.id'. Run: SELECT setval(pg_get_serial_sequence('family_head','id'), (SELECT MAX(id) FROM family_head)+1);`,
+                    500
+                  )
+                );
+              }
+              return next(new ApiError("Failed to create family head.", 500));
             }
+            family_head_inserted_id = newHead.id;
           }
         }
+      } else {
+        if (!family_head_id) {
+          return next(
+            new ApiError(
+              'Missing family_head_id. When the evacuee is not the head, a valid family_head_id must be provided.',
+              400
+            )
+          );
+        }
+        family_head_inserted_id = family_head_id;
       }
 
       // 5) Insert new registration row
-      // Compute age from existing resident birthdate (fallback to 0 if missing)
-      const birthIso = evacRow?.residents?.birthdate || birthdate || null;
+      const birthIso = birthdate ?? evacRow?.residents?.birthdate ?? null;
       const reported_age_at_arrival = birthIso ? computeAge(birthIso) : 0;
+      const nowIso = new Date().toISOString();
 
       const { data: registrationData, error: registrationError } = await supabase
         .from("evacuation_registrations")
@@ -214,23 +283,64 @@ exports.registerEvacuee = async (req, res, next) => {
             evacuee_resident_id: evacuee_id,
             disaster_evacuation_event_id,
             family_head_id: family_head_inserted_id,
-            arrival_timestamp: new Date().toISOString(),
+            arrival_timestamp: nowIso,
             decampment_timestamp: null,
             reported_age_at_arrival,
             ec_rooms_id,
-            created_at: new Date().toISOString(),
+            created_at: nowIso,
           },
         ])
         .select()
         .single();
 
       if (registrationError) {
-        return next(new ApiError(`Failed to register evacuation: ${registrationError.message}`, 500));
+        return next(
+          new ApiError(
+            `Failed to register evacuation: ${registrationError.message}`,
+            500
+          )
+        );
       }
 
       registration_id = registrationData.id;
 
-      // 6) Invalidate cache so new state is visible in search
+      // 6) EVENT-SCOPED SNAPSHOT + FLAGS (no global vuln writes)
+      const vulnIds = buildVulnIdsFromFlags();
+
+      const relForThisEvent = desiredRel; // what we decided above
+      const snapshot = buildSnapshot(
+        {
+          // prefer request overrides, fallback to stored globals
+          first_name: first_name ?? evacRow?.residents?.first_name,
+          middle_name: middle_name ?? evacRow?.residents?.middle_name,
+          last_name: last_name ?? evacRow?.residents?.last_name,
+          suffix: normalizedSuffix ?? evacRow?.residents?.suffix,
+          sex: sex ?? evacRow?.residents?.sex,
+          marital_status: marital_status ?? evacRow?.marital_status,
+          birthdate: birthdate ?? evacRow?.residents?.birthdate,
+          barangay_of_origin: barangay_of_origin ?? evacRow?.residents?.barangay_of_origin,
+          purok: purok ?? evacRow?.purok,
+          educational_attainment: educational_attainment ?? evacRow?.educational_attainment,
+          occupation: occupation ?? evacRow?.occupation,
+          school_of_origin: school_of_origin ?? evacRow?.school_of_origin,
+        },
+        relForThisEvent
+      );
+
+      const { error: regEventStateErr } = await supabase
+        .from("evacuation_registrations")
+        .update({
+          profile_snapshot: snapshot,
+          vulnerability_type_ids: vulnIds, // [] ok; NOT NULL column
+          updated_at: nowIso,
+        })
+        .eq("id", registration_id);
+
+      if (regEventStateErr) {
+        return next(new ApiError("Failed to save event-scoped data.", 500));
+      }
+
+      // 7) Invalidate cache so new state is visible in search
       evacueeCache = null;
       cacheTimestamp = null;
 
@@ -238,16 +348,20 @@ exports.registerEvacuee = async (req, res, next) => {
         message: "Evacuee registered successfully (existing person reused).",
         data: {
           evacuee: { id: evacuee_id, family_head_id: family_head_inserted_id },
-          evacuation_registration: registrationData,
+          evacuation_registration: {
+            ...registrationData,
+            vulnerability_type_ids: vulnIds,
+            profile_snapshot: snapshot,
+          },
         },
       });
     }
 
-    // CREATE-NEW BRANCH: original flow
-  
-    console.log("Step 1: Insert resident...");
-    const normalizedSuffix = typeof suffix === "string" && suffix.trim() !== "" ? suffix.trim() : null;
+    // -------------------------------------------
+    // CREATE-NEW BRANCH: original flow (with event-scoped snapshot/flags)
+    // -------------------------------------------
 
+    // Step 1: Insert resident
     const { data: residentData, error: residentError } = await supabase
       .from("residents")
       .insert([
@@ -257,7 +371,7 @@ exports.registerEvacuee = async (req, res, next) => {
           last_name,
           suffix: normalizedSuffix,
           birthdate,
-          sex,
+          sex, // keep as-is to match your current column
           barangay_of_origin,
         },
       ])
@@ -271,14 +385,17 @@ exports.registerEvacuee = async (req, res, next) => {
           500
         );
       }
-      throw new ApiError(`Failed to register resident. Supabase error: ${residentError.message}`, 500);
+      throw new ApiError(
+        `Failed to register resident. Supabase error: ${residentError.message}`,
+        500
+      );
     }
     resident_id = residentData.id;
 
+    // Step 2: Ensure family_head (based on relationship intent)
     const isHead = relationship_to_family_head === "Head";
 
     if (isHead) {
-      console.log("Step 2: Insert family head...");
       const { data: familyHeadData, error: familyHeadError } = await supabase
         .from("family_head")
         .insert([{ resident_id }])
@@ -293,11 +410,15 @@ exports.registerEvacuee = async (req, res, next) => {
           );
         }
         await supabase.from("residents").delete().eq("id", resident_id);
-        throw new ApiError(`Failed to register family head. ${familyHeadError.message}`, 500);
+        throw new ApiError(
+          `Failed to register family head. ${familyHeadError.message}`,
+          500
+        );
       }
       family_head_inserted_id = familyHeadData.id;
     } else {
       if (!family_head_id) {
+        await supabase.from("residents").delete().eq("id", resident_id);
         throw new ApiError(
           `Missing family_head_id. When the evacuee is not the head, a valid family_head_id must be provided.`,
           400
@@ -306,7 +427,7 @@ exports.registerEvacuee = async (req, res, next) => {
       family_head_inserted_id = family_head_id;
     }
 
-    console.log("Step 3: Insert evacuee_residents...");
+    // Step 3: Insert evacuee_residents (global record)
     const { data: evacueeData, error: evacueeError } = await supabase
       .from("evacuee_residents")
       .insert([
@@ -337,8 +458,10 @@ exports.registerEvacuee = async (req, res, next) => {
     }
     evacuee_id = evacueeData.id;
 
-    console.log("Step 4: Insert evacuation_registrations...");
+    // Step 4: Insert evacuation_registrations (event-bound)
     const reported_age_at_arrival = computeAge(birthdate);
+    const nowIso = new Date().toISOString();
+
     const { data: registrationData, error: registrationError } = await supabase
       .from("evacuation_registrations")
       .insert([
@@ -346,11 +469,11 @@ exports.registerEvacuee = async (req, res, next) => {
           evacuee_resident_id: evacuee_id,
           disaster_evacuation_event_id,
           family_head_id: family_head_inserted_id,
-          arrival_timestamp: new Date().toISOString(),
+          arrival_timestamp: nowIso,
           decampment_timestamp: null,
           reported_age_at_arrival,
           ec_rooms_id,
-          created_at: new Date().toISOString(),
+          created_at: nowIso,
         },
       ])
       .select()
@@ -365,43 +488,63 @@ exports.registerEvacuee = async (req, res, next) => {
       }
       await supabase.from("evacuee_residents").delete().eq("id", evacuee_id);
       await supabase.from("residents").delete().eq("id", resident_id);
-      throw new ApiError(`Failed to register evacuation. ${registrationError.message}`, 500);
+      throw new ApiError(
+        `Failed to register evacuation. ${registrationError.message}`,
+        500
+      );
     }
     registration_id = registrationData.id;
 
-    // Step 5: Insert vulnerabilities for NEW evacuee
+    // Step 5: EVENT-SCOPED SNAPSHOT + FLAGS (no global vuln writes)
     const vulnerabilities = buildVulnIdsFromFlags();
-    if (vulnerabilities.length > 0) {
-      const rows = vulnerabilities.map((vuln_id) => ({
-        evacuee_resident_id: evacuee_id,
-        vulnerability_type_id: vuln_id,
-      }));
-      const { error: vulnError } = await supabase.from("resident_vulnerabilities").insert(rows);
-      if (vulnError) {
-        if (vulnError.code === "23505") {
-          throw new ApiError(
-            `Failed to associate vulnerabilities. Duplicate key error on 'resident_vulnerabilities.id'. Run: SELECT setval(pg_get_serial_sequence('resident_vulnerabilities','id'), (SELECT MAX(id) FROM resident_vulnerabilities)+1);`,
-            500
-          );
-        }
-        await supabase.from("evacuation_registrations").delete().eq("id", registration_id);
-        await supabase.from("evacuee_residents").delete().eq("id", evacuee_id);
-        await supabase.from("residents").delete().eq("id", resident_id);
-        throw new ApiError(`Failed to associate vulnerabilities. ${vulnError.message}`, 500);
-      }
+    const snapshot = buildSnapshot(
+      {
+        first_name,
+        middle_name,
+        last_name,
+        suffix: normalizedSuffix,
+        sex,
+        marital_status,
+        birthdate,
+        barangay_of_origin,
+        purok,
+        educational_attainment,
+        occupation,
+        school_of_origin,
+      },
+      relationship_to_family_head || "Head" // default to Head if empty (matches UI default)
+    );
+
+    const { error: regEventStateErr } = await supabase
+      .from("evacuation_registrations")
+      .update({
+        profile_snapshot: snapshot,
+        vulnerability_type_ids: vulnerabilities, // [] allowed; column is NOT NULL
+        updated_at: nowIso,
+      })
+      .eq("id", registration_id);
+
+    if (regEventStateErr) {
+      // optional rollback for atomicity
+      await supabase.from("evacuation_registrations").delete().eq("id", registration_id);
+      await supabase.from("evacuee_residents").delete().eq("id", evacuee_id);
+      await supabase.from("residents").delete().eq("id", resident_id);
+      throw new ApiError("Failed to save event-scoped data.", 500);
     }
 
     // Invalidate cache so searches reflect the new registration
     evacueeCache = null;
     cacheTimestamp = null;
 
-    console.log("Registration complete.");
     return res.status(201).json({
       message: "Evacuee registered successfully.",
       data: {
         evacuee: { ...evacueeData, family_head_id: family_head_inserted_id },
-        evacuation_registration: registrationData,
-        vulnerability_type_ids: vulnerabilities,
+        evacuation_registration: {
+          ...registrationData,
+          vulnerability_type_ids: vulnerabilities,
+          profile_snapshot: snapshot,
+        },
       },
     });
   } catch (err) {
@@ -409,14 +552,17 @@ exports.registerEvacuee = async (req, res, next) => {
 
     // best-effort rollback for CREATE-NEW branch
     if (!existing_evacuee_resident_id) {
-      if (registration_id) await supabase.from("evacuation_registrations").delete().eq("id", registration_id);
-      if (evacuee_id) await supabase.from("evacuee_residents").delete().eq("id", evacuee_id);
-      if (resident_id) await supabase.from("residents").delete().eq("id", resident_id);
+      if (registration_id)
+        await supabase.from("evacuation_registrations").delete().eq("id", registration_id);
+      if (evacuee_id)
+        await supabase.from("evacuee_residents").delete().eq("id", evacuee_id);
+      if (resident_id)
+        await supabase.from("residents").delete().eq("id", resident_id);
     }
 
     return next(
       new ApiError(
-        `Internal server error during evacuee registration. ${err.message || ""}`,
+        `Internal server error during evacuee registration. ${err?.message || ""}`,
         500
       )
     );
@@ -456,7 +602,8 @@ exports.getAllBarangays = async (req, res, next) => {
 };
 
 /**
- * @desc Update an evacuee's details (mirrors POST behavior for head logic & null suffix)
+ * @desc Update an evacuee's registration for a specific event (event-scoped only).
+ *       DOES NOT modify global person tables (residents / evacuee_residents).
  * @route PUT /api/v1/evacuees/:id   // :id = evacuee_residents.id
  * @access Private (Camp Manager only)
  */
@@ -464,6 +611,7 @@ exports.updateEvacuee = async (req, res, next) => {
   const { id } = req.params; // evacuee_residents.id
 
   const {
+    // form fields: ONLY used to compose an event-scoped snapshot
     first_name,
     middle_name,
     last_name,
@@ -477,35 +625,33 @@ exports.updateEvacuee = async (req, res, next) => {
     occupation,
     purok,
 
-    // Head / member intent from client
-    family_head_id,                   // required if relationship_to_family_head !== "Head"
-    relationship_to_family_head,      // may be "Head" or other; if omitted we keep current
-    date_registered,
+    // head/member intent for THIS event only
+    family_head_id,              // required if relationship_to_family_head !== "Head"
+    relationship_to_family_head, // "Head" or other (drives head resolution)
 
-    // vulnerability flags (replace all for this evacuee)
+    // event-scoped vulnerability flags (replace all in this registration)
     is_infant,
-    is_pwd,
     is_children,
-    is_senior,
-    is_pregnant,
-    is_lactating,
     is_youth,
     is_adult,
+    is_senior,
+    is_pwd,
+    is_pregnant,
+    is_lactating,
 
     // registration fields for THIS event
     ec_rooms_id,
     disaster_evacuation_event_id,
+    // optional future: decampment_timestamp,
   } = req.body;
 
   if (!disaster_evacuation_event_id) {
-    return next(
-      new ApiError("disaster_evacuation_event_id is required for updates.", 400)
-    );
+    return next(new ApiError("disaster_evacuation_event_id is required for updates.", 400));
   }
 
-  // small helper
+  // ------- helpers -------
   const computeAge = (isoBirthdate) => {
-    if (!isoBirthdate) return null;
+    if (!isoBirthdate) return 0;
     const today = new Date();
     const birth = new Date(isoBirthdate);
     let age = today.getFullYear() - birth.getFullYear();
@@ -514,11 +660,67 @@ exports.updateEvacuee = async (req, res, next) => {
     return Math.max(0, age);
   };
 
+  const buildVulnIdsFromFlags = () => {
+    const ids = [];
+    if (is_infant) ids.push(1);
+    if (is_children) ids.push(2);
+    if (is_senior) ids.push(3);
+    if (is_pwd) ids.push(4);
+    if (is_pregnant) ids.push(5);
+    if (is_lactating) ids.push(6);
+    if (is_youth) ids.push(7);
+    if (is_adult) ids.push(8);
+    return ids;
+  };
+
+  const buildSnapshot = (src = {}, relForThisEvent = null) => ({
+    first_name: src.first_name ?? null,
+    middle_name: src.middle_name ?? null,
+    last_name: src.last_name ?? null,
+    suffix:
+      typeof src.suffix === "string" && src.suffix.trim() !== ""
+        ? src.suffix.trim()
+        : (src.suffix ?? null),
+    sex: src.sex ?? null,
+    marital_status: src.marital_status ?? null,
+    birthdate: src.birthdate ?? null,
+    barangay_of_origin: src.barangay_of_origin ?? null,
+    purok: src.purok ?? null,
+    educational_attainment: src.educational_attainment ?? null,
+    occupation: src.occupation ?? null,
+    school_of_origin: src.school_of_origin ?? null,
+    relationship_to_family_head: relForThisEvent, // store event-scoped relationship for clarity
+  });
+
+  // normalize once
+  const normalizedSuffix =
+    typeof suffix === "string" && suffix.trim() !== "" ? suffix.trim() : null;
+
   try {
-    // 1) Fetch current evacuee row (we need resident_id, current head link, current relationship)
+    // 1) Load base person (for snapshot fallbacks + resident_id to resolve family_head)
     const { data: evacueeRow, error: evacueeErr } = await supabase
       .from("evacuee_residents")
-      .select("id, resident_id, family_head_id, relationship_to_family_head")
+      .select(`
+        id,
+        resident_id,
+        family_head_id,
+        relationship_to_family_head,
+        marital_status,
+        educational_attainment,
+        school_of_origin,
+        occupation,
+        purok,
+        residents (
+          id,
+          first_name,
+          middle_name,
+          last_name,
+          suffix,
+          birthdate,
+          sex,
+          barangay_of_origin
+        )
+      `)
       .eq("id", id)
       .single();
 
@@ -528,7 +730,7 @@ exports.updateEvacuee = async (req, res, next) => {
 
     const resident_id = evacueeRow.resident_id;
 
-    // Determine desired relationship (fallback to existing if not provided)
+    // Determine relation intent FOR THIS EVENT (no global mutations)
     const currentRel = evacueeRow.relationship_to_family_head || "Head";
     const desiredRel =
       typeof relationship_to_family_head === "string" && relationship_to_family_head.trim() !== ""
@@ -539,18 +741,15 @@ exports.updateEvacuee = async (req, res, next) => {
     const isBecomingHead = desiredRel === "Head";
     const isDemoting = wasHead && !isBecomingHead;
 
-    // 2) Guard: cannot demote a head who still has >1 members in THIS event
-    if (isDemoting) {
+    // 2) Safety: cannot demote a head who still has >1 members in THIS event
+    if (isDemoting && evacueeRow.family_head_id) {
       const { count: familyCount, error: famCountErr } = await supabase
         .from("evacuation_registrations")
         .select("id", { count: "exact", head: true })
-        .eq("family_head_id", evacueeRow.family_head_id) // the head's family id
+        .eq("family_head_id", evacueeRow.family_head_id)
         .eq("disaster_evacuation_event_id", disaster_evacuation_event_id);
 
-      if (famCountErr) {
-        console.error("famCountErr:", famCountErr);
-        throw new ApiError("Failed to count family members.", 500);
-      }
+      if (famCountErr) throw new ApiError("Failed to count family members.", 500);
       if ((familyCount ?? 1) > 1) {
         return next(
           new ApiError(
@@ -561,26 +760,19 @@ exports.updateEvacuee = async (req, res, next) => {
       }
     }
 
-    // 3) Resolve the final family_head_id that MUST NOT be null
+    // 3) Resolve a NOT-NULL family_head_id to persist on registration (no global edits)
     let resolved_family_head_id = null;
 
     if (isBecomingHead) {
-      // If already a head, reuse his head record
       if (wasHead && evacueeRow.family_head_id) {
         resolved_family_head_id = evacueeRow.family_head_id;
       } else {
-        // Promoting to head:
-        // Try to find an existing family_head row for this resident, otherwise create one
         const { data: existingHead, error: existingHeadErr } = await supabase
           .from("family_head")
           .select("id")
           .eq("resident_id", resident_id)
           .maybeSingle();
-
-        if (existingHeadErr) {
-          console.error("existingHeadErr:", existingHeadErr);
-          throw new ApiError("Failed to look up head record.", 500);
-        }
+        if (existingHeadErr) throw new ApiError("Failed to look up head record.", 500);
 
         if (existingHead?.id) {
           resolved_family_head_id = existingHead.id;
@@ -590,11 +782,8 @@ exports.updateEvacuee = async (req, res, next) => {
             .insert([{ resident_id }])
             .select()
             .single();
-
-        if (newHeadErr) {
-            console.error("newHeadErr:", newHeadErr);
+          if (newHeadErr) {
             if (newHeadErr.code === "23505") {
-              // sequence/duplicate safety like in POST path
               throw new ApiError(
                 `Failed to create family head. Duplicate key on 'family_head.id'. Run: SELECT setval(pg_get_serial_sequence('family_head','id'), (SELECT MAX(id) FROM family_head)+1);`,
                 500
@@ -606,7 +795,6 @@ exports.updateEvacuee = async (req, res, next) => {
         }
       }
     } else {
-      // Member branch requires an explicit family_head_id from payload
       if (!family_head_id) {
         return next(
           new ApiError(
@@ -618,166 +806,132 @@ exports.updateEvacuee = async (req, res, next) => {
       resolved_family_head_id = family_head_id;
     }
 
-    // 4) Normalize suffix ("" → null) and update residents
-    const normalizedSuffix =
-      typeof suffix === "string" && suffix.trim() !== "" ? suffix.trim() : null;
-
-    const { error: residentError } = await supabase
-      .from("residents")
-      .update({
-        first_name,
-        middle_name,
-        last_name,
-        suffix: normalizedSuffix,
-        birthdate,
-        sex,
-        barangay_of_origin,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", resident_id);
-
-    if (residentError) {
-      console.error("residentError:", residentError);
-      throw new ApiError("Failed to update resident details.", 500);
-    }
-
-    // 5) Update evacuee_residents with the resolved head link + desired relationship
-    const { error: evacueeUpdateError } = await supabase
-      .from("evacuee_residents")
-      .update({
-        marital_status,
-        educational_attainment,
-        school_of_origin,
-        occupation,
-        purok,
-        relationship_to_family_head: desiredRel,
-        date_registered: date_registered || new Date().toISOString(),
-        family_head_id: resolved_family_head_id, // <-- never null now
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", id);
-
-    if (evacueeUpdateError) {
-      console.error("evacueeUpdateError:", evacueeUpdateError);
-      throw new ApiError("Failed to update evacuee information.", 500);
-    }
-
-    // 6) Upsert (update/insert) the registration row for THIS event
+    // 4) Upsert registration row for THIS event (event-scoped data only)
     const { data: regRow, error: regFindErr } = await supabase
       .from("evacuation_registrations")
-      .select("id")
+      .select("id, arrival_timestamp, reported_age_at_arrival")
       .eq("evacuee_resident_id", id)
       .eq("disaster_evacuation_event_id", disaster_evacuation_event_id)
       .maybeSingle();
+    if (regFindErr) throw new ApiError("Failed to fetch evacuation registration.", 500);
 
-    if (regFindErr) {
-      console.error("regFindErr:", regFindErr);
-      throw new ApiError("Failed to fetch evacuation registration.", 500);
+    // If there is no registration yet for this event, ensure evacuee not active elsewhere
+    if (!regRow) {
+      const { data: otherActive, error: oaErr } = await supabase
+        .from("evacuation_registrations")
+        .select(`
+          id,
+          disaster_evacuation_event_id,
+          decampment_timestamp,
+          disaster_evacuation_event:disaster_evacuation_event_id (
+            id,
+            evacuation_centers ( id, name )
+          )
+        `)
+        .eq("evacuee_resident_id", id)
+        .is("decampment_timestamp", null);
+
+      if (oaErr) {
+        console.error("otherActiveErr:", oaErr);
+        throw new ApiError("Failed to verify active-registration state.", 500);
+      }
+
+      if ((otherActive || []).length > 0) {
+        const alreadyInTarget = otherActive.find(
+          (r) => Number(r.disaster_evacuation_event_id) === Number(disaster_evacuation_event_id)
+        );
+        if (alreadyInTarget) {
+          const ecName =
+            alreadyInTarget?.disaster_evacuation_event?.evacuation_centers?.name ||
+            "this evacuation center";
+          return next(
+            new ApiError(
+              `This evacuee is already actively registered in this event (${ecName}). Use Edit to update the existing record.`,
+              409
+            )
+          );
+        }
+        const ecName =
+          otherActive[0]?.disaster_evacuation_event?.evacuation_centers?.name ||
+          "another evacuation center";
+        return next(
+          new ApiError(
+            `This evacuee is still actively registered in another event (${ecName}). Please decamp them first before registering here.`,
+            409
+          )
+        );
+      }
     }
 
+    // Snapshot: request overrides -> fallback to stored person data; include event relationship
+    const snapshot = buildSnapshot(
+      {
+        first_name: first_name ?? evacueeRow?.residents?.first_name,
+        middle_name: middle_name ?? evacueeRow?.residents?.middle_name,
+        last_name: last_name ?? evacueeRow?.residents?.last_name,
+        suffix: normalizedSuffix ?? evacueeRow?.residents?.suffix,
+        sex: sex ?? evacueeRow?.residents?.sex,
+        marital_status: marital_status ?? evacueeRow?.marital_status,
+        birthdate: birthdate ?? evacueeRow?.residents?.birthdate,
+        barangay_of_origin: barangay_of_origin ?? evacueeRow?.residents?.barangay_of_origin,
+        purok: purok ?? evacueeRow?.purok,
+        educational_attainment: educational_attainment ?? evacueeRow?.educational_attainment,
+        occupation: occupation ?? evacueeRow?.occupation,
+        school_of_origin: school_of_origin ?? evacueeRow?.school_of_origin,
+      },
+      desiredRel
+    );
+
+    const vulnIds = buildVulnIdsFromFlags();
+    const nowIso = new Date().toISOString();
+
     if (regRow) {
-      // UPDATE existing registration
+      // UPDATE existing registration (keep arrival_timestamp unchanged)
       const { error: regUpdateErr } = await supabase
         .from("evacuation_registrations")
         .update({
           ec_rooms_id: ec_rooms_id ?? null,
-          family_head_id: resolved_family_head_id, // <-- must not be null
-          updated_at: new Date().toISOString(),
+          family_head_id: resolved_family_head_id,
+          profile_snapshot: snapshot,
+          vulnerability_type_ids: vulnIds, // replace the set for THIS event
+          updated_at: nowIso,
         })
         .eq("id", regRow.id);
-
-      if (regUpdateErr) {
-        console.error("regUpdateErr:", regUpdateErr);
-        throw new ApiError("Failed to update evacuation registration.", 500);
-      }
+      if (regUpdateErr) throw new ApiError("Failed to update evacuation registration.", 500);
     } else {
-      // INSERT new registration for this event (business decision)
-      // Compute age from provided birthdate or (if missing) fetch resident birthdate
-      let birthIso = birthdate;
-      if (!birthIso) {
-        const { data: resRow, error: resErr } = await supabase
-          .from("residents")
-          .select("birthdate")
-          .eq("id", resident_id)
-          .single();
-        if (!resErr) birthIso = resRow?.birthdate || null;
-      }
-      const reported_age = computeAge(birthIso);
-
+      // INSERT new registration for this event (if none existed)
+      const reported_age = computeAge(snapshot.birthdate);
       const { error: regInsertErr } = await supabase
         .from("evacuation_registrations")
         .insert([
           {
             evacuee_resident_id: id,
             disaster_evacuation_event_id,
-            family_head_id: resolved_family_head_id, // <-- must not be null
+            family_head_id: resolved_family_head_id,
             ec_rooms_id: ec_rooms_id ?? null,
-            arrival_timestamp: new Date().toISOString(),
+            arrival_timestamp: nowIso,
             decampment_timestamp: null,
             reported_age_at_arrival: reported_age,
-            created_at: new Date().toISOString(),
+            profile_snapshot: snapshot,
+            vulnerability_type_ids: vulnIds,
+            created_at: nowIso,
+            updated_at: nowIso,
           },
         ]);
-
-      if (regInsertErr) {
-        console.error("regInsertErr:", regInsertErr);
-        throw new ApiError(
-          "Failed to create evacuation registration for this event.",
-          500
-        );
-      }
+      if (regInsertErr) throw new ApiError("Failed to create evacuation registration for this event.", 500);
     }
 
-    // 7) Replace vulnerabilities (delete + insert fresh)
-    const { error: vulnDeleteError } = await supabase
-      .from("resident_vulnerabilities")
-      .delete()
-      .eq("evacuee_resident_id", id);
-
-    if (vulnDeleteError) {
-      console.error("vulnDeleteError:", vulnDeleteError);
-      throw new ApiError("Failed to clear previous vulnerabilities.", 500);
-    }
-
-    const vulnerabilities = [];
-    if (is_infant) vulnerabilities.push(1);
-    if (is_children) vulnerabilities.push(2);
-    if (is_senior) vulnerabilities.push(3);
-    if (is_pwd) vulnerabilities.push(4);
-    if (is_pregnant) vulnerabilities.push(5);
-    if (is_lactating) vulnerabilities.push(6);
-    if (is_youth) vulnerabilities.push(7);
-    if (is_adult) vulnerabilities.push(8);
-
-    if (vulnerabilities.length > 0) {
-      const inserts = vulnerabilities.map((vuln_id) => ({
-        evacuee_resident_id: id,
-        vulnerability_type_id: vuln_id,
-      }));
-
-      const { error: vulnInsertError } = await supabase
-        .from("resident_vulnerabilities")
-        .insert(inserts);
-
-      if (vulnInsertError) {
-        console.error("vulnInsertError:", vulnInsertError);
-        throw new ApiError("Failed to update vulnerabilities.", 500);
-      }
-    }
-
-    // 8) Invalidate search cache so UI sees the latest state
+    // 5) Invalidate name-search cache (so SearchEvacueeModal sees latest)
     evacueeCache = null;
     cacheTimestamp = null;
 
     return res.status(200).json({
-      message: "Evacuee updated successfully.",
+      message: "Evacuee updated successfully (event-scoped).",
       data: { evacuee_id: id, family_head_id: resolved_family_head_id },
     });
   } catch (err) {
     console.error("UpdateEvacuee Error:", err);
-    return next(
-      new ApiError("Internal server error during evacuee update.", 500)
-    );
+    return next(new ApiError("Internal server error during evacuee update.", 500));
   }
 };
 
@@ -794,8 +948,8 @@ function buildFullName({ first_name, middle_name, last_name, suffix }) {
 }
 
 /**
- * @desc Get detailed evacuee data by disaster evacuation event ID
- * @route GET /api/v1/evacuees/:disasterEvacuationEventId/evacuees-information  (also supports :id)
+ * @desc Get detailed evacuee data by disaster evacuation event ID (event-scoped)
+ * @route GET /api/v1/evacuees/:disasterEvacuationEventId/evacuees-information
  * @access Private (Camp Manager only)
  */
 exports.getEvacueesInformationbyDisasterEvacuationEventId = async (req, res, next) => {
@@ -804,7 +958,6 @@ exports.getEvacueesInformationbyDisasterEvacuationEventId = async (req, res, nex
     return next(new ApiError("Invalid disaster evacuation event id.", 400));
   }
 
-  // tiny helper so we don’t rely on a global buildFullName
   const buildFullName = ({ first_name, middle_name, last_name, suffix }) => {
     const parts = [first_name, middle_name, last_name].filter(Boolean);
     const full = parts.join(" ");
@@ -812,21 +965,37 @@ exports.getEvacueesInformationbyDisasterEvacuationEventId = async (req, res, nex
   };
 
   try {
-    // Step 1: registrations + resident + room
+    // 0) Load vulnerability type names once (id -> name), so we can map ids to labels
+    const { data: vulnTypes, error: vulnTypesErr } = await supabase
+      .from("vulnerability_types")
+      .select("id, name");
+    if (vulnTypesErr) {
+      console.warn("[WARN] fetching vulnerability_types:", vulnTypesErr);
+    }
+    const vulnNameById = new Map((vulnTypes || []).map(v => [v.id, v.name]));
+
+    // 1) Pull registrations for this event, including event-scoped fields
     const { data: registrations, error: regError } = await supabase
       .from("evacuation_registrations")
       .select(`
         id,
-        arrival_timestamp,
         evacuee_resident_id,
         disaster_evacuation_event_id,
         family_head_id,
         ec_rooms_id,
+        arrival_timestamp,
         decampment_timestamp,
-        residents:evacuee_resident_id (
+        profile_snapshot,
+        vulnerability_type_ids,
+        evacuee_residents:evacuee_resident_id (
           id,
           resident_id,
           relationship_to_family_head,
+          marital_status,
+          educational_attainment,
+          school_of_origin,
+          occupation,
+          purok,
           residents (
             id,
             first_name,
@@ -852,12 +1021,11 @@ exports.getEvacueesInformationbyDisasterEvacuationEventId = async (req, res, nex
       return next(new ApiError("Failed to fetch registrations", 500));
     }
 
-    // EMPTY STATE: return an empty array instead of 404
     if (!registrations || registrations.length === 0) {
       return res.status(200).json([]);
     }
 
-    // Group by family_head_id
+    // 2) Group members by family_head_id for this event
     const familyGroups = new Map();
     for (const r of registrations) {
       const fhId = r.family_head_id ?? null;
@@ -868,27 +1036,7 @@ exports.getEvacueesInformationbyDisasterEvacuationEventId = async (req, res, nex
     const response = [];
 
     for (const [familyHeadId, members] of familyGroups.entries()) {
-      const evacueeIds = members.map((m) => m.evacuee_resident_id).filter(Boolean);
-
-      // Vulnerabilities (safe on empty)
-      const { data: vulnerabilities, error: vulnErr } = await supabase
-        .from("resident_vulnerabilities")
-        .select("evacuee_resident_id, vulnerability_types(name)")
-        .in("evacuee_resident_id", evacueeIds.length ? evacueeIds : [-1]); // avoid empty IN()
-
-      if (vulnErr) {
-        console.error("[WARN] fetching vulnerabilities:", vulnErr);
-      }
-
-      const vulnerabilityMap = new Map();
-      for (const v of vulnerabilities || []) {
-        const arr = vulnerabilityMap.get(v.evacuee_resident_id) || [];
-        const nm = v?.vulnerability_types?.name;
-        if (nm) arr.push(nm);
-        vulnerabilityMap.set(v.evacuee_resident_id, arr);
-      }
-
-      // per-family summary + members
+      // Per-family summary initialized
       const summary = {
         total_no_of_male: 0,
         total_no_of_female: 0,
@@ -905,70 +1053,85 @@ exports.getEvacueesInformationbyDisasterEvacuationEventId = async (req, res, nex
       };
 
       const familyMembers = members.map((member) => {
-        const evacuee = member?.residents ?? {};
-        const resident = evacuee?.residents ?? {};
+        const er = member?.evacuee_residents ?? {};
+        const resident = er?.residents ?? {};
+        const snap = member?.profile_snapshot || {};
 
-        // age bucket
-        let ageStr = "";
-        if (resident.birthdate) {
-          const birth = new Date(resident.birthdate);
+        // Prefer snapshot, fall back to global resident fields
+        const first_name = snap.first_name ?? resident.first_name;
+        const middle_name = snap.middle_name ?? resident.middle_name;
+        const last_name = snap.last_name ?? resident.last_name;
+        const suffix = (typeof snap.suffix === "string" ? snap.suffix : resident.suffix) ?? null;
+
+        const sexVal = snap.sex ?? resident.sex ?? "Unknown";
+        const birthdate = snap.birthdate ?? resident.birthdate ?? null;
+
+        // Barangay display: use resident join name if available (snapshot may only have the id)
+        const barangayName = resident?.barangays?.name || "Unknown";
+
+        // Age presentation + buckets
+        let ageStr = "—";
+        if (birthdate) {
+          const birth = new Date(birthdate);
           const today = new Date();
-          const years = today.getFullYear() - birth.getFullYear();
-          const monthDiff = today.getMonth() - birth.getMonth();
-          const dateDiff = today.getDate() - birth.getDate();
-          let totalMonths = years * 12 + monthDiff - (dateDiff < 0 ? 1 : 0);
+          const y = today.getFullYear() - birth.getFullYear();
+          const m = today.getMonth() - birth.getMonth();
+          const d = today.getDate() - birth.getDate();
+          let totalMonths = y * 12 + m - (d < 0 ? 1 : 0);
           totalMonths = Math.max(0, totalMonths);
 
           if (totalMonths <= 12) {
             ageStr = `${totalMonths} month${totalMonths === 1 ? "" : "s"}`;
             summary.total_no_of_infant++;
           } else {
-            const hadBirthday =
+            const hadBday =
               today.getMonth() > birth.getMonth() ||
               (today.getMonth() === birth.getMonth() && today.getDate() >= birth.getDate());
-            const adjustedYears = hadBirthday ? years : years - 1;
-            ageStr = `${adjustedYears}`;
+            const years = hadBday ? y : y - 1;
+            ageStr = String(Math.max(0, years));
 
-            if (adjustedYears <= 12) summary.total_no_of_children++;
-            else if (adjustedYears <= 17) summary.total_no_of_youth++;
-            else if (adjustedYears <= 59) summary.total_no_of_adult++;
+            if (years <= 12) summary.total_no_of_children++;
+            else if (years <= 17) summary.total_no_of_youth++;
+            else if (years <= 59) summary.total_no_of_adult++;
             else summary.total_no_of_seniors++;
           }
         }
 
-        if (resident.sex === "Male") summary.total_no_of_male++;
-        else if (resident.sex === "Female") summary.total_no_of_female++;
+        if (sexVal === "Male") summary.total_no_of_male++;
+        else if (sexVal === "Female") summary.total_no_of_female++;
 
-        const vtypes = vulnerabilityMap.get(member.evacuee_resident_id) || [];
-        if (vtypes.includes("Person with Disability")) summary.total_no_of_pwd++;
-        if (vtypes.includes("Pregnant Woman")) summary.total_no_of_pregnant++;
-        if (vtypes.includes("Lactating Woman")) summary.total_no_of_lactating_women++;
+        // Event-scoped vulnerabilities: map ids -> names (NO read from resident_vulnerabilities!)
+        const vulnIds = Array.isArray(member?.vulnerability_type_ids)
+          ? member.vulnerability_type_ids
+          : [];
+        const vulnNames = vulnIds
+          .map((id) => vulnNameById.get(id))
+          .filter(Boolean);
 
-        const memberFullName = buildFullName({
-          first_name: resident.first_name,
-          middle_name: resident.middle_name,
-          last_name: resident.last_name,
-          suffix: resident.suffix,
-        });
+        // Count per family using the current event only
+        if (vulnIds.includes(4)) summary.total_no_of_pwd++;
+        if (vulnIds.includes(5)) summary.total_no_of_pregnant++;
+        if (vulnIds.includes(6)) summary.total_no_of_lactating_women++;
+
+        const memberFullName = buildFullName({ first_name, middle_name, last_name, suffix });
 
         return {
           evacuee_id: member.evacuee_resident_id,
           resident_id: resident.id ?? null,
           full_name: memberFullName || "Unknown",
-          age: ageStr || "—",
-          barangay_of_origin: resident?.barangays?.name || "Unknown",
-          sex: resident.sex || "Unknown",
-          vulnerability_types: vtypes,
+          age: ageStr,
+          barangay_of_origin: barangayName,
+          sex: sexVal,
+          vulnerability_types: vulnNames, // event-scoped labels
           room_name: member?.ec_rooms?.room_name || "Unknown",
           arrival_timestamp: member.arrival_timestamp || null,
-          relationship_to_family_head: evacuee.relationship_to_family_head || null,
+          relationship_to_family_head: er.relationship_to_family_head || null,
         };
       });
 
-      // family head display
+      // Head-of-family display
       let family_head_full_name = "Unknown";
       let family_head_barangay = "Unknown";
-
       if (familyHeadId) {
         const { data: headRow, error: headError } = await supabase
           .from("family_head")
@@ -1000,7 +1163,7 @@ exports.getEvacueesInformationbyDisasterEvacuationEventId = async (req, res, nex
         }
       }
 
-      // choose a stable room/decamp field (first member or any)
+      // Choose a stable room/decamp field (first member)
       const first = members[0] || {};
       response.push({
         id: familyHeadId,
@@ -1228,48 +1391,75 @@ exports.getAllRoomsForDisasterEvacuationEventId = async (req, res, next) => {
 };
 
 /**
- * @desc Get full evacuee details for editing (including resident info, family head name, vulnerabilities, and event-specific registration)
+ * @desc Get full evacuee details for editing (event-scoped first).
+ *       Prefers registration.profile_snapshot & registration.vulnerability_type_ids
+ *       for the given disaster_evacuation_event_id.
  * @route GET /api/v1/evacuees/:disasterEvacuationEventId/:evacueeResidentId/edit
  * @access Private (Camp Manager only)
  */
 exports.getEvacueeDetailsForEdit = async (req, res, next) => {
   const { disasterEvacuationEventId, evacueeResidentId } = req.params;
 
+  // helper to build names
+  const buildFullName = ({ first_name, middle_name, last_name, suffix }) => {
+    const parts = [first_name, middle_name, last_name].filter(Boolean);
+    const full = parts.join(" ");
+    return suffix ? `${full} ${suffix}` : full;
+  };
+
+  // normalize snapshot builder (now includes relationship_to_family_head)
+  const buildSnapshot = (src = {}) => ({
+    first_name: src.first_name ?? null,
+    middle_name: src.middle_name ?? null,
+    last_name: src.last_name ?? null,
+    suffix:
+      typeof src.suffix === "string" && src.suffix.trim() !== ""
+        ? src.suffix.trim()
+        : (src.suffix ?? null),
+    sex: src.sex ?? null,
+    birthdate: src.birthdate ?? null,
+    barangay_of_origin: src.barangay_of_origin ?? null,
+    purok: src.purok ?? null,
+    marital_status: src.marital_status ?? null,
+    educational_attainment: src.educational_attainment ?? null,
+    occupation: src.occupation ?? null,
+    school_of_origin: src.school_of_origin ?? null,
+    relationship_to_family_head: src.relationship_to_family_head ?? null,
+  });
+
   try {
-    // 1) evacuee core + resident
-    // 1) evacuee core + resident + family head's resident name
+    // 1) Load evacuee + resident + family head display (global person records)
     const { data: evacuee, error: evacueeErr } = await supabase
       .from("evacuee_residents")
-      .select(
-        `
-    id,
-    resident_id,
-    marital_status,
-    educational_attainment,
-    school_of_origin,
-    occupation,
-    purok,
-    relationship_to_family_head,
-    family_head_id,
-    date_registered,
-    residents:resident_id (
-      first_name,
-      middle_name,
-      last_name,
-      suffix,
-      birthdate,
-      sex,
-      barangay_of_origin
-    ),
-    family_head:family_head_id (
-      residents:resident_id (
-        first_name,
-        middle_name,
-        last_name
-      )
-    )
-  `
-      )
+      .select(`
+        id,
+        resident_id,
+        marital_status,
+        educational_attainment,
+        school_of_origin,
+        occupation,
+        purok,
+        relationship_to_family_head,
+        family_head_id,
+        date_registered,
+        residents:resident_id (
+          first_name,
+          middle_name,
+          last_name,
+          suffix,
+          birthdate,
+          sex,
+          barangay_of_origin
+        ),
+        family_head:family_head_id (
+          residents:resident_id (
+            first_name,
+            middle_name,
+            last_name,
+            suffix
+          )
+        )
+      `)
       .eq("id", evacueeResidentId)
       .single();
 
@@ -1277,65 +1467,84 @@ exports.getEvacueeDetailsForEdit = async (req, res, next) => {
       return next(new ApiError("Evacuee not found.", 404));
     }
 
-    // 2) registration row for *this* event (room assignment lives here)
+    // 2) Load THIS-EVENT registration with event-scoped fields
     const { data: registration, error: regErr } = await supabase
       .from("evacuation_registrations")
-      .select(
-        "id, ec_rooms_id, arrival_timestamp, decampment_timestamp, reported_age_at_arrival"
-      )
+      .select(`
+        id,
+        ec_rooms_id,
+        arrival_timestamp,
+        decampment_timestamp,
+        reported_age_at_arrival,
+        profile_snapshot,
+        vulnerability_type_ids
+      `)
       .eq("evacuee_resident_id", evacueeResidentId)
       .eq("disaster_evacuation_event_id", disasterEvacuationEventId)
       .maybeSingle();
 
     if (regErr) {
-      return next(
-        new ApiError("Failed to load registration for this event.", 500)
-      );
+      return next(new ApiError("Failed to load registration for this event.", 500));
     }
 
-    // 3) vulnerabilities (names for UI)
-    const { data: vulns, error: vulnsErr } = await supabase
-      .from("resident_vulnerabilities")
-      .select("vulnerability_types(name, id)")
-      .eq("evacuee_resident_id", evacueeResidentId);
+    // 3) Build the snapshot to send to the client
+    //    Prefer event snapshot; fall back to global person rows ONLY when snapshot is missing
+    const rawSnap = registration?.profile_snapshot
+      ? registration.profile_snapshot
+      : {
+          first_name: evacuee.residents?.first_name,
+          middle_name: evacuee.residents?.middle_name,
+          last_name: evacuee.residents?.last_name,
+          suffix: evacuee.residents?.suffix,
+          sex: evacuee.residents?.sex,
+          birthdate: evacuee.residents?.birthdate,
+          barangay_of_origin: evacuee.residents?.barangay_of_origin,
+          purok: evacuee.purok,
+          marital_status: evacuee.marital_status,
+          educational_attainment: evacuee.educational_attainment,
+          occupation: evacuee.occupation,
+          school_of_origin: evacuee.school_of_origin,
+          // fallback for older records that didn't store relationship in the snapshot
+          relationship_to_family_head: evacuee.relationship_to_family_head ?? null,
+        };
 
-    if (vulnsErr) {
-      return next(new ApiError("Failed to load vulnerabilities.", 500));
-    }
+    // Ensure relationship_to_family_head in the final snapshot (prefer event value)
+    const eventRel =
+      registration?.profile_snapshot?.relationship_to_family_head ??
+      evacuee.relationship_to_family_head ??
+      null;
 
-    const vulnerabilityNames = (vulns || [])
-      .map((v) => v.vulnerability_types?.name)
-      .filter(Boolean);
+    const snap = buildSnapshot({ ...rawSnap, relationship_to_family_head: eventRel });
 
-    const vulnerabilityIds = (vulns || [])
-      .map((v) => v.vulnerability_types?.id)
-      .filter(Boolean);
+    // IMPORTANT: vulnerabilities must be event-scoped
+    const vulnIds = Array.isArray(registration?.vulnerability_type_ids)
+      ? registration.vulnerability_type_ids
+      : []; // default empty; no leaking from past events
 
     return res.status(200).json({
       id: evacuee.id,
-      // Residents
-      first_name: evacuee.residents.first_name,
-      middle_name: evacuee.residents.middle_name,
-      last_name: evacuee.residents.last_name,
-      suffix: evacuee.residents.suffix,
-      birthdate: evacuee.residents.birthdate,
-      sex: evacuee.residents.sex,
-      barangay_of_origin: evacuee.residents.barangay_of_origin,
 
-      // Evacuee residents
-      marital_status: evacuee.marital_status,
-      educational_attainment: evacuee.educational_attainment,
-      school_of_origin: evacuee.school_of_origin,
-      occupation: evacuee.occupation,
-      purok: evacuee.purok,
-      relationship_to_family_head: evacuee.relationship_to_family_head,
+      // Residents (from event snapshot first)
+      first_name: snap.first_name,
+      middle_name: snap.middle_name,
+      last_name: snap.last_name,
+      suffix: snap.suffix,
+      birthdate: snap.birthdate,
+      sex: snap.sex,
+      barangay_of_origin: snap.barangay_of_origin,
+
+      // Evacuee-residents (from event snapshot first where applicable)
+      marital_status: snap.marital_status,
+      educational_attainment: snap.educational_attainment,
+      school_of_origin: snap.school_of_origin,
+      occupation: snap.occupation,
+      purok: snap.purok,
+
+      // *** Event-scoped relationship used by the Edit modal ***
+      relationship_to_family_head: snap.relationship_to_family_head,
       family_head_id: evacuee.family_head_id,
       family_head_full_name: evacuee.family_head?.residents
-        ? `${evacuee.family_head.residents.first_name} ${
-            evacuee.family_head.residents.middle_name || ""
-          } ${evacuee.family_head.residents.last_name}`
-            .replace(/\s+/g, " ")
-            .trim()
+        ? buildFullName(evacuee.family_head.residents)
         : null,
       date_registered: evacuee.date_registered,
 
@@ -1345,9 +1554,11 @@ exports.getEvacueeDetailsForEdit = async (req, res, next) => {
       decampment_timestamp: registration?.decampment_timestamp ?? null,
       reported_age_at_arrival: registration?.reported_age_at_arrival ?? null,
 
-      // Vulnerabilities
-      vulnerability_types: vulnerabilityNames,
-      vulnerability_type_ids: vulnerabilityIds,
+      // Event-scoped vulnerabilities for edit form
+      vulnerability_type_ids: vulnIds,
+
+      // Provide the merged snapshot the UI expects
+      profile_snapshot: snap,
     });
   } catch (err) {
     console.error("getEvacueeDetailsForEdit error:", err);
@@ -1355,8 +1566,12 @@ exports.getEvacueeDetailsForEdit = async (req, res, next) => {
   }
 };
 
+
 /**
- * @desc Transfer the family head to another member (GLOBAL update)
+ * @desc Transfer the family head to another member.
+ *       GLOBAL: repoints family_head_id on evacuee_residents + registrations.
+ *       EVENT-SCOPED: also patches profile_snapshot.relationship_to_family_head
+ *       for the specified event so Edit modal reflects the new roles.
  * @route POST /api/v1/evacuees/:disasterEvacuationEventId/transfer-head
  * @access Private (Camp Manager only)
  */
@@ -1368,21 +1583,22 @@ exports.transferHead = async (req, res, next) => {
     old_head_new_relationship = "Spouse",
   } = req.body || {};
 
-  const eventIdNum = Number(disasterEvacuationEventId); 
+  const eventIdNum = Number(disasterEvacuationEventId);
   const fromFH = Number(from_family_head_id);
   const toEvac = Number(to_evacuee_resident_id);
 
   if (
-    !eventIdNum ||
-    !fromFH ||
-    !toEvac ||
-    typeof old_head_new_relationship !== "string"
+    !Number.isFinite(eventIdNum) ||
+    !Number.isFinite(fromFH) ||
+    !Number.isFinite(toEvac) ||
+    typeof old_head_new_relationship !== "string" ||
+    !old_head_new_relationship.trim()
   ) {
     return next(new ApiError("Missing or invalid fields for transfer.", 400));
   }
 
   try {
-    // ── A) Validate that the chosen member belongs to this family for this event
+    // ── A) Validate: target member belongs to this family for THIS event
     const { count: membershipCount, error: memberCheckErr } = await supabase
       .from("evacuation_registrations")
       .select("id", { count: "exact", head: true })
@@ -1403,42 +1619,50 @@ exports.transferHead = async (req, res, next) => {
       );
     }
 
-    // ── B) Get the person we’re promoting (need their resident_id)
+    // ── B) Member we promote (need resident_id)
     const { data: promoteRow, error: promoteErr } = await supabase
       .from("evacuee_residents")
       .select("id, resident_id, relationship_to_family_head, family_head_id")
       .eq("id", toEvac)
       .single();
-
     if (promoteErr || !promoteRow) {
       return next(new ApiError("Member to promote not found.", 404));
     }
 
-    // ── C) Find old head’s resident_id via the family_head table
+    // ── C) Old head's resident_id via family_head
     const { data: oldFHRow, error: oldFHErr } = await supabase
       .from("family_head")
       .select("id, resident_id")
       .eq("id", fromFH)
       .single();
-
     if (oldFHErr || !oldFHRow) {
       console.error("oldFHErr:", oldFHErr);
       throw new ApiError("Old family head record not found.", 404);
     }
 
-    // ── D) Ensure the promoted person has a family_head row (or create)
+    // Also fetch the old-head evacuee_residents.id (to patch event snapshot later)
+    const { data: oldHeadEvacueeRow, error: oldHeadEvacErr } = await supabase
+      .from("evacuee_residents")
+      .select("id")
+      .eq("resident_id", oldFHRow.resident_id)
+      .single();
+    if (oldHeadEvacErr || !oldHeadEvacueeRow) {
+      console.error("oldHeadEvacErr:", oldHeadEvacErr);
+      throw new ApiError("Could not locate old head's evacuee record.", 404);
+    }
+
+    // ── D) Ensure a family_head row for the promoted resident
     let new_family_head_id = null;
     const { data: existingHead, error: headFindErr } = await supabase
       .from("family_head")
       .select("id")
       .eq("resident_id", promoteRow.resident_id)
       .maybeSingle();
-
     if (headFindErr) {
       console.error("headFindErr:", headFindErr);
       throw new ApiError("Failed to resolve family head record.", 500);
     }
-    if (existingHead) {
+    if (existingHead?.id) {
       new_family_head_id = existingHead.id;
     } else {
       const { data: insertedHead, error: headInsertErr } = await supabase
@@ -1448,6 +1672,12 @@ exports.transferHead = async (req, res, next) => {
         .single();
       if (headInsertErr) {
         console.error("headInsertErr:", headInsertErr);
+        if (headInsertErr.code === "23505") {
+          throw new ApiError(
+            `Duplicate key on 'family_head.id'. Run: SELECT setval(pg_get_serial_sequence('family_head','id'), (SELECT MAX(id) FROM family_head)+1);`,
+            500
+          );
+        }
         throw new ApiError("Failed to create new family head record.", 500);
       }
       new_family_head_id = insertedHead.id;
@@ -1455,7 +1685,7 @@ exports.transferHead = async (req, res, next) => {
 
     const nowIso = new Date().toISOString();
 
-    // ── E) Promote the selected member to Head
+    // ── E) Promote the selected member to Head (GLOBAL person table)
     const { error: promoteRelErr } = await supabase
       .from("evacuee_residents")
       .update({
@@ -1464,29 +1694,27 @@ exports.transferHead = async (req, res, next) => {
         updated_at: nowIso,
       })
       .eq("id", toEvac);
-
     if (promoteRelErr) {
       console.error("promoteRelErr:", promoteRelErr);
       throw new ApiError("Failed to set promoted member as head.", 500);
     }
 
-    // ── F) Demote the OLD head by resident_id (handles cases where family_head_id was NULL)
+    // ── F) Demote the OLD head (GLOBAL person table)
     const { error: oldHeadDemoteErr } = await supabase
       .from("evacuee_residents")
       .update({
         relationship_to_family_head: old_head_new_relationship,
-        family_head_id: new_family_head_id, // now points to the new head
+        family_head_id: new_family_head_id, // point to new head
         updated_at: nowIso,
       })
-      .eq("resident_id", oldFHRow.resident_id) 
-      .eq("relationship_to_family_head", "Head"); 
-
+      .eq("resident_id", oldFHRow.resident_id)
+      .eq("relationship_to_family_head", "Head");
     if (oldHeadDemoteErr) {
       console.error("oldHeadDemoteErr:", oldHeadDemoteErr);
       throw new ApiError("Failed to update old head relationship.", 500);
     }
 
-    // ── G) Repoint ALL members that referenced the old family_head_id to the new one (GLOBAL)
+    // ── G) Repoint ALL members to the new family_head_id (GLOBAL people table)
     const { error: allMembersRepointErr } = await supabase
       .from("evacuee_residents")
       .update({
@@ -1494,7 +1722,6 @@ exports.transferHead = async (req, res, next) => {
         updated_at: nowIso,
       })
       .eq("family_head_id", fromFH);
-
     if (allMembersRepointErr) {
       console.error("allMembersRepointErr:", allMembersRepointErr);
       throw new ApiError("Failed to reassign family members to new head.", 500);
@@ -1508,12 +1735,61 @@ exports.transferHead = async (req, res, next) => {
         updated_at: nowIso,
       })
       .eq("family_head_id", fromFH);
-    // If you prefer event-scoped only, add:
+    // If you want event-only scope, add:
     // .eq('disaster_evacuation_event_id', eventIdNum)
-
     if (regRepointErr) {
       console.error("regRepointErr:", regRepointErr);
       throw new ApiError("Failed to update registrations to new head.", 500);
+    }
+
+    // ── I) Patch EVENT-SCOPED snapshots so the Edit modal shows correct roles for THIS event
+    // Promotee's registration snapshot → relationship_to_family_head = "Head"
+    const { data: promoteReg, error: promoteRegErr } = await supabase
+      .from("evacuation_registrations")
+      .select("id, profile_snapshot")
+      .eq("evacuee_resident_id", toEvac)
+      .eq("disaster_evacuation_event_id", eventIdNum)
+      .maybeSingle();
+    if (promoteRegErr) {
+      console.error("promoteRegErr:", promoteRegErr);
+      throw new ApiError("Failed to load promoted member registration.", 500);
+    }
+    if (promoteReg?.id) {
+      const pSnap = promoteReg.profile_snapshot || {};
+      const patched = { ...pSnap, relationship_to_family_head: "Head" };
+      const { error: promoteSnapUpdErr } = await supabase
+        .from("evacuation_registrations")
+        .update({ profile_snapshot: patched, updated_at: nowIso })
+        .eq("id", promoteReg.id);
+      if (promoteSnapUpdErr) {
+        console.error("promoteSnapUpdErr:", promoteSnapUpdErr);
+        throw new ApiError("Failed to update promoted member event snapshot.", 500);
+      }
+    }
+
+    // Old head's registration snapshot in THIS event → relationship_to_family_head = given demoted role
+    const oldEvacId = oldHeadEvacueeRow.id;
+    const { data: oldReg, error: oldRegErr } = await supabase
+      .from("evacuation_registrations")
+      .select("id, profile_snapshot")
+      .eq("evacuee_resident_id", oldEvacId)
+      .eq("disaster_evacuation_event_id", eventIdNum)
+      .maybeSingle();
+    if (oldRegErr) {
+      console.error("oldRegErr:", oldRegErr);
+      throw new ApiError("Failed to load old head registration.", 500);
+    }
+    if (oldReg?.id) {
+      const oSnap = oldReg.profile_snapshot || {};
+      const patched = { ...oSnap, relationship_to_family_head: old_head_new_relationship };
+      const { error: oldSnapUpdErr } = await supabase
+        .from("evacuation_registrations")
+        .update({ profile_snapshot: patched, updated_at: nowIso })
+        .eq("id", oldReg.id);
+      if (oldSnapUpdErr) {
+        console.error("oldSnapUpdErr:", oldSnapUpdErr);
+        throw new ApiError("Failed to update old head event snapshot.", 500);
+      }
     }
 
     return res.status(200).json({
@@ -1529,3 +1805,4 @@ exports.transferHead = async (req, res, next) => {
     );
   }
 };
+

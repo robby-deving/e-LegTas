@@ -45,6 +45,8 @@ export const FamilyDetailsModal: React.FC<FamilyDetailsModalProps> = ({
 }) => {
   // --- stays ---
   const [savingDecamp, setSavingDecamp] = useState(false);
+  const [decampError, setDecampError] = useState<string | null>(null);
+
 
   // derive if this family already had a decampment (declare BEFORE touched)
   const hadExistingDecamp = Boolean(evacuee?.decampment_timestamp);
@@ -114,43 +116,34 @@ export const FamilyDetailsModal: React.FC<FamilyDetailsModalProps> = ({
   const canSaveDecamp = hasChanges && !savingDecamp && !missingTimeForNew;
 
   // merge handlers for split pickers
-  const handleChangeDateOnly = (picked: Date | null) => {
-    if (!picked) {
-      setDecampDate(null);
-      setTouched({ date: false, time: false }); // reset both when clearing
-      return;
-    }
-    const h = decampDate ? decampDate.getHours() : 0;
-    const m = decampDate ? decampDate.getMinutes() : 0;
-    setDecampDate(
-      new Date(
-        picked.getFullYear(),
-        picked.getMonth(),
-        picked.getDate(),
-        h,
-        m,
-        0,
-        0
-      )
-    );
-    setTouched((t) => ({ ...t, date: true }));
-  };
+const handleChangeDateOnly = (picked: Date | null) => {
+  setDecampError(null); // 👈 clear any previous error
+  if (!picked) {
+    setDecampDate(null);
+    setTouched({ date: false, time: false });
+    return;
+  }
+  const h = decampDate ? decampDate.getHours() : 0;
+  const m = decampDate ? decampDate.getMinutes() : 0;
+  setDecampDate(new Date(picked.getFullYear(), picked.getMonth(), picked.getDate(), h, m, 0, 0));
+  setTouched((t) => ({ ...t, date: true }));
+};
 
-  const handleChangeTimeOnly = (picked: Date | null) => {
-    if (!picked || !decampDate) return; // require a date first
-    setDecampDate(
-      new Date(
-        decampDate.getFullYear(),
-        decampDate.getMonth(),
-        decampDate.getDate(),
-        picked.getHours(),
-        picked.getMinutes(),
-        0,
-        0
-      )
-    );
-    setTouched((t) => ({ ...t, time: true }));
-  };
+
+const handleChangeTimeOnly = (picked: Date | null) => {
+  if (!picked || !decampDate) return;
+  setDecampError(null); // 👈 clear any previous error
+  setDecampDate(new Date(
+    decampDate.getFullYear(),
+    decampDate.getMonth(),
+    decampDate.getDate(),
+    picked.getHours(),
+    picked.getMinutes(),
+    0, 0
+  ));
+  setTouched((t) => ({ ...t, time: true }));
+};
+
 
   // --- stays: transfer state/logic ---
   const [transferOpen, setTransferOpen] = useState(false);
@@ -162,6 +155,15 @@ export const FamilyDetailsModal: React.FC<FamilyDetailsModalProps> = ({
 
   const members: any[] = evacuee?.list_of_family_members?.family_members ?? [];
 
+    const earliestArrival = useMemo(() => {
+  const members = evacuee?.list_of_family_members?.family_members ?? [];
+  let minMs = Infinity;
+  for (const m of members) {
+    const t = Date.parse(m?.arrival_timestamp ?? "");
+    if (!Number.isNaN(t)) minMs = Math.min(minMs, t);
+  }
+  return Number.isFinite(minMs) ? new Date(minMs) : null;
+}, [evacuee]);
     const orderedMembers = useMemo(() => {
     const isHead = (m: any) =>
       m?.relationship_to_family_head === "Head" ||
@@ -175,6 +177,7 @@ export const FamilyDetailsModal: React.FC<FamilyDetailsModalProps> = ({
   const transferCandidates: any[] = members.filter(
     (m) => m.full_name !== evacuee.family_head_full_name
   );
+
 
   // Keep this based on server state, so transfer is locked only when the family is actually decamped in DB
   const isDecamped = Boolean(evacuee?.decampment_timestamp);
@@ -230,26 +233,49 @@ export const FamilyDetailsModal: React.FC<FamilyDetailsModalProps> = ({
   };
 
   // --- save handler (unchanged logic) ---
-  const handleSaveDecampment = async () => {
+const handleSaveDecampment = async () => {
+  setDecampError(null);
+
+  const eventId = Number(evacuee?.disaster_evacuation_event_id);
+  const familyHeadId = Number(evacuee?.id);
+  if (!eventId || !familyHeadId) {
+    setDecampError("Missing event or family head id.");
+    return;
+  }
+
+  const url = `http://localhost:3000/api/v1/evacuees/${eventId}/families/${familyHeadId}/decamp`;
+
+  // If the picker is cleared, clear decampment in the backend
+  if (!decampDate) {
     try {
       setSavingDecamp(true);
-
-      const eventId = Number(evacuee.disaster_evacuation_event_id);
-      const familyHeadId = Number(evacuee.id);
-
-      const url = `http://localhost:3000/api/v1/evacuees/${eventId}/families/${familyHeadId}/decamp`;
-      const body = {
-        decampment_timestamp: decampDate ? decampDate.toISOString() : null,
-      };
-
-      await axios.post(url, body);
+      await axios.post(url, { decampment_timestamp: null });
       onClose();
     } catch (e: any) {
-      console.error("Save decampment failed:", e?.response?.data || e);
+      setDecampError(e?.response?.data?.message || "Failed to clear decampment.");
     } finally {
       setSavingDecamp(false);
     }
-  };
+    return;
+  }
+
+  // Client-side guard: decampment must be later than earliest arrival
+  if (earliestArrival && decampDate <= earliestArrival) {
+    setDecampError("Decampment must be later than the family's earliest arrival.");
+    return;
+  }
+
+  try {
+    setSavingDecamp(true);
+    await axios.post(url, { decampment_timestamp: decampDate.toISOString() });
+    onClose();
+  } catch (e: any) {
+    setDecampError(e?.response?.data?.message || "Failed to save decampment.");
+  } finally {
+    setSavingDecamp(false);
+  }
+};
+
   return (
     <>
       <Dialog
@@ -341,19 +367,21 @@ export const FamilyDetailsModal: React.FC<FamilyDetailsModalProps> = ({
 
                         {/* Small circular green clear button */}
                         {decampDate && (
-                          <button
-                            type="button"
-                            aria-label="Clear decampment date"
-                            onMouseDown={(e) => e.preventDefault()}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setDecampDate(null);
-                              setTouched({ date: false, time: false });
-                            }}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 z-20 inline-flex h-5 w-5 items-center justify-center rounded-full bg-green-700 text-white hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-green-600 cursor-pointer"
-                          >
-                            ×
-                          </button>
+                        <button
+                          type="button"
+                          aria-label="Clear decampment date"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDecampDate(null);
+                            setTouched({ date: false, time: false });
+                            setDecampError(null); // 👈 clear error when user clears the date
+                          }}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 z-20 inline-flex h-5 w-5 items-center justify-center rounded-full bg-green-700 text-white hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-green-600 cursor-pointer"
+                        >
+                          ×
+                        </button>
+
                         )}
                       </div>
 
@@ -398,6 +426,12 @@ export const FamilyDetailsModal: React.FC<FamilyDetailsModalProps> = ({
                       >
                         {savingDecamp ? "Saving..." : "Save Decampment"}
                       </Button>
+                      {decampError && (
+  <span className="mt-1 block text-xs text-red-500" role="alert" aria-live="polite">
+    {decampError}
+  </span>
+)}
+
                     </div>
 
                     <p className="mt-1 text-xs text-gray-500">

@@ -23,6 +23,7 @@ import { FamilyDetailsModal } from "../components/modals/FamilyDetailsModal";
 import { RegisterEvacueeModal } from "../components/modals/RegisterEvacueeModal";
 import { SearchEvacueeModal } from "../components/modals/SearchEvacueeModal";
 import { FamilyHeadSearchModal } from "../components/modals/FamilyHeadSearchModal";
+import { RegisterBlockDialog } from "@/components/modals/RegisterBlockDialog";
 import { differenceInYears } from "date-fns";
 import { mapEditPayloadToForm, mapSearchPayloadToForm } from "@/utils/mapEvacueePayload";
 import type { SortKey, SortState } from "@/types/EvacuationCenterDetails";
@@ -43,6 +44,64 @@ export default function EvacuationCenterDetail() {
   useEffect(() => setPage(1), [search, rowsPerPage]);
   const [selectedEvacuee, setSelectedEvacuee] = useState<SelectedEvacuee | null>(null);
   const [searchResults, setSearchResults] = useState<Evacuee[]>([]);
+  
+  const [regBlockOpen, setRegBlockOpen] = useState(false);
+  const [regBlockName, setRegBlockName] = useState<string | undefined>();
+  const [regBlockEcName, setRegBlockEcName] = useState<string | undefined>();
+
+  // ---- DEBUG UTILITIES ----
+const DEBUG = true;
+const dbg = (...args: any[]) => DEBUG && console.log(...args);
+
+useEffect(() => {
+  // one-time axios interceptors
+  const reqId = () => Math.random().toString(36).slice(2);
+
+  const reqI = axios.interceptors.request.use((config) => {
+    (config as any).__traceId = reqId();
+    dbg(
+      `%c[HTTP ➡️] ${config.method?.toUpperCase()} ${config.url}  trace=${(config as any).__traceId}`,
+      "color:#0b7285;font-weight:bold",
+      { params: config.params, data: config.data, headers: config.headers }
+    );
+    // attach trace id header (nice to echo on the server logs too)
+    config.headers = { ...(config.headers || {}), "X-Debug-Trace": (config as any).__traceId };
+    return config;
+  });
+
+  const resI = axios.interceptors.response.use(
+    (res) => {
+      const trace = (res.config as any).__traceId;
+      dbg(
+        `%c[HTTP ⬅️] ${res.config.method?.toUpperCase()} ${res.config.url}  ${res.status} ${res.statusText}  trace=${trace}`,
+        "color:#2b8a3e;font-weight:bold",
+        { data: res.data, headers: res.headers }
+      );
+      return res;
+    },
+    (err) => {
+      const cfg = err?.config || {};
+      const trace = (cfg as any).__traceId;
+      const status = err?.response?.status;
+      const statusText = err?.response?.statusText;
+      console.error(
+        `%c[HTTP ⬅️ ERR] ${cfg.method?.toUpperCase?.() || "?"} ${cfg.url}  ${status ?? "?"} ${statusText ?? ""}  trace=${trace}`,
+        "color:#c92a2a;font-weight:bold",
+        {
+          request: { params: cfg.params, data: cfg.data, headers: cfg.headers },
+          response: { data: err?.response?.data, headers: err?.response?.headers },
+          error: { message: err?.message, stack: err?.stack },
+        }
+      );
+      return Promise.reject(err);
+    }
+  );
+
+  return () => {
+    axios.interceptors.request.eject(reqI);
+    axios.interceptors.response.eject(resI);
+  };
+}, []);
 
 
   // --- sorting state & helpers ---
@@ -260,36 +319,40 @@ const { paginatedEvacuees, totalRows, totalPages } = useMemo(() => {
 
   
 
-  const handleEditMember = async (member: FamilyMember) => {
-    try {
-      const evacueeResidentId =
-        (member as any).evacuee_resident_id ?? (member as any).evacuee_id;
-      if (!evacueeResidentId) return;
+const handleEditMember = async (member: FamilyMember) => {
+  try {
+    const evacueeResidentId =
+      (member as any).evacuee_resident_id ?? (member as any).evacuee_id;
+    if (!evacueeResidentId) return;
 
-      const res = await axios.get<EditEvacueeApi>(
-        `http://localhost:3000/api/v1/evacuees/${centerId}/${evacueeResidentId}/edit`
-      );
-      const data = res.data;
+    dbg("[EDIT] fetch edit payload", { centerId, evacueeResidentId });
+    const res = await axios.get<EditEvacueeApi>(
+      `http://localhost:3000/api/v1/evacuees/${centerId}/${evacueeResidentId}/edit`
+    );
+    dbg("[EDIT] raw API payload", res.data);
 
-      const mapped = mapEditPayloadToForm(data);
-      setFormData((prev) => ({
-        ...prev,
-        ...mapped,
-        evacuationRoomName: member.room_name || prev.evacuationRoomName || "",
-         searchEvacuationRoom: String(data.ec_rooms_id ?? ""),
-      }));
+    const data = res.data;
+    const mapped = mapEditPayloadToForm(data);
+    dbg("[EDIT] mapped -> formData", mapped);
 
-      setSelectedEvacuee({
-        id: Number(evacueeResidentId),
-        registration_ec_rooms_id: data.ec_rooms_id ?? null,
-      });
+    setFormData((prev) => ({
+      ...prev,
+      ...mapped,
+      evacuationRoomName: member.room_name || prev.evacuationRoomName || "",
+      searchEvacuationRoom: String(data.ec_rooms_id ?? ""),
+    }));
 
-      setEvacueeModalMode("edit");
-      setEvacueeModalOpen(true);
-    } catch (err) {
-      console.error("Failed to load evacuee details for edit:", err);
-    }
-  };
+    setSelectedEvacuee({
+      id: Number(evacueeResidentId),
+      registration_ec_rooms_id: data.ec_rooms_id ?? null,
+    });
+
+    setEvacueeModalMode("edit");
+    setEvacueeModalOpen(true);
+  } catch (err) {
+    console.error("Failed to load evacuee details for edit:", err);
+  }
+};
 
   const handleSearchChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -363,17 +426,38 @@ const { paginatedEvacuees, totalRows, totalPages } = useMemo(() => {
     setFamilyHeadSearchResults([]);
     setShowFamilyHeadSearchModal(true);
   };
-  const handleSelectEvacuee = (evacuee: any) => {
-    const mapped = mapSearchPayloadToForm(evacuee);
-    setFormData((prev) => ({
-      ...prev,
-      ...mapped,
-      existingEvacueeResidentId: Number(evacuee.evacuee_resident_id) || null,
-    }));
-    setShowSearchModal(false);
-    setEvacueeModalMode("register");
-    setEvacueeModalOpen(true);
-  };
+const handleSelectEvacuee = (evacuee: any) => {
+  // If evacuee is ACTIVE elsewhere, show RegisterBlockDialog (no alert)
+  if (evacuee?.is_active) {
+    const fullName = [
+      evacuee?.first_name,
+      evacuee?.middle_name,
+      evacuee?.last_name,
+      evacuee?.suffix,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    setRegBlockName(fullName || undefined);
+    setRegBlockEcName(evacuee?.active_ec_name || undefined); // dialog handles undefined → "in another event"
+    setRegBlockOpen(true);
+    return;
+  }
+
+  // Otherwise proceed to prefill and open the register modal
+  const mapped = mapSearchPayloadToForm(evacuee);
+  setFormData((prev) => ({
+    ...prev,
+    ...mapped,
+    existingEvacueeResidentId: Number(evacuee?.evacuee_resident_id) || null,
+  }));
+  setShowSearchModal(false);
+  setEvacueeModalMode("register");
+  setEvacueeModalOpen(true);
+};
+
 
   const handleManualRegister = () => {
     // Reset form data
@@ -456,91 +540,131 @@ const { paginatedEvacuees, totalRows, totalPages } = useMemo(() => {
     };
   }
 
-  const handleRegisterEvacuee = async () => {
-    console.log("[handleRegisterEvacuee] start", {
+const handleRegisterEvacuee = async () => {
+  console.groupCollapsed("%c[EvacueeSubmit] start", "color:#364fc7;font-weight:bold");
+  try {
+    const birthdate = new Date(formData.birthday);
+    const age = differenceInYears(new Date(), birthdate);
+    const vulnerabilityFlags = getVulnerabilityFlags(age);
+    const relationship = formData.isFamilyHead === "Yes" ? "Head" : formData.relationshipToFamilyHead;
+
+    // quick sanity checks (these help surface silent issues)
+    if (!formData.firstName || !formData.lastName) {
+      console.warn("[EvacueeSubmit] Missing first/last name");
+    }
+    if (formData.isFamilyHead === "No" && !formData.familyHeadId) {
+      console.error("[EvacueeSubmit] BLOCKED: Missing familyHeadId when isFamilyHead = 'No'");
+      console.groupEnd();
+      return;
+    }
+    const roomId = Number.parseInt(formData.searchEvacuationRoom);
+    if (!Number.isFinite(roomId)) {
+      console.error("[EvacueeSubmit] BLOCKED: invalid ec_rooms_id", formData.searchEvacuationRoom);
+      console.groupEnd();
+      return;
+    }
+    if (!Number.isFinite(centerId as any)) {
+      console.error("[EvacueeSubmit] BLOCKED: invalid disaster_evacuation_event_id (centerId)", centerId);
+      console.groupEnd();
+      return;
+    }
+
+    const payload: RegisterEvacuee = {
+      first_name: formData.firstName,
+      middle_name: formData.middleName,
+      last_name: formData.lastName,
+      suffix: formData.suffix && formData.suffix.trim() !== "" ? formData.suffix.trim() : null,
+      birthdate: formData.birthday,
+      sex: formData.sex,
+      barangay_of_origin: Number(formData.barangayOfOrigin),
+      marital_status: formData.maritalStatus,
+      educational_attainment: formData.educationalAttainment,
+      school_of_origin: formData.schoolOfOrigin || "",
+      occupation: formData.occupation || "",
+      purok: formData.purok || "",
+      relationship_to_family_head: relationship,
+      family_head_id: formData.isFamilyHead === "No" ? formData.familyHeadId! : undefined,
+      date_registered: new Date().toISOString(),
+      ...vulnerabilityFlags,
+      is_pwd: formData.vulnerabilities.pwd,
+      is_pregnant: formData.vulnerabilities.pregnant,
+      is_lactating: formData.vulnerabilities.lactatingMother,
+      ec_rooms_id: roomId,
+      disaster_evacuation_event_id: Number(centerId),
+      ...(evacueeModalMode === "register" && formData.existingEvacueeResidentId
+        ? { existing_evacuee_resident_id: formData.existingEvacueeResidentId }
+        : {}),
+    };
+
+    console.table({
       mode: evacueeModalMode,
       isFamilyHead: formData.isFamilyHead,
-      familyHeadId: formData.familyHeadId,
-      searchEvacuationRoom: formData.searchEvacuationRoom,
+      familyHeadId: String(formData.familyHeadId ?? ""),
+      ec_rooms_id: payload.ec_rooms_id,
+      disaster_evacuation_event_id: payload.disaster_evacuation_event_id,
+      selectedEvacueeId: selectedEvacuee?.id ?? null,
     });
+    dbg("[EvacueeSubmit] payload", payload);
 
-    try {
-      const birthdate = new Date(formData.birthday);
-      const age = differenceInYears(new Date(), birthdate);
-      const vulnerabilityFlags = getVulnerabilityFlags(age);
-      const relationship =
-        formData.isFamilyHead === "Yes"
-          ? "Head"
-          : formData.relationshipToFamilyHead;
+    if (evacueeModalMode === "register") {
+      const resp = await axios.post("http://localhost:3000/api/v1/evacuees", payload);
+      dbg("[EvacueeSubmit] POST OK", resp.status, resp.data);
+    } else if (evacueeModalMode === "edit" && selectedEvacuee?.id) {
+      const url = `http://localhost:3000/api/v1/evacuees/${selectedEvacuee.id}`;
+      // NOTE: backend PUT expects disaster_evacuation_event_id to know WHICH event to write
+      const resp = await axios.put(url, payload);
+      dbg("[EvacueeSubmit] PUT OK", resp.status, resp.data);
+    } else {
+      console.warn("[EvacueeSubmit] Edit mode but no selectedEvacuee.id");
+      console.groupEnd();
+      return;
+    }
 
-      if (formData.isFamilyHead === "No" && !formData.familyHeadId) {
-        console.error(
-          "[handleRegisterEvacuee] BLOCKED: Missing familyHeadId when isFamilyHead = 'No'"
-        );
-        return;
-      }
+    setEvacueeModalOpen(false);
+    await refreshAll();
+} catch (error: any) {
+  const status = error?.response?.status;
+  const server = error?.response?.data;
+  const msg = server?.message || "Failed to register evacuee.";
 
-      const payload: RegisterEvacuee = {
-        first_name: formData.firstName,
-        middle_name: formData.middleName,
-        last_name: formData.lastName,
-        suffix:
-          formData.suffix && formData.suffix.trim() !== ""
-            ? formData.suffix.trim()
-            : null,
-        birthdate: formData.birthday,
-        sex: formData.sex,
-        barangay_of_origin: Number(formData.barangayOfOrigin),
-        marital_status: formData.maritalStatus,
-        educational_attainment: formData.educationalAttainment,
-        school_of_origin: formData.schoolOfOrigin || "",
-        occupation: formData.occupation || "",
-        purok: formData.purok || "",
-        relationship_to_family_head: relationship,
-        family_head_id:
-          formData.isFamilyHead === "No" ? formData.familyHeadId! : undefined,
-        date_registered: new Date().toISOString(),
-        ...vulnerabilityFlags,
-        is_pwd: formData.vulnerabilities.pwd,
-        is_pregnant: formData.vulnerabilities.pregnant,
-        is_lactating: formData.vulnerabilities.lactatingMother,
-        ec_rooms_id: parseInt(formData.searchEvacuationRoom),
-        disaster_evacuation_event_id: centerId,
-...(evacueeModalMode === "register" && formData.existingEvacueeResidentId
-      ? { existing_evacuee_resident_id: formData.existingEvacueeResidentId }
-      : {}),
-  };
+  // Build a display name from the form
+  const fullName = [
+    formData.firstName,
+    formData.middleName,
+    formData.lastName,
+    formData.suffix,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
 
+  if (status === 409) {
+    // Optional: backend can return active_ec_name; use it when present
+    setRegBlockName(fullName || undefined);
+    setRegBlockEcName(server?.active_ec_name || server?.active_ec || undefined);
+    setRegBlockOpen(true);
+  } else if (status === 400) {
+    // keep your existing UX for validation errors (or show another modal/toast)
+    alert(msg);
+  }
 
-      console.log("[handleRegisterEvacuee] payload", payload);
-
-if (evacueeModalMode === "register") {
-  const resp = await axios.post("http://localhost:3000/api/v1/evacuees", payload);
-  console.log("[handleRegisterEvacuee] POST OK", resp.status, resp.data);
-} else if (evacueeModalMode === "edit" && selectedEvacuee?.id) {
-  const url = `http://localhost:3000/api/v1/evacuees/${selectedEvacuee.id}`;
-  const resp = await axios.put(url, payload);
-  console.log("[handleRegisterEvacuee] PUT OK", resp.status, resp.data);
-} else {
-  console.warn("[handleRegisterEvacuee] Edit mode but no selectedEvacuee.id");
-  return;
+  console.error("❌ Error registering/updating evacuee", {
+    status,
+    statusText: error?.response?.statusText,
+    serverMessage: server?.message,
+    data: server,
+    headers: error?.response?.headers,
+    requestUrl: error?.config?.url,
+    requestMethod: error?.config?.method,
+    requestPayload: error?.config?.data,
+  });
+} finally {
+  console.groupEnd();
 }
 
-setEvacueeModalOpen(false);
+};
 
-// 🔁 refresh UI so table/stats reflect latest data
-await refreshAll();
-
-    } catch (error: any) {
-      const status = error?.response?.status;
-      const data = error?.response?.data;
-      console.error("❌ Error registering/updating evacuee", {
-        status,
-        data,
-        error,
-      });
-    }
-  };
 
   if (!detail || !statistics) {
   return (
@@ -844,6 +968,7 @@ await refreshAll();
             }
             disasterStartDate={detail?.disaster?.disaster_start_date ?? null} 
             onEditMember={handleEditMember}
+       
           />
 
           <RegisterEvacueeModal
@@ -858,19 +983,19 @@ await refreshAll();
             centerId={centerId}
           />
 
-<SearchEvacueeModal
-  isOpen={showSearchModal}
-  onClose={() => setShowSearchModal(false)}
-  searchName={searchName}
-  onSearchChange={handleSearchChange}
-  searchResults={searchResults}
-  onSelectEvacuee={handleSelectEvacuee}
-  onManualRegister={handleManualRegister}
-  registeredIds={registeredEvacueeIds}
-  currentEventId={centerId}
-  currentEcId={detail?.evacuation_center?.evacuation_center_id ?? null}
-  currentDisasterId={detail?.disaster?.disasters_id ?? null} 
-/>
+          <SearchEvacueeModal
+            isOpen={showSearchModal}
+            onClose={() => setShowSearchModal(false)}
+            searchName={searchName}
+            onSearchChange={handleSearchChange}
+            searchResults={searchResults}
+            onSelectEvacuee={handleSelectEvacuee}
+            onManualRegister={handleManualRegister}
+            registeredIds={registeredEvacueeIds}
+            currentEventId={centerId}
+            currentEcId={detail?.evacuation_center?.evacuation_center_id ?? null}
+            currentDisasterId={detail?.disaster?.disasters_id ?? null} 
+          />
 
           <FamilyHeadSearchModal
             isOpen={showFamilyHeadSearchModal}
@@ -880,6 +1005,12 @@ await refreshAll();
             searchResults={familyHeadSearchResults}
             onSelectFamilyHead={handleFamilyHeadSelect}
             loading={fhLoading}
+          />
+          <RegisterBlockDialog
+            open={regBlockOpen}
+            onOpenChange={setRegBlockOpen}
+            personName={regBlockName}
+            ecName={regBlockEcName}
           />
         </div>
       </div>

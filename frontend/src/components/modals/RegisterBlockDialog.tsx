@@ -1,45 +1,60 @@
-// DuplicateInOtherECDialog.tsx
+// src/components/modals/RegisterBlockDialog.tsx
 import * as React from "react";
-import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
 import { XIcon } from "lucide-react";
 
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   personName?: string;
-  ecName?: string;
-  description?: React.ReactNode;
-  onSecondaryAction?: () => void;
+  ecName?: string;                    
+  description?: React.ReactNode;      
+  onSecondaryAction?: () => void;     
   secondaryLabel?: string;
   closeLabel?: string;
+  title?: string | null;              
 };
 
-export function DuplicateInOtherECDialog({
+export function RegisterBlockDialog({
   open,
   onOpenChange,
   personName,
   ecName,
   description,
   onSecondaryAction,
-  secondaryLabel = "View in that center",
+  secondaryLabel = "OK",
   closeLabel = "Close",
+  title = "Cannot register this evacuee",
 }: Props) {
   const message =
     description ?? (
       <>
         <span className="font-semibold text-gray-700">{personName}</span>{" "}
-        is already registered in{" "}
-        <span className="font-semibold text-gray-700">
-          {ecName ?? "another evacuation center"}
-        </span>{" "}
-        for this disaster. Please decamp them there first before registering
-        here.
+        is still actively registered
+        {ecName ? (
+          <>
+            {" "}in{" "}
+            <span className="font-semibold text-gray-700">{ecName}</span>
+          </>
+        ) : (
+          " in another event"
+        )}
+        . Please decamp them there first before registering here.
       </>
     );
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      {/* force true center & higher z-index */}
+      {/* Let Radix manage aria-labelledby/aria-describedby via Title/Description */}
       <AlertDialogContent className="relative fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transform z-[60]">
         {/* Top-right close “x” */}
         <button
@@ -52,9 +67,18 @@ export function DuplicateInOtherECDialog({
         </button>
 
         <AlertDialogHeader>
-          <AlertDialogTitle className="text-red-700 text-xl font-bold">
-            Already registered in another center
-          </AlertDialogTitle>
+          {/* Always render a Title; if empty, keep it screen-reader-only */}
+          {title && title.trim() ? (
+            <AlertDialogTitle className="text-red-700 text-xl font-bold">
+              {title}
+            </AlertDialogTitle>
+          ) : (
+            <AlertDialogTitle>
+              <span className="sr-only">Registration blocked</span>
+            </AlertDialogTitle>
+          )}
+
+          {/* Always render a Description */}
           <AlertDialogDescription>{message}</AlertDialogDescription>
         </AlertDialogHeader>
 
