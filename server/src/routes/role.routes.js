@@ -6,7 +6,7 @@ const { authenticateUser, requirePermission } = require('../middleware');
 // All role routes require auth
 router.use(authenticateUser);
 
-// Create Role
+// Create Role (creating with permissions should require add_user_permission for assigning)
 router.post('/', requirePermission('create_role'), createRole);
 
 // Update Role name

@@ -32,6 +32,7 @@ const requirePermission = originalRequirePermission;
 const requireAnyPermission = originalRequireAnyPermission;
 
 const router = express.Router();
+const { supabaseAdmin } = require('../config/supabase');
 
 // Note: authenticateUser is applied at mount level in router.js
 
@@ -85,8 +86,47 @@ router.get('/:id',
   getUserById
 );
 
+// Middleware: require add_user_role only if roleId is being changed
+const requireAddUserRoleIfChangingRole = async (req, res, next) => {
+  try {
+    const targetRoleIdRaw = req.body?.roleId;
+    if (targetRoleIdRaw === undefined || targetRoleIdRaw === null || targetRoleIdRaw === '') {
+      return next();
+    }
+    const targetRoleId = parseInt(targetRoleIdRaw);
+    if (Number.isNaN(targetRoleId)) {
+      return next();
+    }
+    const userId = req.params.id;
+    const { data: existingUser, error } = await supabaseAdmin
+      .from('users')
+      .select(`
+        id,
+        users_profile!user_profile_id(
+          role_id
+        )
+      `)
+      .eq('id', userId)
+      .is('deleted_at', null)
+      .single();
+    if (error || !existingUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    const currentRoleId = existingUser.users_profile?.role_id;
+    if (currentRoleId === targetRoleId) {
+      return next();
+    }
+    // Role is changing → require add_user_role
+    return requirePermission('add_user_role')(req, res, next);
+  } catch (err) {
+    console.error('Role change check failed:', err);
+    return res.status(500).json({ message: 'Role change validation failed', error: err.message });
+  }
+};
+
 router.put('/:id', 
   requirePermission('update_user'),
+  requireAddUserRoleIfChangingRole,
   updateUser
 );
 

@@ -980,6 +980,24 @@ const createRole = async (req, res) => {
 
     // Add permissions to the role if any are provided
     if (permissions.length > 0) {
+      // Enforce that creator has add_user_permission to assign at creation time (no bypass)
+      const { data: creatorProfile } = await supabaseAdmin
+        .from('users_profile')
+        .select('role_id')
+        .eq('user_id', req.user.id)
+        .single();
+      if (!creatorProfile) {
+        return res.status(401).json({ message: 'Authentication required' });
+      }
+      const { data: creatorPerms } = await supabaseAdmin
+        .from('role_permission')
+        .select('permissions(permission_name)')
+        .eq('role_id', creatorProfile.role_id)
+        .is('deleted_at', null);
+      const hasAddUserPermission = (creatorPerms || []).some(rp => rp.permissions?.permission_name === 'add_user_permission');
+      if (!hasAddUserPermission) {
+        return res.status(403).json({ message: 'Insufficient permissions to assign role permissions at creation' });
+      }
       // Convert permission names to permission IDs
       const { data: permissionData, error: permError } = await supabaseAdmin
         .from('permissions')

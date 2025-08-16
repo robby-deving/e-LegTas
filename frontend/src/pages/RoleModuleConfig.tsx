@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, MoreHorizontal, Edit, Trash2 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../components/ui/dropdown-menu';
 import { Button } from '../components/ui/button';
+import { usePermissions } from '../contexts/PermissionContext';
 
 interface Role {
     id: number;
@@ -33,6 +34,12 @@ export default function RoleModuleConfig() {
     
     const currentUser = useSelector(selectCurrentUser);
     const token = useSelector(selectToken);
+    const { hasPermission } = usePermissions();
+    const canCreateRole = hasPermission('create_role');
+    const canUpdateRole = hasPermission('update_role');
+    const canDeleteRole = hasPermission('delete_role');
+    const canAddUserPermission = hasPermission('add_user_permission');
+    const canEditUserPermission = hasPermission('edit_user_permission');
     
     // State for roles data
     const [roles, setRoles] = useState<Role[]>([]);
@@ -374,7 +381,7 @@ export default function RoleModuleConfig() {
                 headers: getAuthHeaders(),
                 body: JSON.stringify({
                     role_name: formData.name,
-                    permissions: formData.permissions
+                    permissions: canAddUserPermission ? formData.permissions : []
                 })
             });
 
@@ -431,16 +438,18 @@ export default function RoleModuleConfig() {
             console.log('All available permissions:', permissions);
 
             const roleId = editingRole.id;
-            const response = await fetch(`/api/v1/permissions/role/${editingRole.id}`, {
-                method: 'PUT',
-                headers: getAuthHeaders(),
-                body: JSON.stringify({
-                    permissionIds: permissionIds
-                })
-            });
+            if (canEditUserPermission) {
+                const response = await fetch(`/api/v1/permissions/role/${editingRole.id}`, {
+                    method: 'PUT',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({
+                        permissionIds: permissionIds
+                    })
+                });
 
-            if (!response.ok) {
-                throw new Error('Failed to update role permissions');
+                if (!response.ok) {
+                    throw new Error('Failed to update role permissions');
+                }
             }
 
             // Reset form and close modal
@@ -525,27 +534,29 @@ export default function RoleModuleConfig() {
             
             {/* Add User Roles Button */}
             <div className="mb-6 flex justify-end">
-                <button
-                    onClick={handleAddRole}
-                    className='inline-flex items-center gap-2 px-4 py-2 text-white font-medium text-base rounded-md hover:opacity-90 transition-opacity focus:outline-none'
-                    style={{
-                        backgroundColor: '#00824E'
-                    }}
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14 14" fill="none">
-                        <g clipPath="url(#clip0_876_48038)">
-                            <path d="M7.0013 12.8327C10.223 12.8327 12.8346 10.221 12.8346 6.99935C12.8346 3.77769 10.223 1.16602 7.0013 1.16602C3.77964 1.16602 1.16797 3.77769 1.16797 6.99935C1.16797 10.221 3.77964 12.8327 7.0013 12.8327Z" stroke="#F8FAFC" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"/>
-                            <path d="M7 4.66602V9.33268" stroke="#F8FAFC" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"/>
-                            <path d="M4.66797 7H9.33464" stroke="#F8FAFC" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"/>
-                        </g>
-                        <defs>
-                            <clipPath id="clip0_876_48038">
-                                <rect width="14" height="14" fill="white"/>
-                            </clipPath>
-                        </defs>
-                    </svg>
-                    Add User Roles
-                </button>
+                {canCreateRole && (
+                    <button
+                        onClick={handleAddRole}
+                        className='inline-flex items-center gap-2 px-4 py-2 text-white font-medium text-base rounded-md hover:opacity-90 transition-opacity focus:outline-none'
+                        style={{
+                            backgroundColor: '#00824E'
+                        }}
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14 14" fill="none">
+                            <g clipPath="url(#clip0_876_48038)">
+                                <path d="M7.0013 12.8327C10.223 12.8327 12.8346 10.221 12.8346 6.99935C12.8346 3.77769 10.223 1.16602 7.0013 1.16602C3.77964 1.16602 1.16797 3.77769 1.16797 6.99935C1.16797 10.221 3.77964 12.8327 7.0013 12.8327Z" stroke="#F8FAFC" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"/>
+                                <path d="M7 4.66602V9.33268" stroke="#F8FAFC" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"/>
+                                <path d="M4.66797 7H9.33464" stroke="#F8FAFC" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"/>
+                            </g>
+                            <defs>
+                                <clipPath id="clip0_876_48038">
+                                    <rect width="14" height="14" fill="white"/>
+                                </clipPath>
+                            </defs>
+                        </svg>
+                        Add User Roles
+                    </button>
+                )}
             </div>
             
             {/* Content */}
@@ -738,11 +749,14 @@ export default function RoleModuleConfig() {
                                     Permissions
                                 </label>
                                 <div className="border border-gray-300 rounded-md p-6 py-2 max-h-80 overflow-y-auto">
+                                    {/* Determine if user can modify permissions in this modal context */}
+                                    { /* no-op for layout; computed below in controls */ }
                                     {permissionGroups.map((group) => {
                                         const groupPermissions = permissionsWithGroups.filter(p => p.group === group);
                                         const isExpanded = expandedGroups[group];
                                         const isFullySelected = isCategoryFullySelected(group);
                                         const isPartiallySelected = isCategoryPartiallySelected(group);
+                                        const canModifyRolePermissions = isAddRoleModalOpen ? canAddUserPermission : canEditUserPermission;
                                         
                                         return (
                                             <div key={group} className="mb-3">
@@ -771,6 +785,7 @@ export default function RoleModuleConfig() {
                                                         }}
                                                         onChange={() => handleCategoryToggle(group)}
                                                         className="mr-3 rounded w-4 h-4 accent-black"
+                                                        disabled={!canModifyRolePermissions}
                                                     />
                                                     <span className="font-bold text-base">{group}</span>
                                                 </div>
@@ -784,6 +799,7 @@ export default function RoleModuleConfig() {
                                                                     checked={formData.permissions.includes(permission.permission_name)}
                                                                     onChange={() => handlePermissionChange(permission.permission_name)}
                                                                     className="mr-3 rounded w-4 h-4 accent-black"
+                                                                    disabled={!canModifyRolePermissions}
                                                                 />
                                                                 <span className="text-base">{permission.label}</span>
                                                             </label>
@@ -794,6 +810,9 @@ export default function RoleModuleConfig() {
                                         );
                                     })}
                                 </div>
+                                {! (isAddRoleModalOpen ? canAddUserPermission : canEditUserPermission) && (
+                                    <p className="mt-2 text-xs text-gray-500">You don't have permission to {isAddRoleModalOpen ? 'assign' : 'edit'} user permissions.</p>
+                                )}
                             </div>
                             
                             <div className="flex justify-end gap-4">
