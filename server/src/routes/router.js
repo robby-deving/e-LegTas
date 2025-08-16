@@ -10,6 +10,7 @@ const barangayRoutes = require('./barangay.routes');
 const authRoutes = require('./auth.routes');
 const userRoutes = require('./user.routes');
 const permissionRoutes = require('./permission.routes');
+const roleRoutes = require('./role.routes');
 const notificationRoutes = require('./notification.routes');
 const dashboardRoutes = require('./dashboard.routes');
 
@@ -30,8 +31,10 @@ router.get(
 
 // Mount routes
 router.use('/auth', authRoutes);
-router.use('/users', userRoutes);
+// Apply auth to all /users routes so permission middleware has req.user
+router.use('/users', authenticateUser, userRoutes);
 router.use('/permissions', permissionRoutes);
+router.use('/roles', roleRoutes);
 router.use('/evacuation-centers', evacuationCentersRoutes);
 router.use('/disasters', disasterRoutes);
 router.use('/rooms', roomRoutes);
@@ -41,23 +44,7 @@ router.use('/evacuees', evacueesRoutes);
 router.use('/barangays', barangayRoutes);
 router.use('/notifications', notificationRoutes);
 
-// Role creation route
-router.post(
-  '/roles',
-  authenticateUser,
-  requireRoleGroup('SYSTEM_ADMIN_GROUP'),
-  requireUserManagementAccess('add'),
-  createRole
-);
-
-// Role deletion route
-router.delete(
-  '/roles/:id',
-  authenticateUser,
-  requireRoleGroup('SYSTEM_ADMIN_GROUP'),
-  requireUserManagementAccess('delete'),
-  deleteRole
-);
+// Role routes are handled in role.routes.js
 
 // Health check
 router.get('/health', (req, res) => {

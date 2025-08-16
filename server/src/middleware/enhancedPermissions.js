@@ -50,7 +50,8 @@ const requirePermission = (permissionName) => {
             permission_name
           )
         `)
-        .eq('role_id', userRoleId);
+        .eq('role_id', userRoleId)
+        .is('deleted_at', null);
 
       if (permError) {
         console.error('Database permission check error:', permError);
@@ -152,15 +153,9 @@ const requireUserManagementAccess = (action = 'view') => {
           requiredPermission = 'view_user_management';
       }
 
-      // Check database permissions first
+      // Check database permissions only (no role-config fallback)
       if (rolePermissions && rolePermissions.length > 0) {
-        hasPermission = rolePermissions.some(rp => 
-          rp.permissions?.permission_name === requiredPermission
-        );
-      } 
-      // Fallback to role configuration
-      else if (roleConfig) {
-        hasPermission = roleConfig.permissions.includes(requiredPermission);
+        hasPermission = rolePermissions.some(rp => rp.permissions?.permission_name === requiredPermission);
       }
 
       if (!hasPermission) {

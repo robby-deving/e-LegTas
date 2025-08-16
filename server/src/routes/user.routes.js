@@ -18,91 +18,80 @@ const {
   getRecentUsers
 } = require('../controllers/user.controller');
 
-// Import enhanced middleware
+// Import middleware
 const { 
   authenticateUser,
-  requireUserManagementAccess,
   filterUsersByRole,
   requireRoleGroup,
-  originalRequirePermission
+  originalRequirePermission,
+  originalRequireAnyPermission
 } = require('../middleware');
+
+// Alias DB-only permission checkers for clarity
+const requirePermission = originalRequirePermission;
+const requireAnyPermission = originalRequireAnyPermission;
 
 const router = express.Router();
 
-// Apply authentication to protected routes
-router.use('/stats', authenticateUser);
-router.use('/recent', authenticateUser);
-router.use('/role', authenticateUser);
-router.use('/cswdo', authenticateUser);
+// Note: authenticateUser is applied at mount level in router.js
 
-// Apply auth to main CRUD routes (skip for public data endpoints)
-router.use('/', (req, res, next) => {
-  if (req.path.startsWith('/data/') || req.path === '/check-login') {
-    return next();
-  }
-  return authenticateUser(req, res, next);
-});
-
-// Helper routes for dropdowns (public - no auth required)
-router.get('/data/roles', getRoles);
-router.get('/data/evacuation-centers', getEvacuationCenters);
-router.get('/data/barangays', getBarangays);
-router.get('/data/disasters', getDisasters);
-router.get('/data/enums', getEnumValues);
+// Helper routes for dropdowns (now protected by view permission)
+router.get('/data/roles', requirePermission('view_user_management'), getRoles);
+router.get('/data/evacuation-centers', requirePermission('view_user_management'), getEvacuationCenters);
+router.get('/data/barangays', requirePermission('view_user_management'), getBarangays);
+router.get('/data/disasters', requirePermission('view_user_management'), getDisasters);
+router.get('/data/enums', requirePermission('view_user_management'), getEnumValues);
 
 // Auth check route (public)
 router.post('/check-login', checkUserCanLogin);
 
 // Protected routes with enhanced permissions
 router.get('/stats', 
-  requireRoleGroup(['SYSTEM_ADMIN_GROUP', 'CSWDO_GROUP']),
-  requireUserManagementAccess('view'),
+  requirePermission('view_user_management'),
   getUserStats
 );
 
 router.get('/recent', 
-  requireUserManagementAccess('view'),
+  requirePermission('view_user_management'),
   filterUsersByRole(),
   getRecentUsers
 );
 
 router.get('/role/:roleId', 
-  requireUserManagementAccess('view'),
+  requirePermission('view_user_management'),
   filterUsersByRole(),
   getUsersByRole
 );
 
 router.get('/cswdo', 
-  requireRoleGroup('CSWDO_GROUP'),
-  requireUserManagementAccess('view'),
+  requirePermission('view_user_management'),
   getUsersWithRoleFourAndFive
 );
 
 // Main CRUD routes with permissions
 router.post('/', 
-  requireUserManagementAccess('add'),
+  requirePermission('add_user'),
   createUser
 );
 
 router.get('/', 
-  requireUserManagementAccess('view'),
+  requirePermission('view_user_management'),
   filterUsersByRole(),
   getUsers
 );
 
 router.get('/:id', 
-  requireUserManagementAccess('view'),
+  requirePermission('view_user_management'),
   getUserById
 );
 
 router.put('/:id', 
-  requireUserManagementAccess('update'),
+  requirePermission('update_user'),
   updateUser
 );
 
 router.delete('/:id', 
-  requireRoleGroup(['SYSTEM_ADMIN_GROUP', 'CSWDO_GROUP']),
-  requireUserManagementAccess('delete'),
+  requirePermission('delete_user'),
   deleteUser
 );
 

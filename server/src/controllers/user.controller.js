@@ -1035,6 +1035,41 @@ const createRole = async (req, res) => {
   }
 };
 
+// Update role name
+const updateRole = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { role_name } = req.body;
+
+    if (!id) {
+      return res.status(400).json({ message: 'Role ID is required' });
+    }
+
+    if (!role_name || !role_name.trim()) {
+      return res.status(400).json({ message: 'Role name is required' });
+    }
+
+    const { error: updateError } = await supabaseAdmin
+      .from('roles')
+      .update({ role_name: role_name.trim() })
+      .eq('id', id)
+      .is('deleted_at', null);
+
+    if (updateError) {
+      console.error('Error updating role name:', updateError);
+      return res.status(500).json({ message: 'Failed to update role', error: updateError.message });
+    }
+
+    return res.status(200).json({ 
+      message: 'Role updated successfully',
+      role: { id: parseInt(id, 10), name: role_name.trim() }
+    });
+  } catch (error) {
+    console.error('Update role error:', error);
+    return res.status(500).json({ message: 'Internal server error', error: error.message });
+  }
+};
+
 const getEvacuationCenters = async (req, res) => {
   try {
     const { data: centers, error } = await supabaseAdmin
@@ -2268,6 +2303,7 @@ module.exports = {
   getUsersByRole,
   getRoles,
   createRole,
+  updateRole,
   getEvacuationCenters,
   getBarangays,
   getDisasters,

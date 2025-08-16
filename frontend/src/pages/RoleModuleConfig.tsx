@@ -403,6 +403,23 @@ export default function RoleModuleConfig() {
         setFormLoading(true);
         
         try {
+            // 1) Update role name if it changed
+            if (formData.name && formData.name.trim() && formData.name.trim() !== editingRole.name) {
+                const renameResponse = await fetch(`/api/v1/roles/${editingRole.id}`, {
+                    method: 'PUT',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ role_name: formData.name.trim() })
+                });
+
+                if (!renameResponse.ok) {
+                    const errText = await renameResponse.text().catch(() => '');
+                    console.error('Failed to rename role:', errText);
+                    showToast('Failed to update role name', 'error');
+                    setFormLoading(false);
+                    return;
+                }
+            }
+
             // Convert permission names to permission IDs
             const permissionIds = formData.permissions.map(permissionName => {
                 const permission = permissions.find(p => p.permission_name === permissionName);
@@ -434,9 +451,11 @@ export default function RoleModuleConfig() {
             // Refresh permission count for this role
             const updatedCount = await fetchRolePermissions(roleId);
             setRolePermissions(prev => ({ ...prev, [roleId]: updatedCount }));
+            showToast('Role updated successfully', 'success');
             
         } catch (err) {
             console.error('Error updating role:', err);
+            showToast('An error occurred while updating the role.', 'error');
         } finally {
             setFormLoading(false);
         }

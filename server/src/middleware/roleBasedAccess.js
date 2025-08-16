@@ -294,7 +294,8 @@ const requirePermission = (permissionName) => {
             permission_name
           )
         `)
-        .eq('role_id', req.user.role_id);
+        .eq('role_id', req.user.role_id)
+        .is('deleted_at', null);
 
       if (permError) {
         return res.status(500).json({ 
