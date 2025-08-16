@@ -240,6 +240,17 @@ useEffect(() => {
   refreshAll();
 }, [centerId, disasterId, refreshAll]);
 
+useEffect(() => {
+  if (!selectedFamily) return;
+  const updated = evacuees.find(e => e.id === selectedFamily.id);
+  if (updated) {
+    setSelectedFamily(updated);
+  } else {
+    // optional: close if the family disappears (e.g., decamped/filtered out)
+    // setSelectedFamily(null);
+  }
+}, [evacuees, selectedFamily?.id]);
+
 
 const { paginatedEvacuees, totalRows, totalPages } = useMemo(() => {
   const base = Array.isArray(evacuees) ? evacuees : [];
@@ -968,7 +979,7 @@ const handleRegisterEvacuee = async () => {
             }
             disasterStartDate={detail?.disaster?.disaster_start_date ?? null} 
             onEditMember={handleEditMember}
-       
+            onSaved={refreshAll} 
           />
 
           <RegisterEvacueeModal

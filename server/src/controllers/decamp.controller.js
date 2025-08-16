@@ -12,7 +12,7 @@ class ApiError extends Error {
 
 /**
  * @desc Set, update, or clear decampment for a whole family in an event.
- *       If body.decampment_timestamp is null/empty -> clear (set NULL).
+ *       If body.decampment_timestamp is null/empty -> clear (set NULL) but block if already active elsewhere.
  *       If it's an ISO string -> set/update decampment (validations apply).
  * @route POST /api/v1/evacuees/:disasterEvacuationEventId/families/:familyHeadId/decamp
  * @body  { decampment_timestamp: string|null }
@@ -30,6 +30,7 @@ exports.decampFamily = async (req, res, next) => {
         .json({ message: "disasterEvacuationEventId and familyHeadId are required path params." });
     }
 
+    // Ensure event exists (and grab its disaster_id for validation later)
     const { data: eventRow, error: eventErr } = await supabase
       .from("disaster_evacuation_event")
       .select("id, disaster_id")
@@ -40,7 +41,45 @@ exports.decampFamily = async (req, res, next) => {
       return res.status(404).json({ message: "Disaster evacuation event not found." });
     }
 
+    // -------------------------------------------
+    // BRANCH A: CLEAR decampment (set NULL)
+    // -------------------------------------------
     if (rawTs === null || (typeof rawTs === "string" && rawTs.trim() === "")) {
+      // Guard: DO NOT allow clearing if the same family is already ACTIVE in any OTHER event.
+      const { data: othersActive, error: othersErr } = await supabase
+        .from("evacuation_registrations")
+        .select(
+          `
+            id,
+            disaster_evacuation_event_id,
+            disaster_evacuation_event:disaster_evacuation_event_id (
+              evacuation_centers ( name )
+            )
+          `
+        )
+        .eq("family_head_id", familyHeadId)
+        .is("decampment_timestamp", null);
+
+      if (othersErr) {
+        return res.status(500).json({ message: "Failed to check active registrations." });
+      }
+
+      if ((othersActive?.length ?? 0) > 0) {
+        // If there is at least one active registration (any event), block un-decamp here.
+        // Prefer an event different from the current one, but if none, still block using the first.
+        const other =
+          othersActive.find((a) => Number(a.disaster_evacuation_event_id) !== eventId) ||
+          othersActive[0];
+        const ecName = other?.disaster_evacuation_event?.evacuation_centers?.name;
+
+        return res.status(409).json({
+          code: "UndecampConflict",
+          ec_name: ecName || undefined,
+          message: `This family is already active${ecName ? ` in ${ecName}` : ""}. Only one active event is allowed.`,
+        });
+      }
+
+      // Proceed to clear decampment for rows in THIS event that currently have a decampment
       const { data: clearedRows, error: clearErr } = await supabase
         .from("evacuation_registrations")
         .update({ decampment_timestamp: null, updated_at: new Date().toISOString() })
@@ -61,14 +100,19 @@ exports.decampFamily = async (req, res, next) => {
       });
     }
 
+    // -------------------------------------------
+    // BRANCH B: SET/UPDATE decampment to a timestamp
+    // -------------------------------------------
     if (typeof rawTs !== "string") {
       return res.status(400).json({ message: "decampment_timestamp must be ISO string or null." });
     }
+
     const decampDate = new Date(rawTs);
     if (isNaN(decampDate.getTime())) {
       return res.status(400).json({ message: "Invalid decampment_timestamp (must be ISO 8601)." });
     }
 
+    // Disaster-level bound: must be after disaster_start_date
     const { data: disasterRow, error: disasterErr } = await supabase
       .from("disasters")
       .select("disaster_start_date")
@@ -84,6 +128,7 @@ exports.decampFamily = async (req, res, next) => {
       return res.status(400).json({ message: "Decampment must be after the disaster_start_date." });
     }
 
+    // Must be later than the family's earliest arrival (prefer active rows; fall back to any)
     const { data: earliestActive, error: eaErr } = await supabase
       .from("evacuation_registrations")
       .select("arrival_timestamp")
@@ -131,6 +176,7 @@ exports.decampFamily = async (req, res, next) => {
         .json({ message: "Decampment must be later than the family's earliest arrival." });
     }
 
+    // Update decampment on all rows for this family in THIS event
     const { data: updatedRows, error: updateErr } = await supabase
       .from("evacuation_registrations")
       .update({
@@ -169,3 +215,4 @@ exports.decampFamily = async (req, res, next) => {
     return next(new ApiError(`Internal error during decampFamily. ${err?.message || ""}`, 500));
   }
 };
+

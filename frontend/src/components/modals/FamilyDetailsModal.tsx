@@ -10,6 +10,10 @@ import type { FamilyMember } from "@/types/EvacuationCenterDetails";
 import { formatDate } from "@/utils/dateFormatter";
 import "react-datepicker/dist/react-datepicker.css";
 import ReactDatePicker from "react-datepicker";
+// + NEW import
+import { RegisterBlockDialog } from "@/components/modals/RegisterBlockDialog";
+
+
 
 const INVERSE_REL: Record<string, string> = {
   Spouse: "Spouse",
@@ -25,14 +29,15 @@ const INVERSE_REL: Record<string, string> = {
   Boarder: "Boarder",
 };
 
-// Local props type (no external imports)
 type FamilyDetailsModalProps = {
   isOpen: boolean;
   onClose: () => void;
-  evacuee: any;                     // keep any for now
+  evacuee: any;
   centerName: string;
-  onEditMember: (m: any) => void;   // keep any for now
-  disasterStartDate?: string | null; // NEW: pass raw ISO date from parent
+  onEditMember: (m: any) => void;
+  disasterStartDate?: string | null;
+  /** NEW: call parent refreshAll after successful save actions */
+  onSaved?: () => void | Promise<void>;
 };
 
 export const FamilyDetailsModal: React.FC<FamilyDetailsModalProps> = ({
@@ -41,17 +46,19 @@ export const FamilyDetailsModal: React.FC<FamilyDetailsModalProps> = ({
   evacuee,
   centerName,
   onEditMember,
-  disasterStartDate, // NEW
+  disasterStartDate,
+  onSaved, // NEW
 }) => {
-  // --- stays ---
   const [savingDecamp, setSavingDecamp] = useState(false);
   const [decampError, setDecampError] = useState<string | null>(null);
+  // Block dialog state (re-use your modal)
+const [regBlockOpen, setRegBlockOpen] = useState(false);
+const [regBlockName, setRegBlockName] = useState<string | undefined>();
+const [regBlockEcName, setRegBlockEcName] = useState<string | undefined>();
 
 
-  // derive if this family already had a decampment (declare BEFORE touched)
   const hadExistingDecamp = Boolean(evacuee?.decampment_timestamp);
 
-  // track whether the user has explicitly picked date/time this session
   const [touched, setTouched] = useState<{ date: boolean; time: boolean }>(() => ({
     date: hadExistingDecamp,
     time: hadExistingDecamp,
@@ -71,7 +78,6 @@ export const FamilyDetailsModal: React.FC<FamilyDetailsModalProps> = ({
     });
   }, [evacuee?.decampment_timestamp]);
 
-  // keep these for dirty-check
   const originalDecamp = evacuee?.decampment_timestamp
     ? new Date(evacuee.decampment_timestamp)
     : null;
@@ -80,7 +86,6 @@ export const FamilyDetailsModal: React.FC<FamilyDetailsModalProps> = ({
     (originalDecamp ? originalDecamp.getTime() : null) !==
     (decampDate ? decampDate.getTime() : null);
 
-  // helpers for split date/time display
   const fmtDateOnly = (d: Date) =>
     new Intl.DateTimeFormat(undefined, {
       month: "short",
@@ -94,14 +99,11 @@ export const FamilyDetailsModal: React.FC<FamilyDetailsModalProps> = ({
       minute: "2-digit",
     }).format(d);
 
-  // Build a local start-of-day Date (avoids timezone shift of ISO)
   const toLocalStartOfDay = (v: string | Date) => {
     const d = new Date(v);
     return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
   };
 
-  // DATE bounds
-  // minDate: disaster start (inclusive) — blocks all days before start
   const minDate =
     disasterStartDate
       ? toLocalStartOfDay(disasterStartDate)
@@ -109,62 +111,59 @@ export const FamilyDetailsModal: React.FC<FamilyDetailsModalProps> = ({
       ? toLocalStartOfDay(evacuee.disaster_start_date)
       : undefined;
 
-  // maxDate: today (change/remove if you want later dates allowed)
   const maxDate = new Date();
 
   const missingTimeForNew = !hadExistingDecamp && touched.date && !touched.time;
   const canSaveDecamp = hasChanges && !savingDecamp && !missingTimeForNew;
 
-  // merge handlers for split pickers
-const handleChangeDateOnly = (picked: Date | null) => {
-  setDecampError(null); // 👈 clear any previous error
-  if (!picked) {
-    setDecampDate(null);
-    setTouched({ date: false, time: false });
-    return;
-  }
-  const h = decampDate ? decampDate.getHours() : 0;
-  const m = decampDate ? decampDate.getMinutes() : 0;
-  setDecampDate(new Date(picked.getFullYear(), picked.getMonth(), picked.getDate(), h, m, 0, 0));
-  setTouched((t) => ({ ...t, date: true }));
-};
+  const handleChangeDateOnly = (picked: Date | null) => {
+    setDecampError(null);
+    if (!picked) {
+      setDecampDate(null);
+      setTouched({ date: false, time: false });
+      return;
+    }
+    const h = decampDate ? decampDate.getHours() : 0;
+    const m = decampDate ? decampDate.getMinutes() : 0;
+    setDecampDate(new Date(picked.getFullYear(), picked.getMonth(), picked.getDate(), h, m, 0, 0));
+    setTouched((t) => ({ ...t, date: true }));
+  };
 
+  const handleChangeTimeOnly = (picked: Date | null) => {
+    if (!picked || !decampDate) return;
+    setDecampError(null);
+    setDecampDate(
+      new Date(
+        decampDate.getFullYear(),
+        decampDate.getMonth(),
+        decampDate.getDate(),
+        picked.getHours(),
+        picked.getMinutes(),
+        0,
+        0
+      )
+    );
+    setTouched((t) => ({ ...t, time: true }));
+  };
 
-const handleChangeTimeOnly = (picked: Date | null) => {
-  if (!picked || !decampDate) return;
-  setDecampError(null); // 👈 clear any previous error
-  setDecampDate(new Date(
-    decampDate.getFullYear(),
-    decampDate.getMonth(),
-    decampDate.getDate(),
-    picked.getHours(),
-    picked.getMinutes(),
-    0, 0
-  ));
-  setTouched((t) => ({ ...t, time: true }));
-};
-
-
-  // --- stays: transfer state/logic ---
   const [transferOpen, setTransferOpen] = useState(false);
   const [newHeadEvacueeId, setNewHeadEvacueeId] = useState<string>("");
   const [oldHeadNewRel, setOldHeadNewRel] = useState<string>("");
   const [transferring, setTransferring] = useState(false);
 
- 
-
   const members: any[] = evacuee?.list_of_family_members?.family_members ?? [];
 
-    const earliestArrival = useMemo(() => {
-  const members = evacuee?.list_of_family_members?.family_members ?? [];
-  let minMs = Infinity;
-  for (const m of members) {
-    const t = Date.parse(m?.arrival_timestamp ?? "");
-    if (!Number.isNaN(t)) minMs = Math.min(minMs, t);
-  }
-  return Number.isFinite(minMs) ? new Date(minMs) : null;
-}, [evacuee]);
-    const orderedMembers = useMemo(() => {
+  const earliestArrival = useMemo(() => {
+    const members = evacuee?.list_of_family_members?.family_members ?? [];
+    let minMs = Infinity;
+    for (const m of members) {
+      const t = Date.parse(m?.arrival_timestamp ?? "");
+      if (!Number.isNaN(t)) minMs = Math.min(minMs, t);
+    }
+    return Number.isFinite(minMs) ? new Date(minMs) : null;
+  }, [evacuee]);
+
+  const orderedMembers = useMemo(() => {
     const isHead = (m: any) =>
       m?.relationship_to_family_head === "Head" ||
       m?.full_name === evacuee?.family_head_full_name;
@@ -172,14 +171,12 @@ const handleChangeTimeOnly = (picked: Date | null) => {
     return [...members].sort((a, b) => Number(!isHead(a)) - Number(!isHead(b)));
   }, [members, evacuee?.family_head_full_name]);
 
-   if (!isOpen || !evacuee) return null;
+  if (!isOpen || !evacuee) return null;
 
   const transferCandidates: any[] = members.filter(
     (m) => m.full_name !== evacuee.family_head_full_name
   );
 
-
-  // Keep this based on server state, so transfer is locked only when the family is actually decamped in DB
   const isDecamped = Boolean(evacuee?.decampment_timestamp);
 
   const canTransfer =
@@ -225,6 +222,7 @@ const handleChangeTimeOnly = (picked: Date | null) => {
       await axios.post(url, body);
       setTransferOpen(false);
       onClose();
+      await onSaved?.(); // NEW: refresh lists/stats/details after transfer
     } catch (e: any) {
       console.error("Transfer head failed", e?.response?.data || e);
     } finally {
@@ -232,49 +230,61 @@ const handleChangeTimeOnly = (picked: Date | null) => {
     }
   };
 
-  // --- save handler (unchanged logic) ---
-const handleSaveDecampment = async () => {
-  setDecampError(null);
+  // --- save handler (now closes + refreshes) ---
+  const handleSaveDecampment = async () => {
+    setDecampError(null);
 
-  const eventId = Number(evacuee?.disaster_evacuation_event_id);
-  const familyHeadId = Number(evacuee?.id);
-  if (!eventId || !familyHeadId) {
-    setDecampError("Missing event or family head id.");
-    return;
-  }
+    const eventId = Number(evacuee?.disaster_evacuation_event_id);
+    const familyHeadId = Number(evacuee?.id);
+    if (!eventId || !familyHeadId) {
+      setDecampError("Missing event or family head id.");
+      return;
+    }
 
-  const url = `http://localhost:3000/api/v1/evacuees/${eventId}/families/${familyHeadId}/decamp`;
+    const url = `http://localhost:3000/api/v1/evacuees/${eventId}/families/${familyHeadId}/decamp`;
 
-  // If the picker is cleared, clear decampment in the backend
-  if (!decampDate) {
+    // clear decampment
+    if (!decampDate) {
+      try {
+        setSavingDecamp(true);
+        await axios.post(url, { decampment_timestamp: null });
+        onClose();         // close
+        await onSaved?.(); // refresh details, list, stats
+      } catch (e: any) {
+        setDecampError(e?.response?.data?.message || "Failed to clear decampment.");
+      } finally {
+        setSavingDecamp(false);
+      }
+      return;
+    }
+
+    // client guard
+    if (earliestArrival && decampDate <= earliestArrival) {
+      setDecampError("Decampment must be later than the family's earliest arrival.");
+      return;
+    }
+
     try {
       setSavingDecamp(true);
-      await axios.post(url, { decampment_timestamp: null });
-      onClose();
-    } catch (e: any) {
-      setDecampError(e?.response?.data?.message || "Failed to clear decampment.");
-    } finally {
-      setSavingDecamp(false);
-    }
-    return;
+      await axios.post(url, { decampment_timestamp: decampDate.toISOString() });
+      onClose();         // close
+      await onSaved?.(); // refresh details, list, stats
+} catch (e: any) {
+  const status = e?.response?.status;
+  const data = e?.response?.data;
+  if (status === 409 && data?.code === "UndecampConflict") {
+    // Show the block modal (same one you use for register)
+    setRegBlockName(evacuee?.family_head_full_name);
+    setRegBlockEcName(data?.ec_name || undefined);
+    setRegBlockOpen(true);
+  } else {
+    setDecampError(data?.message || "Failed to clear decampment.");
   }
+} finally {
+  setSavingDecamp(false);
+}
 
-  // Client-side guard: decampment must be later than earliest arrival
-  if (earliestArrival && decampDate <= earliestArrival) {
-    setDecampError("Decampment must be later than the family's earliest arrival.");
-    return;
-  }
-
-  try {
-    setSavingDecamp(true);
-    await axios.post(url, { decampment_timestamp: decampDate.toISOString() });
-    onClose();
-  } catch (e: any) {
-    setDecampError(e?.response?.data?.message || "Failed to save decampment.");
-  } finally {
-    setSavingDecamp(false);
-  }
-};
+  };
 
   return (
     <>
@@ -290,8 +300,7 @@ const handleSaveDecampment = async () => {
               View Family
             </DialogTitle>
             <DialogDescription className="sr-only">
-              View detailed information and demographics for the selected
-              evacuee family.
+              View detailed information and demographics for the selected evacuee family.
             </DialogDescription>
           </DialogHeader>
 
@@ -300,21 +309,13 @@ const handleSaveDecampment = async () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-semibold mb-2">Evacuation Center:</label>
-                <Input
-                  value={centerName}
-                  readOnly
-                  className="w-full bg-gray-50"
-                />
+                <Input value={centerName} readOnly className="w-full bg-gray-50" />
               </div>
 
               <div>
                 <label className="block text-sm font-semibold mb-2">Head of the Family:</label>
                 <div className="flex gap-2">
-                  <Input
-                    value={evacuee.family_head_full_name}
-                    readOnly
-                    className="w-full bg-gray-50"
-                  />
+                  <Input value={evacuee.family_head_full_name} readOnly className="w-full bg-gray-50" />
                   <Button
                     className={`bg-green-700 hover:bg-green-800 text-white px-3 py-1 text-sm cursor-pointer ${
                       !canTransfer ? "opacity-60 cursor-not-allowed" : ""
@@ -336,178 +337,131 @@ const handleSaveDecampment = async () => {
                   >
                     Transfer Head
                   </Button>
+                </div>
+              </div>
 
-                                  </div>
-                                </div>
-                  <div className="w-full">
-                    <label className="block text-sm font-semibold mb-2">Decampment:</label>
+              <div className="w-full">
+                <label className="block text-sm font-semibold mb-2">Decampment:</label>
 
-                    <div className="flex flex-wrap items-center gap-3">
-                      {/* DATE (calendar only) */}
-                      <div className="relative flex-1 min-w-[12rem]">
-                        <ReactDatePicker
-                          selected={decampDate}
-                          onChange={handleChangeDateOnly}
-                          placeholderText={decampDate ? fmtDateOnly(decampDate) : "MM/DD/YYYY"}
-                          dateFormat="MM/dd/yyyy"
-                          minDate={minDate}                         // blocks days before disaster start
-                          maxDate={maxDate}                         // blocks future days (today is max)
-                          filterDate={(d) =>
-                            (!minDate || d >= minDate) && (!maxDate || d <= maxDate)
-                          }
-                          openToDate={decampDate ?? minDate ?? new Date()}
-                          isClearable={false}
-                          wrapperClassName="w-full"
-                          popperPlacement="bottom"
-                          customInput={<Input className="w-full pl-10 pr-10 h-10" />}
-                        />
-
-                        {/* Left calendar icon */}
-                        <Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-
-                        {/* Small circular green clear button */}
-                        {decampDate && (
-                        <button
-                          type="button"
-                          aria-label="Clear decampment date"
-                          onMouseDown={(e) => e.preventDefault()}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDecampDate(null);
-                            setTouched({ date: false, time: false });
-                            setDecampError(null); // 👈 clear error when user clears the date
-                          }}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 z-20 inline-flex h-5 w-5 items-center justify-center rounded-full bg-green-700 text-white hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-green-600 cursor-pointer"
-                        >
-                          ×
-                        </button>
-
-                        )}
-                      </div>
-
-                      {/* TIME (time-only) */}
-                      <div className="relative w-40 sm:w-44 md:w-48">
-                        <ReactDatePicker
-                          selected={touched.time ? decampDate : null}   
-                          onChange={handleChangeTimeOnly}
-                          showTimeSelect
-                          showTimeSelectOnly
-                          timeIntervals={5}
-                          timeCaption="Time"
-                          dateFormat="h:mm aa"
-                          disabled={!decampDate}                        
-                          placeholderText={
-                            touched.time && decampDate ? fmtTimeOnly(decampDate) : "HH:MM AM/PM"
-                          }
-                          popperPlacement="bottom"
-                          customInput={
-                            <Input
-                              className={`h-10 w-full pl-10 pr-3 bg-gray-50 ${
-                                !decampDate ? "opacity-60 cursor-not-allowed" : ""
-                              }`}
-                            />
-                          }
-                        />
-                        <Clock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                      </div>
-
-                      {/* SAVE */}
-                      <Button
-                        className="h-10 bg-green-700 hover:bg-green-800 text-white px-4 text-sm cursor-pointer disabled:opacity-60"
-                        onClick={handleSaveDecampment}
-                        disabled={!canSaveDecamp}
-                        title={
-                          !hasChanges
-                            ? "No changes to save"
-                            : missingTimeForNew
-                            ? "Please choose a time"
-                            : "Save decampment"
-                        }
+                <div className="flex flex-wrap items-center gap-3">
+                  {/* DATE */}
+                  <div className="relative flex-1 min-w-[12rem]">
+                    <ReactDatePicker
+                      selected={decampDate}
+                      onChange={handleChangeDateOnly}
+                      placeholderText={decampDate ? fmtDateOnly(decampDate) : "MM/DD/YYYY"}
+                      dateFormat="MM/dd/yyyy"
+                      minDate={minDate}
+                      maxDate={maxDate}
+                      filterDate={(d) => (!minDate || d >= minDate) && (!maxDate || d <= maxDate)}
+                      openToDate={decampDate ?? minDate ?? new Date()}
+                      isClearable={false}
+                      wrapperClassName="w-full"
+                      popperPlacement="bottom"
+                      customInput={<Input className="w-full pl-10 pr-10 h-10" />}
+                    />
+                    <Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    {decampDate && (
+                      <button
+                        type="button"
+                        aria-label="Clear decampment date"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDecampDate(null);
+                          setTouched({ date: false, time: false });
+                          setDecampError(null);
+                        }}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 z-20 inline-flex h-5 w-5 items-center justify-center rounded-full bg-green-700 text-white hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-green-600 cursor-pointer"
                       >
-                        {savingDecamp ? "Saving..." : "Save Decampment"}
-                      </Button>
-                      {decampError && (
-  <span className="mt-1 block text-xs text-red-500" role="alert" aria-live="polite">
-    {decampError}
-  </span>
-)}
-
-                    </div>
-
-                    <p className="mt-1 text-xs text-gray-500">
-                      To clear the decampment, clear the date and click “Save Decampment”.
-                    </p>
+                        ×
+                      </button>
+                    )}
                   </div>
+
+                  {/* TIME */}
+                  <div className="relative w-40 sm:w-44 md:w-48">
+                    <ReactDatePicker
+                      selected={touched.time ? decampDate : null}
+                      onChange={handleChangeTimeOnly}
+                      showTimeSelect
+                      showTimeSelectOnly
+                      timeIntervals={5}
+                      timeCaption="Time"
+                      dateFormat="h:mm aa"
+                      disabled={!decampDate}
+                      placeholderText={
+                        touched.time && decampDate ? fmtTimeOnly(decampDate) : "HH:MM AM/PM"
+                      }
+                      popperPlacement="bottom"
+                      customInput={
+                        <Input
+                          className={`h-10 w-full pl-10 pr-3 bg-gray-50 ${
+                            !decampDate ? "opacity-60 cursor-not-allowed" : ""
+                          }`}
+                        />
+                      }
+                    />
+                    <Clock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                   </div>
+
+                  {/* SAVE */}
+                  <Button
+                    className="h-10 bg-green-700 hover:bg-green-800 text-white px-4 text-sm cursor-pointer disabled:opacity-60"
+                    onClick={handleSaveDecampment}
+                    disabled={!canSaveDecamp}
+                    title={
+                      !hasChanges
+                        ? "No changes to save"
+                        : missingTimeForNew
+                        ? "Please choose a time"
+                        : "Save decampment"
+                    }
+                  >
+                    {savingDecamp ? "Saving..." : "Save Decampment"}
+                  </Button>
+
+                  {decampError && (
+                    <span className="mt-1 block text-xs text-red-500" role="alert" aria-live="polite">
+                      {decampError}
+                    </span>
+                  )}
+                </div>
+
+                <p className="mt-1 text-xs text-gray-500">
+                  To clear the decampment, clear the date and click “Save Decampment”.
+                </p>
+              </div>
+            </div>
 
             {/* Breakdown table */}
             <div>
               <label className="block text-sm font-semibold mb-3">Individual Breakdown:</label>
               <div className="overflow-x-auto border rounded-lg">
-                <div className="max-h-[50vh] overflow-x-auto overflow-y-auto pr-2 pb-2 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-corner]:bg-transparent dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500 [scrollbar-width:thin] [scrollbar-color:rgb(209_213_219)_transparent] dark:[scrollbar-color:rgb(115_115_115)_transparent]">
+                <div className="max-h-[50vh] overflow-x-auto overflow-y-auto pr-2 pb-2">
                   <Table className="text-sm">
                     <TableHeader>
                       <TableRow className="bg-gray-50">
-                        <TableHead className="text-center font-semibold">
-                          Male
-                        </TableHead>
-                        <TableHead className="text-center font-semibold">
-                          Female
-                        </TableHead>
-                        <TableHead className="text-center font-semibold">
-                          Total
-                        </TableHead>
-                        <TableHead className="text-center font-semibold">
-                          Infant
-                          <br />
-                          (1 yr below)
-                        </TableHead>
-                        <TableHead className="text-center font-semibold">
-                          Children
-                          <br />
-                          (2-12 yrs)
-                        </TableHead>
-                        <TableHead className="text-center font-semibold">
-                          Youth
-                          <br />
-                          (13-17 yrs)
-                        </TableHead>
-                        <TableHead className="text-center font-semibold">
-                          Adult
-                          <br />
-                          (18-59 yrs)
-                        </TableHead>
-                        <TableHead className="text-center font-semibold">
-                          Senior
-                          <br />
-                          (60+ yrs)
-                        </TableHead>
-                        <TableHead className="text-center font-semibold">
-                          PWD
-                        </TableHead>
-                        <TableHead className="text-center font-semibold">
-                          Pregnant
-                        </TableHead>
-                        <TableHead className="text-center font-semibold">
-                          Lactating
-                        </TableHead>
+                        <TableHead className="text-center font-semibold">Male</TableHead>
+                        <TableHead className="text-center font-semibold">Female</TableHead>
+                        <TableHead className="text-center font-semibold">Total</TableHead>
+                        <TableHead className="text-center font-semibold">Infant<br/>(1 yr below)</TableHead>
+                        <TableHead className="text-center font-semibold">Children<br/>(2-12 yrs)</TableHead>
+                        <TableHead className="text-center font-semibold">Youth<br/>(13-17 yrs)</TableHead>
+                        <TableHead className="text-center font-semibold">Adult<br/>(18-59 yrs)</TableHead>
+                        <TableHead className="text-center font-semibold">Senior<br/>(60+ yrs)</TableHead>
+                        <TableHead className="text-center font-semibold">PWD</TableHead>
+                        <TableHead className="text-center font-semibold">Pregnant</TableHead>
+                        <TableHead className="text-center font-semibold">Lactating</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       <TableRow>
                         <TableCell className="text-center">
-                          {
-                            members.filter(
-                              (m: FamilyMember) => m.sex === "Male"
-                            ).length
-                          }
+                          {members.filter((m: FamilyMember) => m.sex === "Male").length}
                         </TableCell>
                         <TableCell className="text-center">
-                          {
-                            members.filter(
-                              (m: FamilyMember) => m.sex === "Female"
-                            ).length
-                          }
+                          {members.filter((m: FamilyMember) => m.sex === "Female").length}
                         </TableCell>
                         <TableCell className="text-center font-semibold">
                           {evacuee.total_individuals}
@@ -516,57 +470,25 @@ const handleSaveDecampment = async () => {
                           {members.filter((m: any) => Number(m.age) < 2).length}
                         </TableCell>
                         <TableCell className="text-center">
-                          {
-                            members.filter(
-                              (m: any) =>
-                                Number(m.age) >= 2 && Number(m.age) <= 12
-                            ).length
-                          }
+                          {members.filter((m: any) => Number(m.age) >= 2 && Number(m.age) <= 12).length}
                         </TableCell>
                         <TableCell className="text-center">
-                          {
-                            members.filter(
-                              (m: any) =>
-                                Number(m.age) >= 13 && Number(m.age) <= 17
-                            ).length
-                          }
+                          {members.filter((m: any) => Number(m.age) >= 13 && Number(m.age) <= 17).length}
                         </TableCell>
                         <TableCell className="text-center">
-                          {
-                            members.filter(
-                              (m: any) =>
-                                Number(m.age) >= 18 && Number(m.age) <= 59
-                            ).length
-                          }
+                          {members.filter((m: any) => Number(m.age) >= 18 && Number(m.age) <= 59).length}
                         </TableCell>
                         <TableCell className="text-center">
-                          {
-                            members.filter((m: any) => Number(m.age) >= 60)
-                              .length
-                          }
+                          {members.filter((m: any) => Number(m.age) >= 60).length}
                         </TableCell>
                         <TableCell className="text-center">
-                          {
-                            members.filter((m: any) =>
-                              m.vulnerability_types?.includes(
-                                "Person with Disability"
-                              )
-                            ).length
-                          }
+                          {members.filter((m: any) => m.vulnerability_types?.includes("Person with Disability")).length}
                         </TableCell>
                         <TableCell className="text-center">
-                          {
-                            members.filter((m: any) =>
-                              m.vulnerability_types?.includes("Pregnant Woman")
-                            ).length
-                          }
+                          {members.filter((m: any) => m.vulnerability_types?.includes("Pregnant Woman")).length}
                         </TableCell>
                         <TableCell className="text-center">
-                          {
-                            members.filter((m: any) =>
-                              m.vulnerability_types?.includes("Lactating Woman")
-                            ).length
-                          }
+                          {members.filter((m: any) => m.vulnerability_types?.includes("Lactating Woman")).length}
                         </TableCell>
                       </TableRow>
                     </TableBody>
@@ -579,73 +501,48 @@ const handleSaveDecampment = async () => {
             <div>
               <label className="block text-sm font-semibold mb-3">List of Family Members:</label>
               <div className="overflow-x-auto border rounded-lg">
-                <div className="max-h-[50vh] overflow-x-auto overflow-y-auto pr-2 pb-2 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-corner]:bg-transparent dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500 [scrollbar-width:thin] [scrollbar-color:rgb(209_213_219)_transparent] dark:[scrollbar-color:rgb(115_115_115)_transparent]">
+                <div className="max-h-[50vh] overflow-x-auto overflow-y-auto pr-2 pb-2">
                   <Table className="text-sm">
                     <TableHeader>
                       <TableRow className="bg-gray-50">
-                        <TableHead className="font-semibold">
-                          Full Name
-                        </TableHead>
+                        <TableHead className="font-semibold">Full Name</TableHead>
                         <TableHead className="font-semibold">Age</TableHead>
-                        <TableHead className="font-semibold">
-                          Barangay of Origin
-                        </TableHead>
+                        <TableHead className="font-semibold">Barangay of Origin</TableHead>
                         <TableHead className="font-semibold">Sex</TableHead>
-                        <TableHead className="font-semibold">
-                          Type of Vulnerability
-                        </TableHead>
-                        <TableHead className="font-semibold">
-                          Room Name
-                        </TableHead>
-                        <TableHead className="font-semibold">
-                          Time of Arrival
-                        </TableHead>
+                        <TableHead className="font-semibold">Type of Vulnerability</TableHead>
+                        <TableHead className="font-semibold">Room Name</TableHead>
+                        <TableHead className="font-semibold">Time of Arrival</TableHead>
                         <TableHead className="font-semibold"></TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {orderedMembers.map((member: any, idx: number) => (
                         <TableRow key={idx} className="group hover:bg-gray-50">
-                          <TableCell className="font-medium">
-                            {member.full_name}
-                          </TableCell>
+                          <TableCell className="font-medium">{member.full_name}</TableCell>
                           <TableCell>{member.age}</TableCell>
                           <TableCell>{member.barangay_of_origin}</TableCell>
                           <TableCell>{member.sex}</TableCell>
                           <TableCell>
                             {(member.vulnerability_types?.length ?? 0) > 0 ? (
-                              member.vulnerability_types.map(
-                                (v: string, vIdx: number) => {
-                                  let colorClass = "bg-gray-100 text-gray-600";
-                                  if (v === "Infant")
-                                    colorClass = "bg-pink-100 text-pink-600";
-                                  else if (v === "Child")
-                                    colorClass = "bg-blue-100 text-blue-600";
-                                  else if (v === "Youth")
-                                    colorClass = "bg-green-100 text-green-600";
-                                  else if (v === "Adult")
-                                    colorClass =
-                                      "bg-purple-100 text-purple-600";
-                                  else if (v === "Senior Citizen")
-                                    colorClass =
-                                      "bg-orange-100 text-orange-600";
-                                  else if (v === "Pregnant Woman")
-                                    colorClass = "bg-red-100 text-red-600";
-                                  else if (v === "Lactating Woman")
-                                    colorClass = "bg-rose-100 text-rose-600";
-                                  else if (v === "Person with Disability")
-                                    colorClass =
-                                      "bg-yellow-100 text-yellow-600";
-                                  return (
-                                    <span
-                                      key={vIdx}
-                                      className={`inline-block px-2 py-1 mr-1 mb-1 rounded-full text-xs font-medium ${colorClass}`}
-                                    >
-                                      {v}
-                                    </span>
-                                  );
-                                }
-                              )
+                              member.vulnerability_types.map((v: string, vIdx: number) => {
+                                let colorClass = "bg-gray-100 text-gray-600";
+                                if (v === "Infant") colorClass = "bg-pink-100 text-pink-600";
+                                else if (v === "Child") colorClass = "bg-blue-100 text-blue-600";
+                                else if (v === "Youth") colorClass = "bg-green-100 text-green-600";
+                                else if (v === "Adult") colorClass = "bg-purple-100 text-purple-600";
+                                else if (v === "Senior Citizen") colorClass = "bg-orange-100 text-orange-600";
+                                else if (v === "Pregnant Woman") colorClass = "bg-red-100 text-red-600";
+                                else if (v === "Lactating Woman") colorClass = "bg-rose-100 text-rose-600";
+                                else if (v === "Person with Disability") colorClass = "bg-yellow-100 text-yellow-600";
+                                return (
+                                  <span
+                                    key={vIdx}
+                                    className={`inline-block px-2 py-1 mr-1 mb-1 rounded-full text-xs font-medium ${colorClass}`}
+                                  >
+                                    {v}
+                                  </span>
+                                );
+                              })
                             ) : (
                               <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
                                 None
@@ -653,9 +550,7 @@ const handleSaveDecampment = async () => {
                             )}
                           </TableCell>
                           <TableCell>{member.room_name}</TableCell>
-                          <TableCell>
-                            {formatDate(member.arrival_timestamp)}
-                          </TableCell>
+                          <TableCell>{formatDate(member.arrival_timestamp)}</TableCell>
                           <TableCell className="text-right flex justify-end items-center text-foreground">
                             <Pencil
                               className="w-4 h-4 text-gray-400 group-hover:text-green-700 cursor-pointer"
@@ -676,28 +571,20 @@ const handleSaveDecampment = async () => {
         </DialogContent>
       </Dialog>
 
-      {/* Transfer Head Modal (uses your Dialog) */}
+      {/* Transfer Head Modal */}
       <Dialog open={transferOpen} onOpenChange={setTransferOpen}>
         <DialogContent>
-          {/* X close button */}
-
           <DialogHeader className="mb-2">
-            <DialogTitle className="text-green-700 text-xl font-bold">
-              Transfer Head
-            </DialogTitle>
+            <DialogTitle className="text-green-700 text-xl font-bold">Transfer Head</DialogTitle>
             <DialogDescription className="text-sm text-muted-foreground">
               Reassign the family head.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-3">
-            {/* Select new head */}
             <div>
               <label className="block text-sm font-medium mb-1">Select new head</label>
-              <Select
-                value={newHeadEvacueeId}
-                onValueChange={handleSelectNewHead}
-              >
+              <Select value={newHeadEvacueeId} onValueChange={handleSelectNewHead}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Choose a family member" />
                 </SelectTrigger>
@@ -711,14 +598,9 @@ const handleSaveDecampment = async () => {
               </Select>
             </div>
 
-            {/* Old head new relationship (read-only, auto) */}
             <div className="mt-3">
               <label className="block text-sm font-medium mb-1">Old head new relationship</label>
-              <Input
-                value={oldHeadNewRel}
-                readOnly
-                className="w-full bg-gray-50"
-              />
+              <Input value={oldHeadNewRel} readOnly className="w-full bg-gray-50" />
               <p className="mt-1 text-xs text-gray-500">
                 Auto-set from the selected member’s current relationship.
               </p>
@@ -726,21 +608,12 @@ const handleSaveDecampment = async () => {
           </div>
 
           <div className="mt-6 flex justify-end gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setTransferOpen(false)}
-              className="cursor-pointer"
-            >
+            <Button variant="outline" onClick={() => setTransferOpen(false)} className="cursor-pointer">
               Cancel
             </Button>
             <Button
               className="bg-green-700 hover:bg-green-800 text-white cursor-pointer disabled:cursor-not-allowed"
-              disabled={
-                !newHeadEvacueeId ||
-                !canTransfer ||
-                transferring ||
-                !oldHeadNewRel
-              }
+              disabled={!newHeadEvacueeId || !canTransfer || transferring || !oldHeadNewRel}
               onClick={handleConfirmTransfer}
             >
               {transferring ? "Transferring..." : "Confirm Transfer"}
@@ -748,6 +621,19 @@ const handleSaveDecampment = async () => {
           </div>
         </DialogContent>
       </Dialog>
+      <RegisterBlockDialog
+  open={regBlockOpen}
+  onOpenChange={setRegBlockOpen}
+  personName={regBlockName}
+  ecName={regBlockEcName}
+  title="Cannot remove decampment"
+  secondaryLabel="OK"
+  // (optional) custom message:
+  description={
+    <>This family is already active{regBlockEcName ? <> in <b>{regBlockEcName}</b></> : " in another event"}.
+     Only one active event is allowed. Decamp them there first.</>
+   }
+/>
     </>
   );
 };

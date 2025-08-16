@@ -693,7 +693,6 @@ export const RegisterEvacueeModal = ({
       : (saving ? "Saving..." : "Save")}
   </Button>
 </DialogFooter>
-
           </form>
         </div>
       </DialogContent>
