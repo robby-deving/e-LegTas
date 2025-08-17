@@ -1,16 +1,7 @@
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog";
 import { XIcon } from "lucide-react";
 
-type Props = {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  personName?: string;
-  onManualRegister: () => void;
-  centerLabel?: string;
-  cancelLabel?: string;
-  proceedLabel?: string;
-  description?: string;
-};
+type Props = { open: boolean; onOpenChange: (open: boolean) => void; personName?: string; onManualRegister: () => void; centerLabel?: string; cancelLabel?: string; proceedLabel?: string; description?: string; };
 
 export function DuplicateWarningDialog({
   open,
@@ -22,7 +13,6 @@ export function DuplicateWarningDialog({
   proceedLabel = "Manual Register",
   description,
 }: Props) {
-  // replace your current `message` with this JSX so the name is highlighted
   const message = description ?? (
     <>
       {personName && (

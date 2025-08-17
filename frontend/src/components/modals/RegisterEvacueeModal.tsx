@@ -33,18 +33,14 @@ export const RegisterEvacueeModal = ({
   const [saving, setSaving] = useState(false);
 
   const handleClickSave = async () => {
-    // don’t submit if invalid
     if (formRef.current && !formRef.current.reportValidity()) return;
-
     try {
       setSaving(true);
-      // make sure onSave can be async; if it isn’t, Promise.resolve handles it
       await Promise.resolve(onSave());
     } finally {
       setSaving(false);
     }
   };
-
 
   const suffixOptions = ["Jr.", "Sr.", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
   const sexOptions = ["Male", "Female"];
@@ -53,6 +49,7 @@ export const RegisterEvacueeModal = ({
   const purokOptions = Array.from({ length: 20 }, (_, i) => (i + 1).toString());
   const relationshipOptions = ["Head", "Spouse", "Child", "Parent", "Sibling", "Grandparent", "Grandchild", "In-law", "Relative", "Household Member", "Boarder", "Partner"];
   
+  const SUFFIX_NONE = "__NULL__";
   const isEdit = mode === "edit";
 
   useEffect(() => {
@@ -166,13 +163,16 @@ export const RegisterEvacueeModal = ({
                 <div>
                   <label className="block text-sm font-medium mb-2">Suffix:</label>
                   <Select
-                    value={formData.suffix}
-                    onValueChange={(v) => onFormChange("suffix", v)}
+                    value={formData.suffix && formData.suffix.trim() !== "" ? formData.suffix : SUFFIX_NONE}
+                    onValueChange={(v) => {
+                      onFormChange("suffix", v === SUFFIX_NONE ? "" : v);
+                    }}
                   >
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select Suffix" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value={SUFFIX_NONE}>None</SelectItem>
                       {suffixOptions.map((o) => (
                         <SelectItem key={o} value={o}>
                           {o}
@@ -256,35 +256,50 @@ export const RegisterEvacueeModal = ({
 
                 {/* Birthday * */}
                 <div>
-                  <label className="block text-sm font-medium mb-2">Birthday:<span className="text-red-500">*</span></label>
+                  <label className="block text-sm font-medium mb-2">
+                    Birthday:<span className="text-red-500">*</span>
+                  </label>
+
                   <div className="relative w-full">
                     <ReactDatePicker
                       wrapperClassName="w-full"
                       popperPlacement="bottom"
-                      selected={
-                        formData.birthday ? new Date(formData.birthday) : null
-                      }
+                      selected={formData.birthday ? new Date(formData.birthday) : null}
                       onChange={(date) =>
-                        onFormChange(
-                          "birthday",
-                          date ? date.toISOString().substring(0, 10) : ""
-                        )
+                        onFormChange("birthday", date ? date.toISOString().substring(0, 10) : "")
                       }
                       placeholderText="MM/DD/YYYY"
-                      customInput={<Input className="w-full pl-10 h-10" />}
                       dateFormat="MM/dd/yyyy"
+                      customInput={<Input className="w-full pl-10 pr-10 h-10" />}
                     />
 
                     {/* Left calendar icon */}
                     <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
 
+                    {/* Small circular green clear button */}
+                    {formData.birthday && (
+                      <button
+                        type="button"
+                        aria-label="Clear date"
+                        onMouseDown={(e) => e.preventDefault()} 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onFormChange("birthday", "");
+                        }}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 z-20 inline-flex h-5 w-5 items-center justify-center rounded-full bg-green-700 text-white hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-green-600 cursor-pointer"
+                      >
+                        ×
+                      </button>
+                    )}
+
+                    {/* Invisible native input to enforce `required` without blocking clicks */}
                     <input
                       type="text"
                       value={formData.birthday || ""}
                       onChange={() => {}}
                       required
-                      className="absolute inset-y-0 right-0 h-10 w-[calc(100%-2.5rem)] opacity-0 pointer-events-none"
-                      style={{ left: "2.5rem" }}
+                      className="absolute inset-y-0 right-0 h-10 opacity-0 pointer-events-none w-[calc(100%-5rem)]"
+                      style={{ left: "2.5rem" }} /* 2.5rem left icon + 2.5rem right clear */
                       aria-hidden="true"
                       tabIndex={-1}
                     />
@@ -653,34 +668,33 @@ export const RegisterEvacueeModal = ({
                 </div>
               </div>
             </div>
-<DialogFooter className="flex justify-end space-x-3 pt-2">
-  <Button
-    type="button"                 // <- important
-    variant="outline"
-    onClick={onClose}
-    disabled={saving}
-    className="px-6 cursor-pointer"
-  >
-    Cancel
-  </Button>
+            <DialogFooter className="flex justify-end space-x-3 pt-2">
+              <Button
+                type="button"                 
+                variant="outline"
+                onClick={onClose}
+                disabled={saving}
+                className="px-6 cursor-pointer"
+              >
+                Cancel
+              </Button>
 
-  <Button
-    type="button"                 // <- important
-    onClick={handleClickSave}
-    disabled={saving}
-    className="bg-green-700 hover:bg-green-800 text-white px-6 cursor-pointer disabled:opacity-90"
-    aria-busy={saving}
-  >
-    {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />}
-    {mode === "register"
-      ? (saving ? "Registering..." : "Register")
-      : (saving ? "Saving..." : "Save")}
-  </Button>
-</DialogFooter>
-
-          </form>
-        </div>
-      </DialogContent>
-    </Dialog>
+              <Button
+                type="button"                 
+                onClick={handleClickSave}
+                disabled={saving}
+                className="bg-green-700 hover:bg-green-800 text-white px-6 cursor-pointer disabled:opacity-90"
+                aria-busy={saving}
+              >
+                {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />}
+                {mode === "register"
+                  ? (saving ? "Registering..." : "Register")
+                  : (saving ? "Saving..." : "Save")}
+              </Button>
+            </DialogFooter>
+            </form>
+          </div>
+        </DialogContent>
+      </Dialog>
   );
 };

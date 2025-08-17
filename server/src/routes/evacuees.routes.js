@@ -3,6 +3,7 @@
 const express = require('express');
 const evacueeController = require('../controllers/evacuee.controller'); 
 const { searchEvacueeByName, searchFamilyHeads } = require('../controllers/evacueeSearch.controller');
+const { decampFamily } = require('../controllers/decamp.controller');
 
 // Create an Express Router instance
 const router = express.Router();
@@ -38,6 +39,8 @@ router.get('/barangays', evacueeController.getAllBarangays);
 // Transfer the head of a family (within a specific disaster event)
 router.post('/:disasterEvacuationEventId/transfer-head', evacueeController.transferHead);
 
+// Decamp a whole family for a specific event
+router.post('/:disasterEvacuationEventId/families/:familyHeadId/decamp', decampFamily);
 
 // Update an evacuee's details by ID
 // Example: PUT /api/v1/evacuees/123

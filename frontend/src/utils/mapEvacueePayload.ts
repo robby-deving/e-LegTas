@@ -1,75 +1,82 @@
-// mapEvacueePayload.ts
+// utils/mapEvacueePayload.ts
+
+type VulnIds = number[] | undefined | null;
+const hasVuln = (ids: VulnIds, id: number) => Array.isArray(ids) && ids.includes(id);
+
+const S = (v: unknown) => (typeof v === "string" ? v.trim() : "");
 
 export function mapEditPayloadToForm(p: any) {
+  const s = p?.profile_snapshot ?? p;
+  const vulnIds = Array.isArray(p?.vulnerability_type_ids) ? p.vulnerability_type_ids : [];
+  const safeBirth = S(s?.birthdate);
+  const birthdayISO = safeBirth ? safeBirth.substring(0, 10) : "";
+  const relRaw = S(s?.relationship_to_family_head ?? p?.relationship_to_family_head ?? "");
+  const isHead = relRaw === "Head" || relRaw === "";
+  const relationshipForForm = isHead ? "" : relRaw;
+
   return {
-    firstName: p.first_name || "",
-    middleName: p.middle_name || "",
-    lastName: p.last_name || "",
-    suffix: p.suffix || "",
-    sex: p.sex || "",
-    maritalStatus: p.marital_status || "",
-    birthday: p.birthdate ? p.birthdate.substring(0, 10) : "",
-    educationalAttainment: p.educational_attainment || "",
-    schoolOfOrigin: p.school_of_origin || "",
-    occupation: p.occupation || "",
-    purok: p.purok ? String(p.purok) : "",
-    barangayOfOrigin: p.barangay_of_origin ? String(p.barangay_of_origin) : "",
-    isFamilyHead: p.relationship_to_family_head === "Head" ? "Yes" : "No",
-    relationshipToFamilyHead: p.relationship_to_family_head || "",
-    familyHeadId:
-      p.relationship_to_family_head === "Head"
-        ? null
-        : p.family_head_id ?? null,
-    familyHead:
-      p.relationship_to_family_head === "Head"
-        ? p.family_head_full_name || ""
-        : p.family_head_full_name || "",
-    searchEvacuationRoom: p.ec_rooms_id ? String(p.ec_rooms_id) : "",
-    evacuationRoomName: p.room_name || "",
+    firstName: S(s?.first_name),
+    middleName: S(s?.middle_name),
+    lastName: S(s?.last_name),
+    suffix: typeof s?.suffix === "string" ? s.suffix : "",             
+    sex: S(s?.sex),
+    maritalStatus: S(s?.marital_status),
+    birthday: birthdayISO,
+    educationalAttainment: S(s?.educational_attainment),
+    schoolOfOrigin: S(s?.school_of_origin),
+    occupation: S(s?.occupation),
+    purok: s?.purok != null ? String(s.purok) : "",
+    barangayOfOrigin: s?.barangay_of_origin != null ? String(s.barangay_of_origin) : "",
+
+    isFamilyHead: isHead ? "Yes" : "No",
+    relationshipToFamilyHead: relationshipForForm,
+    familyHeadId: isHead ? null : (p?.family_head_id ?? null),
+    familyHead: isHead ? "" : S(p?.family_head_full_name),
+
+    searchEvacuationRoom: p?.ec_rooms_id != null ? String(p.ec_rooms_id) : "",
+    evacuationRoomName: S(p?.room_name),
+
     vulnerabilities: {
-      pwd: (p.vulnerability_type_ids || []).includes(4),
-      pregnant: (p.vulnerability_type_ids || []).includes(5),
-      lactatingMother: (p.vulnerability_type_ids || []).includes(6),
+      pwd: hasVuln(vulnIds, 4),
+      pregnant: hasVuln(vulnIds, 5),
+      lactatingMother: hasVuln(vulnIds, 6),
     },
   };
 }
+
 export function mapSearchPayloadToForm(p: any) {
-  const isHead = p.relationship_to_family_head === "Head";
-  const fullName = `${p.first_name ?? ""} ${
-    p.middle_name ? p.middle_name + " " : ""
-  }${p.last_name ?? ""}`
-    .replace(/\s+/g, " ")
-    .trim();
-  const familyHeadFullName = !isHead ? p.family_head_full_name ?? "" : "";
+  const s = p?.profile_snapshot ?? p;
+  const vulnIds = Array.isArray(p?.vulnerability_type_ids) ? p.vulnerability_type_ids : [];
+  const safeBirth = typeof s?.birthdate === "string" ? s.birthdate : "";
+  const birthdayISO = safeBirth ? safeBirth.substring(0, 10) : "";
+
   return {
-    firstName: p.first_name || "",
-    middleName: p.middle_name || "",
-    lastName: p.last_name || "",
-    suffix: p.suffix || "",
-    sex: p.sex || "",
-    maritalStatus: p.marital_status || "",
-    birthday: p.birthdate ? p.birthdate.substring(0, 10) : "",
-    educationalAttainment: p.educational_attainment || "",
-    schoolOfOrigin: p.school_of_origin || "",
-    occupation: p.occupation || "",
-    purok: p.purok != null ? String(p.purok) : "",
-    barangayOfOrigin:
-      p.barangay_of_origin != null ? String(p.barangay_of_origin) : "",
-    isFamilyHead: isHead ? "Yes" : "No",
-    familyHead: isHead ? fullName : familyHeadFullName,
-    familyHeadId: isHead ? null : p.family_head_id ?? null,
-    relationshipToFamilyHead: p.relationship_to_family_head || "",
-    searchEvacuationRoom: p.ec_rooms_id != null ? String(p.ec_rooms_id) : "",
+    firstName: s?.first_name ?? "",
+    middleName: s?.middle_name ?? "",
+    lastName: s?.last_name ?? "",
+    suffix: s?.suffix ?? "",
+    sex: s?.sex ?? "",
+    maritalStatus: s?.marital_status ?? "",
+    birthday: birthdayISO,
+    educationalAttainment: s?.educational_attainment ?? "",
+    schoolOfOrigin: s?.school_of_origin ?? "",
+    occupation: s?.occupation ?? "",
+    purok: s?.purok != null ? String(s.purok) : "",
+    barangayOfOrigin: s?.barangay_of_origin != null ? String(s.barangay_of_origin) : "",
+
+    isFamilyHead: "Yes",
+    familyHead: "",
+    familyHeadId: null,
+    relationshipToFamilyHead: "",
+
+    searchEvacuationRoom: p?.ec_rooms_id != null ? String(p.ec_rooms_id) : "",
+
     vulnerabilities: {
-      pwd:
-        Array.isArray(p.vulnerability_type_ids) &&
-        p.vulnerability_type_ids.includes(4),
-      pregnant:
-        Array.isArray(p.vulnerability_type_ids) &&
-        p.vulnerability_type_ids.includes(5),
-      lactatingMother:
-        Array.isArray(p.vulnerability_type_ids) &&
-        p.vulnerability_type_ids.includes(6),
+      pwd: hasVuln(vulnIds, 4),
+      pregnant: hasVuln(vulnIds, 5),
+      lactatingMother: hasVuln(vulnIds, 6),
     },
+
+    existingEvacueeResidentId: p?.evacuee_resident_id ?? null,
   };
 }
