@@ -133,7 +133,6 @@ export default function EvacuationCenterDetail() {
       const res = await axios.get<EvacuationCenterDetail>(`http://localhost:3000/api/v1/evacuees/${centerId}/details`);
       setDetail(res.data);
     } catch {
-      /* silent */
     }
   }, [centerId]);
 
@@ -142,7 +141,6 @@ export default function EvacuationCenterDetail() {
       const res = await axios.get<EvacueeStatistics>(`http://localhost:3000/api/v1/evacuees/${centerId}/evacuee-statistics`);
       setStatistics(res.data);
     } catch {
-      /* silent */
     }
   }, [centerId]);
 
@@ -158,7 +156,6 @@ export default function EvacuationCenterDetail() {
     }
   }, [centerId]);
 
-  // optional helper to refresh all at once
   const refreshAll = useCallback(async () => {
     await Promise.all([fetchEvacueesList(), fetchDetails(), fetchStatistics()]);
   }, [fetchEvacueesList, fetchDetails, fetchStatistics]);
@@ -268,7 +265,6 @@ export default function EvacuationCenterDetail() {
       setEvacueeModalMode("edit");
       setEvacueeModalOpen(true);
     } catch {
-      /* silent */
     }
   };
 

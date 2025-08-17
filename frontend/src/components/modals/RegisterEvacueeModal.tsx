@@ -36,7 +36,6 @@ export const RegisterEvacueeModal = ({
     if (formRef.current && !formRef.current.reportValidity()) return;
     try {
       setSaving(true);
-      // make sure onSave can be async; if it isn’t, Promise.resolve handles it
       await Promise.resolve(onSave());
     } finally {
       setSaving(false);
@@ -164,10 +163,8 @@ export const RegisterEvacueeModal = ({
                 <div>
                   <label className="block text-sm font-medium mb-2">Suffix:</label>
                   <Select
-                    // If empty string in state, show the sentinel option in the UI
                     value={formData.suffix && formData.suffix.trim() !== "" ? formData.suffix : SUFFIX_NONE}
                     onValueChange={(v) => {
-                      // Map sentinel back to empty string in state (not null)
                       onFormChange("suffix", v === SUFFIX_NONE ? "" : v);
                     }}
                   >
@@ -273,7 +270,6 @@ export const RegisterEvacueeModal = ({
                       }
                       placeholderText="MM/DD/YYYY"
                       dateFormat="MM/dd/yyyy"
-                      /* space for calendar (left) + clear (right) */
                       customInput={<Input className="w-full pl-10 pr-10 h-10" />}
                     />
 
@@ -285,7 +281,7 @@ export const RegisterEvacueeModal = ({
                       <button
                         type="button"
                         aria-label="Clear date"
-                        onMouseDown={(e) => e.preventDefault()} // prevent datepicker from hijacking
+                        onMouseDown={(e) => e.preventDefault()} 
                         onClick={(e) => {
                           e.stopPropagation();
                           onFormChange("birthday", "");

@@ -9,7 +9,6 @@ class ApiError extends Error {
   }
 }
 
-
 /**
  * @desc Set, update, or clear decampment for a whole family in an event.
  *       If body.decampment_timestamp is null/empty -> clear (set NULL) but block if already active elsewhere.

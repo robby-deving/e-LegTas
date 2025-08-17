@@ -19,7 +19,6 @@ class ApiError extends Error {
  */
 exports.registerEvacuee = async (req, res, next) => {
   const {
-    // person fields (used only when creating new; also allowed to override snapshot on reuse)
     first_name,
     middle_name,
     last_name,
@@ -32,11 +31,10 @@ exports.registerEvacuee = async (req, res, next) => {
     school_of_origin,
     occupation,
     purok,
-    family_head_id,                 // required if not Head
-    relationship_to_family_head,    // "Head" or other
+    family_head_id,                 
+    relationship_to_family_head,    
     date_registered,
 
-    // event-scoped vulnerability flags
     is_infant,
     is_children,
     is_youth,
@@ -46,11 +44,9 @@ exports.registerEvacuee = async (req, res, next) => {
     is_pregnant,
     is_lactating,
 
-    // registration targets
     ec_rooms_id,
     disaster_evacuation_event_id,
 
-    // reuse existing evacuee
     existing_evacuee_resident_id,
   } = req.body;
 
@@ -82,7 +78,6 @@ exports.registerEvacuee = async (req, res, next) => {
     return ids;
   };
 
-  // include relationship_to_family_head so Edit can reflect correct radio state
   const buildSnapshot = (src = {}, relForThisEvent = null) => ({
     first_name: src.first_name ?? null,
     middle_name: src.middle_name ?? null,
@@ -99,19 +94,15 @@ exports.registerEvacuee = async (req, res, next) => {
     educational_attainment: src.educational_attainment ?? null,
     occupation: src.occupation ?? null,
     school_of_origin: src.school_of_origin ?? null,
-    relationship_to_family_head: relForThisEvent, // <- event-scoped
+    relationship_to_family_head: relForThisEvent, 
   });
 
-  // convenience normalizer for suffix field coming from the request
   const normalizedSuffix =
     typeof suffix === "string" && suffix.trim() !== "" ? suffix.trim() : null;
 
   try {
-    // -------------------------------------------
     // REUSE BRANCH: existing_evacuee_resident_id
-    // -------------------------------------------
     if (existing_evacuee_resident_id) {
-      // 0) Load evacuee + resident (need data for snapshot and head resolution)
       const { data: evacRow, error: evacRowErr } = await supabase
         .from("evacuee_residents")
         .select(`
@@ -340,14 +331,14 @@ exports.registerEvacuee = async (req, res, next) => {
             : evacRow?.school_of_origin,
       };
 
-      const relForThisEvent = desiredRel; // what we decided above
+      const relForThisEvent = desiredRel; 
       const snapshot = buildSnapshot(snapshotSrc, relForThisEvent);
 
       const { error: regEventStateErr } = await supabase
         .from("evacuation_registrations")
         .update({
           profile_snapshot: snapshot,
-          vulnerability_type_ids: vulnIds, // [] ok; NOT NULL column
+          vulnerability_type_ids: vulnIds,
           updated_at: nowIso,
         })
         .eq("id", registration_id);
@@ -373,9 +364,7 @@ exports.registerEvacuee = async (req, res, next) => {
       });
     }
 
-    // -------------------------------------------
     // CREATE-NEW BRANCH: original flow (with event-scoped snapshot/flags)
-    // -------------------------------------------
 
     // Step 1: Insert resident
     const { data: residentData, error: residentError } = await supabase
@@ -387,7 +376,7 @@ exports.registerEvacuee = async (req, res, next) => {
           last_name,
           suffix: normalizedSuffix,
           birthdate,
-          sex, // keep as-is to match your current column
+          sex, 
           barangay_of_origin,
         },
       ])
@@ -585,8 +574,6 @@ exports.registerEvacuee = async (req, res, next) => {
   }
 };
 
-
-
 /**
  * @desc Get all barangay entries
  * @route GET /api/v1/barangays
@@ -628,11 +615,10 @@ exports.updateEvacuee = async (req, res, next) => {
   const { id } = req.params; // evacuee_residents.id
 
   const {
-    // form fields: ONLY used to compose an event-scoped snapshot
     first_name,
     middle_name,
     last_name,
-    suffix, // may be string | null | undefined
+    suffix, 
     birthdate,
     sex,
     barangay_of_origin,
@@ -642,11 +628,9 @@ exports.updateEvacuee = async (req, res, next) => {
     occupation,
     purok,
 
-    // head/member intent for THIS event only
-    family_head_id,              // required if relationship_to_family_head !== "Head"
-    relationship_to_family_head, // "Head" or other
+    family_head_id,              
+    relationship_to_family_head, 
 
-    // event-scoped vulnerability flags (replace all in this registration)
     is_infant,
     is_children,
     is_youth,
@@ -656,8 +640,7 @@ exports.updateEvacuee = async (req, res, next) => {
     is_pregnant,
     is_lactating,
 
-    // registration fields for THIS event
-    ec_rooms_id,                 // OPTIONAL in update; only patched when present
+    ec_rooms_id,                 
     disaster_evacuation_event_id,
   } = req.body;
 
@@ -699,7 +682,7 @@ exports.updateEvacuee = async (req, res, next) => {
     suffix:
       typeof src.suffix === "string" && src.suffix.trim() !== ""
         ? src.suffix.trim()
-        : (src.suffix ?? null), // keep null when asked to clear
+        : (src.suffix ?? null),
     sex: src.sex ?? null,
     marital_status: src.marital_status ?? null,
     birthdate: src.birthdate ?? null,
@@ -708,14 +691,9 @@ exports.updateEvacuee = async (req, res, next) => {
     educational_attainment: src.educational_attainment ?? null,
     occupation: src.occupation ?? null,
     school_of_origin: src.school_of_origin ?? null,
-    relationship_to_family_head: relForThisEvent, // store event-scoped relationship for clarity
+    relationship_to_family_head: relForThisEvent, 
   });
 
-  // normalize suffix ONCE:
-  //  - null          -> null     (explicit clear)
-  //  - "" (trimmed)  -> null     (explicit clear)
-  //  - string " Jr." -> "Jr."    (trimmed)
-  //  - undefined     -> undefined (do not touch; keep existing)
   let normalizedSuffix;
   if (suffix === null) {
     normalizedSuffix = null;
@@ -895,16 +873,13 @@ exports.updateEvacuee = async (req, res, next) => {
       first_name: first_name !== undefined ? first_name : evacueeRow?.residents?.first_name,
       middle_name: middle_name !== undefined ? middle_name : evacueeRow?.residents?.middle_name,
       last_name: last_name !== undefined ? last_name : evacueeRow?.residents?.last_name,
-      // KEY: if client sent suffix (even null/""), use it; otherwise fallback to existing
       suffix: normalizedSuffix !== undefined ? normalizedSuffix : evacueeRow?.residents?.suffix,
       sex: sex !== undefined ? sex : evacueeRow?.residents?.sex,
       marital_status: marital_status !== undefined ? marital_status : evacueeRow?.marital_status,
       birthdate: birthdate !== undefined ? birthdate : evacueeRow?.residents?.birthdate,
-      barangay_of_origin:
-        barangay_of_origin !== undefined ? barangay_of_origin : evacueeRow?.residents?.barangay_of_origin,
+      barangay_of_origin: barangay_of_origin !== undefined ? barangay_of_origin : evacueeRow?.residents?.barangay_of_origin,
       purok: purok !== undefined ? purok : evacueeRow?.purok,
-      educational_attainment:
-        educational_attainment !== undefined ? educational_attainment : evacueeRow?.educational_attainment,
+      educational_attainment: educational_attainment !== undefined ? educational_attainment : evacueeRow?.educational_attainment,
       occupation: occupation !== undefined ? occupation : evacueeRow?.occupation,
       school_of_origin: school_of_origin !== undefined ? school_of_origin : evacueeRow?.school_of_origin,
     };
@@ -914,14 +889,12 @@ exports.updateEvacuee = async (req, res, next) => {
     const nowIso = new Date().toISOString();
 
     if (regRow) {
-      // UPDATE existing registration (keep arrival_timestamp unchanged)
       const patch = {
         family_head_id: resolved_family_head_id,
         profile_snapshot: snapshot,
-        vulnerability_type_ids: vulnIds, // replace the set for THIS event
+        vulnerability_type_ids: vulnIds, 
         updated_at: nowIso,
       };
-      // Only patch room if client provided it (avoid accidental nulling)
       if (ec_rooms_id !== undefined) {
         patch.ec_rooms_id = ec_rooms_id ?? null;
       }
@@ -968,9 +941,6 @@ exports.updateEvacuee = async (req, res, next) => {
     return next(new ApiError("Internal server error during evacuee update.", 500));
   }
 };
-
-
-
 
 // --- Helper: build full name safely (first [middle] last [suffix]) ---
 function buildFullName({ first_name, middle_name, last_name, suffix }) {
@@ -1082,7 +1052,6 @@ exports.getEvacueesInformationbyDisasterEvacuationEventId = async (req, res, nex
     const response = [];
 
     for (const [familyHeadId, members] of familyGroups.entries()) {
-      // Per-family summary initialized
       const summary = {
         total_no_of_male: 0,
         total_no_of_female: 0,
@@ -1251,8 +1220,6 @@ exports.getEvacueesInformationbyDisasterEvacuationEventId = async (req, res, nex
 };
 
 
-
-
 /**
  * @desc Get evacuee demographic statistics by disaster evacuation event ID
  * @route GET /api/v1/evacuees/:disasterEvacuationEventId/evacuee-statistics 
@@ -1280,7 +1247,7 @@ exports.getEvacueeStatisticsByDisasterEvacuationEventId = async (req, res, next)
         total_no_of_lactating_women
       `)
       .eq("disaster_evacuation_event_id", eventId)
-      .maybeSingle(); // return null instead of 404 when the row doesn't exist
+      .maybeSingle(); 
 
     if (error) {
       console.error("[ERROR] fetching evacuee statistics:", error);
@@ -1653,8 +1620,6 @@ exports.getEvacueeDetailsForEdit = async (req, res, next) => {
   }
 };
 
-
-
 /**
  * @desc Transfer the family head to another member.
  *       GLOBAL: repoints family_head_id on evacuee_residents + registrations.
@@ -1823,8 +1788,6 @@ exports.transferHead = async (req, res, next) => {
         updated_at: nowIso,
       })
       .eq("family_head_id", fromFH);
-    // If you want event-only scope, add:
-    // .eq('disaster_evacuation_event_id', eventIdNum)
     if (regRepointErr) {
       console.error("regRepointErr:", regRepointErr);
       throw new ApiError("Failed to update registrations to new head.", 500);
@@ -1893,4 +1856,3 @@ exports.transferHead = async (req, res, next) => {
     );
   }
 };
-

@@ -3,16 +3,7 @@ import * as React from "react";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
 import { XIcon } from "lucide-react";
 
-type Props = {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  personName?: string;
-  ecName?: string;
-  description?: React.ReactNode;
-  onSecondaryAction?: () => void;
-  secondaryLabel?: string;
-  closeLabel?: string;
-};
+type Props = { open: boolean; onOpenChange: (open: boolean) => void; personName?: string; ecName?: string; description?: React.ReactNode; onSecondaryAction?: () => void; secondaryLabel?: string; closeLabel?: string; };
 
 export function DuplicateInOtherECDialog({
   open,

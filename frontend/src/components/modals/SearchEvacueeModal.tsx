@@ -16,9 +16,9 @@ interface SearchEvacueeModalProps {
   onSelectEvacuee: (evacuee: Evacuee) => void;
   onManualRegister: () => void;
   registeredIds?: Set<number>;
-  currentEventId: number | string | null;     // kept for fallback match
-  currentEcId: number | null;                 // current EC id
-  currentDisasterId: number | string | null;  // preferred match
+  currentEventId: number | string | null;     
+  currentEcId: number | null;                 
+  currentDisasterId: number | string | null;  
 }
 
 export const SearchEvacueeModal = ({
@@ -34,7 +34,6 @@ export const SearchEvacueeModal = ({
   currentEcId,
   currentDisasterId,
 }: SearchEvacueeModalProps) => {
-  // keep mounted; visibility is controlled by <Dialog open={isOpen}>
 
   const [warnOpen, setWarnOpen] = useState(false);
   const [conflictName, setConflictName] = useState<string>("");
@@ -43,10 +42,8 @@ export const SearchEvacueeModal = ({
   const [blockedName, setBlockedName] = useState<string>("");
   const [blockedEcName, setBlockedEcName] = useState<string | undefined>(undefined);
 
-  const eventIdNum =
-    currentEventId != null && currentEventId !== "" ? Number(currentEventId) : null;
-  const disasterIdNum =
-    currentDisasterId != null && currentDisasterId !== "" ? Number(currentDisasterId) : null;
+  const eventIdNum = currentEventId != null && currentEventId !== "" ? Number(currentEventId) : null;
+  const disasterIdNum = currentDisasterId != null && currentDisasterId !== "" ? Number(currentDisasterId) : null;
 
   return (
     <>

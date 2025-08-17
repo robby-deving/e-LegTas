@@ -337,7 +337,7 @@ try {
       </>
     );
     setDecampInvalidOpen(true);
-    return; // don't do the real POST
+    return; 
   }
 
   // 2) Real write (should succeed now)
