@@ -7,52 +7,50 @@ const hasVuln = (ids: VulnIds, id: number) =>
 // -------------------------
 // EDIT: prefer event snapshot
 // -------------------------
+// tiny helper to normalize strings
+const S = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+
 export function mapEditPayloadToForm(p: any) {
-  // Prefer event-scoped snapshot; fallback to top-level
   const s = p?.profile_snapshot ?? p;
 
-  // Vulnerabilities are event-scoped
   const vulnIds: number[] = Array.isArray(p?.vulnerability_type_ids)
     ? p.vulnerability_type_ids
     : [];
 
-  // Normalize birthdate
-  const safeBirth = typeof s?.birthdate === "string" ? s.birthdate : "";
+  // Normalize birthdate (YYYY-MM-DD for your date picker)
+  const safeBirth = S(s?.birthdate);
   const birthdayISO = safeBirth ? safeBirth.substring(0, 10) : "";
 
-  // ---- NEW: robust relationship resolution ----
-  // 1) Prefer snapshot.relationship_to_family_head
-  // 2) Fallback to top-level (global) relationship if snapshot missing
-  // 3) Treat missing/empty as "Head" (so Edit shows 'Yes' by default)
-  const relRaw = (s?.relationship_to_family_head ?? p?.relationship_to_family_head ?? "").trim();
+  // Relationship resolution
+  const relRaw = S(s?.relationship_to_family_head ?? p?.relationship_to_family_head ?? "");
   const isHead = relRaw === "Head" || relRaw === ""; // default empty → Head
   const relationshipForForm = isHead ? "" : relRaw;
 
   return {
     // identity / demographics (prefer snapshot)
-    firstName: s?.first_name ?? "",
-    middleName: s?.middle_name ?? "",
-    lastName: s?.last_name ?? "",
-    suffix: s?.suffix ?? "",
-    sex: s?.sex ?? "",
-    maritalStatus: s?.marital_status ?? "",
+    firstName: S(s?.first_name),
+    middleName: S(s?.middle_name),
+    lastName: S(s?.last_name),
+   suffix: typeof s?.suffix === "string" ? s.suffix : "",             
+    sex: S(s?.sex),
+    maritalStatus: S(s?.marital_status),
     birthday: birthdayISO,
-    educationalAttainment: s?.educational_attainment ?? "",
-    schoolOfOrigin: s?.school_of_origin ?? "",
-    occupation: s?.occupation ?? "",
+    educationalAttainment: S(s?.educational_attainment),
+    schoolOfOrigin: S(s?.school_of_origin),
+    occupation: S(s?.occupation),
     purok: s?.purok != null ? String(s.purok) : "",
     barangayOfOrigin:
       s?.barangay_of_origin != null ? String(s.barangay_of_origin) : "",
 
-    // family role (event-scoped in snapshot, with safe fallback)
+    // family role (event-scoped)
     isFamilyHead: isHead ? "Yes" : "No",
     relationshipToFamilyHead: relationshipForForm,
     familyHeadId: isHead ? null : (p?.family_head_id ?? null),
-    familyHead: isHead ? "" : (p?.family_head_full_name ?? ""),
+    familyHead: isHead ? "" : S(p?.family_head_full_name),
 
     // room (this event)
     searchEvacuationRoom: p?.ec_rooms_id != null ? String(p.ec_rooms_id) : "",
-    evacuationRoomName: p?.room_name ?? "",
+    evacuationRoomName: S(p?.room_name),
 
     // vulnerabilities (event-scoped)
     vulnerabilities: {
@@ -62,6 +60,7 @@ export function mapEditPayloadToForm(p: any) {
     },
   };
 }
+
 
 // ---------------------------------
 // SEARCH/REUSE: start from snapshot,

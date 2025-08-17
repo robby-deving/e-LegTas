@@ -53,6 +53,7 @@ export const RegisterEvacueeModal = ({
   const purokOptions = Array.from({ length: 20 }, (_, i) => (i + 1).toString());
   const relationshipOptions = ["Head", "Spouse", "Child", "Parent", "Sibling", "Grandparent", "Grandchild", "In-law", "Relative", "Household Member", "Boarder", "Partner"];
   
+  const SUFFIX_NONE = "__NULL__";
   const isEdit = mode === "edit";
 
   useEffect(() => {
@@ -162,25 +163,34 @@ export const RegisterEvacueeModal = ({
                   />
                 </div>
 
-                {/* Suffix (optional) */}
-                <div>
-                  <label className="block text-sm font-medium mb-2">Suffix:</label>
-                  <Select
-                    value={formData.suffix}
-                    onValueChange={(v) => onFormChange("suffix", v)}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select Suffix" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {suffixOptions.map((o) => (
-                        <SelectItem key={o} value={o}>
-                          {o}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+
+
+
+{/* Suffix (optional) */}
+<div>
+  <label className="block text-sm font-medium mb-2">Suffix:</label>
+  <Select
+    // If empty string in state, show the sentinel option in the UI
+    value={formData.suffix && formData.suffix.trim() !== "" ? formData.suffix : SUFFIX_NONE}
+    onValueChange={(v) => {
+      // Map sentinel back to empty string in state (not null)
+      onFormChange("suffix", v === SUFFIX_NONE ? "" : v);
+    }}
+  >
+    <SelectTrigger className="w-full">
+      <SelectValue placeholder="Select Suffix" />
+    </SelectTrigger>
+    <SelectContent>
+      <SelectItem value={SUFFIX_NONE}>None</SelectItem>
+      {suffixOptions.map((o) => (
+        <SelectItem key={o} value={o}>
+          {o}
+        </SelectItem>
+      ))}
+    </SelectContent>
+  </Select>
+</div>
+
 
                 {/* Sex * */}
                 <div className="relative">
@@ -671,7 +681,7 @@ export const RegisterEvacueeModal = ({
             </div>
 <DialogFooter className="flex justify-end space-x-3 pt-2">
   <Button
-    type="button"                 // <- important
+    type="button"                 
     variant="outline"
     onClick={onClose}
     disabled={saving}
@@ -681,7 +691,7 @@ export const RegisterEvacueeModal = ({
   </Button>
 
   <Button
-    type="button"                 // <- important
+    type="button"                 
     onClick={handleClickSave}
     disabled={saving}
     className="bg-green-700 hover:bg-green-800 text-white px-6 cursor-pointer disabled:opacity-90"

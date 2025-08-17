@@ -11,7 +11,8 @@ class ApiError extends Error {
   }
 }
 
-/* @desc Register a new evacuee OR reuse an existing evacuee_residents record
+/**
+ *  @desc Register a new evacuee OR reuse an existing evacuee_residents record
  *       (event-scoped snapshot/flags written to evacuation_registrations)
  * @route POST /api/v1/evacuees
  * @access Private (Camp Manager only)
@@ -101,7 +102,7 @@ exports.registerEvacuee = async (req, res, next) => {
     relationship_to_family_head: relForThisEvent, // <- event-scoped
   });
 
-  // convenience normalizer
+  // convenience normalizer for suffix field coming from the request
   const normalizedSuffix =
     typeof suffix === "string" && suffix.trim() !== "" ? suffix.trim() : null;
 
@@ -307,25 +308,40 @@ exports.registerEvacuee = async (req, res, next) => {
       // 6) EVENT-SCOPED SNAPSHOT + FLAGS (no global vuln writes)
       const vulnIds = buildVulnIdsFromFlags();
 
+      // --- IMPORTANT FIX: build snapshot source with presence checks ---
+      const snapshotSrc = {
+        first_name:
+          first_name !== undefined ? first_name : evacRow?.residents?.first_name,
+        middle_name:
+          middle_name !== undefined ? middle_name : evacRow?.residents?.middle_name,
+        last_name:
+          last_name !== undefined ? last_name : evacRow?.residents?.last_name,
+        // allow explicit null to clear suffix
+        suffix:
+          suffix !== undefined ? normalizedSuffix : evacRow?.residents?.suffix,
+        sex: sex !== undefined ? sex : evacRow?.residents?.sex,
+        marital_status:
+          marital_status !== undefined ? marital_status : evacRow?.marital_status,
+        birthdate:
+          birthdate !== undefined ? birthdate : evacRow?.residents?.birthdate,
+        barangay_of_origin:
+          barangay_of_origin !== undefined
+            ? barangay_of_origin
+            : evacRow?.residents?.barangay_of_origin,
+        purok: purok !== undefined ? purok : evacRow?.purok,
+        educational_attainment:
+          educational_attainment !== undefined
+            ? educational_attainment
+            : evacRow?.educational_attainment,
+        occupation: occupation !== undefined ? occupation : evacRow?.occupation,
+        school_of_origin:
+          school_of_origin !== undefined
+            ? school_of_origin
+            : evacRow?.school_of_origin,
+      };
+
       const relForThisEvent = desiredRel; // what we decided above
-      const snapshot = buildSnapshot(
-        {
-          // prefer request overrides, fallback to stored globals
-          first_name: first_name ?? evacRow?.residents?.first_name,
-          middle_name: middle_name ?? evacRow?.residents?.middle_name,
-          last_name: last_name ?? evacRow?.residents?.last_name,
-          suffix: normalizedSuffix ?? evacRow?.residents?.suffix,
-          sex: sex ?? evacRow?.residents?.sex,
-          marital_status: marital_status ?? evacRow?.marital_status,
-          birthdate: birthdate ?? evacRow?.residents?.birthdate,
-          barangay_of_origin: barangay_of_origin ?? evacRow?.residents?.barangay_of_origin,
-          purok: purok ?? evacRow?.purok,
-          educational_attainment: educational_attainment ?? evacRow?.educational_attainment,
-          occupation: occupation ?? evacRow?.occupation,
-          school_of_origin: school_of_origin ?? evacRow?.school_of_origin,
-        },
-        relForThisEvent
-      );
+      const snapshot = buildSnapshot(snapshotSrc, relForThisEvent);
 
       const { error: regEventStateErr } = await supabase
         .from("evacuation_registrations")
@@ -570,6 +586,7 @@ exports.registerEvacuee = async (req, res, next) => {
 };
 
 
+
 /**
  * @desc Get all barangay entries
  * @route GET /api/v1/barangays
@@ -615,7 +632,7 @@ exports.updateEvacuee = async (req, res, next) => {
     first_name,
     middle_name,
     last_name,
-    suffix,
+    suffix, // may be string | null | undefined
     birthdate,
     sex,
     barangay_of_origin,
@@ -627,7 +644,7 @@ exports.updateEvacuee = async (req, res, next) => {
 
     // head/member intent for THIS event only
     family_head_id,              // required if relationship_to_family_head !== "Head"
-    relationship_to_family_head, // "Head" or other (drives head resolution)
+    relationship_to_family_head, // "Head" or other
 
     // event-scoped vulnerability flags (replace all in this registration)
     is_infant,
@@ -640,13 +657,15 @@ exports.updateEvacuee = async (req, res, next) => {
     is_lactating,
 
     // registration fields for THIS event
-    ec_rooms_id,
+    ec_rooms_id,                 // OPTIONAL in update; only patched when present
     disaster_evacuation_event_id,
-    // optional future: decampment_timestamp,
   } = req.body;
 
   if (!disaster_evacuation_event_id) {
     return next(new ApiError("disaster_evacuation_event_id is required for updates.", 400));
+  }
+  if (!id || Number.isNaN(Number(id))) {
+    return next(new ApiError("Invalid evacuee id.", 400));
   }
 
   // ------- helpers -------
@@ -680,7 +699,7 @@ exports.updateEvacuee = async (req, res, next) => {
     suffix:
       typeof src.suffix === "string" && src.suffix.trim() !== ""
         ? src.suffix.trim()
-        : (src.suffix ?? null),
+        : (src.suffix ?? null), // keep null when asked to clear
     sex: src.sex ?? null,
     marital_status: src.marital_status ?? null,
     birthdate: src.birthdate ?? null,
@@ -692,9 +711,20 @@ exports.updateEvacuee = async (req, res, next) => {
     relationship_to_family_head: relForThisEvent, // store event-scoped relationship for clarity
   });
 
-  // normalize once
-  const normalizedSuffix =
-    typeof suffix === "string" && suffix.trim() !== "" ? suffix.trim() : null;
+  // normalize suffix ONCE:
+  //  - null          -> null     (explicit clear)
+  //  - "" (trimmed)  -> null     (explicit clear)
+  //  - string " Jr." -> "Jr."    (trimmed)
+  //  - undefined     -> undefined (do not touch; keep existing)
+  let normalizedSuffix;
+  if (suffix === null) {
+    normalizedSuffix = null;
+  } else if (typeof suffix === "string") {
+    const t = suffix.trim();
+    normalizedSuffix = t === "" ? null : t;
+  } else {
+    normalizedSuffix = undefined;
+  }
 
   try {
     // 1) Load base person (for snapshot fallbacks + resident_id to resolve family_head)
@@ -760,7 +790,7 @@ exports.updateEvacuee = async (req, res, next) => {
       }
     }
 
-    // 3) Resolve a NOT-NULL family_head_id to persist on registration (no global edits)
+    // 3) Resolve NOT-NULL family_head_id to persist on registration (no global edits)
     let resolved_family_head_id = null;
 
     if (isBecomingHead) {
@@ -809,13 +839,13 @@ exports.updateEvacuee = async (req, res, next) => {
     // 4) Upsert registration row for THIS event (event-scoped data only)
     const { data: regRow, error: regFindErr } = await supabase
       .from("evacuation_registrations")
-      .select("id, arrival_timestamp, reported_age_at_arrival")
+      .select("id, arrival_timestamp, reported_age_at_arrival, ec_rooms_id")
       .eq("evacuee_resident_id", id)
       .eq("disaster_evacuation_event_id", disaster_evacuation_event_id)
       .maybeSingle();
     if (regFindErr) throw new ApiError("Failed to fetch evacuation registration.", 500);
 
-    // If there is no registration yet for this event, ensure evacuee not active elsewhere
+    // Guard: if no registration yet, ensure evacuee not active elsewhere
     if (!regRow) {
       const { data: otherActive, error: oaErr } = await supabase
         .from("evacuation_registrations")
@@ -831,10 +861,7 @@ exports.updateEvacuee = async (req, res, next) => {
         .eq("evacuee_resident_id", id)
         .is("decampment_timestamp", null);
 
-      if (oaErr) {
-        console.error("otherActiveErr:", oaErr);
-        throw new ApiError("Failed to verify active-registration state.", 500);
-      }
+      if (oaErr) throw new ApiError("Failed to verify active-registration state.", 500);
 
       if ((otherActive || []).length > 0) {
         const alreadyInTarget = otherActive.find(
@@ -863,40 +890,47 @@ exports.updateEvacuee = async (req, res, next) => {
       }
     }
 
-    // Snapshot: request overrides -> fallback to stored person data; include event relationship
-    const snapshot = buildSnapshot(
-      {
-        first_name: first_name ?? evacueeRow?.residents?.first_name,
-        middle_name: middle_name ?? evacueeRow?.residents?.middle_name,
-        last_name: last_name ?? evacueeRow?.residents?.last_name,
-        suffix: normalizedSuffix ?? evacueeRow?.residents?.suffix,
-        sex: sex ?? evacueeRow?.residents?.sex,
-        marital_status: marital_status ?? evacueeRow?.marital_status,
-        birthdate: birthdate ?? evacueeRow?.residents?.birthdate,
-        barangay_of_origin: barangay_of_origin ?? evacueeRow?.residents?.barangay_of_origin,
-        purok: purok ?? evacueeRow?.purok,
-        educational_attainment: educational_attainment ?? evacueeRow?.educational_attainment,
-        occupation: occupation ?? evacueeRow?.occupation,
-        school_of_origin: school_of_origin ?? evacueeRow?.school_of_origin,
-      },
-      desiredRel
-    );
+    // ---- Snapshot (presence checks; allow clearing suffix) ----
+    const snapshotSrc = {
+      first_name: first_name !== undefined ? first_name : evacueeRow?.residents?.first_name,
+      middle_name: middle_name !== undefined ? middle_name : evacueeRow?.residents?.middle_name,
+      last_name: last_name !== undefined ? last_name : evacueeRow?.residents?.last_name,
+      // KEY: if client sent suffix (even null/""), use it; otherwise fallback to existing
+      suffix: normalizedSuffix !== undefined ? normalizedSuffix : evacueeRow?.residents?.suffix,
+      sex: sex !== undefined ? sex : evacueeRow?.residents?.sex,
+      marital_status: marital_status !== undefined ? marital_status : evacueeRow?.marital_status,
+      birthdate: birthdate !== undefined ? birthdate : evacueeRow?.residents?.birthdate,
+      barangay_of_origin:
+        barangay_of_origin !== undefined ? barangay_of_origin : evacueeRow?.residents?.barangay_of_origin,
+      purok: purok !== undefined ? purok : evacueeRow?.purok,
+      educational_attainment:
+        educational_attainment !== undefined ? educational_attainment : evacueeRow?.educational_attainment,
+      occupation: occupation !== undefined ? occupation : evacueeRow?.occupation,
+      school_of_origin: school_of_origin !== undefined ? school_of_origin : evacueeRow?.school_of_origin,
+    };
+    const snapshot = buildSnapshot(snapshotSrc, desiredRel);
 
     const vulnIds = buildVulnIdsFromFlags();
     const nowIso = new Date().toISOString();
 
     if (regRow) {
       // UPDATE existing registration (keep arrival_timestamp unchanged)
+      const patch = {
+        family_head_id: resolved_family_head_id,
+        profile_snapshot: snapshot,
+        vulnerability_type_ids: vulnIds, // replace the set for THIS event
+        updated_at: nowIso,
+      };
+      // Only patch room if client provided it (avoid accidental nulling)
+      if (ec_rooms_id !== undefined) {
+        patch.ec_rooms_id = ec_rooms_id ?? null;
+      }
+
       const { error: regUpdateErr } = await supabase
         .from("evacuation_registrations")
-        .update({
-          ec_rooms_id: ec_rooms_id ?? null,
-          family_head_id: resolved_family_head_id,
-          profile_snapshot: snapshot,
-          vulnerability_type_ids: vulnIds, // replace the set for THIS event
-          updated_at: nowIso,
-        })
+        .update(patch)
         .eq("id", regRow.id);
+
       if (regUpdateErr) throw new ApiError("Failed to update evacuation registration.", 500);
     } else {
       // INSERT new registration for this event (if none existed)
@@ -936,6 +970,8 @@ exports.updateEvacuee = async (req, res, next) => {
 };
 
 
+
+
 // --- Helper: build full name safely (first [middle] last [suffix]) ---
 function buildFullName({ first_name, middle_name, last_name, suffix }) {
   const parts = [
@@ -958,6 +994,16 @@ exports.getEvacueesInformationbyDisasterEvacuationEventId = async (req, res, nex
     return next(new ApiError("Invalid disaster evacuation event id.", 400));
   }
 
+  const parseJsonMaybe = (v) => {
+    if (v == null) return null;
+    if (typeof v === "object") return v;
+    if (typeof v === "string") {
+      try { return JSON.parse(v); } catch { return null; }
+    }
+    return null;
+  };
+  const has = (obj, key) => obj != null && Object.prototype.hasOwnProperty.call(obj, key);
+
   const buildFullName = ({ first_name, middle_name, last_name, suffix }) => {
     const parts = [first_name, middle_name, last_name].filter(Boolean);
     const full = parts.join(" ");
@@ -972,7 +1018,7 @@ exports.getEvacueesInformationbyDisasterEvacuationEventId = async (req, res, nex
     if (vulnTypesErr) {
       console.warn("[WARN] fetching vulnerability_types:", vulnTypesErr);
     }
-    const vulnNameById = new Map((vulnTypes || []).map(v => [v.id, v.name]));
+    const vulnNameById = new Map((vulnTypes || []).map((v) => [Number(v.id), v.name]));
 
     // 1) Pull registrations for this event, including event-scoped fields
     const { data: registrations, error: regError } = await supabase
@@ -1055,18 +1101,19 @@ exports.getEvacueesInformationbyDisasterEvacuationEventId = async (req, res, nex
       const familyMembers = members.map((member) => {
         const er = member?.evacuee_residents ?? {};
         const resident = er?.residents ?? {};
-        const snap = member?.profile_snapshot || {};
+        const snap = parseJsonMaybe(member?.profile_snapshot) || {};
 
-        // Prefer snapshot, fall back to global resident fields
-        const first_name = snap.first_name ?? resident.first_name;
-        const middle_name = snap.middle_name ?? resident.middle_name;
-        const last_name = snap.last_name ?? resident.last_name;
-        const suffix = (typeof snap.suffix === "string" ? snap.suffix : resident.suffix) ?? null;
+        // Prefer snapshot, fall back to global resident fields (per-field).
+        const first_name  = has(snap, "first_name")  ? (snap.first_name  ?? null) : (resident.first_name  ?? null);
+        const middle_name = has(snap, "middle_name") ? (snap.middle_name ?? null) : (resident.middle_name ?? null);
+        const last_name   = has(snap, "last_name")   ? (snap.last_name   ?? null) : (resident.last_name   ?? null);
+        // IMPORTANT: if snapshot has suffix (even null), honor it; otherwise fallback
+        const suffix      = has(snap, "suffix")      ? (snap.suffix      ?? null) : (resident.suffix      ?? null);
 
-        const sexVal = snap.sex ?? resident.sex ?? "Unknown";
-        const birthdate = snap.birthdate ?? resident.birthdate ?? null;
+        const sexVal      = has(snap, "sex")         ? (snap.sex         ?? "Unknown") : (resident.sex ?? "Unknown");
+        const birthdate   = has(snap, "birthdate")   ? (snap.birthdate   ?? null)      : (resident.birthdate ?? null);
 
-        // Barangay display: use resident join name if available (snapshot may only have the id)
+        // Barangay display: use resident join name; snapshot holds only the id
         const barangayName = resident?.barangays?.name || "Unknown";
 
         // Age presentation + buckets
@@ -1088,11 +1135,12 @@ exports.getEvacueesInformationbyDisasterEvacuationEventId = async (req, res, nex
               today.getMonth() > birth.getMonth() ||
               (today.getMonth() === birth.getMonth() && today.getDate() >= birth.getDate());
             const years = hadBday ? y : y - 1;
-            ageStr = String(Math.max(0, years));
+            const safeYears = Math.max(0, years);
+            ageStr = String(safeYears);
 
-            if (years <= 12) summary.total_no_of_children++;
-            else if (years <= 17) summary.total_no_of_youth++;
-            else if (years <= 59) summary.total_no_of_adult++;
+            if (safeYears <= 12) summary.total_no_of_children++;
+            else if (safeYears <= 17) summary.total_no_of_youth++;
+            else if (safeYears <= 59) summary.total_no_of_adult++;
             else summary.total_no_of_seniors++;
           }
         }
@@ -1100,10 +1148,14 @@ exports.getEvacueesInformationbyDisasterEvacuationEventId = async (req, res, nex
         if (sexVal === "Male") summary.total_no_of_male++;
         else if (sexVal === "Female") summary.total_no_of_female++;
 
-        // Event-scoped vulnerabilities: map ids -> names (NO read from resident_vulnerabilities!)
-        const vulnIds = Array.isArray(member?.vulnerability_type_ids)
+        // Event-scoped vulnerabilities: coerce to numbers
+        let vulnIdsRaw = Array.isArray(member?.vulnerability_type_ids)
           ? member.vulnerability_type_ids
-          : [];
+          : parseJsonMaybe(member?.vulnerability_type_ids) || [];
+        const vulnIds = (Array.isArray(vulnIdsRaw) ? vulnIdsRaw : [])
+          .map((x) => Number(x))
+          .filter(Number.isFinite);
+
         const vulnNames = vulnIds
           .map((id) => vulnNameById.get(id))
           .filter(Boolean);
@@ -1115,6 +1167,12 @@ exports.getEvacueesInformationbyDisasterEvacuationEventId = async (req, res, nex
 
         const memberFullName = buildFullName({ first_name, middle_name, last_name, suffix });
 
+        // Prefer event relationship when present (older rows may lack it in snapshot)
+        const relationship =
+          has(snap, "relationship_to_family_head")
+            ? (snap.relationship_to_family_head ?? null)
+            : (er.relationship_to_family_head ?? null);
+
         return {
           evacuee_id: member.evacuee_resident_id,
           resident_id: resident.id ?? null,
@@ -1125,42 +1183,40 @@ exports.getEvacueesInformationbyDisasterEvacuationEventId = async (req, res, nex
           vulnerability_types: vulnNames, // event-scoped labels
           room_name: member?.ec_rooms?.room_name || "Unknown",
           arrival_timestamp: member.arrival_timestamp || null,
-          relationship_to_family_head: er.relationship_to_family_head || null,
+          relationship_to_family_head: relationship,
+          // keep raw for head resolution below (not returned)
+          _snap: snap,
+          _resident: resident,
         };
       });
 
-      // Head-of-family display
+      // --- Head-of-family display (EVENT-SCOPED) ---
+      // Find the member whose event relationship is "Head" (prefer snapshot->relationship_to_family_head)
+      const headMember = familyMembers.find((m) => m.relationship_to_family_head === "Head")
+        // If none explicitly marked as Head (older data), fall back to first member
+        || familyMembers[0];
+
       let family_head_full_name = "Unknown";
       let family_head_barangay = "Unknown";
-      if (familyHeadId) {
-        const { data: headRow, error: headError } = await supabase
-          .from("family_head")
-          .select(`
-            id,
-            resident_id,
-            residents (
-              first_name,
-              middle_name,
-              last_name,
-              suffix,
-              barangays ( name )
-            )
-          `)
-          .eq("id", familyHeadId)
-          .single();
 
-        if (!headError && headRow?.residents) {
-          const fh = headRow.residents;
-          family_head_full_name = buildFullName({
-            first_name: fh.first_name,
-            middle_name: fh.middle_name,
-            last_name: fh.last_name,
-            suffix: fh.suffix,
-          });
-          family_head_barangay = fh?.barangays?.name || "Unknown";
-        } else if (headError) {
-          console.warn("[WARN] head of family fetch:", headError?.message);
-        }
+      if (headMember) {
+        const snapH = headMember._snap || {};
+        const residentH = headMember._resident || {};
+
+        const first_nameH  = has(snapH, "first_name")  ? (snapH.first_name  ?? null) : (residentH.first_name  ?? null);
+        const middle_nameH = has(snapH, "middle_name") ? (snapH.middle_name ?? null) : (residentH.middle_name ?? null);
+        const last_nameH   = has(snapH, "last_name")   ? (snapH.last_name   ?? null) : (residentH.last_name   ?? null);
+        const suffixH      = has(snapH, "suffix")      ? (snapH.suffix      ?? null) : (residentH.suffix      ?? null);
+
+        family_head_full_name = buildFullName({
+          first_name: first_nameH,
+          middle_name: middle_nameH,
+          last_name: last_nameH,
+          suffix: suffixH,
+        });
+
+        // Barangay label from resident join (snapshot usually holds only the id)
+        family_head_barangay = residentH?.barangays?.name || "Unknown";
       }
 
       // Choose a stable room/decamp field (first member)
@@ -1182,7 +1238,7 @@ exports.getEvacueesInformationbyDisasterEvacuationEventId = async (req, res, nex
         },
 
         list_of_family_members: {
-          family_members: familyMembers,
+          family_members: familyMembers.map(({ _snap, _resident, ...pub }) => pub), // strip internals
         },
       });
     }
@@ -1193,6 +1249,8 @@ exports.getEvacueesInformationbyDisasterEvacuationEventId = async (req, res, nex
     return next(new ApiError("Internal server error", 500));
   }
 };
+
+
 
 
 /**
@@ -1393,21 +1451,29 @@ exports.getAllRoomsForDisasterEvacuationEventId = async (req, res, next) => {
 /**
  * @desc Get full evacuee details for editing (event-scoped first).
  *       Prefers registration.profile_snapshot & registration.vulnerability_type_ids
- *       for the given disaster_evacuation_event_id.
+ *       for the given disaster_evacuation_event_id, with per-field fallback to global.
  * @route GET /api/v1/evacuees/:disasterEvacuationEventId/:evacueeResidentId/edit
  * @access Private (Camp Manager only)
  */
 exports.getEvacueeDetailsForEdit = async (req, res, next) => {
   const { disasterEvacuationEventId, evacueeResidentId } = req.params;
 
-  // helper to build names
+  const parseJsonMaybe = (v) => {
+    if (v == null) return null;
+    if (typeof v === "object") return v;
+    if (typeof v === "string") {
+      try { return JSON.parse(v); } catch { return null; }
+    }
+    return null;
+  };
+
   const buildFullName = ({ first_name, middle_name, last_name, suffix }) => {
     const parts = [first_name, middle_name, last_name].filter(Boolean);
     const full = parts.join(" ");
     return suffix ? `${full} ${suffix}` : full;
   };
 
-  // normalize snapshot builder (now includes relationship_to_family_head)
+  // Normalize snapshot builder (keeps null when suffix cleared)
   const buildSnapshot = (src = {}) => ({
     first_name: src.first_name ?? null,
     middle_name: src.middle_name ?? null,
@@ -1428,7 +1494,7 @@ exports.getEvacueeDetailsForEdit = async (req, res, next) => {
   });
 
   try {
-    // 1) Load evacuee + resident + family head display (global person records)
+    // 1) Global evacuee + resident + head display
     const { data: evacuee, error: evacueeErr } = await supabase
       .from("evacuee_residents")
       .select(`
@@ -1467,7 +1533,7 @@ exports.getEvacueeDetailsForEdit = async (req, res, next) => {
       return next(new ApiError("Evacuee not found.", 404));
     }
 
-    // 2) Load THIS-EVENT registration with event-scoped fields
+    // 2) Event-scoped registration
     const { data: registration, error: regErr } = await supabase
       .from("evacuation_registrations")
       .select(`
@@ -1487,60 +1553,81 @@ exports.getEvacueeDetailsForEdit = async (req, res, next) => {
       return next(new ApiError("Failed to load registration for this event.", 500));
     }
 
-    // 3) Build the snapshot to send to the client
-    //    Prefer event snapshot; fall back to global person rows ONLY when snapshot is missing
-    const rawSnap = registration?.profile_snapshot
-      ? registration.profile_snapshot
-      : {
-          first_name: evacuee.residents?.first_name,
-          middle_name: evacuee.residents?.middle_name,
-          last_name: evacuee.residents?.last_name,
-          suffix: evacuee.residents?.suffix,
-          sex: evacuee.residents?.sex,
-          birthdate: evacuee.residents?.birthdate,
-          barangay_of_origin: evacuee.residents?.barangay_of_origin,
-          purok: evacuee.purok,
-          marital_status: evacuee.marital_status,
-          educational_attainment: evacuee.educational_attainment,
-          occupation: evacuee.occupation,
-          school_of_origin: evacuee.school_of_origin,
-          // fallback for older records that didn't store relationship in the snapshot
-          relationship_to_family_head: evacuee.relationship_to_family_head ?? null,
-        };
+    // 3) Parse snapshot if needed
+    const snapRow = parseJsonMaybe(registration?.profile_snapshot);
 
-    // Ensure relationship_to_family_head in the final snapshot (prefer event value)
+    // 4) Build field-by-field merge: prefer event snapshot; fallback to global
+    const mergedBase = {
+      first_name: snapRow?.first_name ?? evacuee.residents?.first_name ?? null,
+      middle_name: snapRow?.middle_name ?? evacuee.residents?.middle_name ?? null,
+      last_name: snapRow?.last_name ?? evacuee.residents?.last_name ?? null,
+      // IMPORTANT: allow null from event snapshot to pass through (cleared suffix)
+      suffix: (snapRow && "suffix" in snapRow)
+        ? (snapRow.suffix ?? null)
+        : (evacuee.residents?.suffix ?? null),
+      sex: snapRow?.sex ?? evacuee.residents?.sex ?? null,
+      birthdate: snapRow?.birthdate ?? evacuee.residents?.birthdate ?? null,
+      barangay_of_origin: (snapRow && "barangay_of_origin" in snapRow)
+        ? (snapRow.barangay_of_origin ?? null)
+        : (evacuee.residents?.barangay_of_origin ?? null),
+      purok: (snapRow && "purok" in snapRow)
+        ? (snapRow.purok ?? null)
+        : (evacuee.purok ?? null),
+      marital_status: (snapRow && "marital_status" in snapRow)
+        ? (snapRow.marital_status ?? null)
+        : (evacuee.marital_status ?? null),
+      educational_attainment: (snapRow && "educational_attainment" in snapRow)
+        ? (snapRow.educational_attainment ?? null)
+        : (evacuee.educational_attainment ?? null),
+      occupation: (snapRow && "occupation" in snapRow)
+        ? (snapRow.occupation ?? null)
+        : (evacuee.occupation ?? null),
+      school_of_origin: (snapRow && "school_of_origin" in snapRow)
+        ? (snapRow.school_of_origin ?? null)
+        : (evacuee.school_of_origin ?? null),
+    };
+
+    // Ensure relationship_to_family_head is event-first
     const eventRel =
-      registration?.profile_snapshot?.relationship_to_family_head ??
+      (snapRow && "relationship_to_family_head" in snapRow
+        ? (snapRow.relationship_to_family_head ?? null)
+        : null) ??
       evacuee.relationship_to_family_head ??
       null;
 
-    const snap = buildSnapshot({ ...rawSnap, relationship_to_family_head: eventRel });
+    const snap = buildSnapshot({ ...mergedBase, relationship_to_family_head: eventRel });
 
-    // IMPORTANT: vulnerabilities must be event-scoped
-    const vulnIds = Array.isArray(registration?.vulnerability_type_ids)
-      ? registration.vulnerability_type_ids
-      : []; // default empty; no leaking from past events
+    // 5) Normalize vulnerabilities (array of numbers)
+    let vulnIds = [];
+    if (Array.isArray(registration?.vulnerability_type_ids)) {
+      vulnIds = registration.vulnerability_type_ids.map((x) => Number(x)).filter(Number.isFinite);
+    } else {
+      const parsed = parseJsonMaybe(registration?.vulnerability_type_ids);
+      if (Array.isArray(parsed)) {
+        vulnIds = parsed.map((x) => Number(x)).filter(Number.isFinite);
+      }
+    }
 
     return res.status(200).json({
       id: evacuee.id,
 
-      // Residents (from event snapshot first)
+      // Residents (event snapshot first)
       first_name: snap.first_name,
       middle_name: snap.middle_name,
       last_name: snap.last_name,
-      suffix: snap.suffix,
+      suffix: snap.suffix, // stays null if cleared
       birthdate: snap.birthdate,
       sex: snap.sex,
       barangay_of_origin: snap.barangay_of_origin,
 
-      // Evacuee-residents (from event snapshot first where applicable)
+      // Evacuee-residents (event snapshot first where applicable)
       marital_status: snap.marital_status,
       educational_attainment: snap.educational_attainment,
       school_of_origin: snap.school_of_origin,
       occupation: snap.occupation,
       purok: snap.purok,
 
-      // *** Event-scoped relationship used by the Edit modal ***
+      // Event-scoped relationship used by the Edit modal
       relationship_to_family_head: snap.relationship_to_family_head,
       family_head_id: evacuee.family_head_id,
       family_head_full_name: evacuee.family_head?.residents
@@ -1565,6 +1652,7 @@ exports.getEvacueeDetailsForEdit = async (req, res, next) => {
     return next(new ApiError("Internal server error.", 500));
   }
 };
+
 
 
 /**

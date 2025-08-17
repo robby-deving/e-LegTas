@@ -10,7 +10,6 @@ import type { FamilyMember } from "@/types/EvacuationCenterDetails";
 import { formatDate } from "@/utils/dateFormatter";
 import "react-datepicker/dist/react-datepicker.css";
 import ReactDatePicker from "react-datepicker";
-// + NEW import
 import { RegisterBlockDialog } from "@/components/modals/RegisterBlockDialog";
 
 
@@ -55,6 +54,20 @@ export const FamilyDetailsModal: React.FC<FamilyDetailsModalProps> = ({
 const [regBlockOpen, setRegBlockOpen] = useState(false);
 const [regBlockName, setRegBlockName] = useState<string | undefined>();
 const [regBlockEcName, setRegBlockEcName] = useState<string | undefined>();
+// near other reg-block states
+const [regBlockDisaster, setRegBlockDisaster] = useState<string | undefined>();
+const [regBlockDisasterId, setRegBlockDisasterId] = useState<number | undefined>();
+const [regBlockDisasterType, setRegBlockDisasterType] = useState<string | undefined>();
+
+
+
+
+
+const [editBlockedOpen, setEditBlockedOpen] = useState(false);
+const [editBlockedName, setEditBlockedName] = useState<string | undefined>();
+
+
+
 
 
   const hadExistingDecamp = Boolean(evacuee?.decampment_timestamp);
@@ -230,61 +243,82 @@ const [regBlockEcName, setRegBlockEcName] = useState<string | undefined>();
     }
   };
 
-  // --- save handler (now closes + refreshes) ---
-  const handleSaveDecampment = async () => {
-    setDecampError(null);
+// --- save handler (now closes + refreshes) ---
+const handleSaveDecampment = async () => {
+  setDecampError(null);
 
-    const eventId = Number(evacuee?.disaster_evacuation_event_id);
-    const familyHeadId = Number(evacuee?.id);
-    if (!eventId || !familyHeadId) {
-      setDecampError("Missing event or family head id.");
-      return;
-    }
+  const eventId = Number(evacuee?.disaster_evacuation_event_id);
+  const familyHeadId = Number(evacuee?.id);
+  if (!eventId || !familyHeadId) {
+    setDecampError("Missing event or family head id.");
+    return;
+  }
 
-    const url = `http://localhost:3000/api/v1/evacuees/${eventId}/families/${familyHeadId}/decamp`;
+  const url = `http://localhost:3000/api/v1/evacuees/${eventId}/families/${familyHeadId}/decamp`;
 
-    // clear decampment
-    if (!decampDate) {
-      try {
-        setSavingDecamp(true);
-        await axios.post(url, { decampment_timestamp: null });
-        onClose();         // close
-        await onSaved?.(); // refresh details, list, stats
-      } catch (e: any) {
-        setDecampError(e?.response?.data?.message || "Failed to clear decampment.");
-      } finally {
-        setSavingDecamp(false);
-      }
-      return;
-    }
-
-    // client guard
-    if (earliestArrival && decampDate <= earliestArrival) {
-      setDecampError("Decampment must be later than the family's earliest arrival.");
-      return;
-    }
-
+  // CLEAR decampment (undecamp)
+  if (!decampDate) {
     try {
       setSavingDecamp(true);
-      await axios.post(url, { decampment_timestamp: decampDate.toISOString() });
-      onClose();         // close
-      await onSaved?.(); // refresh details, list, stats
-} catch (e: any) {
-  const status = e?.response?.status;
-  const data = e?.response?.data;
-  if (status === 409 && data?.code === "UndecampConflict") {
-    // Show the block modal (same one you use for register)
-    setRegBlockName(evacuee?.family_head_full_name);
-    setRegBlockEcName(data?.ec_name || undefined);
-    setRegBlockOpen(true);
-  } else {
-    setDecampError(data?.message || "Failed to clear decampment.");
-  }
-} finally {
-  setSavingDecamp(false);
-}
+      await axios.post(url, { decampment_timestamp: null });
+      onClose();
+      await onSaved?.();
+    } catch (e: any) {
+      const status = e?.response?.status;
+      const data = e?.response?.data;
+      if (status === 409 && (data?.code === "UndecampConflict" || data?.error?.code === "UndecampConflict")) {
+        console.log("UndecampConflict payload (clear):", data);
+        setDecampError(null);
+setRegBlockName(evacuee?.family_head_full_name);
+setRegBlockEcName(data?.ec_name || undefined);
+setRegBlockDisaster(data?.disaster_name || undefined);
+setRegBlockDisasterId(data?.disaster_id || undefined);
+setRegBlockDisasterType(data?.disaster_type_name || undefined); // <-- NEW
+setRegBlockOpen(true);
 
-  };
+
+        return;
+      }
+      setDecampError(data?.message || "Failed to clear decampment.");
+    } finally {
+      setSavingDecamp(false);
+    }
+    return;
+    
+  }
+
+  // SET/UPDATE decampment timestamp
+  if (earliestArrival && decampDate <= earliestArrival) {
+    setDecampError("Decampment must be later than the family's earliest arrival.");
+    return;
+  }
+
+  try {
+    setSavingDecamp(true);
+    await axios.post(url, { decampment_timestamp: decampDate.toISOString() });
+    onClose();
+    await onSaved?.();
+  } catch (e: any) {
+    const status = e?.response?.status;
+    const data = e?.response?.data;
+    if (status === 409 && (data?.code === "UndecampConflict" || data?.error?.code === "UndecampConflict")) {
+      console.log("UndecampConflict payload (clear):", data);  
+      setDecampError(null);
+setRegBlockName(evacuee?.family_head_full_name);
+setRegBlockEcName(data?.ec_name || undefined);
+setRegBlockDisaster(data?.disaster_name || undefined);
+setRegBlockDisasterId(data?.disaster_id || undefined);
+setRegBlockDisasterType(data?.disaster_type_name || undefined); // <-- NEW
+setRegBlockOpen(true);
+
+      return;
+    }
+    setDecampError(data?.message || "Failed to save decampment.");
+  } finally {
+    setSavingDecamp(false);
+  }
+};
+
 
   return (
     <>
@@ -421,11 +455,12 @@ const [regBlockEcName, setRegBlockEcName] = useState<string | undefined>();
                     {savingDecamp ? "Saving..." : "Save Decampment"}
                   </Button>
 
-                  {decampError && (
-                    <span className="mt-1 block text-xs text-red-500" role="alert" aria-live="polite">
-                      {decampError}
-                    </span>
-                  )}
+{!regBlockOpen && decampError && (
+  <span className="mt-1 block text-xs text-red-500" role="alert" aria-live="polite">
+    {decampError}
+  </span>
+)}
+
                 </div>
 
                 <p className="mt-1 text-xs text-gray-500">
@@ -552,13 +587,19 @@ const [regBlockEcName, setRegBlockEcName] = useState<string | undefined>();
                           <TableCell>{member.room_name}</TableCell>
                           <TableCell>{formatDate(member.arrival_timestamp)}</TableCell>
                           <TableCell className="text-right flex justify-end items-center text-foreground">
-                            <Pencil
-                              className="w-4 h-4 text-gray-400 group-hover:text-green-700 cursor-pointer"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onEditMember(member);
-                              }}
-                            />
+<Pencil
+  className="w-4 h-4 text-gray-400 group-hover:text-green-700 cursor-pointer"
+  onClick={(e) => {
+    e.stopPropagation();
+    if (isDecamped) {
+      setEditBlockedName(member.full_name);
+      setEditBlockedOpen(true);
+      return;
+    }
+    onEditMember(member);
+  }}
+/>
+
                           </TableCell>
                         </TableRow>
                       ))}
@@ -621,19 +662,48 @@ const [regBlockEcName, setRegBlockEcName] = useState<string | undefined>();
           </div>
         </DialogContent>
       </Dialog>
-      <RegisterBlockDialog
+<RegisterBlockDialog
   open={regBlockOpen}
-  onOpenChange={setRegBlockOpen}
+  onOpenChange={(open) => {
+    setRegBlockOpen(open);
+    if (!open) {
+      setRegBlockDisaster(undefined);
+      setRegBlockDisasterId(undefined);
+      setRegBlockDisasterType(undefined); // clear type too
+    }
+  }}
   personName={regBlockName}
   ecName={regBlockEcName}
   title="Cannot remove decampment"
   secondaryLabel="OK"
-  // (optional) custom message:
   description={
-    <>This family is already active{regBlockEcName ? <> in <b>{regBlockEcName}</b></> : " in another event"}.
-     Only one active event is allowed. Decamp them there first.</>
-   }
+    <>
+      This family is already active
+      {regBlockEcName ? <> in <b>{regBlockEcName}</b></> : " in another event"}
+      {regBlockDisasterType || regBlockDisaster ? (
+        <>
+          {" "}for <b>{[regBlockDisasterType, regBlockDisaster].filter(Boolean).join(" ")}</b>
+        </>
+      ) : regBlockDisasterId ? (
+        <> for disaster ID <b>{regBlockDisasterId}</b></>
+      ) : null}
+      . Only one active event is allowed. Decamp them there first.
+    </>
+  }
 />
+
+
+<RegisterBlockDialog
+  open={editBlockedOpen}
+  onOpenChange={setEditBlockedOpen}
+  personName={editBlockedName}
+  title="Cannot edit this evacuee"
+  secondaryLabel="OK"
+  description={
+    <>This family is already decamped. To edit this person, remove the decampment first.</>
+  }
+/>
+
     </>
   );
 };

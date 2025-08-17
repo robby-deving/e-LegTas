@@ -46,38 +46,84 @@ exports.decampFamily = async (req, res, next) => {
     // -------------------------------------------
     if (rawTs === null || (typeof rawTs === "string" && rawTs.trim() === "")) {
       // Guard: DO NOT allow clearing if the same family is already ACTIVE in any OTHER event.
-      const { data: othersActive, error: othersErr } = await supabase
-        .from("evacuation_registrations")
-        .select(
-          `
-            id,
-            disaster_evacuation_event_id,
-            disaster_evacuation_event:disaster_evacuation_event_id (
-              evacuation_centers ( name )
-            )
-          `
-        )
-        .eq("family_head_id", familyHeadId)
-        .is("decampment_timestamp", null);
+// Guard: DO NOT allow clearing if the same family is already ACTIVE in any OTHER event.
+const { data: othersActive, error: othersErr } = await supabase
+  .from("evacuation_registrations")
+  .select(`
+    id,
+    disaster_evacuation_event_id,
+    disaster_evacuation_event:disaster_evacuation_event_id (
+      id,
+      disaster_id,
+      evacuation_centers ( name ),
+      disasters:disaster_id ( disaster_name )
+    )
+  `)
+  .eq("family_head_id", familyHeadId)
+  .is("decampment_timestamp", null);
 
-      if (othersErr) {
-        return res.status(500).json({ message: "Failed to check active registrations." });
+if (othersErr) {
+  return res.status(500).json({ message: "Failed to check active registrations." });
+}
+
+// ... after othersActive check
+if ((othersActive?.length ?? 0) > 0) {
+  const other =
+    othersActive.find((a) => Number(a.disaster_evacuation_event_id) !== eventId) ||
+    othersActive[0];
+
+  const otherEventId = Number(other?.disaster_evacuation_event_id) || null;
+  const ecName = other?.disaster_evacuation_event?.evacuation_centers?.name;
+
+  let disasterId = undefined;
+  let disasterName = undefined;
+  let disasterTypeName = undefined;
+
+  // Robust 2-step lookup to avoid relying on nested joins existing
+  if (otherEventId) {
+    const { data: otherEvent, error: otherEventErr } = await supabase
+      .from("disaster_evacuation_event")
+      .select("id, disaster_id")
+      .eq("id", otherEventId)
+      .single();
+
+    if (!otherEventErr && otherEvent?.disaster_id) {
+      disasterId = otherEvent.disaster_id;
+
+      // Try to grab both the name and the type in one go
+      const { data: disRow, error: disErr } = await supabase
+        .from("disasters")
+        .select("disaster_name, disaster_type_id, disaster_types(name)")
+        .eq("id", disasterId)
+        .single();
+
+      if (!disErr && disRow) {
+        disasterName = disRow.disaster_name;
+        disasterTypeName = disRow?.disaster_types?.name;
+
+        // Fallback: if nested relation not returned, fetch type by id
+        if (!disasterTypeName && disRow?.disaster_type_id) {
+          const { data: typeRow } = await supabase
+            .from("disaster_types")
+            .select("name")
+            .eq("id", disRow.disaster_type_id)
+            .maybeSingle();
+          disasterTypeName = typeRow?.name;
+        }
       }
+    }
+  }
 
-      if ((othersActive?.length ?? 0) > 0) {
-        // If there is at least one active registration (any event), block un-decamp here.
-        // Prefer an event different from the current one, but if none, still block using the first.
-        const other =
-          othersActive.find((a) => Number(a.disaster_evacuation_event_id) !== eventId) ||
-          othersActive[0];
-        const ecName = other?.disaster_evacuation_event?.evacuation_centers?.name;
+  return res.status(409).json({
+    code: "UndecampConflict",
+    ec_name: ecName || undefined,
+    disaster_id: disasterId || undefined,
+    disaster_name: disasterName || undefined,
+    disaster_type_name: disasterTypeName || undefined,
+    message: `This family is already active${ecName ? ` in ${ecName}` : ""}. Only one active event is allowed.`,
+  });
+}
 
-        return res.status(409).json({
-          code: "UndecampConflict",
-          ec_name: ecName || undefined,
-          message: `This family is already active${ecName ? ` in ${ecName}` : ""}. Only one active event is allowed.`,
-        });
-      }
 
       // Proceed to clear decampment for rows in THIS event that currently have a decampment
       const { data: clearedRows, error: clearErr } = await supabase
@@ -215,4 +261,3 @@ exports.decampFamily = async (req, res, next) => {
     return next(new ApiError(`Internal error during decampFamily. ${err?.message || ""}`, 500));
   }
 };
-
