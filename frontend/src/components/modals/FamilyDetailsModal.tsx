@@ -26,7 +26,7 @@ const INVERSE_REL: Record<string, string> = {
   Boarder: "Boarder",
 };
 
-type DecampAPIResponse = Partial<{ code: string; error: { code?: string; message?: string }; ec_name: string; disaster_name: string; disaster_id: number; disaster_type_name: string; message: string }>;
+
 type FamilyDetailsModalProps = { isOpen: boolean; onClose: () => void; evacuee: any; centerName: string; onEditMember: (m: any) => void; disasterStartDate?: string | null; onSaved?: () => void | Promise<void>; };
 
 export const FamilyDetailsModal: React.FC<FamilyDetailsModalProps> = ({
@@ -36,7 +36,7 @@ export const FamilyDetailsModal: React.FC<FamilyDetailsModalProps> = ({
   centerName,
   onEditMember,
   disasterStartDate,
-  onSaved, // NEW
+  onSaved,
 }) => {
 const [savingDecamp, setSavingDecamp] = useState(false);
 const [decampError, setDecampError] = useState<string | null>(null);
@@ -49,168 +49,170 @@ const [regBlockDisasterType, setRegBlockDisasterType] = useState<string | undefi
 
 const [editBlockedOpen, setEditBlockedOpen] = useState(false);
 const [editBlockedName, setEditBlockedName] = useState<string | undefined>();
+const [decampInvalidOpen, setDecampInvalidOpen] = useState(false);
+const [decampInvalidMsg, setDecampInvalidMsg] = useState<React.ReactNode>(null);
 
-  const hadExistingDecamp = Boolean(evacuee?.decampment_timestamp);
+const hadExistingDecamp = Boolean(evacuee?.decampment_timestamp);
 
-  const [touched, setTouched] = useState<{ date: boolean; time: boolean }>(() => ({
-    date: hadExistingDecamp,
-    time: hadExistingDecamp,
-  }));
+const [touched, setTouched] = useState<{ date: boolean; time: boolean }>(() => ({
+  date: hadExistingDecamp,
+  time: hadExistingDecamp,
+}));
 
-  const [decampDate, setDecampDate] = useState<Date | null>(
+const [decampDate, setDecampDate] = useState<Date | null>(
+  evacuee?.decampment_timestamp ? new Date(evacuee.decampment_timestamp) : null
+);
+
+useEffect(() => {
+  setDecampDate(
     evacuee?.decampment_timestamp ? new Date(evacuee.decampment_timestamp) : null
   );
+  setTouched({
+    date: Boolean(evacuee?.decampment_timestamp),
+    time: Boolean(evacuee?.decampment_timestamp),
+  });
+}, [evacuee?.decampment_timestamp]);
 
-  useEffect(() => {
-    setDecampDate(
-      evacuee?.decampment_timestamp ? new Date(evacuee.decampment_timestamp) : null
-    );
-    setTouched({
-      date: Boolean(evacuee?.decampment_timestamp),
-      time: Boolean(evacuee?.decampment_timestamp),
-    });
-  }, [evacuee?.decampment_timestamp]);
+const originalDecamp = evacuee?.decampment_timestamp
+  ? new Date(evacuee.decampment_timestamp)
+  : null;
 
-  const originalDecamp = evacuee?.decampment_timestamp
-    ? new Date(evacuee.decampment_timestamp)
-    : null;
+const hasChanges =
+  (originalDecamp ? originalDecamp.getTime() : null) !==
+  (decampDate ? decampDate.getTime() : null);
 
-  const hasChanges =
-    (originalDecamp ? originalDecamp.getTime() : null) !==
-    (decampDate ? decampDate.getTime() : null);
+const fmtDateOnly = (d: Date) =>
+  new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(d);
 
-  const fmtDateOnly = (d: Date) =>
-    new Intl.DateTimeFormat(undefined, {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    }).format(d);
+const fmtTimeOnly = (d: Date) =>
+  new Intl.DateTimeFormat(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(d);
 
-  const fmtTimeOnly = (d: Date) =>
-    new Intl.DateTimeFormat(undefined, {
-      hour: "numeric",
-      minute: "2-digit",
-    }).format(d);
+const toLocalStartOfDay = (v: string | Date) => {
+  const d = new Date(v);
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+};
 
-  const toLocalStartOfDay = (v: string | Date) => {
-    const d = new Date(v);
-    return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
-  };
+const minDate =
+  disasterStartDate
+    ? toLocalStartOfDay(disasterStartDate)
+    : evacuee?.disaster_start_date
+    ? toLocalStartOfDay(evacuee.disaster_start_date)
+    : undefined;
 
-  const minDate =
-    disasterStartDate
-      ? toLocalStartOfDay(disasterStartDate)
-      : evacuee?.disaster_start_date
-      ? toLocalStartOfDay(evacuee.disaster_start_date)
-      : undefined;
+const maxDate = new Date();
 
-  const maxDate = new Date();
+const missingTimeForNew = !hadExistingDecamp && touched.date && !touched.time;
+const canSaveDecamp = hasChanges && !savingDecamp && !missingTimeForNew;
 
-  const missingTimeForNew = !hadExistingDecamp && touched.date && !touched.time;
-  const canSaveDecamp = hasChanges && !savingDecamp && !missingTimeForNew;
+const handleChangeDateOnly = (picked: Date | null) => {
+  setDecampError(null);
+  if (!picked) {
+    setDecampDate(null);
+    setTouched({ date: false, time: false });
+    return;
+  }
+  const h = decampDate ? decampDate.getHours() : 0;
+  const m = decampDate ? decampDate.getMinutes() : 0;
+  setDecampDate(new Date(picked.getFullYear(), picked.getMonth(), picked.getDate(), h, m, 0, 0));
+  setTouched((t) => ({ ...t, date: true }));
+};
 
-  const handleChangeDateOnly = (picked: Date | null) => {
-    setDecampError(null);
-    if (!picked) {
-      setDecampDate(null);
-      setTouched({ date: false, time: false });
-      return;
-    }
-    const h = decampDate ? decampDate.getHours() : 0;
-    const m = decampDate ? decampDate.getMinutes() : 0;
-    setDecampDate(new Date(picked.getFullYear(), picked.getMonth(), picked.getDate(), h, m, 0, 0));
-    setTouched((t) => ({ ...t, date: true }));
-  };
-
-  const handleChangeTimeOnly = (picked: Date | null) => {
-    if (!picked || !decampDate) return;
-    setDecampError(null);
-    setDecampDate(
-      new Date(
-        decampDate.getFullYear(),
-        decampDate.getMonth(),
-        decampDate.getDate(),
-        picked.getHours(),
-        picked.getMinutes(),
-        0,
-        0
-      )
-    );
-    setTouched((t) => ({ ...t, time: true }));
-  };
-
-  const [transferOpen, setTransferOpen] = useState(false);
-  const [newHeadEvacueeId, setNewHeadEvacueeId] = useState<string>("");
-  const [oldHeadNewRel, setOldHeadNewRel] = useState<string>("");
-  const [transferring, setTransferring] = useState(false);
-
-  const members: any[] = evacuee?.list_of_family_members?.family_members ?? [];
-
-  const earliestArrival = useMemo(() => {
-    const members = evacuee?.list_of_family_members?.family_members ?? [];
-    let minMs = Infinity;
-    for (const m of members) {
-      const t = Date.parse(m?.arrival_timestamp ?? "");
-      if (!Number.isNaN(t)) minMs = Math.min(minMs, t);
-    }
-    return Number.isFinite(minMs) ? new Date(minMs) : null;
-  }, [evacuee]);
-
-  const orderedMembers = useMemo(() => {
-    const isHead = (m: any) =>
-      m?.relationship_to_family_head === "Head" ||
-      m?.full_name === evacuee?.family_head_full_name;
-
-    return [...members].sort((a, b) => Number(!isHead(a)) - Number(!isHead(b)));
-  }, [members, evacuee?.family_head_full_name]);
-
-  if (!isOpen || !evacuee) return null;
-
-  const transferCandidates: any[] = members.filter(
-    (m) => m.full_name !== evacuee.family_head_full_name
+const handleChangeTimeOnly = (picked: Date | null) => {
+  if (!picked || !decampDate) return;
+  setDecampError(null);
+  setDecampDate(
+    new Date(
+      decampDate.getFullYear(),
+      decampDate.getMonth(),
+      decampDate.getDate(),
+      picked.getHours(),
+      picked.getMinutes(),
+      0,
+      0
+    )
   );
+  setTouched((t) => ({ ...t, time: true }));
+};
 
-  const isDecamped = Boolean(evacuee?.decampment_timestamp);
+const [transferOpen, setTransferOpen] = useState(false);
+const [newHeadEvacueeId, setNewHeadEvacueeId] = useState<string>("");
+const [oldHeadNewRel, setOldHeadNewRel] = useState<string>("");
+const [transferring, setTransferring] = useState(false);
+const fmtDateTime = (d: Date) => d.toLocaleString(undefined, { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
+const members: any[] = evacuee?.list_of_family_members?.family_members ?? [];
 
-  const canTransfer =
-    !isDecamped &&
-    transferCandidates.length > 0 &&
-    Boolean(evacuee?.id) &&
-    Boolean(evacuee?.disaster_evacuation_event_id);
+const latestArrival = useMemo(() => {
+  const members = evacuee?.list_of_family_members?.family_members ?? [];
+  let maxMs = -Infinity;
+  for (const m of members) {
+    const t = Date.parse(m?.arrival_timestamp ?? "");
+    if (!Number.isNaN(t)) maxMs = Math.max(maxMs, t);
+  }
+  return Number.isFinite(maxMs) ? new Date(maxMs) : null;
+}, [evacuee]);
 
-  const handleSelectNewHead = (value: string) => {
-    setNewHeadEvacueeId(value);
-    const cand = transferCandidates.find((m) => String(m.evacuee_id) === value);
-    const relToOldHead: string | undefined = cand?.relationship_to_family_head;
-    const inverse =
-      relToOldHead && INVERSE_REL[relToOldHead] ? INVERSE_REL[relToOldHead] : "Relative";
-    setOldHeadNewRel(inverse);
+const orderedMembers = useMemo(() => {
+  const isHead = (m: any) =>
+    m?.relationship_to_family_head === "Head" ||
+    m?.full_name === evacuee?.family_head_full_name;
+
+  return [...members].sort((a, b) => Number(!isHead(a)) - Number(!isHead(b)));
+}, [members, evacuee?.family_head_full_name]);
+
+if (!isOpen || !evacuee) return null;
+
+const transferCandidates: any[] = members.filter(
+  (m) => m.full_name !== evacuee.family_head_full_name
+);
+
+const isDecamped = Boolean(evacuee?.decampment_timestamp);
+
+const canTransfer =
+  !isDecamped &&
+  transferCandidates.length > 0 &&
+  Boolean(evacuee?.id) &&
+  Boolean(evacuee?.disaster_evacuation_event_id);
+
+const handleSelectNewHead = (value: string) => {
+  setNewHeadEvacueeId(value);
+  const cand = transferCandidates.find((m) => String(m.evacuee_id) === value);
+  const relToOldHead: string | undefined = cand?.relationship_to_family_head;
+  const inverse =
+    relToOldHead && INVERSE_REL[relToOldHead] ? INVERSE_REL[relToOldHead] : "Relative";
+  setOldHeadNewRel(inverse);
+};
+
+const handleConfirmTransfer = async () => {
+try {
+  if (!newHeadEvacueeId) return;
+  setTransferring(true);
+
+  let rel = oldHeadNewRel;
+  if (!rel) {
+    const cand = transferCandidates.find(
+      (m: any) => String(m.evacuee_id) === String(newHeadEvacueeId)
+    );
+    const toRel = cand?.relationship_to_family_head;
+    rel = toRel && INVERSE_REL[toRel] ? INVERSE_REL[toRel] : "Relative";
+    setOldHeadNewRel(rel);
+  }
+
+  const url = `http://localhost:3000/api/v1/evacuees/${Number(
+    evacuee.disaster_evacuation_event_id
+  )}/transfer-head`;
+
+  const body = {
+    from_family_head_id: Number(evacuee.id),
+    to_evacuee_resident_id: Number(newHeadEvacueeId),
+    old_head_new_relationship: rel,
   };
-
-  const handleConfirmTransfer = async () => {
-  try {
-    if (!newHeadEvacueeId) return;
-    setTransferring(true);
-
-    let rel = oldHeadNewRel;
-    if (!rel) {
-      const cand = transferCandidates.find(
-        (m: any) => String(m.evacuee_id) === String(newHeadEvacueeId)
-      );
-      const toRel = cand?.relationship_to_family_head;
-      rel = toRel && INVERSE_REL[toRel] ? INVERSE_REL[toRel] : "Relative";
-      setOldHeadNewRel(rel);
-    }
-
-    const url = `http://localhost:3000/api/v1/evacuees/${Number(
-      evacuee.disaster_evacuation_event_id
-    )}/transfer-head`;
-
-    const body = {
-      from_family_head_id: Number(evacuee.id),
-      to_evacuee_resident_id: Number(newHeadEvacueeId),
-      old_head_new_relationship: rel,
-    };
 
     await axios.post(url, body);
     setTransferOpen(false);
@@ -235,81 +237,139 @@ const handleSaveDecampment = async () => {
 
   const url = `http://localhost:3000/api/v1/evacuees/${eventId}/families/${familyHeadId}/decamp`;
 
-  const isUndecampConflict = (d: DecampAPIResponse | undefined) =>
-    !!d && (d.code === "UndecampConflict" || d.error?.code === "UndecampConflict");
-
-  if (!decampDate) {
-    setSavingDecamp(true);
-    try {
-      const res = await axios.post<DecampAPIResponse>(
-        url,
-        { decampment_timestamp: null },
-        { validateStatus: () => true } 
-      );
-
-      const data = res.data;
-      if (res.status === 200 || res.status === 201) {
-        onClose();
-        await onSaved?.();
-      } else if (res.status === 409 && isUndecampConflict(data)) {
-        setDecampError(null);
-        setRegBlockName(evacuee?.family_head_full_name);
-        setRegBlockEcName(data?.ec_name || undefined);
-        setRegBlockDisaster(data?.disaster_name || undefined);
-        setRegBlockDisasterId(data?.disaster_id || undefined);
-        setRegBlockDisasterType(data?.disaster_type_name || undefined);
-        setRegBlockOpen(true);
-      } else {
-        setDecampError(data?.message || "Failed to clear decampment.");
-      }
-    } finally {
-      setSavingDecamp(false);
-    }
-    return;
-  }
-
-  // SET/UPDATE decampment timestamp
-  if (earliestArrival && decampDate <= earliestArrival) {
-    setDecampError("Decampment must be later than the family's earliest arrival.");
-    return;
-  }
-
+// CLEAR decampment (undecamp)
+if (!decampDate) {
   setSavingDecamp(true);
   try {
-    const res = await axios.post<DecampAPIResponse>(
-      url,
-      { decampment_timestamp: decampDate.toISOString() },
-      { validateStatus: () => true } // don't reject → no red console
-    );
+    // 1) DRY-RUN (always 200 from backend)
+    const probe = await fetch(`${url}?dry_run=1`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ decampment_timestamp: null }),
+    });
+    const probeJson = (await probe.json().catch(() => ({}))) as {
+      allowed?: boolean;
+      code?: string;
+      error?: { code?: string };
+      ec_name?: string;
+      disaster_name?: string;
+      disaster_id?: number;
+      disaster_type_name?: string;
+      message?: string;
+    };
 
-    const data = res.data;
-    if (res.status === 200 || res.status === 201) {
-      onClose();
-      await onSaved?.();
-    } else if (res.status === 409 && isUndecampConflict(data)) {
+    // Conflict? show modal, return early (no red line because probe was 200)
+    if (
+      probeJson.allowed === false ||
+      probeJson.code === "UndecampConflict" ||
+      probeJson.error?.code === "UndecampConflict"
+    ) {
       setDecampError(null);
       setRegBlockName(evacuee?.family_head_full_name);
-      setRegBlockEcName(data?.ec_name || undefined);
-      setRegBlockDisaster(data?.disaster_name || undefined);
-      setRegBlockDisasterId(data?.disaster_id || undefined);
-      setRegBlockDisasterType(data?.disaster_type_name || undefined);
+      setRegBlockEcName(probeJson.ec_name || undefined);
+      setRegBlockDisaster(probeJson.disaster_name || undefined);
+      setRegBlockDisasterId(probeJson.disaster_id || undefined);
+      setRegBlockDisasterType(probeJson.disaster_type_name || undefined);
       setRegBlockOpen(true);
+      return;
+    }
+
+    // 2) Allowed → perform the real write (should be 200)
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ decampment_timestamp: null }),
+    });
+
+    if (res.ok) {
+      onClose();
+      await onSaved?.();
     } else {
-      setDecampError(data?.message || "Failed to save decampment.");
+      const data = await res.json().catch(() => ({}));
+      setDecampError(data?.message || "Failed to clear decampment.");
     }
   } finally {
     setSavingDecamp(false);
   }
+  return;
+}
+
+if (latestArrival && decampDate <= latestArrival) {
+  setDecampError(null);
+  setDecampInvalidMsg(
+    <>
+      <b>{evacuee?.family_head_full_name}</b>: Decampment must be later than the
+      family's latest arrival ({fmtDateTime(latestArrival)}).
+    </>
+  );
+  setDecampInvalidOpen(true);
+  return;
+}
+
+setSavingDecamp(true);
+try {
+  type DecampAPIResponse = {
+    allowed?: boolean;
+    code?: string;
+    error?: { code?: string };
+    message?: string;
+    ec_name?: string;
+    disaster_name?: string;
+    disaster_id?: number;
+    disaster_type_name?: string;
+  };
+
+  // 1) DRY-RUN probe (always 200; never shows a red network line)
+  const probe = await fetch(`${url}?dry_run=1`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ decampment_timestamp: decampDate.toISOString() }),
+  });
+  const probeJson = (await probe.json().catch(() => ({}))) as DecampAPIResponse;
+
+  if (probeJson.allowed === false) {
+    // Show modal instead of inline error
+    setDecampError(null);
+    setDecampInvalidMsg(
+      <>
+        <b>{evacuee?.family_head_full_name}</b>:{" "}
+        {probeJson.message || "Decampment time is not valid."}
+      </>
+    );
+    setDecampInvalidOpen(true);
+    return; // don't do the real POST
+  }
+
+  // 2) Real write (should succeed now)
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ decampment_timestamp: decampDate.toISOString() }),
+  });
+
+  if (res.ok) {
+    onClose();
+    await onSaved?.();
+  } else {
+    const data = (await res.json().catch(() => ({}))) as DecampAPIResponse;
+    // Fallback: show modal even if backend didn’t support dry_run yet
+    setDecampInvalidMsg(
+      <>
+        <b>{evacuee?.family_head_full_name}</b>:{" "}
+        {data?.message || "Failed to save decampment."}
+      </>
+    );
+    setDecampInvalidOpen(true);
+  }
+} finally {
+  setSavingDecamp(false);
+}
+
 };
 
   return (
     <>
-      <Dialog
-        open={isOpen}
-        onOpenChange={(open) => {
-          if (!open) onClose();
-        }}
-      >
+      <Dialog open={isOpen} onOpenChange={open => { if (!open) onClose(); }}>
         <DialogContent size="full">
           <DialogHeader>
             <DialogTitle className="text-green-700 text-xl font-bold">
@@ -319,7 +379,9 @@ const handleSaveDecampment = async () => {
               View detailed information and demographics for the selected evacuee family.
             </DialogDescription>
           </DialogHeader>
-
+          
+          {/* SCROLLABLE BODY */}
+          <div className="max-h-[70vh] overflow-y-auto pr-2 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500">
           <div className="space-y-6">
             {/* Header section */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -355,7 +417,7 @@ const handleSaveDecampment = async () => {
                   </Button>
                 </div>
               </div>
-
+              
               <div className="w-full">
                 <label className="block text-sm font-semibold mb-2">Decampment:</label>
 
@@ -447,12 +509,13 @@ const handleSaveDecampment = async () => {
                 </p>
               </div>
             </div>
+            
 
             {/* Breakdown table */}
             <div>
               <label className="block text-sm font-semibold mb-3">Individual Breakdown:</label>
               <div className="overflow-x-auto border rounded-lg">
-                <div className="max-h-[50vh] overflow-x-auto overflow-y-auto pr-2 pb-2">
+              <div className="max-h-[50vh] overflow-x-auto overflow-y-auto pr-2 pb-2 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-corner]:bg-transparent dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500 [scrollbar-width:thin] [scrollbar-color:rgb(209_213_219)_transparent] dark:[scrollbar-color:rgb(115_115_115)_transparent]">
                   <Table className="text-sm">
                     <TableHeader>
                       <TableRow className="bg-gray-50">
@@ -515,7 +578,7 @@ const handleSaveDecampment = async () => {
             <div>
               <label className="block text-sm font-semibold mb-3">List of Family Members:</label>
               <div className="overflow-x-auto border rounded-lg">
-                <div className="max-h-[50vh] overflow-x-auto overflow-y-auto pr-2 pb-2">
+                 <div className="max-h-[50vh] overflow-x-auto overflow-y-auto pr-2 pb-2 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-corner]:bg-transparent dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500 [scrollbar-width:thin] [scrollbar-color:rgb(209_213_219)_transparent] dark:[scrollbar-color:rgb(115_115_115)_transparent]">
                   <Table className="text-sm">
                     <TableHeader>
                       <TableRow className="bg-gray-50">
@@ -587,9 +650,10 @@ const handleSaveDecampment = async () => {
               </div>
             </div>
           </div>
+          </div>
         </DialogContent>
       </Dialog>
-
+      
       {/* Transfer Head Modal */}
       <Dialog open={transferOpen} onOpenChange={setTransferOpen}>
         <DialogContent>
@@ -640,6 +704,7 @@ const handleSaveDecampment = async () => {
           </div>
         </DialogContent>
       </Dialog>
+    
       <RegisterBlockDialog
         open={regBlockOpen}
         onOpenChange={(open) => {
@@ -679,6 +744,14 @@ const handleSaveDecampment = async () => {
         description={
           <>This family is already decamped. To edit this person, remove the decampment first.</>
         }
+      />
+      <RegisterBlockDialog
+        open={decampInvalidOpen}
+        onOpenChange={setDecampInvalidOpen}
+        personName={evacuee?.family_head_full_name}
+        title="Cannot save decampment"
+        secondaryLabel="OK"
+        description={decampInvalidMsg}
       />
     </>
   );

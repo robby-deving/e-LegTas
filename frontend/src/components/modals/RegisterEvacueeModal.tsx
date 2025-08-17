@@ -33,9 +33,7 @@ export const RegisterEvacueeModal = ({
   const [saving, setSaving] = useState(false);
 
   const handleClickSave = async () => {
-    // don’t submit if invalid
     if (formRef.current && !formRef.current.reportValidity()) return;
-
     try {
       setSaving(true);
       // make sure onSave can be async; if it isn’t, Promise.resolve handles it
@@ -44,7 +42,6 @@ export const RegisterEvacueeModal = ({
       setSaving(false);
     }
   };
-
 
   const suffixOptions = ["Jr.", "Sr.", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
   const sexOptions = ["Male", "Female"];
@@ -163,34 +160,30 @@ export const RegisterEvacueeModal = ({
                   />
                 </div>
 
-
-
-
-{/* Suffix (optional) */}
-<div>
-  <label className="block text-sm font-medium mb-2">Suffix:</label>
-  <Select
-    // If empty string in state, show the sentinel option in the UI
-    value={formData.suffix && formData.suffix.trim() !== "" ? formData.suffix : SUFFIX_NONE}
-    onValueChange={(v) => {
-      // Map sentinel back to empty string in state (not null)
-      onFormChange("suffix", v === SUFFIX_NONE ? "" : v);
-    }}
-  >
-    <SelectTrigger className="w-full">
-      <SelectValue placeholder="Select Suffix" />
-    </SelectTrigger>
-    <SelectContent>
-      <SelectItem value={SUFFIX_NONE}>None</SelectItem>
-      {suffixOptions.map((o) => (
-        <SelectItem key={o} value={o}>
-          {o}
-        </SelectItem>
-      ))}
-    </SelectContent>
-  </Select>
-</div>
-
+                {/* Suffix (optional) */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">Suffix:</label>
+                  <Select
+                    // If empty string in state, show the sentinel option in the UI
+                    value={formData.suffix && formData.suffix.trim() !== "" ? formData.suffix : SUFFIX_NONE}
+                    onValueChange={(v) => {
+                      // Map sentinel back to empty string in state (not null)
+                      onFormChange("suffix", v === SUFFIX_NONE ? "" : v);
+                    }}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select Suffix" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={SUFFIX_NONE}>None</SelectItem>
+                      {suffixOptions.map((o) => (
+                        <SelectItem key={o} value={o}>
+                          {o}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
                 {/* Sex * */}
                 <div className="relative">
@@ -679,33 +672,33 @@ export const RegisterEvacueeModal = ({
                 </div>
               </div>
             </div>
-<DialogFooter className="flex justify-end space-x-3 pt-2">
-  <Button
-    type="button"                 
-    variant="outline"
-    onClick={onClose}
-    disabled={saving}
-    className="px-6 cursor-pointer"
-  >
-    Cancel
-  </Button>
+            <DialogFooter className="flex justify-end space-x-3 pt-2">
+              <Button
+                type="button"                 
+                variant="outline"
+                onClick={onClose}
+                disabled={saving}
+                className="px-6 cursor-pointer"
+              >
+                Cancel
+              </Button>
 
-  <Button
-    type="button"                 
-    onClick={handleClickSave}
-    disabled={saving}
-    className="bg-green-700 hover:bg-green-800 text-white px-6 cursor-pointer disabled:opacity-90"
-    aria-busy={saving}
-  >
-    {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />}
-    {mode === "register"
-      ? (saving ? "Registering..." : "Register")
-      : (saving ? "Saving..." : "Save")}
-  </Button>
-</DialogFooter>
-          </form>
-        </div>
-      </DialogContent>
-    </Dialog>
+              <Button
+                type="button"                 
+                onClick={handleClickSave}
+                disabled={saving}
+                className="bg-green-700 hover:bg-green-800 text-white px-6 cursor-pointer disabled:opacity-90"
+                aria-busy={saving}
+              >
+                {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />}
+                {mode === "register"
+                  ? (saving ? "Registering..." : "Register")
+                  : (saving ? "Saving..." : "Save")}
+              </Button>
+            </DialogFooter>
+            </form>
+          </div>
+        </DialogContent>
+      </Dialog>
   );
 };
