@@ -35,6 +35,8 @@ router.use('/auth', authRoutes);
 router.use('/users', authenticateUser, userRoutes);
 router.use('/permissions', permissionRoutes);
 router.use('/roles', roleRoutes);
+// Protect all notifications endpoints so permission checks have req.user
+router.use('/notifications', authenticateUser, notificationRoutes);
 router.use('/evacuation-centers', evacuationCentersRoutes);
 router.use('/disasters', disasterRoutes);
 router.use('/rooms', roomRoutes);
@@ -42,7 +44,6 @@ router.use('/disaster-events', disasterEventRoutes);
 router.use('/dashboard', dashboardRoutes);
 router.use('/evacuees', evacueesRoutes);
 router.use('/barangays', barangayRoutes);
-router.use('/notifications', notificationRoutes);
 
 // Role routes are handled in role.routes.js
 
