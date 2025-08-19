@@ -24,7 +24,7 @@ router.get(
 router.get(
   '/detailed-map-data',
   authenticateUser,
-  requirePermission('view_evacuation_centers'),
+  requirePermission('view_map'),
   evacuationController.getEvacuationCenterMapData
 );
 
