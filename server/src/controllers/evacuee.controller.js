@@ -1370,7 +1370,6 @@ exports.getDisasterEvacuationDetails = async (req, res, next) => {
   }
 };
 
-
 /**
  * @desc Get all rooms for the evacuation center tied to a disaster evacuation event
  * @route GET /api/v1/evacuees/:disasterEvacuationEventId/rooms

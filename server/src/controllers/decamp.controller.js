@@ -1,4 +1,6 @@
-const supabase = require("../config/supabase");
+const { supabase } = require('../config/supabase');
+
+// add this line if error have const { supabase } = require('../config/supabase');
 
 class ApiError extends Error {
   constructor(message, statusCode = 500) {
