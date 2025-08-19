@@ -54,6 +54,16 @@ export function EvacuationCenterForm({ formData, onFormChange, errors }: Evacuat
     fetchBarangays();
   }, []);
 
+  // Ensure the form shows a valid barangay name based on barangayId (edit mode)
+  useEffect(() => {
+    if (!barangays.length) return;
+    if (!formData.barangayId) return;
+    const byId = barangays.find(b => b.id === formData.barangayId);
+    if (byId && byId.name !== formData.barangay) {
+      onFormChange('barangay', byId.name);
+    }
+  }, [barangays, formData.barangayId]);
+
   const handleBarangayChange = (barangayName: string) => {
     const selectedBarangay = barangays.find(b => b.name === barangayName);
     onFormChange('barangay', barangayName);
@@ -109,7 +119,9 @@ export function EvacuationCenterForm({ formData, onFormChange, errors }: Evacuat
       <div>
         <label htmlFor="barangay" className="block text-sm font-medium mb-2">Barangay *</label>
         <Select 
-          value={formData.barangay} 
+          value={
+            (barangays.find(b => b.id === formData.barangayId)?.name) || formData.barangay
+          } 
           onValueChange={handleBarangayChange}
           disabled={loading}
         >

@@ -6,19 +6,38 @@ import type {
   CreateRoomRequest,
   UpdateRoomRequest 
 } from '../types/evacuation.ts';  // Add .ts extension
+import { store } from '../store';
+import { selectToken, selectUserId } from '../features/auth/authSlice';
 
 class EvacuationCenterService {
   private baseUrl = '/api/v1';
+  
+  private buildHeaders(extra: Record<string, string> = {}) {
+    const state = store.getState() as any;
+    const token = selectToken(state);
+    const userId = selectUserId(state);
+    const devUserId = (import.meta as any).env?.VITE_DEV_USER_ID as string | undefined;
+    const headers: Record<string, string> = { Accept: 'application/json', ...extra };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    // Fallback for dev if no token
+    if (!token && userId) headers['x-user-id'] = String(userId);
+    if (!token && !userId && devUserId) headers['x-user-id'] = String(devUserId);
+    return headers;
+  }
 
   async getEvacuationCenters(): Promise<EvacuationCenter[]> {
-    const response = await fetch(`${this.baseUrl}/evacuation-centers`);
+    const response = await fetch(`${this.baseUrl}/evacuation-centers`, {
+      headers: this.buildHeaders(),
+    });
     if (!response.ok) throw new Error('Failed to fetch evacuation centers');
     const result = await response.json();
     return result.data; // Extract the data array from the response
   }
 
   async getEvacuationCenter(id: number): Promise<EvacuationCenter> {
-    const response = await fetch(`${this.baseUrl}/evacuation-centers/${id}/rooms`);
+    const response = await fetch(`${this.baseUrl}/evacuation-centers/${id}/rooms`, {
+      headers: this.buildHeaders(),
+    });
     if (!response.ok) throw new Error('Failed to fetch evacuation center');
     const result = await response.json();
     
@@ -44,7 +63,9 @@ class EvacuationCenterService {
   }
 
   async getEvacuationCenterRooms(id: number): Promise<EvacuationRoom[]> {
-    const response = await fetch(`${this.baseUrl}/evacuation-centers/${id}/rooms`);
+    const response = await fetch(`${this.baseUrl}/evacuation-centers/${id}/rooms`, {
+      headers: this.buildHeaders(),
+    });
     if (!response.ok) throw new Error('Failed to fetch evacuation center rooms');
     return response.json();
   }
@@ -52,9 +73,7 @@ class EvacuationCenterService {
   async createEvacuationCenter(data: CreateEvacuationCenterRequest): Promise<EvacuationCenter> {
     const response = await fetch(`${this.baseUrl}/evacuation-centers`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: this.buildHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(data),
     });
     if (!response.ok) throw new Error('Failed to create evacuation center');
@@ -65,9 +84,7 @@ class EvacuationCenterService {
   async updateEvacuationCenter(id: number, data: UpdateEvacuationCenterRequest): Promise<EvacuationCenter> {
     const response = await fetch(`${this.baseUrl}/evacuation-centers/${id}`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: this.buildHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(data),
     });
     if (!response.ok) throw new Error('Failed to update evacuation center');
@@ -90,9 +107,7 @@ class EvacuationCenterService {
   async deleteEvacuationCenter(id: number): Promise<void> {
     const response = await fetch(`${this.baseUrl}/evacuation-centers/${id}/soft-delete`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      }
+      headers: this.buildHeaders({ 'Content-Type': 'application/json' }),
     });
     if (!response.ok) {
       const errorData = await response.json().catch(() => null);
@@ -104,9 +119,7 @@ class EvacuationCenterService {
     console.log('Service: Creating room with data:', data);
     const response = await fetch(`${this.baseUrl}/rooms`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: this.buildHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(data),
     });
     if (!response.ok) {
@@ -121,9 +134,7 @@ class EvacuationCenterService {
   async updateRoom(id: string, data: UpdateRoomRequest): Promise<EvacuationRoom> {
     const response = await fetch(`${this.baseUrl}/rooms/${id}`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: this.buildHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(data),
     });
     if (!response.ok) throw new Error('Failed to update room');
@@ -133,15 +144,15 @@ class EvacuationCenterService {
   async deleteRoom(id: string): Promise<void> {
     const response = await fetch(`${this.baseUrl}/rooms/${id}/soft-delete`, {
       method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-      }
+      headers: this.buildHeaders({ 'Content-Type': 'application/json' }),
     });
     if (!response.ok) throw new Error('Failed to delete room');
   }
 
   async getBarangays(): Promise<{ id: number; name: string }[]> {
-    const response = await fetch(`${this.baseUrl}/barangays`);
+    const response = await fetch(`${this.baseUrl}/barangays`, {
+      headers: this.buildHeaders(),
+    });
     if (!response.ok) throw new Error('Failed to fetch barangays');
     const result = await response.json();
     return result.data;
