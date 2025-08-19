@@ -1,4 +1,3 @@
-//FamilyDetailsModal.tsx
 import { useState, useEffect, useMemo } from "react";
 import axios from "axios";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../ui/dialog";
@@ -12,9 +11,6 @@ import { formatDate } from "@/utils/dateFormatter";
 import "react-datepicker/dist/react-datepicker.css";
 import ReactDatePicker from "react-datepicker";
 import { RegisterBlockDialog } from "@/components/modals/RegisterBlockDialog";
-import { Popover, PopoverTrigger, PopoverContent } from "../ui/popover";
-import { Calendar as DateCalendar } from "../ui/calendar";
-import { startOfDayLocal, DateBound, formatMMDDYYYY, parseMMDDYYYY, mergeDateAndTime, checkDateBounds } from "@/utils/dateInput";
 
 const INVERSE_REL: Record<string, string> = {
   Spouse: "Spouse",
@@ -30,6 +26,7 @@ const INVERSE_REL: Record<string, string> = {
   Boarder: "Boarder",
 };
 
+
 type FamilyDetailsModalProps = { isOpen: boolean; onClose: () => void; evacuee: any; centerName: string; onEditMember: (m: any) => void; disasterStartDate?: string | null; onSaved?: () => void | Promise<void>; };
 
 export const FamilyDetailsModal: React.FC<FamilyDetailsModalProps> = ({
@@ -43,7 +40,6 @@ export const FamilyDetailsModal: React.FC<FamilyDetailsModalProps> = ({
 }) => {
 const [savingDecamp, setSavingDecamp] = useState(false);
 const [decampError, setDecampError] = useState<string | null>(null);
-
 const [regBlockOpen, setRegBlockOpen] = useState(false);
 const [regBlockName, setRegBlockName] = useState<string | undefined>();
 const [regBlockEcName, setRegBlockEcName] = useState<string | undefined>();
@@ -53,27 +49,44 @@ const [regBlockDisasterType, setRegBlockDisasterType] = useState<string | undefi
 
 const [editBlockedOpen, setEditBlockedOpen] = useState(false);
 const [editBlockedName, setEditBlockedName] = useState<string | undefined>();
-
 const [decampInvalidOpen, setDecampInvalidOpen] = useState(false);
 const [decampInvalidMsg, setDecampInvalidMsg] = useState<React.ReactNode>(null);
 
 const hadExistingDecamp = Boolean(evacuee?.decampment_timestamp);
-const [touched, setTouched] = useState<{date: boolean; time: boolean}>({ date: hadExistingDecamp, time: hadExistingDecamp });
-const [decampDate, setDecampDate] = useState<Date | null>(() =>
+
+const [touched, setTouched] = useState<{ date: boolean; time: boolean }>(() => ({
+  date: hadExistingDecamp,
+  time: hadExistingDecamp,
+}));
+
+const [decampDate, setDecampDate] = useState<Date | null>(
   evacuee?.decampment_timestamp ? new Date(evacuee.decampment_timestamp) : null
 );
 
 useEffect(() => {
-  const raw = evacuee?.decampment_timestamp
-    ? new Date(evacuee.decampment_timestamp)
-    : null;
-  const d = raw && !Number.isNaN(raw.getTime()) ? raw : null;
-  setDecampDate(d);
-  setTouched({ date: !!d, time: !!d });
+  setDecampDate(
+    evacuee?.decampment_timestamp ? new Date(evacuee.decampment_timestamp) : null
+  );
+  setTouched({
+    date: Boolean(evacuee?.decampment_timestamp),
+    time: Boolean(evacuee?.decampment_timestamp),
+  });
 }, [evacuee?.decampment_timestamp]);
 
-const originalDecamp = evacuee?.decampment_timestamp ? new Date(evacuee.decampment_timestamp) : null;
-const hasChanges = (originalDecamp?.getTime() ?? null) !== (decampDate?.getTime() ?? null);
+const originalDecamp = evacuee?.decampment_timestamp
+  ? new Date(evacuee.decampment_timestamp)
+  : null;
+
+const hasChanges =
+  (originalDecamp ? originalDecamp.getTime() : null) !==
+  (decampDate ? decampDate.getTime() : null);
+
+const fmtDateOnly = (d: Date) =>
+  new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(d);
 
 const fmtTimeOnly = (d: Date) =>
   new Intl.DateTimeFormat(undefined, {
@@ -81,23 +94,51 @@ const fmtTimeOnly = (d: Date) =>
     minute: "2-digit",
   }).format(d);
 
-const toLocalStart = (v: string | Date) => startOfDayLocal(new Date(v));
-const minDate =
-  disasterStartDate ? toLocalStart(disasterStartDate)
-  : evacuee?.disaster_start_date ? toLocalStart(evacuee.disaster_start_date)
-  : undefined;
+const toLocalStartOfDay = (v: string | Date) => {
+  const d = new Date(v);
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+};
 
-const maxDate = useMemo(() => new Date(), []);
+const minDate =
+  disasterStartDate
+    ? toLocalStartOfDay(disasterStartDate)
+    : evacuee?.disaster_start_date
+    ? toLocalStartOfDay(evacuee.disaster_start_date)
+    : undefined;
+
+const maxDate = new Date();
+
 const missingTimeForNew = !hadExistingDecamp && touched.date && !touched.time;
 const canSaveDecamp = hasChanges && !savingDecamp && !missingTimeForNew;
 
+const handleChangeDateOnly = (picked: Date | null) => {
+  setDecampError(null);
+  if (!picked) {
+    setDecampDate(null);
+    setTouched({ date: false, time: false });
+    return;
+  }
+  const h = decampDate ? decampDate.getHours() : 0;
+  const m = decampDate ? decampDate.getMinutes() : 0;
+  setDecampDate(new Date(picked.getFullYear(), picked.getMonth(), picked.getDate(), h, m, 0, 0));
+  setTouched((t) => ({ ...t, date: true }));
+};
+
 const handleChangeTimeOnly = (picked: Date | null) => {
   if (!picked || !decampDate) return;
-  const merged = mergeDateAndTime(decampDate, picked);
-  if (!enforceDecampDateTimeBounds(merged)) return;
   setDecampError(null);
-  setDecampDate(merged);
-  setTouched(t => ({ ...t, time: true }));
+  setDecampDate(
+    new Date(
+      decampDate.getFullYear(),
+      decampDate.getMonth(),
+      decampDate.getDate(),
+      picked.getHours(),
+      picked.getMinutes(),
+      0,
+      0
+    )
+  );
+  setTouched((t) => ({ ...t, time: true }));
 };
 
 const [transferOpen, setTransferOpen] = useState(false);
@@ -106,13 +147,7 @@ const [oldHeadNewRel, setOldHeadNewRel] = useState<string>("");
 const [transferring, setTransferring] = useState(false);
 const fmtDateTime = (d: Date) => d.toLocaleString(undefined, { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
 const members: any[] = evacuee?.list_of_family_members?.family_members ?? [];
-const [decampText, setDecampText] = useState<string>(
-  decampDate ? formatMMDDYYYY(decampDate) : ""
-);
 
-useEffect(() => {
-  setDecampText(decampDate ? formatMMDDYYYY(decampDate) : "");
-}, [decampDate]);
 const latestArrival = useMemo(() => {
   const members = evacuee?.list_of_family_members?.family_members ?? [];
   let maxMs = -Infinity;
@@ -138,13 +173,14 @@ const transferCandidates: any[] = members.filter(
 );
 
 const isDecamped = Boolean(evacuee?.decampment_timestamp);
+
 const canTransfer =
   !isDecamped &&
   transferCandidates.length > 0 &&
   Boolean(evacuee?.id) &&
   Boolean(evacuee?.disaster_evacuation_event_id);
 
-  const handleSelectNewHead = (value: string) => {
+const handleSelectNewHead = (value: string) => {
   setNewHeadEvacueeId(value);
   const cand = transferCandidates.find((m) => String(m.evacuee_id) === value);
   const relToOldHead: string | undefined = cand?.relationship_to_family_head;
@@ -201,6 +237,7 @@ const handleSaveDecampment = async () => {
 
   const url = `http://localhost:3000/api/v1/evacuees/${eventId}/families/${familyHeadId}/decamp`;
 
+// CLEAR decampment (undecamp)
 if (!decampDate) {
   setSavingDecamp(true);
   try {
@@ -221,6 +258,7 @@ if (!decampDate) {
       message?: string;
     };
 
+    // Conflict? show modal, return early (no red line because probe was 200)
     if (
       probeJson.allowed === false ||
       probeJson.code === "UndecampConflict" ||
@@ -281,7 +319,7 @@ try {
     disaster_type_name?: string;
   };
 
-  // 1) DRY-RUN probe 
+  // 1) DRY-RUN probe (always 200; never shows a red network line)
   const probe = await fetch(`${url}?dry_run=1`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -326,39 +364,8 @@ try {
 } finally {
   setSavingDecamp(false);
 }
+
 };
-
-function enforceDecampDateTimeBounds(dt: Date | null): boolean {
-  if (!dt) return false;
-
-  const res = checkDateBounds(dt, minDate, maxDate);
-  if (res.ok === false) {
-    if (res.kind === DateBound.BeforeMin) {
-      setDecampInvalidMsg(
-        <>
-          Decampment cannot be before the disaster’s start (
-          <b>{formatMMDDYYYY(res.bound)}</b>).
-        </>
-      );
-    } else if (res.kind === DateBound.AfterMax) {
-      setDecampInvalidMsg(
-        <>
-          Decampment cannot be in the future. Latest allowed is{" "}
-          <b>{formatMMDDYYYY(res.bound)}</b>.
-        </>
-      );
-    }
-    setDecampInvalidOpen(true);
-    return false;
-  }
-  const now = new Date();
-  if (startOfDayLocal(dt).getTime() === startOfDayLocal(now).getTime() && dt.getTime() > now.getTime()) {
-    setDecampInvalidMsg(<>Decampment time can’t be in the future.</>);
-    setDecampInvalidOpen(true);
-    return false;
-  }
-  return true;
-}
 
   return (
     <>
@@ -377,7 +384,7 @@ function enforceDecampDateTimeBounds(dt: Date | null): boolean {
           <div className="max-h-[70vh] overflow-y-auto pr-2 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500">
           <div className="space-y-6">
             {/* Header section */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-semibold mb-2">Evacuation Center:</label>
                 <Input value={centerName} readOnly className="w-full bg-gray-50" />
@@ -385,8 +392,8 @@ function enforceDecampDateTimeBounds(dt: Date | null): boolean {
 
               <div>
                 <label className="block text-sm font-semibold mb-2">Head of the Family:</label>
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <Input value={evacuee.family_head_full_name} readOnly className="w-full bg-gray-50 min-w-0" />
+                <div className="flex gap-2">
+                  <Input value={evacuee.family_head_full_name} readOnly className="w-full bg-gray-50" />
                   <Button
                     className={`bg-green-700 hover:bg-green-800 text-white px-3 py-1 text-sm cursor-pointer ${
                       !canTransfer ? "opacity-60 cursor-not-allowed" : ""
@@ -411,118 +418,44 @@ function enforceDecampDateTimeBounds(dt: Date | null): boolean {
                 </div>
               </div>
               
-              <div className="w-full md:col-span-2 lg:col-span-1">
+              <div className="w-full">
                 <label className="block text-sm font-semibold mb-2">Decampment:</label>
+
                 <div className="flex flex-wrap items-center gap-3">
-                {/* DATE (Popover + DateCalendar) */}
-                <div className="relative flex-1 min-w-[12rem] min-h-10">
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      {/* Typeable input (MM/DD/YYYY) that also opens the calendar */}
-                      <div className="relative w-full">
-                        <Input
-                          value={decampText}
-                          onChange={(e) => {
-                            const v = e.target.value;
-                            setDecampText(v);
-
-                            const parsed = parseMMDDYYYY(v);
-                            if (parsed) {
-                              const merged = mergeDateAndTime(parsed, decampDate); 
-                              if (!merged || !enforceDecampDateTimeBounds(merged)) {
-                                setDecampText("");
-                                setDecampDate(null);
-                                setTouched({ date: false, time: false });
-                                setDecampError(null);
-                                return;
-                              }
-                              setDecampDate(merged);
-                              setDecampError(null);
-                            }
-                          }}
-                          placeholder="MM/DD/YYYY"
-                          className="w-full pl-10 pr-10 h-10 cursor-pointer"
-                          inputMode="numeric"
-                          pattern="\d{2}/\d{2}/\d{4}"
-                          onBlur={() => {
-                            const parsed = parseMMDDYYYY(decampText);
-                            if (!parsed) {
-                              // Not a valid date pattern → clear
-                              setDecampText("");
-                              setDecampDate(null);
-                              setTouched({ date: false, time: false });
-                              return;
-                            }
-
-                            // Validate AFTER merging date+time (so we can block future times on today)
-                            const merged = mergeDateAndTime(parsed, decampDate);
-                            if (!merged || !enforceDecampDateTimeBounds(merged)) {
-                              // Out of range → clear
-                              setDecampText("");
-                              setDecampDate(null);
-                              setTouched({ date: false, time: false });
-                              return;
-                            }
-
-                            // Valid & in-range → keep time, normalize text
-                            setDecampDate(merged);
-                            setDecampText(formatMMDDYYYY(merged));
-                            setTouched((t) => ({ ...t, date: true }));
-                          }}
-                        />
-                        <Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-
-                        {decampDate && (
-                          <button
-                            type="button"
-                            aria-label="Clear decampment date"
-                            onMouseDown={(e) => e.preventDefault()}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setDecampDate(null);
-                              setDecampText("");
-                              setTouched({ date: false, time: false });
-                              setDecampError(null);
-                            }}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 z-20 inline-flex h-5 w-5 items-center justify-center rounded-full bg-green-700 text-white hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-green-600 cursor-pointer"
-                          >
-                            ×
-                          </button>
-                        )}
-                      </div>
-                    </PopoverTrigger>
-
-                    <PopoverContent className="w-auto p-3" align="start">
-                      <DateCalendar
-                        mode="single"
-                        captionLayout="label"  // plain caption + arrows
-                        disabled={[
-                          ...(minDate ? [{ before: minDate }] : []),
-                          ...(maxDate ? [{ after: maxDate }] : []),
-                        ]}
-                        selected={decampDate ?? undefined}
-                        defaultMonth={decampDate ?? minDate ?? new Date()}
-                        onSelect={(date) => {
-                          setTouched((prev) => ({ ...prev, date: true }));
-                          if (!date) return;
-                          const merged = mergeDateAndTime(date, decampDate);
-                          if (!merged || !enforceDecampDateTimeBounds(merged)) {
-                            setDecampText("");
-                            setDecampDate(null);
-                            setTouched({ date: false, time: false });
-                            return;
-                          }
-
-                          setDecampDate(merged);
-                          setDecampText(formatMMDDYYYY(merged));
+                  {/* DATE */}
+                  <div className="relative flex-1 min-w-[12rem]">
+                    <ReactDatePicker
+                      selected={decampDate}
+                      onChange={handleChangeDateOnly}
+                      placeholderText={decampDate ? fmtDateOnly(decampDate) : "MM/DD/YYYY"}
+                      dateFormat="MM/dd/yyyy"
+                      minDate={minDate}
+                      maxDate={maxDate}
+                      filterDate={(d) => (!minDate || d >= minDate) && (!maxDate || d <= maxDate)}
+                      openToDate={decampDate ?? minDate ?? new Date()}
+                      isClearable={false}
+                      wrapperClassName="w-full"
+                      popperPlacement="bottom"
+                      customInput={<Input className="w-full pl-10 pr-10 h-10" />}
+                    />
+                    <Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    {decampDate && (
+                      <button
+                        type="button"
+                        aria-label="Clear decampment date"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDecampDate(null);
+                          setTouched({ date: false, time: false });
                           setDecampError(null);
                         }}
-                        numberOfMonths={1}
-                        className="pb-1"
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
+                        className="absolute right-2 top-1/2 -translate-y-1/2 z-20 inline-flex h-5 w-5 items-center justify-center rounded-full bg-green-700 text-white hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-green-600 cursor-pointer"
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
 
                   {/* TIME */}
                   <div className="relative w-40 sm:w-44 md:w-48">
@@ -577,6 +510,7 @@ function enforceDecampDateTimeBounds(dt: Date | null): boolean {
               </div>
             </div>
             
+
             {/* Breakdown table */}
             <div>
               <label className="block text-sm font-semibold mb-3">Individual Breakdown:</label>

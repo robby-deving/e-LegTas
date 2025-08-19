@@ -101,7 +101,13 @@ export const SearchEvacueeModal = ({
                       onClick={() => {
                         const id = evacuee.evacuee_resident_id;
 
+                        // 1) Already listed in THIS EC table
                         if (registeredIds?.has(id)) {
+                          console.warn("[SearchEvacueeModal] Already in this EC list", {
+                            id,
+                            name: fullName,
+                            currentEcId,
+                          });
                           setConflictName(fullName);
                           setWarnOpen(true);
                           return;
@@ -136,6 +142,15 @@ export const SearchEvacueeModal = ({
                           Number(activeEcId) !== Number(currentEcId);
 
                         if (activeInOtherEC) {
+                          console.warn("[SearchEvacueeModal] Blocked: active in another EC", {
+                            id,
+                            name: fullName,
+                            activeEcId,
+                            activeEcName,
+                            currentEcId,
+                            activeEventId,
+                            activeDisasterId,
+                          });
                           setBlockedName(fullName);
                           setBlockedEcName(activeEcName || undefined);
                           setBlockedOpen(true);
