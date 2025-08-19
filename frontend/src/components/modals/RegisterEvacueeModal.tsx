@@ -8,10 +8,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Checkbox } from "../ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
 import { Calendar, X as XIcon, Loader2 } from "lucide-react";
-import ReactDatePicker from "react-datepicker";
+// import ReactDatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import type { Barangay, RoomOption } from "@/types/EvacuationCenterDetails";
 import type { RegisterEvacueeModalProps } from "@/types/RegisterEvacueeModal";
+import { Popover, PopoverTrigger, PopoverContent } from "../ui/popover";
+import { Calendar as DateCalendar } from "../ui/calendar"; 
+import { formatMMDDYYYY, parseMMDDYYYY, toISODateLocal } from "@/utils/dateInput";
+
 
 export const RegisterEvacueeModal = ({
   isOpen,
@@ -29,6 +33,14 @@ export const RegisterEvacueeModal = ({
   const [rooms, setRooms] = useState<RoomOption[]>([]);
   const [roomsLoading, setRoomsLoading] = useState(false);
   const [roomsError, setRoomsError] = useState<string | null>(null);
+
+  const [birthdayText, setBirthdayText] = useState<string>(
+  formData.birthday ? formatMMDDYYYY(new Date(formData.birthday)) : ""
+  );
+  useEffect(() => {
+    setBirthdayText(formData.birthday ? formatMMDDYYYY(new Date(formData.birthday)) : "");
+  }, [formData.birthday]);
+
 
   const [saving, setSaving] = useState(false);
 
@@ -254,57 +266,101 @@ export const RegisterEvacueeModal = ({
                   </select>
                 </div>
 
-                {/* Birthday * */}
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Birthday:<span className="text-red-500">*</span>
-                  </label>
+{/* Birthday * */}
+<div>
+  <label className="block text-sm font-medium mb-2">
+    Birthday:<span className="text-red-500">*</span>
+  </label>
 
-                  <div className="relative w-full">
-                    <ReactDatePicker
-                      wrapperClassName="w-full"
-                      popperPlacement="bottom"
-                      selected={formData.birthday ? new Date(formData.birthday) : null}
-                      onChange={(date) =>
-                        onFormChange("birthday", date ? date.toISOString().substring(0, 10) : "")
-                      }
-                      placeholderText="MM/DD/YYYY"
-                      dateFormat="MM/dd/yyyy"
-                      customInput={<Input className="w-full pl-10 pr-10 h-10" />}
-                    />
+  <Popover>
+    {/* Make the whole input act as the trigger so clicking opens the calendar */}
+    <PopoverTrigger asChild>
+      <div className="relative w-full">
+        {/* Typeable input in MM/DD/YYYY */}
+        <Input
+          value={birthdayText}
+          onChange={(e) => {
+            const v = e.target.value;
+            setBirthdayText(v);
+            const parsed = parseMMDDYYYY(v);
+            if (parsed) {
+              // write canonical yyyy-mm-dd to your form state
+              onFormChange("birthday", toISODateLocal(parsed));
+            }
+          }}
+          placeholder="MM/DD/YYYY"
+          className="w-full pl-10 pr-10 h-10"
+          inputMode="numeric"
+          pattern="\d{2}/\d{2}/\d{4}"
+          aria-label="Birthday (MM/DD/YYYY)"
+          // Optional: normalize/clear on blur if invalid/incomplete
+          onBlur={() => {
+            const parsed = parseMMDDYYYY(birthdayText);
+            if (!parsed) {
+              setBirthdayText("");
+              onFormChange("birthday", "");
+            } else {
+              setBirthdayText(formatMMDDYYYY(parsed));
+              onFormChange("birthday", toISODateLocal(parsed));
+            }
+          }}
+        />
 
-                    {/* Left calendar icon */}
-                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+        {/* Left calendar icon */}
+        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
 
-                    {/* Small circular green clear button */}
-                    {formData.birthday && (
-                      <button
-                        type="button"
-                        aria-label="Clear date"
-                        onMouseDown={(e) => e.preventDefault()} 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onFormChange("birthday", "");
-                        }}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 z-20 inline-flex h-5 w-5 items-center justify-center rounded-full bg-green-700 text-white hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-green-600 cursor-pointer"
-                      >
-                        ×
-                      </button>
-                    )}
+        {/* Small circular green clear button */}
+        {birthdayText && (
+          <button
+            type="button"
+            aria-label="Clear date"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={(e) => {
+              e.stopPropagation(); // don't toggle popover
+              setBirthdayText("");
+              onFormChange("birthday", "");
+            }}
+            className="absolute right-2 top-1/2 -translate-y-1/2 z-20 inline-flex h-5 w-5 items-center justify-center rounded-full bg-green-700 text-white hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-green-600 cursor-pointer"
+          >
+            ×
+          </button>
+        )}
 
-                    {/* Invisible native input to enforce `required` without blocking clicks */}
-                    <input
-                      type="text"
-                      value={formData.birthday || ""}
-                      onChange={() => {}}
-                      required
-                      className="absolute inset-y-0 right-0 h-10 opacity-0 pointer-events-none w-[calc(100%-5rem)]"
-                      style={{ left: "2.5rem" }} /* 2.5rem left icon + 2.5rem right clear */
-                      aria-hidden="true"
-                      tabIndex={-1}
-                    />
-                  </div>
-                </div>
+        {/* Invisible native input still enforces `required` on the canonical value */}
+        <input
+          type="text"
+          value={formData.birthday || ""}
+          onChange={() => {}}
+          required
+          className="absolute inset-y-0 right-0 h-10 opacity-0 pointer-events-none w-[calc(100%-5rem)]"
+          style={{ left: "2.5rem" }}
+          aria-hidden="true"
+          tabIndex={-1}
+        />
+      </div>
+    </PopoverTrigger>
+
+    {/* Calendar mirrors whatever you've typed (once it's a valid date) */}
+    <PopoverContent className="w-auto p-3" align="start">
+      <DateCalendar
+        mode="single"
+        selected={formData.birthday ? new Date(formData.birthday) : undefined}
+        // Show the month of the typed/selected date; fallback to today
+        defaultMonth={
+          formData.birthday ? new Date(formData.birthday) : new Date()
+        }
+        onSelect={(date) => {
+          if (!date) return;
+          setBirthdayText(formatMMDDYYYY(date));
+          onFormChange("birthday", toISODateLocal(date));
+        }}
+        numberOfMonths={1}
+        className="pb-1"
+      />
+    </PopoverContent>
+  </Popover>
+</div>
+
 
                 {/* Educational Attainment * */}
                 <div className="relative">
