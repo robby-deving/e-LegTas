@@ -1,12 +1,16 @@
 import { useState, useEffect } from 'react';
 import { usePageTitle } from '../hooks/usePageTitle';
+import CreateReportModal from '@/components/modals/CreateReportModal';
 import { Button } from "../components/ui/button";
-import { Input } from "../components/ui/input";
-import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "../components/ui/dialog";
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "../components/ui/select";
+import { Dialog, DialogTrigger } from "../components/ui/dialog";
 import { Plus } from "lucide-react";
 import ReportCard from '@/components/cards/ReportCard';
 import DeleteReportModal from '@/components/modals/DeleteReportModal';
+import AggregatedReport from '@/components/report-templates/AggregatedReport';
+import DisaggregatedReport from '@/components/report-templates/DisaggregatedReport';
+import BarangayReport from '@/components/report-templates/BarangayReport';
+import React from 'react';
+import { createRoot } from 'react-dom/client';
 
 type Report = {
   id: string;
@@ -54,18 +58,21 @@ const MOCK_REPORTS: Report[] = [
 
 const REPORT_TYPES = [
   'Aggregated',
-  'Specific Evacuation',
-  'Summary',
-  'Detailed',
-  'Statistical',
-  'Emergency Response'
+  'Disaggregated', 
+  'Barangay Report'
 ];
 
-const MOCK_CENTERS: { id: string; name: string; barangay?: string; municipality?: string }[] = [
-  { id: 'c1', name: 'Brgy. Central Evacuation Center', barangay: 'Central', municipality: 'Sample City' },
-  { id: 'c2', name: 'Northside Evacuation Center', barangay: 'Northside', municipality: 'Sample City' },
-  { id: 'c3', name: 'Southridge Evacuation Center', barangay: 'Southridge', municipality: 'Sample City' },
-  { id: 'c4', name: 'Eastview Evacuation Center', barangay: 'Eastview', municipality: 'Sample Town' },
+const MOCK_BARANGAYS: { id: string; name: string; municipality: string }[] = [
+  { id: 'b1', name: 'Barangay 1 - Albay', municipality: 'Legazpi City' },
+  { id: 'b2', name: 'Barangay 2 - Bitano', municipality: 'Legazpi City' },
+  { id: 'b3', name: 'Barangay 3 - Bonot', municipality: 'Legazpi City' },
+  { id: 'b4', name: 'Barangay 4 - Bonga', municipality: 'Legazpi City' },
+  { id: 'b5', name: 'Barangay 5 - Buyuan', municipality: 'Legazpi City' },
+  { id: 'b6', name: 'Barangay 6 - Cabangan', municipality: 'Legazpi City' },
+  { id: 'b7', name: 'Barangay 7 - Cagbacong', municipality: 'Legazpi City' },
+  { id: 'b8', name: 'Barangay 8 - Cagsawa', municipality: 'Legazpi City' },
+  { id: 'b9', name: 'Barangay 9 - Pinaric', municipality: 'Legazpi City' },
+  { id: 'b10', name: 'Barangay 10 - Rawis', municipality: 'Legazpi City' },
 ];
 
 const DISASTER_EVENTS = [
@@ -90,11 +97,14 @@ export default function Reports() {
   const [reportType, setReportType] = useState('');
   const [disasterEvent, setDisasterEvent] = useState('');
   const [fileFormat, setFileFormat] = useState('CSV');
+  // Date and time states
+  const [date, setDate] = useState<Date | undefined>(new Date());
+  const [time, setTime] = useState<string>('12:00');
 
-  // New states for Specific Evacuation search and selection
-  const [evacuationQuery, setEvacuationQuery] = useState('');
-  const [evacuationResults, setEvacuationResults] = useState(MOCK_CENTERS);
-  const [selectedCenter, setSelectedCenter] = useState<{ id: string; name: string } | null>(null);
+  // Barangay search states for Barangay Report
+  const [barangayQuery, setBarangayQuery] = useState('');
+  const [barangayResults, setBarangayResults] = useState(MOCK_BARANGAYS);
+  const [selectedBarangay, setSelectedBarangay] = useState<{ id: string; name: string } | null>(null);
 
   // Loading / error handling
   const [isCreating, setIsCreating] = useState(false);
@@ -106,20 +116,20 @@ export default function Reports() {
   const [pendingDelete, setPendingDelete] = useState<Report | null>(null);
 
   useEffect(() => {
-    if (!evacuationQuery) {
-      setEvacuationResults(MOCK_CENTERS);
+    if (!barangayQuery) {
+      setBarangayResults(MOCK_BARANGAYS);
       return;
     }
-    const q = evacuationQuery.toLowerCase();
-    setEvacuationResults(MOCK_CENTERS.filter((c) => c.name.toLowerCase().includes(q) || (c.barangay || '').toLowerCase().includes(q)));
-  }, [evacuationQuery]);
+    const q = barangayQuery.toLowerCase();
+    setBarangayResults(MOCK_BARANGAYS.filter((b) => b.name.toLowerCase().includes(q) || (b.municipality || '').toLowerCase().includes(q)));
+  }, [barangayQuery]);
 
   const validateForm = () => {
     const errors: { [key: string]: string } = {};
     if (!reportName.trim()) errors.reportName = 'Report name is required.';
     if (!reportType) errors.reportType = 'Report type is required.';
-    if (reportType === 'Specific Evacuation') {
-      if (!selectedCenter) errors.evacuation = 'Please select an evacuation center.';
+    if (reportType === 'Barangay Report') {
+      if (!selectedBarangay) errors.barangay = 'Please select a barangay.';
     } else {
       if (!disasterEvent) errors.disasterEvent = 'Please select a disaster event.';
     }
@@ -127,16 +137,290 @@ export default function Reports() {
     return Object.keys(errors).length === 0;
   };
 
-  const generateCSVContent = (r: Report) => {
-    // Simple CSV with basic fields. For demo only.
-    const headers = ['Report Name', 'Type', 'Disaster', 'Format', 'Date', 'Size', 'EvacuationCenter'];
-    const values = [r.name, r.type, r.disaster, r.format, r.date, r.size, (r as any).evacuationCenter || ''];
-    const csv = `${headers.join(',')}\n${values.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')}`;
-    return csv;
+  const generateTemplateData = (report: Report) => {
+    const baseProps = {
+      disasterEvent: report.disaster,
+      reportDate: new Date(report.date).toLocaleDateString(),
+      reportTime: new Date(report.date).toLocaleTimeString()
+    };
+
+    // Sample evacuation center data for templates
+    const sampleEvacuationCenters = [
+      {
+        name: "Legazpi Elementary School",
+        address: "Rizal Street, Legazpi City",
+        originBarangay: "Barangay 9 - Pinaric",
+        insideFamilies: 15,
+        insidePersons: 52,
+        outsideFamilies: 8,
+        outsidePersons: 28
+      },
+      {
+        name: "Barangay Hall - Pinaric", 
+        address: "Pinaric Road, Legazpi City",
+        originBarangay: "Barangay 9 - Pinaric",
+        insideFamilies: 12,
+        insidePersons: 45,
+        outsideFamilies: 5,
+        outsidePersons: 18
+      }
+    ];
+
+    // Sample data for disaggregated report
+    const sampleEvacuationSites = [
+      {
+        barangay: "Barangay 9 - Pinaric",
+        evacuationCenter: "Legazpi Elementary School",
+        families: 15,
+        male: 25,
+        female: 27,
+        total: 52,
+        infant: 3,
+        children: 12,
+        youth: 18,
+        adult: 15,
+        seniorCitizens: 4,
+        pwd: 2,
+        pregnant: 1,
+        lactating: 2
+      },
+      {
+        barangay: "Barangay 12 - Cabangan",
+        evacuationCenter: "Legazpi Sports Complex",
+        families: 25,
+        male: 45,
+        female: 44,
+        total: 89,
+        infant: 5,
+        children: 20,
+        youth: 30,
+        adult: 25,
+        seniorCitizens: 9,
+        pwd: 3,
+        pregnant: 2,
+        lactating: 3
+      }
+    ];
+
+    // Sample data for barangay report
+    const sampleBarangayData = [
+      {
+        name: "Legazpi Elementary School",
+        evacuees: [
+          {
+            familyHead: "Juan Dela Cruz",
+            purok: "Purok 1",
+            male: 2,
+            female: 3,
+            total: 5,
+            infant: 1,
+            children: 2,
+            youth: 1,
+            adult: 1,
+            seniorCitizens: 0,
+            pwd: 0,
+            pregnant: 0,
+            lactating: 1
+          },
+          {
+            familyHead: "Maria Santos",
+            purok: "Purok 2", 
+            male: 3,
+            female: 2,
+            total: 5,
+            infant: 0,
+            children: 2,
+            youth: 2,
+            adult: 1,
+            seniorCitizens: 0,
+            pwd: 1,
+            pregnant: 0,
+            lactating: 0
+          }
+        ]
+      }
+    ];
+
+    switch (report.type) {
+      case 'Aggregated':
+        return {
+          ...baseProps,
+          evacuationCenters: sampleEvacuationCenters
+        };
+      case 'Disaggregated':
+        return {
+          ...baseProps,
+          evacuationSites: sampleEvacuationSites
+        };
+      case 'Barangay Report':
+        return {
+          ...baseProps,
+          barangayName: selectedBarangay?.name || "Sample Barangay",
+          evacuationCenters: sampleBarangayData
+        };
+      default:
+        return {
+          ...baseProps,
+          evacuationCenters: sampleEvacuationCenters
+        };
+    }
+  };
+
+  const generatePDFFromTemplate = (report: Report) => {
+    const templateData = generateTemplateData(report);
+    
+    // Create a hidden container for rendering the template
+    const printContainer = document.createElement('div');
+    printContainer.style.position = 'absolute';
+    printContainer.style.left = '-9999px';
+    printContainer.style.width = '210mm'; // A4 width
+    printContainer.className = 'report-template';
+    
+    document.body.appendChild(printContainer);
+    
+    // Render the appropriate template
+    const root = createRoot(printContainer);
+    let templateElement;
+    
+    switch (report.type) {
+      case 'Aggregated':
+        templateElement = React.createElement(AggregatedReport, templateData as any);
+        break;
+      case 'Disaggregated':
+        templateElement = React.createElement(DisaggregatedReport, templateData as any);
+        break;
+      case 'Barangay Report':
+        templateElement = React.createElement(BarangayReport, templateData as any);
+        break;
+      default:
+        templateElement = React.createElement(AggregatedReport, templateData as any);
+    }
+    
+    root.render(templateElement);
+    
+    // Wait for render then trigger print
+    setTimeout(() => {
+      // Store original content and styles
+      const originalContent = document.body.innerHTML;
+      const originalClass = document.body.className;
+      
+      // Replace body content with rendered template
+      document.body.innerHTML = printContainer.innerHTML;
+      document.body.className = 'report-template';
+      
+      // Trigger print
+      window.print();
+      
+      // Restore original content
+      document.body.innerHTML = originalContent;
+      document.body.className = originalClass;
+      
+      // Clean up
+      if (document.body.contains(printContainer)) {
+        document.body.removeChild(printContainer);
+      }
+    }, 100);
+  };
+
+  const generateCSVContent = (report: Report) => {
+    const templateData = generateTemplateData(report);
+    
+    if (report.type === 'Aggregated' && (templateData as any).evacuationCenters) {
+      const headers = ['Evacuation Center', 'Address', 'Origin Barangay', 'Inside Families', 'Inside Persons', 'Outside Families', 'Outside Persons', 'Total Families', 'Total Persons'];
+      const centers = (templateData as any).evacuationCenters;
+      const rows = centers.map((center: any) => [
+        center.name,
+        center.address,
+        center.originBarangay,
+        center.insideFamilies.toString(),
+        center.insidePersons.toString(),
+        center.outsideFamilies.toString(),
+        center.outsidePersons.toString(),
+        (center.insideFamilies + center.outsideFamilies).toString(),
+        (center.insidePersons + center.outsidePersons).toString()
+      ]);
+      
+      const csvContent = [headers, ...rows]
+        .map(row => row.map((cell: string) => `"${cell.replace(/"/g, '""')}"`).join(','))
+        .join('\n');
+      
+      return `Report: ${report.name}\nDisaster: ${report.disaster}\nDate: ${report.date}\n\n${csvContent}`;
+    }
+    
+    if (report.type === 'Disaggregated' && (templateData as any).evacuationSites) {
+      const headers = ['Barangay', 'Evacuation Center', 'Families', 'Male', 'Female', 'Total', 'Infant', 'Children', 'Youth', 'Adult', 'Senior Citizens', 'PWD', 'Pregnant', 'Lactating'];
+      const sites = (templateData as any).evacuationSites;
+      const rows = sites.map((site: any) => [
+        site.barangay,
+        site.evacuationCenter,
+        site.families.toString(),
+        site.male.toString(),
+        site.female.toString(),
+        site.total.toString(),
+        site.infant.toString(),
+        site.children.toString(),
+        site.youth.toString(),
+        site.adult.toString(),
+        site.seniorCitizens.toString(),
+        site.pwd.toString(),
+        site.pregnant.toString(),
+        site.lactating.toString()
+      ]);
+      
+      const csvContent = [headers, ...rows]
+        .map(row => row.map((cell: string) => `"${cell.replace(/"/g, '""')}"`).join(','))
+        .join('\n');
+      
+      return `Report: ${report.name}\nDisaster: ${report.disaster}\nDate: ${report.date}\nBarangay: ${(templateData as any).barangayName || 'All'}\n\n${csvContent}`;
+    }
+    
+    if (report.type === 'Barangay Report' && (templateData as any).evacuationCenters) {
+      const headers = ['Evacuation Center', 'Family Head', 'Purok', 'Male', 'Female', 'Total', 'Infant', 'Children', 'Youth', 'Adult', 'Senior Citizens', 'PWD', 'Pregnant', 'Lactating'];
+      const centers = (templateData as any).evacuationCenters;
+      const rows: string[][] = [];
+      
+      centers.forEach((center: any) => {
+        center.evacuees?.forEach((evacuee: any) => {
+          rows.push([
+            center.name,
+            evacuee.familyHead,
+            evacuee.purok,
+            evacuee.male.toString(),
+            evacuee.female.toString(),
+            evacuee.total.toString(),
+            evacuee.infant.toString(),
+            evacuee.children.toString(),
+            evacuee.youth.toString(),
+            evacuee.adult.toString(),
+            evacuee.seniorCitizens.toString(),
+            evacuee.pwd.toString(),
+            evacuee.pregnant.toString(),
+            evacuee.lactating.toString()
+          ]);
+        });
+      });
+      
+      const csvContent = [headers, ...rows]
+        .map(row => row.map(cell => `"${cell.replace(/"/g, '""')}"`).join(','))
+        .join('\n');
+      
+      return `Report: ${report.name}\nDisaster: ${report.disaster}\nDate: ${report.date}\nBarangay: ${(templateData as any).barangayName}\n\n${csvContent}`;
+    }
+    
+    // Fallback to simple CSV
+    const headers = ['Report Name', 'Type', 'Disaster', 'Format', 'Date', 'Size'];
+    const values = [report.name, report.type, report.disaster, report.format, report.date, report.size];
+    return `${headers.join(',')}\n${values.map(v => `"${v.replace(/"/g, '""')}"`).join(',')}`;
   };
 
   const generateAndDownloadReport = (r: Report) => {
     try {
+      if (r.format === 'PDF') {
+        // Use template-based PDF generation
+        generatePDFFromTemplate(r);
+        return;
+      }
+
       let blob: Blob;
       // Use report name as filename (sanitize to remove unsafe characters)
       const sanitize = (s: string) => s.replace(/[^a-z0-9 _.-]/gi, '').trim().replace(/\s+/g, '_') || 'report';
@@ -146,14 +430,13 @@ export default function Reports() {
       if (r.format === 'CSV') {
         const csv = generateCSVContent(r);
         blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      } else if (r.format === 'PDF') {
-        // Simple placeholder PDF/text file for demo
-        const content = `PDF Report: ${r.name}\nType: ${r.type}\nDisaster: ${r.disaster}`;
-        blob = new Blob([content], { type: 'application/pdf' });
       } else if (r.format === 'XLSX') {
-        // Placeholder xlsx as csv content; real implementation would use a library
+        // For XLSX, we'll generate CSV content and save with xlsx mimetype
+        // In a real app, you'd use a library like SheetJS (xlsx) to generate proper XLSX
         const csv = generateCSVContent(r);
-        blob = new Blob([csv], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        blob = new Blob([csv], { 
+          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+        });
       } else {
         const txt = generateCSVContent(r);
         blob = new Blob([txt], { type: 'text/plain' });
@@ -180,21 +463,38 @@ export default function Reports() {
     // Simulate async report generation
     setTimeout(() => {
       const id = String(Date.now());
-      const date = new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+      
+      // Create a new date object with the selected date and time
+      const formattedDate = date ? new Date(date) : new Date();
+      if (time) {
+        const [hours, minutes] = time.split(':').map(Number);
+        // Create a new date with local date components but with the exact time
+        formattedDate.setHours(hours, minutes, 0, 0);
+      }
+      
+      // Format the date in the user's locale
+      const displayDate = new Intl.DateTimeFormat(undefined, {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      }).format(formattedDate);
+      
       const size = '1MB';
       const newReport: Report = {
         id,
         name: reportName,
         type: reportType || 'Aggregated',
-        disaster: disasterEvent || (selectedCenter ? `Evacuation: ${selectedCenter.name}` : ''),
+        disaster: reportType === 'Barangay Report' && selectedBarangay 
+          ? `Barangay Report: ${selectedBarangay.name}` 
+          : disasterEvent,
         format: fileFormat,
-        date,
+        date: displayDate,
         size,
         icon: fileFormat === 'PDF' ? 'PDF' : fileFormat === 'CSV' ? 'CSV' : 'XLSX'
       };
-
-      // Add evacuationCenter info to the report object for CSV generation
-      (newReport as any).evacuationCenter = selectedCenter ? selectedCenter.name : '';
 
       setReports((prev) => [newReport, ...prev]);
 
@@ -205,9 +505,10 @@ export default function Reports() {
       setReportName('');
       setReportType('');
       setDisasterEvent('');
+      setDate(undefined);
       setFileFormat('CSV');
-      setEvacuationQuery('');
-      setSelectedCenter(null);
+      setBarangayQuery('');
+      setSelectedBarangay(null);
       setFormErrors({});
       setIsCreating(false);
       setCreateModalOpen(false);
@@ -264,120 +565,45 @@ export default function Reports() {
          )}
        </div>
 
-      {/* Create Report Modal */}
-      <Dialog open={createModalOpen} onOpenChange={setCreateModalOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader className="relative">
-            <DialogTitle className="text-green-700 text-xl font-bold">Create Report</DialogTitle>
-          </DialogHeader>
-
-          <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); handleCreateReport(); }}>
-            <div>
-              <label className="block text-sm font-semibold mb-2">Report Name:</label>
-              <Input
-                placeholder="Enter report name"
-                className="w-full"
-                value={reportName}
-                onChange={(e) => setReportName(e.target.value)}
-                required
-              />
-              {formErrors.reportName && <p className="text-red-600 text-sm mt-1">{formErrors.reportName}</p>}
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold mb-2">Report Type:</label>
-              <Select value={reportType} onValueChange={(v: string) => { setReportType(v); setFormErrors((s) => ({ ...s, reportType: '' })); if (v !== 'Specific Evacuation') { setSelectedCenter(null); setEvacuationQuery(''); } }} required>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {REPORT_TYPES.map(type => (
-                    <SelectItem key={type} value={type}>{type}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {formErrors.reportType && <p className="text-red-600 text-sm mt-1">{formErrors.reportType}</p>}
-            </div>
-
-            {/* Specific Evacuation Search */}
-            {reportType === 'Specific Evacuation' && (
-              <div>
-                <label className="block text-sm font-semibold mb-2">Search Evacuation Center:</label>
-                <Input
-                  placeholder="Evacuation Center"
-                  className="w-full"
-                  value={evacuationQuery}
-                  onChange={(e) => { setEvacuationQuery(e.target.value); setSelectedCenter(null); setFormErrors((s) => ({ ...s, evacuation: '' })); }}
-                />
-
-                {selectedCenter ? (
-                  <div className="text-sm mt-2 flex items-center gap-2">
-                    <div className="font-medium">Selected: {selectedCenter.name}</div>
-                    <button type="button" className="text-xs text-red-500 underline" onClick={() => { setSelectedCenter(null); setEvacuationQuery(''); }}>Clear</button>
-                  </div>
-                ) : (
-                  evacuationQuery && (
-                    <ul className="border rounded mt-2 max-h-40 overflow-auto bg-white">
-                      {evacuationResults.map(c => (
-                        <li key={c.id} className="p-2 hover:bg-gray-100 cursor-pointer" onClick={() => { setSelectedCenter({ id: c.id, name: c.name }); setEvacuationQuery(c.name); setEvacuationResults([]); }}>
-                          <div className="text-sm font-medium">{c.name}</div>
-                          <div className="text-xs text-gray-500">{c.barangay}, {c.municipality}</div>
-                        </li>
-                      ))}
-                      {evacuationResults.length === 0 && <li className="p-2 text-sm text-gray-500">No results</li>}
-                    </ul>
-                  )
-                )}
-
-                {formErrors.evacuation && <p className="text-red-600 text-sm mt-1">{formErrors.evacuation}</p>}
-              </div>
-            )}
-
-            <div>
-              <label className="block text-sm font-semibold mb-2">Disaster Event:</label>
-              <Select value={disasterEvent} onValueChange={setDisasterEvent} required>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {DISASTER_EVENTS.map(disaster => (
-                    <SelectItem key={disaster} value={disaster}>{disaster}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {formErrors.disasterEvent && <p className="text-red-600 text-sm mt-1">{formErrors.disasterEvent}</p>}
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold mb-2">File Format:</label>
-              <Select value={fileFormat} onValueChange={setFileFormat}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {FILE_FORMATS.map(format => (
-                    <SelectItem key={format} value={format}>{format}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-          </form>
-
-          <DialogFooter className="flex justify-between mt-6">
-            <DialogClose asChild>
-              <Button variant="outline" className="cursor-pointer">Cancel</Button>
-            </DialogClose>
-            <Button 
-              className="bg-green-700 hover:bg-green-800 text-white cursor-pointer"
-              onClick={handleCreateReport}
-              disabled={isCreating || !reportName || !reportType || (reportType === 'Specific Evacuation' ? !selectedCenter : !disasterEvent)}
-            >
-              {isCreating ? 'Generating...' : 'Download Report'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <CreateReportModal
+        isOpen={createModalOpen}
+        onOpenChange={setCreateModalOpen}
+        reportName={reportName}
+        setReportName={setReportName}
+        reportType={reportType}
+        setReportType={setReportType}
+        disasterEvent={disasterEvent}
+        setDisasterEvent={setDisasterEvent}
+        fileFormat={fileFormat}
+        setFileFormat={setFileFormat}
+        evacuationQuery=""
+        setEvacuationQuery={() => {}}
+        evacuationResults={[]}
+        setEvacuationResults={() => {}}
+        selectedCenter={null}
+        setSelectedCenter={() => {}}
+        barangayQuery={barangayQuery}
+        setBarangayQuery={setBarangayQuery}
+        barangayResults={barangayResults}
+        setBarangayResults={setBarangayResults}
+        selectedBarangay={selectedBarangay}
+        setSelectedBarangay={setSelectedBarangay}
+        formErrors={formErrors}
+        isCreating={isCreating}
+        onCreate={handleCreateReport}
+        reportTypes={REPORT_TYPES}
+        disasterEvents={DISASTER_EVENTS}
+        fileFormats={FILE_FORMATS}
+        date={date}
+        setDate={setDate}
+        time={time}
+        setTime={setTime}
+        clearFormError={(key) => {
+          const newErrors = { ...formErrors };
+          delete newErrors[key];
+          setFormErrors(newErrors);
+        }}
+      />
 
       {/* Delete confirmation modal */}
       <DeleteReportModal
