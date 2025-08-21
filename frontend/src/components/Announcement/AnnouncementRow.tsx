@@ -2,6 +2,7 @@
 import { TableRow, TableCell } from "../ui/table";
 import { Button } from "../ui/button";
 import { Trash2 } from "lucide-react";
+import { usePermissions } from "../../contexts/PermissionContext";
 
 // Type definition for Announcement and expandedRows
 type Announcement = {
@@ -50,6 +51,8 @@ export default function AnnouncementRow({
   onToggleExpand,
   onDeleteClick,
 }: AnnouncementRowProps) {
+  const { hasPermission } = usePermissions();
+  const canDelete = hasPermission('delete_announcement');
   return (
     <TableRow className="hover:bg-gray-50">
       <TableCell className="text-foreground font-medium max-w-xs">
@@ -86,15 +89,17 @@ export default function AnnouncementRow({
         {announcement.date}
       </TableCell>
       <TableCell className="text-center">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => onDeleteClick(announcement)}
-          className="h-8 w-8 p-0 cursor-pointer text-red-600 hover:text-red-800 hover:bg-red-50"
-          title="Delete announcement"
-        >
-          <Trash2 className="w-4 h-4" />
-        </Button>
+        {canDelete && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onDeleteClick(announcement)}
+            className="h-8 w-8 p-0 cursor-pointer text-red-600 hover:text-red-800 hover:bg-red-50"
+            title="Delete announcement"
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
+        )}
       </TableCell>
     </TableRow>
   );

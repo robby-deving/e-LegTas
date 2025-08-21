@@ -12,8 +12,11 @@ export const PermissionGate: React.FC<PermissionGateProps> = ({
   children, 
   fallback = null 
 }) => {
-  const { hasPermission } = usePermissions();
+  const { hasPermission, loading } = usePermissions();
+
+  // Avoid flashing fallback (403) while permissions are still loading
+  if (loading) return null;
+
   const allowed = hasPermission(permission);
-  
   return allowed ? <>{children}</> : <>{fallback}</>;
 };

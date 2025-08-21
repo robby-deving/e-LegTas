@@ -15,6 +15,7 @@ import EvacueeStatisticsChart from '../../components/EvacueeStatisticsChart';
 
 import { supabase } from '../../lib/supabaseClient';
 import { useDashboardData } from '../../hooks/useDashboardData';
+import { usePermissions } from '../../contexts/PermissionContext';
 
 import { Popover, PopoverTrigger, PopoverContent } from "../../components/ui/popover";
 import { Calendar as DateCalendar } from "../../components/ui/calendar";
@@ -32,6 +33,8 @@ import DashboardHeader from "./DashboardHeader";
 
 export default function Dashboard() {
   usePageTitle('Dashboard');
+  const { hasPermission } = usePermissions();
+  const canViewMap = hasPermission('view_map');
   const [isEvacueeInfoModalOpen, setIsEvacueeInfoModalOpen] = useState(false);
   const [selectedDateRange, setSelectedDateRange] = useState<DateRange | undefined>(undefined);
   const { 
@@ -84,9 +87,11 @@ export default function Dashboard() {
       <>
 
       {/* Map Placeholder */}
-      <div className="w-full h-48 md:h-56 rounded-xl border overflow-hidden bg-gray-100 flex items-center justify-center">
-        <span className="text-gray-400">[Map Placeholder]</span>
-      </div>
+      {canViewMap && (
+        <div className="w-full h-48 md:h-56 rounded-xl border overflow-hidden bg-gray-100 flex items-center justify-center">
+          <span className="text-gray-400">[Map Placeholder]</span>
+        </div>
+      )}
 
       {/* Map Placeholder */}
       {/* <div className="relative w-full h-48 md:h-56 rounded-xl border overflow-hidden">

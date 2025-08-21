@@ -6,7 +6,7 @@ import { usePermissions } from '../contexts/PermissionContext';
 import { Search, MoreHorizontal, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Edit, Trash2 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../components/ui/dropdown-menu';
 import { Button } from '../components/ui/button';
-import AccessDenied from '../components/feedback/AccessDenied';
+// StatusCodes full-page 403 is now handled at the route level in App.tsx
 
 interface User {
     user_id: number; // Numeric users table id
@@ -37,6 +37,7 @@ export default function UserManagement(){
     const hasAddUser = hasPermission('add_user');
     const hasUpdateUser = hasPermission('update_user');
     const hasDeleteUser = hasPermission('delete_user');
+    const hasAssignRole = hasPermission('add_user_role');
     // Evac center capabilities are derived from granular permissions (no single 'manage_evacuation_centers' permission exists)
     const canSeeEvacColumn = hasPermission('view_evacuation_centers');
     const canManageEvacGlobally = hasPermission('create_evacuation_center') || hasPermission('update_evacuation_center') || hasPermission('delete_evacuation_center');
@@ -383,9 +384,7 @@ export default function UserManagement(){
     }
     
     // If user doesn't have permission, show access denied
-    if (!hasViewUserManagement) {
-        return <AccessDenied />;
-    }
+    // Access control handled by router-level PermissionGate
 
     // Get the display name for a user
     const getDisplayName = (user: User) => {
@@ -593,8 +592,10 @@ export default function UserManagement(){
         setFormLoading(true);
         
         try {
-            // Set role and evacuation center based on current user's role group
-            const targetRoleId = currentRoleConfig?.canSelectRole ? parseInt(formData.role_id) : (currentUser?.role_id || 3);
+            // Set role and evacuation center based on permission and role group
+            const targetRoleId = (currentRoleConfig?.canSelectRole && hasAssignRole)
+                ? parseInt(formData.role_id)
+                : (currentUser?.role_id || 3);
             
             const submitData = {
                 firstName: formData.first_name,
@@ -708,8 +709,10 @@ export default function UserManagement(){
         setFormLoading(true);
         
         try {
-            // Handle role and evacuation center based on current user's role group
-            const targetRoleId = currentRoleConfig?.canSelectRole ? parseInt(formData.role_id) : editingUser.role_id;
+            // Handle role and evacuation center based on permission and role group
+            const targetRoleId = (currentRoleConfig?.canSelectRole && hasAssignRole)
+                ? parseInt(formData.role_id)
+                : editingUser.role_id;
             
             const submitData = {
                 firstName: formData.first_name,
@@ -1186,8 +1189,8 @@ export default function UserManagement(){
                                     />
                                 </div>
 
-                                {/* Role - Show based on role configuration */}
-                                {currentRoleConfig?.canSelectRole && (
+                                {/* Role - Show only when allowed by role config AND permission */}
+                                {currentRoleConfig?.canSelectRole && hasAssignRole && (
                                     <div>
                                         <label className='block text-sm font-medium text-black mb-1'>
                                             Role
@@ -1212,13 +1215,18 @@ export default function UserManagement(){
                                     </div>
                                 )}
 
-                                {/* For roles that can't select role, use hidden input */}
-                                {!currentRoleConfig?.canSelectRole && (
+                                {/* When not allowed to assign roles, fix role_id via hidden input */}
+                                {!(currentRoleConfig?.canSelectRole && hasAssignRole) && (
                                     <input
                                         type='hidden'
                                         name='role_id'
-                                        value={currentUser?.role_id || 3}
+                                        value={isEditUserModalOpen ? (editingUser?.role_id || '') : (currentUser?.role_id || 3)}
                                     />
+                                )}
+
+                                {/* Optional note when assignment is restricted */}
+                                {currentRoleConfig?.canSelectRole && !hasAssignRole && (
+                                    <p className='text-xs text-gray-500'>You don't have permission to assign roles.</p>
                                 )}
 
                                 {/* Assigned Evacuation Center - Show based on role configuration and target user */}

@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { notificationService } from '../services/notificationService.ts';
+import { useSelector } from 'react-redux';
+import { selectToken } from '../features/auth/authSlice';
 import type { ServerAnnouncement } from '../services/notificationService.ts';
 
 type UIAnnouncement = {
@@ -33,6 +35,7 @@ function formatDisplayDate(dateString?: string): string {
 }
 
 export function useAnnouncements() {
+  const token = useSelector(selectToken);
   const [announcements, setAnnouncements] = useState<UIAnnouncement[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -54,7 +57,7 @@ export function useAnnouncements() {
     try {
       setLoading(true);
       setError(null);
-      const data = await notificationService.getAnnouncements();
+      const data = await notificationService.getAnnouncements(token ?? undefined);
       setAnnouncements((data ?? []).map(toUI));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load announcements');
@@ -75,7 +78,7 @@ export function useAnnouncements() {
         title: payload.title,
         content: payload.body,
         created_by: payload.created_by,
-      });
+      }, token ?? undefined);
       const mapped = toUI(created);
       setAnnouncements((prev) => [mapped, ...prev]);
       return mapped;
@@ -91,7 +94,7 @@ export function useAnnouncements() {
     try {
       setDeleting(true);
       setError(null);
-      await notificationService.deleteNotification(id);
+      await notificationService.deleteNotification(id, token ?? undefined);
       setAnnouncements((prev) => prev.filter((a) => a.id !== id));
       return true;
     } catch (err) {
