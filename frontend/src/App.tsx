@@ -7,7 +7,7 @@ import { useAutoRefreshToken } from './features/auth/useAutoRefreshToken';
 import TopNav from './components/TopNav';
 import SideNav from './components/SideNav';
 import { PermissionGate } from './components/PermissionGate';
-import AccessDenied from './components/feedback/AccessDenied';
+import StatusCodes from './components/StatusCodes';
 import Dashboard from './pages/Dashboard';
 import Map from './pages/Map';
 import EvacuationCenters from './pages/EvacuationCenters';
@@ -23,6 +23,8 @@ import ForgotPassword1 from './pages/ForgotPassword1';
 import ForgotPassword2 from './pages/ForgotPassword2';
 import DisasterDetail from './pages/DisasterDetail';
 import EvacuationCenterDetail from './pages/EvacuationCenterDetail';
+// Temporary testing route
+import CampManagerDashboard from "./components/Dashboard/CampManagerDashboard";
 
 // Protected Route Component
 interface ProtectedRouteProps {
@@ -109,17 +111,21 @@ function App() {
         {/* Protected routes with layout */}
         <Route path="/dashboard" element={
           <ProtectedRoute>
-            <AppLayout>
-              <Dashboard />
-            </AppLayout>
+            <PermissionGate permission="view_dashboard" fallback={<StatusCodes code={403} /> }>
+              <AppLayout>
+                <Dashboard />
+              </AppLayout>
+            </PermissionGate>
           </ProtectedRoute>
         } />
         
         <Route path="/map" element={
           <ProtectedRoute>
-            <AppLayout>
-              <Map />
-            </AppLayout>
+            <PermissionGate permission="view_map" fallback={<StatusCodes code={403} /> }>
+              <AppLayout>
+                <Map />
+              </AppLayout>
+            </PermissionGate>
           </ProtectedRoute>
         } />
         
@@ -133,11 +139,11 @@ function App() {
         
         <Route path="/evacuation-centers" element={
           <ProtectedRoute>
-            <AppLayout>
-              <PermissionGate permission="view_evacuation_centers" fallback={<AccessDenied />}>
+            <PermissionGate permission="view_evacuation_centers" fallback={<StatusCodes code={403} /> }>
+              <AppLayout>
                 <EvacuationCenters />
-              </PermissionGate>
-            </AppLayout>
+              </AppLayout>
+            </PermissionGate>
           </ProtectedRoute>
         } />
         
@@ -153,17 +159,21 @@ function App() {
         
         <Route path="/announcements" element={
           <ProtectedRoute>
-            <AppLayout>
-              <Announcements />
-            </AppLayout>
+            <PermissionGate permission="view_announcement_page" fallback={<StatusCodes code={403} /> }>
+              <AppLayout>
+                <Announcements />
+              </AppLayout>
+            </PermissionGate>
           </ProtectedRoute>
         } />
         
         <Route path="/user-management" element={
           <ProtectedRoute>
-            <AppLayout>
-              <UserManagement />
-            </AppLayout>
+            <PermissionGate permission="view_user_management" fallback={<StatusCodes code={403} /> }>
+              <AppLayout>
+                <UserManagement />
+              </AppLayout>
+            </PermissionGate>
           </ProtectedRoute>
         } />
         
@@ -199,6 +209,14 @@ function App() {
           </ProtectedRoute>
         } />
 
+        {/* Temporary testing route */}
+        <Route path="/camp-dashboard" element={
+          <ProtectedRoute>
+            <AppLayout>
+              <CampManagerDashboard />
+            </AppLayout>
+          </ProtectedRoute>
+          } />
       </Routes>
     </PermissionProvider>
   );

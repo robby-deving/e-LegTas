@@ -27,8 +27,10 @@ export default function SideNav() {
   // Get user data using consistent selector pattern
   const user = useSelector(selectCurrentUser);
   const { hasPermission } = usePermissions();
+  const canViewMap = hasPermission('view_map');
   const canViewEvacCenters = hasPermission('view_evacuation_centers');
   const canViewUserManagement = hasPermission('view_user_management');
+  const canViewAnnouncements = hasPermission('view_announcement_page');
 
   const handleLogout = async () => {
     try {
@@ -102,13 +104,17 @@ export default function SideNav() {
       ) : (
         // All other roles - Show all other menu items
         <>
-          <SideItem collapsed={collapsed} icon={mapIcon} label="Map" to="/map" />
+          {canViewMap && (
+            <SideItem collapsed={collapsed} icon={mapIcon} label="Map" to="/map" />
+          )}
           <SideItem collapsed={collapsed} icon={evacueeIcon} label="Evacuee Information" to="/evacuation-information" />
           {canViewEvacCenters && (
             <SideItem collapsed={collapsed} icon={evacuationCenterIcon} label="Evacuation Centers" to="/evacuation-centers" />
           )}
           <SideItem collapsed={collapsed} icon={reportIcon} label="Reports" to="/reports" />
-          <SideItem collapsed={collapsed} icon={announcementIcon} label="Announcements" to="/announcements" />
+          {canViewAnnouncements && (
+            <SideItem collapsed={collapsed} icon={announcementIcon} label="Announcements" to="/announcements" />
+          )}
           {canViewUserManagement && (
             <SideItem collapsed={collapsed} icon={userManagementIcon} label="User Management" to="/user-management" />
           )}

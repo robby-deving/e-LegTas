@@ -6,6 +6,8 @@ import shadow from 'leaflet/dist/images/marker-shadow.png';
 import { MapContainer, TileLayer, Marker, Tooltip } from 'react-leaflet';
 import ECMarker from '../../assets/ECMarker.svg'; 
 import type { EvacuationCenter } from '@/types/EvacuationCenter';
+import { store } from '@/store';
+import { selectToken, selectUserId } from '@/features/auth/authSlice';
 
 
 L.Icon.Default.mergeOptions({
@@ -30,9 +32,27 @@ export default function GISMap({ onMarkerClick }: GISMapProps) {
   const mapRef = useRef<L.Map | null>(null);
   const [evacuationCenters, setEvacuationCenters] = useState<EvacuationCenter[]>([]);
 
+  const buildHeaders = (extra: Record<string, string> = {}) => {
+    const state = store.getState() as any;
+    const token = selectToken(state);
+    const userId = selectUserId(state);
+    const devUserId = (import.meta as any).env?.VITE_DEV_USER_ID as string | undefined;
+    const headers: Record<string, string> = { Accept: 'application/json', ...extra };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    if (!token && userId) headers['x-user-id'] = String(userId);
+    if (!token && !userId && devUserId) headers['x-user-id'] = String(devUserId);
+    return headers;
+  };
+
 useEffect(() => {
-  fetch('http://localhost:3000/api/v1/evacuation-centers/detailed-map-data')
-    .then((res) => res.json())
+  fetch('/api/v1/evacuation-centers/detailed-map-data', { headers: buildHeaders() })
+    .then(async (res) => {
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`Failed to fetch map data (${res.status}): ${text}`);
+      }
+      return res.json();
+    })
     .then((res) => {
       console.log('Evacuation Centers:', res.data);
       setEvacuationCenters(res.data); // <<== this is the fix

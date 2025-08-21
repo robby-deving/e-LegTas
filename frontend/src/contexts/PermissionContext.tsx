@@ -79,6 +79,15 @@ export const PermissionProvider: React.FC<PermissionProviderProps> = ({ children
   }, [currentUser?.role_id, token]);
 
   const hasPermission = (permissionName: string): boolean => {
+    // System Admin (role_id: 1) bypass only for selected pages
+    if (currentUser?.role_id === 1) {
+      const bypass = new Set([
+        'view_dashboard',
+        'view_user_management',
+        'view_role_module_config',
+      ]);
+      if (bypass.has(permissionName)) return true;
+    }
     return permissions.some(permission => permission.permission_name === permissionName);
   };
 

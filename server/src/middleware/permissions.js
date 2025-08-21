@@ -31,6 +31,18 @@ const requirePermission = (permissionName) => {
         });
       }
 
+      // System Admin bypass for selected permissions
+      const adminBypass = new Set([
+        'view_user_management',
+        'create_role',
+        'update_role',
+        'delete_role',
+      ]);
+      if (userProfile.role_id === 1 && adminBypass.has(permissionName)) {
+        req.userRole = userProfile.role_id;
+        return next();
+      }
+
       // Get role permissions
       const { data: rolePermissions, error: permError } = await supabaseAdmin
         .from('role_permission')
@@ -39,7 +51,8 @@ const requirePermission = (permissionName) => {
             permission_name
           )
         `)
-        .eq('role_id', userProfile.role_id);
+        .eq('role_id', userProfile.role_id)
+        .is('deleted_at', null);
 
       if (permError) {
         return res.status(500).json({ 
@@ -115,7 +128,8 @@ const requireAnyPermission = (permissionNames) => {
             permission_name
           )
         `)
-        .eq('role_id', userProfile.role_id);
+        .eq('role_id', userProfile.role_id)
+        .is('deleted_at', null);
 
       if (permError) {
         return res.status(500).json({ 
@@ -189,7 +203,8 @@ const requireAllPermissions = (permissionNames) => {
             permission_name
           )
         `)
-        .eq('role_id', userProfile.role_id);
+        .eq('role_id', userProfile.role_id)
+        .is('deleted_at', null);
 
       if (permError) {
         return res.status(500).json({ 
@@ -256,7 +271,8 @@ const attachPermissions = async (req, res, next) => {
           permission_name
         )
       `)
-      .eq('role_id', userProfile.role_id);
+      .eq('role_id', userProfile.role_id)
+      .is('deleted_at', null);
 
     if (!permError && rolePermissions) {
       req.userPermissions = rolePermissions.map(rp => rp.permissions?.permission_name);
@@ -295,7 +311,8 @@ const getUserPermissions = async (userId) => {
           label
         )
       `)
-      .eq('role_id', userProfile.role_id);
+      .eq('role_id', userProfile.role_id)
+      .is('deleted_at', null);
 
     if (permError) {
       throw new Error('Error fetching permissions');

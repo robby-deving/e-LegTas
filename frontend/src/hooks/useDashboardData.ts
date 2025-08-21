@@ -28,6 +28,7 @@ export function useDashboardData(selectedDateRange?: DateRange) {
       total_capacity: number;
     }[]
   >([]);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const fetchDisasters = async () => {
@@ -73,6 +74,7 @@ export function useDashboardData(selectedDateRange?: DateRange) {
       if (!selectedDisaster?.id) return;
 
       try {
+      setLoading(true);
         let url = `http://localhost:3000/api/v1/dashboard/active-evacuation-centers/${selectedDisaster.id}`;
 
         if (selectedDateRange?.from) {
@@ -107,6 +109,8 @@ export function useDashboardData(selectedDateRange?: DateRange) {
       } catch (error) {
         console.error('Error fetching active evacuation centers:', error);
         setActiveEvacuationCenters(0);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -143,6 +147,7 @@ export function useDashboardData(selectedDateRange?: DateRange) {
       if (!selectedDisaster?.id) return;
 
       try {
+        setLoading(true);
         let url = `http://localhost:3000/api/v1/dashboard/registered-evacuees/${selectedDisaster.id}`;
 
         // ✅ If date filter applied, add query params with Manila → UTC conversion
@@ -178,6 +183,8 @@ export function useDashboardData(selectedDateRange?: DateRange) {
       } catch (error) {
         console.error('Error fetching registered evacuees:', error);
         setRegisteredEvacueesCount(0);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -221,6 +228,7 @@ export function useDashboardData(selectedDateRange?: DateRange) {
       if (!selectedDisaster?.id) return;
 
       try {
+        setLoading(true);
         let url = `http://localhost:3000/api/v1/dashboard/registered-families/${selectedDisaster.id}`;
 
         // ✅ If date filter applied, add query params with Manila → UTC conversion
@@ -254,6 +262,8 @@ export function useDashboardData(selectedDateRange?: DateRange) {
       } catch (error) {
         console.error('Error fetching registered families:', error);
         setRegisteredFamiliesCount(0);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -298,6 +308,7 @@ export function useDashboardData(selectedDateRange?: DateRange) {
       if (!selectedDisaster?.id) return;
 
       try {
+        setLoading(true);
         let url = `http://localhost:3000/api/v1/dashboard/evacuee-statistics/${selectedDisaster.id}`;
 
         // If date filter applied, add query params (Manila → UTC conversion)
@@ -348,6 +359,8 @@ export function useDashboardData(selectedDateRange?: DateRange) {
       } catch (error) {
         console.error("Error fetching evacuee statistics:", error);
         setEvacueeStatistics([]);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -401,6 +414,7 @@ export function useDashboardData(selectedDateRange?: DateRange) {
       if (!selectedDisaster?.id) return;
 
       try {
+        setLoading(true);
         let url = `http://localhost:3000/api/v1/dashboard/capacity-status/${selectedDisaster.id}`;
 
         // If date filter applied, add query params with Manila → UTC conversion
@@ -436,6 +450,8 @@ export function useDashboardData(selectedDateRange?: DateRange) {
       } catch (error) {
         console.error('Error fetching evacuation center capacity status:', error);
         setEvacuationCapacityStatus([]);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -522,7 +538,7 @@ export function useDashboardData(selectedDateRange?: DateRange) {
       supabase.removeChannel(channel);
     };
   }, [selectedDisaster, selectedDateRange]);
-  
+
   return {
     disasters,
     selectedDisaster,
@@ -532,5 +548,6 @@ export function useDashboardData(selectedDateRange?: DateRange) {
     registeredFamiliesCount,
     evacueeStatistics,
     evacuationCapacityStatus,
+    loading,
   };
 }

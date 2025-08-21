@@ -20,10 +20,16 @@ export type CreateAnnouncementPayload = {
 class NotificationService {
   private baseUrl = '/api/v1';
 
-  async getAnnouncements(): Promise<ServerAnnouncement[]> {
+  private buildHeaders(token?: string, extra: Record<string, string> = {}) {
+    const base: Record<string, string> = { Accept: 'application/json', ...extra };
+    if (token) base['Authorization'] = `Bearer ${token}`;
+    return base;
+  }
+
+  async getAnnouncements(token?: string): Promise<ServerAnnouncement[]> {
     const response = await fetch(`${this.baseUrl}/notifications/`, {
       method: 'GET',
-      headers: { Accept: 'application/json' },
+      headers: this.buildHeaders(token),
     });
     if (!response.ok) {
       const errorData = await response.json().catch(() => null);
@@ -33,10 +39,10 @@ class NotificationService {
     return Array.isArray(result?.data) ? result.data : result;
   }
 
-  async createAnnouncement(payload: CreateAnnouncementPayload): Promise<ServerAnnouncement> {
+  async createAnnouncement(payload: CreateAnnouncementPayload, token?: string): Promise<ServerAnnouncement> {
     const response = await fetch(`${this.baseUrl}/notifications/send-announcement`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      headers: this.buildHeaders(token, { 'Content-Type': 'application/json' }),
       body: JSON.stringify(payload),
     });
     if (!response.ok) {
@@ -47,10 +53,10 @@ class NotificationService {
     return result?.data ?? result;
   }
 
-  async deleteNotification(id: number): Promise<void> {
+  async deleteNotification(id: number, token?: string): Promise<void> {
     const response = await fetch(`${this.baseUrl}/notifications/${id}`, {
       method: 'DELETE',
-      headers: { Accept: 'application/json' },
+      headers: this.buildHeaders(token),
     });
     if (!response.ok) {
       const errorData = await response.json().catch(() => null);
