@@ -13,6 +13,7 @@ const permissionRoutes = require('./permission.routes');
 const roleRoutes = require('./role.routes');
 const notificationRoutes = require('./notification.routes');
 const dashboardRoutes = require('./dashboard.routes');
+const profileRoutes = require('./profile.routes');
 
 // Middleware and controllers
 const { authenticateUser, requireRoleGroup, requireUserManagementAccess } = require('../middleware');
@@ -44,6 +45,9 @@ router.use('/disaster-events', disasterEventRoutes);
 router.use('/dashboard', dashboardRoutes);
 router.use('/evacuees', evacueesRoutes);
 router.use('/barangays', barangayRoutes);
+router.use('/notifications', notificationRoutes);
+router.use('/profile', profileRoutes);
+
 
 // Role routes are handled in role.routes.js
 
