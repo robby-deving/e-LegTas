@@ -13,6 +13,8 @@ class ApiError extends Error {
 
 // --- Controller Functions ---
 
+// --- For CDRRMO/CSWDO ---
+
 /**
  * @desc Count active evacuation centers for a specific disaster
  * @route GET /api/v1/dashboard/evacuation-centers/:disasterId
@@ -584,7 +586,294 @@ exports.getActiveDisasters = async (req, res) => {
   res.status(200).json(data);
 };
 
+// --- For Camp Managers ---
 
+/**
+ * @desc Get active disasters assigned to a camp manager
+ * @route GET /api/v1/dashboard/camp-manager/disasters/:userId
+ * @access Public (testing only, no login)
+ */
+exports.getCampManagerDisasters = async (req, res) => {
+  try {
+    const { userId } = req.params;
 
+    const { data, error } = await supabase
+      .from("disaster_evacuation_event")
+      .select(`
+        id,
+        disaster_id,
+        evacuation_center_id,
+        disasters (
+          id,
+          disaster_name,
+          disaster_start_date,
+          disaster_end_date,
+          disaster_types ( name )
+        )
+      `)
+      .eq("assigned_user_id", userId)
+      .is("evacuation_end_date", null);
 
+    if (error) return res.status(500).json({ error: error.message });
+
+    // flatten so that only the disaster details are returned
+    const disasters = data
+      .filter(d => d.disasters) // join result
+      .map(d => ({
+        ...d.disasters,
+        // include the evacuation_center_id if needed in the future
+        evacuation_center_id: d.evacuation_center_id,
+        disaster_evacuation_event_id: d.id,
+      }));
+
+    res.status(200).json(disasters);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+/**
+ * @desc Get Evacuation Center Name and Barangay for a given disaster_evacuation_event_id
+ * @route GET /api/v1/dashboard/camp-manager/center/:eventId
+ * @access Public (testing only, no login)
+ */
+exports.getCampManagerCenterInfo = async (req, res) => {
+  try {
+    const { eventId } = req.params;
+
+    const { data, error } = await supabase
+      .from("disaster_evacuation_event")
+      .select(`
+        id,
+        evacuation_centers (
+          id,
+          name,
+          barangays ( name )
+        )
+      `)
+      .eq("id", eventId)
+      .single();
+
+    if (error) return res.status(500).json({ error: error.message });
+
+    if (!data) return res.status(404).json({ error: "Event not found" });
+
+    const centerInfo = {
+      id: data.evacuation_centers.id,
+      name: data.evacuation_centers.name,
+      barangay: data.evacuation_centers.barangays?.name || null,
+    };
+
+    res.status(200).json(centerInfo);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+/**
+ * @desc Get Camp Manager Dashboard Summary by Disaster Evacuation Event
+ *       Live = evacuation_summaries
+ *       Filtered = evacuation_registrations (by arrival_timestamp)
+ * @route GET /api/v1/dashboard/camp-manager/summary/:eventId?from=YYYY-MM-DDTHH:mm:ssZ&to=YYYY-MM-DDTHH:mm:ssZ
+ * @access Public (testing only, should be protected in production)
+ */
+exports.getCampManagerDashboardSummary = async (req, res) => {
+  try {
+    const { eventId } = req.params;
+    const { from, to } = req.query; // optional date filter (ISO UTC strings)
+
+    // --------------------
+    // Filtered mode (with date range)
+    // --------------------
+    if (from && to) {
+      // Fetch registrations in the date range for this event with resident details
+      const { data: registrations, error: regError } = await supabase
+        .from("evacuation_registrations")
+        .select(`
+          id,
+          family_head_id,
+          arrival_timestamp,
+          vulnerability_type_ids,
+          evacuee_residents (
+            id,
+            resident:residents (
+              id,
+              birthdate,
+              sex
+            )
+          )
+        `)
+        .eq("disaster_evacuation_event_id", eventId)
+        .gte("arrival_timestamp", from)
+        .lte("arrival_timestamp", to);
+
+      if (regError) {
+        console.error("Supabase Error (filtered registrations):", regError);
+        return res.status(500).json({
+          success: false,
+          error: "Failed to fetch filtered registrations.",
+        });
+      }
+
+      // Registered evacuees = number of registrations
+      const registeredEvacuees = registrations?.length || 0;
+
+      // Registered families = unique family_head_id count
+      const uniqueFamilies = new Set((registrations || []).map(r => r.family_head_id));
+      const registeredFamilies = uniqueFamilies.size;
+
+      // Initialize evacuee statistics
+      const stats = {
+        total_no_of_male: 0,
+        total_no_of_female: 0,
+        total_no_of_infant: 0,
+        total_no_of_children: 0,
+        total_no_of_youth: 0,
+        total_no_of_adult: 0,
+        total_no_of_seniors: 0,
+        total_no_of_pwd: 0,
+        total_no_of_pregnant: 0,
+        total_no_of_lactating_women: 0,
+      };
+
+      // Use "today" semantics for age calculation
+      const today = new Date();
+
+      (registrations || []).forEach(reg => {
+        const resident = reg.evacuee_residents?.resident;
+        const vulnIds = reg.vulnerability_type_ids || [];
+
+        if (resident) {
+          // Count sex
+          if (resident.sex?.toLowerCase() === "male") stats.total_no_of_male++;
+          if (resident.sex?.toLowerCase() === "female") stats.total_no_of_female++;
+
+          // Age groups
+          if (resident.birthdate) {
+            const birthDate = new Date(resident.birthdate);
+            const age =
+              today.getFullYear() -
+              birthDate.getFullYear() -
+              (today < new Date(today.getFullYear(), birthDate.getMonth(), birthDate.getDate()) ? 1 : 0);
+
+            if (age <= 1) stats.total_no_of_infant++;
+            else if (age >= 2 && age <= 12) stats.total_no_of_children++;
+            else if (age >= 13 && age <= 17) stats.total_no_of_youth++;
+            else if (age >= 18 && age <= 59) stats.total_no_of_adult++;
+            else if (age >= 60) stats.total_no_of_seniors++;
+          }
+        }
+
+        // Vulnerabilities (only for PWD, Pregnant Woman, Lactating Woman)
+        if (Array.isArray(vulnIds)) {
+          vulnIds.forEach(id => {
+            if (id === "4" || id === 4) stats.total_no_of_pwd++; // Person with Disability
+            if (id === "5" || id === 5) stats.total_no_of_pregnant++; // Pregnant Woman
+            if (id === "6" || id === 6) stats.total_no_of_lactating_women++; // Lactating Woman
+          });
+        }
+      });
+
+      // Fetch evacuation center capacity (same as live mode)
+      const { data: center, error: centerError } = await supabase
+        .from("disaster_evacuation_event")
+        .select(
+          `
+          evacuation_center:evacuation_centers (
+            id,
+            name,
+            total_capacity
+          )
+        `
+        )
+        .eq("id", eventId)
+        .single();
+
+      if (centerError) {
+        console.error("Supabase Error (center fetch):", centerError);
+      }
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          registeredFamilies,
+          registeredEvacuees,
+          ecCapacity: center?.evacuation_center?.total_capacity || 0,
+          evacueeStatistics: stats,
+        },
+        message: "Filtered camp manager summary by arrival date.",
+      });
+    }
+
+    // --------------------
+    // Live mode (no date filter)
+    // --------------------
+    const { data: summary, error: summaryError } = await supabase
+      .from("evacuation_summaries")
+      .select(
+        `
+        total_no_of_family,
+        total_no_of_individuals,
+        total_no_of_male,
+        total_no_of_female,
+        total_no_of_infant,
+        total_no_of_children,
+        total_no_of_youth,
+        total_no_of_adult,
+        total_no_of_seniors,
+        total_no_of_pwd,
+        total_no_of_pregnant,
+        total_no_of_lactating_women,
+        disaster_evacuation_event_id
+      `
+      )
+      .eq("disaster_evacuation_event_id", eventId)
+      .single();
+
+    if (summaryError) throw summaryError;
+
+    const { data: center, error: centerError } = await supabase
+      .from("disaster_evacuation_event")
+      .select(
+        `
+        evacuation_center:evacuation_centers (
+          id,
+          name,
+          total_capacity
+        )
+      `
+      )
+      .eq("id", eventId)
+      .single();
+
+    if (centerError) throw centerError;
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        registeredFamilies: summary?.total_no_of_family || 0,
+        registeredEvacuees: summary?.total_no_of_individuals || 0,
+        ecCapacity: center?.evacuation_center?.total_capacity || 0,
+        evacueeStatistics: {
+          total_no_of_male: summary?.total_no_of_male || 0,
+          total_no_of_female: summary?.total_no_of_female || 0,
+          total_no_of_infant: summary?.total_no_of_infant || 0,
+          total_no_of_children: summary?.total_no_of_children || 0,
+          total_no_of_youth: summary?.total_no_of_youth || 0,
+          total_no_of_adult: summary?.total_no_of_adult || 0,
+          total_no_of_seniors: summary?.total_no_of_seniors || 0,
+          total_no_of_pwd: summary?.total_no_of_pwd || 0,
+          total_no_of_pregnant: summary?.total_no_of_pregnant || 0,
+          total_no_of_lactating_women: summary?.total_no_of_lactating_women || 0,
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching Camp Manager Dashboard summary:", error?.message || error);
+    return res.status(500).json({
+      success: false,
+      error: error?.message || "Internal server error",
+    });
+  }
+};
 

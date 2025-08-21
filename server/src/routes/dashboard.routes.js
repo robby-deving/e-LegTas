@@ -27,6 +27,12 @@ router.get('/capacity-status/:disasterId', dashboardController.getEvacuationCent
 // Example: GET - /api/v1/dashboard/disasters
 router.get('/disasters', dashboardController.getActiveDisasters);
 
+// For Camp Manager Dashboard
+
+router.get('/camp-manager/disasters/:userId', dashboardController.getCampManagerDisasters);
+router.get("/camp-manager/center/:eventId", dashboardController.getCampManagerCenterInfo);
+router.get("/camp-manager/summary/:eventId", dashboardController.getCampManagerDashboardSummary);
+
 
 // Future dashboard routes can follow this format:
 // router.get('/total-evacuees/:disasterId', dashboardController.getTotalEvacuees);

@@ -8,6 +8,8 @@ export type Disaster = {
   disaster_types?: {
     name: string;
   };
+  disaster_evacuation_event_id: number;
+  evacuation_center_id: number;
 };
 
 export type DisasterEvacuationEvent = {
@@ -29,3 +31,9 @@ export type EvacuationSummary = {
   total_no_of_pregnant: number | null;
   total_no_of_lactating_women: number | null;
 };
+
+export interface CenterInfo {
+  id: number;
+  name: string;
+  barangay: string | null;
+}

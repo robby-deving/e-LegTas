@@ -2,8 +2,6 @@
 
 const { supabase } = require('../config/supabase');
 
-const TABLE_NAME = 'users';
-
 // --- Helper for Custom API Errors ---
 class ApiError extends Error {
     constructor(message, statusCode = 500) {
@@ -24,7 +22,7 @@ exports.getUserProfile = async (req, res, next) => {
 
         // Query: join users -> users_profile -> residents
         const { data, error } = await supabase
-            .from(TABLE_NAME)
+            .from('users')
             .select(`
                 id,
                 employee_number,
@@ -67,4 +65,86 @@ exports.getUserProfile = async (req, res, next) => {
         console.error('Unexpected Error (getUserProfile):', err);
         next(new ApiError('Internal server error during getUserProfile.', 500));
     }
+};
+
+/**
+ * @desc Update profile of logged-in user
+ * @route PUT /api/v1/profile/:userId
+ * @access Private
+ */
+exports.updateUserProfile = async (req, res, next) => {
+  try {
+    const { userId } = req.params;
+    const { email, phone_number, first_name, last_name } = req.body;
+
+    // Step 1: Fetch the user's profile to get users_profile.id and residents.id
+    const { data: existingData, error: fetchError } = await supabase
+      .from('users')
+      .select(`
+        id,
+        users_profile (
+          id,
+          email,
+          phone_number,
+          residents (
+            id,
+            first_name,
+            last_name
+          )
+        )
+      `)
+      .eq('id', userId)
+      .single();
+
+    if (fetchError) {
+      console.error('Supabase Error (fetch profile before update):', fetchError);
+      return next(new ApiError('Failed to fetch user profile before update.', 500));
+    }
+
+    if (!existingData) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    const profileId = existingData.users_profile?.id;
+    const residentId = existingData.users_profile?.residents?.id;
+
+    // Step 2: Update users_profile table
+    if (profileId) {
+      const { error: updateProfileError } = await supabase
+        .from('users_profile')
+        .update({
+          email: email ?? existingData.users_profile.email,
+          phone_number: phone_number ?? existingData.users_profile.phone_number
+        })
+        .eq('id', profileId);
+
+      if (updateProfileError) {
+        console.error('Supabase Error (update users_profile):', updateProfileError);
+        return next(new ApiError('Failed to update user profile details.', 500));
+      }
+    }
+
+    // Step 3: Update residents table
+    if (residentId) {
+      const { error: updateResidentError } = await supabase
+        .from('residents')
+        .update({
+          first_name: first_name ?? existingData.users_profile.residents.first_name,
+          last_name: last_name ?? existingData.users_profile.residents.last_name
+        })
+        .eq('id', residentId);
+
+      if (updateResidentError) {
+        console.error('Supabase Error (update residents):', updateResidentError);
+        return next(new ApiError('Failed to update resident details.', 500));
+      }
+    }
+
+    res.status(200).json({
+      message: 'Successfully updated user profile.'
+    });
+  } catch (err) {
+    console.error('Unexpected Error (updateUserProfile):', err);
+    next(new ApiError('Internal server error during updateUserProfile.', 500));
+  }
 };

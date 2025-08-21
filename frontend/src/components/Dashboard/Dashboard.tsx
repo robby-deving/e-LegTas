@@ -42,7 +42,8 @@ export default function Dashboard() {
     registeredEvacueesCount,
     registeredFamiliesCount,
     evacueeStatistics,
-    evacuationCapacityStatus, } = useDashboardData(selectedDateRange);
+    evacuationCapacityStatus,
+    loading, } = useDashboardData(selectedDateRange);
 
   const fromDate = selectedDisaster?.disaster_start_date
     ? new Date(selectedDisaster.disaster_start_date)
@@ -75,8 +76,11 @@ export default function Dashboard() {
         toDate={toDate}
       />
 
-    {/* ✅ Check if disaster is selected */}
-    {selectedDisaster ? (
+    {loading ? (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-lg text-gray-500">Loading dashboard data...</p>
+      </div>
+    ) : selectedDisaster ? (
       <>
 
       {/* Map Placeholder */}
