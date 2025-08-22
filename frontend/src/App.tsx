@@ -23,8 +23,6 @@ import ForgotPassword1 from './pages/ForgotPassword1';
 import ForgotPassword2 from './pages/ForgotPassword2';
 import DisasterDetail from './pages/DisasterDetail';
 import EvacuationCenterDetail from './pages/EvacuationCenterDetail';
-// Temporary testing route
-import CampManagerDashboard from "./components/Dashboard/CampManagerDashboard";
 
 // Protected Route Component
 interface ProtectedRouteProps {
@@ -210,13 +208,6 @@ function App() {
         } />
 
         {/* Temporary testing route */}
-        <Route path="/camp-dashboard" element={
-          <ProtectedRoute>
-            <AppLayout>
-              <CampManagerDashboard />
-            </AppLayout>
-          </ProtectedRoute>
-          } />
       </Routes>
     </PermissionProvider>
   );

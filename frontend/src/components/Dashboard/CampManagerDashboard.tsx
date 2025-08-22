@@ -12,16 +12,57 @@ import { EvacuationCenterNameCard } from "../../components/cards/EvacuationCente
 import { RegisteredFamiliesCard } from "../../components/cards/RegisteredFamiliesCard";
 import { RegisteredEvacueesCard } from "../../components/cards/RegisteredEvacueesCard";
 import { ECCapacityCard } from "../../components/cards/ECCapacityCard";
+import { useSelector } from 'react-redux';
+import { selectCurrentUser } from '../../features/auth/authSlice';
+import { usePermissions } from '../../contexts/PermissionContext';
 
 export default function CampManagerDashboard() {
   usePageTitle('CampManagerDashboard');
+  const { hasPermission } = usePermissions();
+  const currentUser = useSelector(selectCurrentUser);
+  
+  // Use the actual authenticated user's ID instead of hardcoded value
+  const campManagerId = currentUser?.user_id;
 
   const [isEvacueeInfoModalOpen, setIsEvacueeInfoModalOpen] = useState(false);
   const [selectedDateRange, setSelectedDateRange] = useState<DateRange | undefined>(undefined);
 
-  //  temporary hardcoded camp manager ID (replace later with auth token)
-  const campManagerId = 1;
-  
+  // Check if user has permission to view dashboard specific data
+  if (!hasPermission('view_dashboard_specific')) {
+    return (
+      <div className="text-black p-6 space-y-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <h2 className="text-2xl font-semibold text-gray-700 mb-2">
+              Access Denied
+            </h2>
+            <p className="text-lg text-gray-500">
+              You don't have permission to view this dashboard.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't fetch data if we don't have a valid camp manager ID
+  if (!campManagerId) {
+    return (
+      <div className="text-black p-6 space-y-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <h2 className="text-2xl font-semibold text-gray-700 mb-2">
+              User ID Not Found
+            </h2>
+            <p className="text-lg text-gray-500">
+              Unable to load dashboard data. Please contact your administrator.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const { 
     disasters, 
     selectedDisaster, 

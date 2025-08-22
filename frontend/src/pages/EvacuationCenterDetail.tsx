@@ -26,12 +26,15 @@ import { FamilyHeadSearchModal } from "../components/modals/FamilyHeadSearchModa
 import { differenceInYears } from "date-fns";
 import { mapEditPayloadToForm, mapSearchPayloadToForm } from "@/utils/mapEvacueePayload";
 import type { SortKey, SortState } from "@/types/EvacuationCenterDetails";
+import { usePermissions } from "../contexts/PermissionContext";
 
 export default function EvacuationCenterDetail() {
   const navigate = useNavigate();
   const { id: encodedDisasterId, disasterEvacuationEventId: encodedCenterId } = useParams();
   const disasterId = decodeId(encodedDisasterId!);
   const centerId = decodeId(encodedCenterId!);
+  const { hasPermission } = usePermissions();
+  const canViewDashboardSpecific = hasPermission('view_dashboard_specific');
   const [detail, setDetail] = useState<EvacuationCenterDetail | null>(null);
   const [statistics, setStatistics] = useState<EvacueeStatistics | null>(null);
   const [evacuees, setEvacuees] = useState<FamilyEvacueeInformation[]>([]);
@@ -604,31 +607,33 @@ const { paginatedEvacuees, totalRows, totalPages } = useMemo(() => {
       </div>
 
       {/* Center Summary & Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
-        <div className="md:col-span-1">
-          <EvacuationCenterNameCard
-            name={centerName}
-            barangay={centerBarangay}
-          />
-          <div className="flex flex-col gap-6 mt-5">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <RegisteredFamiliesCard count={familiesCount} />
-              <RegisteredEvacueesCard count={evacueesCount} />
-              <ECCapacityCard count={capacityCount} />
+      {canViewDashboardSpecific && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+          <div className="md:col-span-1">
+            <EvacuationCenterNameCard
+              name={centerName}
+              barangay={centerBarangay}
+            />
+            <div className="flex flex-col gap-6 mt-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <RegisteredFamiliesCard count={familiesCount} />
+                <RegisteredEvacueesCard count={evacueesCount} />
+                <ECCapacityCard count={capacityCount} />
+              </div>
             </div>
           </div>
+          <Card className="md:col-span-1 shadow-sm border border-border">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xl font-bold leading-tight mb-0">
+                Evacuees Statistics
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <EvacueeStatisticsChart data={chartData} />
+            </CardContent>
+          </Card>
         </div>
-        <Card className="md:col-span-1 shadow-sm border border-border">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xl font-bold leading-tight mb-0">
-              Evacuees Statistics
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <EvacueeStatisticsChart data={chartData} />
-          </CardContent>
-        </Card>
-      </div>
+      )}
 
       {/* Registered Evacuees Table */}
       <div className="py-1">
