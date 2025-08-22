@@ -280,7 +280,9 @@ export default function UserManagement(){
     useEffect(() => {
         const fetchBarangays = async () => {
             try {
-                const response = await fetch('http://localhost:3000/api/v1/users/data/barangays');
+                const response = await fetch('http://localhost:3000/api/v1/users/data/barangays', {
+                    headers: getAuthHeaders(),
+                });
                 
                 if (!response.ok) {
                     throw new Error(`Failed to fetch barangays: ${response.status}`);
@@ -300,14 +302,16 @@ export default function UserManagement(){
         };
 
         fetchBarangays();
-    }, []);
+    }, [token]); // Add token as dependency
 
     // Fetch evacuation centers from backend
     useEffect(() => {
         const fetchEvacuationCenters = async () => {
             try {
                 // Add query parameter to only fetch active evacuation centers (where deleted_at IS NULL)
-                const response = await fetch('http://localhost:3000/api/v1/users/data/evacuation-centers?active=true');
+                const response = await fetch('http://localhost:3000/api/v1/users/data/evacuation-centers?active=true', {
+                    headers: getAuthHeaders(),
+                });
                 
                 if (!response.ok) {
                     throw new Error(`Failed to fetch evacuation centers: ${response.status}`);
@@ -335,7 +339,7 @@ export default function UserManagement(){
         };
 
         fetchEvacuationCenters();
-    }, []);
+    }, [token]); // Add token as dependency
 
     // Filter users based on search term
     useEffect(() => {

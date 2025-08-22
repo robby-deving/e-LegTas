@@ -5,6 +5,7 @@ import { Calendar as DateCalendar } from "../ui/calendar";
 import { Calendar as CalendarIcon } from "lucide-react";
 import type { DateRange } from "react-day-picker";
 import type { Disaster } from "../../types/dashboard";
+import { usePermissions } from "../../contexts/PermissionContext";
 
 interface DashboardHeaderProps {
   disasters: Disaster[];
@@ -25,11 +26,15 @@ export default function DashboardHeader({
   fromDate,
   toDate
 }: DashboardHeaderProps) {
+  const { hasPermission } = usePermissions();
+  const canFilterByDisaster = hasPermission('filter_dashboard_by_disaster');
+  const canFilterByDate = hasPermission('filter_dashboard_by_date');
+
   return (
     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
       <h1 className="text-3xl font-bold text-green-800">Dashboard</h1>
       <div className="flex gap-2 items-center">
-        {disasters.length > 0 ? (
+        {canFilterByDisaster && disasters.length > 0 ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="text-green-700 border-green-300 cursor-pointer">
@@ -39,10 +44,10 @@ export default function DashboardHeader({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
-              {disasters.map(disaster => (
+              {disasters.map((disaster, index) => (
                 <DropdownMenuItem
                   className="cursor-pointer"
-                  key={disaster.id}
+                  key={`${disaster.id}-${index}`}
                   onClick={() => {
                     setSelectedDisaster(disaster);
                     setSelectedDateRange(undefined);
@@ -53,7 +58,7 @@ export default function DashboardHeader({
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
-        ) : (
+        ) : canFilterByDisaster && disasters.length === 0 ? (
           <Button
             variant="outline"
             className="text-green-700 border-green-300 cursor-default"
@@ -61,8 +66,8 @@ export default function DashboardHeader({
           >
             No Active Disaster
           </Button>
-        )}
-        {selectedDisaster && (
+        ) : null}
+        {canFilterByDate && selectedDisaster && (
           <Popover>
             <PopoverTrigger asChild>
               <Button
@@ -93,9 +98,9 @@ export default function DashboardHeader({
                     ? selectedDateRange.from.toLocaleDateString("en-PH", {
                         day: "2-digit",
                         month: "long",
-                        year: "numeric",
-                      })
-                    : "Select Date Filter"}
+                          year: "numeric",
+                        })
+                      : "Select Date Filter"}
                 </span>
 
                 {selectedDateRange?.from && (

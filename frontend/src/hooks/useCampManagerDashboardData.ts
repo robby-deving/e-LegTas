@@ -38,8 +38,7 @@ export function useCampManagerDashboardData(campManagerId: number, selectedDateR
       headers['Authorization'] = `Bearer ${token}`;
     }
     
-    console.log('Auth headers being sent:', headers);
-    console.log('Token from Redux:', token ? 'Present' : 'None');
+    
     
     return headers;
   };
