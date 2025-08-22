@@ -2,6 +2,7 @@
 
 const express = require('express');
 const dashboardController = require('../controllers/dashboard.controller'); // Adjust path based on your structure
+const { authenticateUser, requirePermission } = require('../middleware');
 
 // Create an Express Router instance
 const router = express.Router();
@@ -27,12 +28,25 @@ router.get('/capacity-status/:disasterId', dashboardController.getEvacuationCent
 // Example: GET - /api/v1/dashboard/disasters
 router.get('/disasters', dashboardController.getActiveDisasters);
 
-// For Camp Manager Dashboard
+// For Camp Manager Dashboard - Protected with view_dashboard_specific permission
 
-router.get('/camp-manager/disasters/:userId', dashboardController.getCampManagerDisasters);
-router.get("/camp-manager/center/:eventId", dashboardController.getCampManagerCenterInfo);
-router.get("/camp-manager/summary/:eventId", dashboardController.getCampManagerDashboardSummary);
+router.get('/camp-manager/disasters/:userId', 
+  authenticateUser, 
+  requirePermission('view_dashboard_specific'), 
+  dashboardController.getCampManagerDisasters
+);
 
+router.get("/camp-manager/center/:eventId", 
+  authenticateUser, 
+  requirePermission('view_dashboard_specific'), 
+  dashboardController.getCampManagerCenterInfo
+);
+
+router.get("/camp-manager/summary/:eventId", 
+  authenticateUser, 
+  requirePermission('view_dashboard_specific'), 
+  dashboardController.getCampManagerDashboardSummary
+);
 
 // Future dashboard routes can follow this format:
 // router.get('/total-evacuees/:disasterId', dashboardController.getTotalEvacuees);

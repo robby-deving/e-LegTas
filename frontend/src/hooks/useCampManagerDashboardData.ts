@@ -13,6 +13,8 @@ import type {
   CenterInfo,
   EvacuationSummary,
 } from '../types/dashboard';
+import { useSelector } from 'react-redux';
+import { selectToken } from '../features/auth/authSlice';
 
 export function useCampManagerDashboardData(campManagerId: number, selectedDateRange?: DateRange) {
   const [disasters, setDisasters] = useState<Disaster[]>([]);
@@ -23,13 +25,38 @@ export function useCampManagerDashboardData(campManagerId: number, selectedDateR
   const [capacityCount, setCapacityCount] = useState(0);
   const [chartData, setChartData] = useState<{ label: string; value: number }[]>([]);
   const [loading, setLoading] = useState(false);
+  
+  const token = useSelector(selectToken);
 
-    useEffect(() => {
+  // Get auth headers for API calls - using the same approach as UserManagement
+  const getAuthHeaders = () => {
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+    };
+    
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    
+    console.log('Auth headers being sent:', headers);
+    console.log('Token from Redux:', token ? 'Present' : 'None');
+    
+    return headers;
+  };
+
+  useEffect(() => {
     const fetchDisasters = async () => {
       try {
+        const headers = getAuthHeaders();
         const res = await fetch(
-          `http://localhost:3000/api/v1/dashboard/camp-manager/disasters/${campManagerId}`
+          `http://localhost:3000/api/v1/dashboard/camp-manager/disasters/${campManagerId}`,
+          { headers }
         );
+        
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        
         const data: Disaster[] = await res.json();
 
         setDisasters(data);
@@ -56,9 +83,16 @@ export function useCampManagerDashboardData(campManagerId: number, selectedDateR
 
       setLoading(true);
       try {
+        const headers = getAuthHeaders();
         const res = await fetch(
-          `http://localhost:3000/api/v1/dashboard/camp-manager/center/${selectedDisaster.disaster_evacuation_event_id}`
+          `http://localhost:3000/api/v1/dashboard/camp-manager/center/${selectedDisaster.disaster_evacuation_event_id}`,
+          { headers }
         );
+        
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        
         const data: CenterInfo = await res.json();
         setCenterInfo(data);
       } catch (err) {
@@ -111,7 +145,13 @@ export function useCampManagerDashboardData(campManagerId: number, selectedDateR
           url += `?from=${encodeURIComponent(fromIso)}&to=${encodeURIComponent(toIso)}`;
         }
 
-        const res = await fetch(url);
+        const headers = getAuthHeaders();
+        const res = await fetch(url, { headers });
+        
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        
         const json = await res.json();
 
         const data = json?.data ?? {};
