@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useSelector } from "react-redux";
 import { Input } from "../components/ui/input";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "../components/ui/table";
 import { ChevronRight, Calendar, ArrowRight } from "lucide-react";
@@ -12,16 +13,31 @@ import { usePageTitle } from "../hooks/usePageTitle";
 import { formatDate } from "@/utils/dateFormatter";
 import { getTypeColor, getTagColor } from "@/constants/disasterTypeColors";
 import { encodeId } from "@/utils/secureId";
+import { selectToken } from "../features/auth/authSlice";
 
 export default function DisasterDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const token = useSelector(selectToken);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [evacuationCenters, setCenters] = useState<ActiveEvacuation[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [disaster, setDisaster] = useState<Disaster | null>(null);
+
+  // Get auth headers for API calls
+  const getAuthHeaders = () => {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    return headers;
+  };
 
   const rawDisasterId = id?.split("-")[0] || "";
   const disasterId = decodeId(rawDisasterId);
@@ -47,16 +63,20 @@ export default function DisasterDetail() {
 
       try {
         const res = await axios.get(
-          `http://localhost:3000/api/v1/disaster-events/by-disaster/${disasterId}/details`
+          `http://localhost:3000/api/v1/disaster-events/by-disaster/${disasterId}/details`,
+          { headers: getAuthHeaders() }
         );
-        setCenters(res.data.data);
+        
+        // Type-safe data extraction
+        const responseData = res.data as { data: ActiveEvacuation[] };
+        setCenters(responseData.data || []);
       } catch (err) {
         console.error("Failed to fetch evacuation data", err);
       }
     };
 
     fetchEvacuationCenters();
-  }, [disasterId]);
+  }, [disasterId, token]);
 
   const handleRowsPerPageChange = (value: string) => {
     setRowsPerPage(Number(value));

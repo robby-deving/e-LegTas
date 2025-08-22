@@ -31,6 +31,7 @@ export default function SideNav() {
   const canViewEvacCenters = hasPermission('view_evacuation_centers');
   const canViewUserManagement = hasPermission('view_user_management');
   const canViewAnnouncements = hasPermission('view_announcement_page');
+  const canViewDisaster = hasPermission('view_disaster');
 
   const handleLogout = async () => {
     try {
@@ -107,7 +108,9 @@ export default function SideNav() {
           {canViewMap && (
             <SideItem collapsed={collapsed} icon={mapIcon} label="Map" to="/map" />
           )}
-          <SideItem collapsed={collapsed} icon={evacueeIcon} label="Evacuee Information" to="/evacuation-information" />
+          {canViewDisaster && (
+            <SideItem collapsed={collapsed} icon={evacueeIcon} label="Evacuee Information" to="/evacuation-information" />
+          )}
           {canViewEvacCenters && (
             <SideItem collapsed={collapsed} icon={evacuationCenterIcon} label="Evacuation Centers" to="/evacuation-centers" />
           )}

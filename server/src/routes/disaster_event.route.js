@@ -1,9 +1,12 @@
 // disaster_event.route.js
 
 const express = require('express');
-const disasterEventController = require('../controllers/disaster_event.controller'); // Adjust path
-
-// Placeholder for your security middleware (e.g., const authenticateUser = require('../middleware/authMiddleware');)
+const { 
+  getDisasterEventDetailsByDisasterId,
+  getDisasterEventById,
+  createDisasterEvent
+} = require('../controllers/disaster_event.controller');
+const { authenticateUser, requirePermission } = require('../middleware');
 
 const router = express.Router();
 
@@ -11,15 +14,24 @@ const router = express.Router();
 
 // GET detailed disaster evacuation event data filtered by disaster ID
 // Example: GET /api/v1/disaster-events/by-disaster/123/details
-router.get('/by-disaster/:disasterId/details', disasterEventController.getDisasterEventDetailsByDisasterId);
+router.get('/by-disaster/:disasterId/details', 
+  authenticateUser, 
+  getDisasterEventDetailsByDisasterId
+);
 
 // GET a single detailed disaster evacuation event by its ID
 // Example: GET /api/v1/disaster-events/456
-router.get('/:id', disasterEventController.getDisasterEventById);
+router.get('/:id', 
+  authenticateUser, 
+  getDisasterEventById
+);
 
 // POST a new disaster evacuation event entry
 // Example: POST /api/v1/disaster-events with JSON body
-router.post('/', /* authenticateUser, */ disasterEventController.createDisasterEvent);
+router.post('/', 
+  authenticateUser, 
+  createDisasterEvent
+);
 
 // Export the router
 module.exports = router;

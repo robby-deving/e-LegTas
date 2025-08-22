@@ -132,9 +132,11 @@ function App() {
         
         <Route path="/evacuation-information" element={
           <ProtectedRoute>
-            <AppLayout>
-              <EvacuationInfo />
-            </AppLayout>
+            <PermissionGate permission="view_disaster" fallback={<StatusCodes code={403} />}>
+              <AppLayout>
+                <EvacuationInfo />
+              </AppLayout>
+            </PermissionGate>
           </ProtectedRoute>
         } />
         
@@ -197,16 +199,20 @@ function App() {
 
         <Route path="/evacuation-information/:id" element={
           <ProtectedRoute>
-            <AppLayout>
-              <DisasterDetail />
-            </AppLayout>
+            <PermissionGate permission="view_disaster" fallback={<StatusCodes code={403} />}>
+              <AppLayout>
+                <DisasterDetail />
+              </AppLayout>
+            </PermissionGate>
           </ProtectedRoute>
         } />
         <Route path="/evacuation-information/:id/:disasterEvacuationEventId" element={
           <ProtectedRoute>
-            <AppLayout>
-              <EvacuationCenterDetail />
-            </AppLayout>
+            <PermissionGate permission="view_disaster" fallback={<StatusCodes code={403} />}>
+              <AppLayout>
+                <EvacuationCenterDetail />
+              </AppLayout>
+            </PermissionGate>
           </ProtectedRoute>
         } />
 

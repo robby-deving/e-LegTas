@@ -6,6 +6,7 @@ import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuIte
 import DisasterFilterIcon from "../../assets/disaster-filter.svg"; // Ensure this path is correct
 // import { format } from "date-fns"; // No longer needed for date formatting here
 import MonthYearGridPicker from "./MonthYearGridPicker"; // Ensure this path is correct
+import { usePermissions } from "../../contexts/PermissionContext";
 
 interface Props {
   disasterTypes: string[];
@@ -32,6 +33,8 @@ export default function DisasterFilterBar({
   year,  // New prop
   onMonthYearChange, // New prop
 }: Props) {
+  const { hasPermission } = usePermissions();
+  const canCreateDisaster = hasPermission('create_disaster');
   return (
     <div className="flex flex-col md:flex-row md:items-center md:justify-end gap-2">
       {/* Disaster Type Filter */}
@@ -62,13 +65,15 @@ export default function DisasterFilterBar({
         onMonthYearChange={onMonthYearChange}
       />
 
-      {/* Record New Disaster */}
-      <Button
-        className="bg-green-700 hover:bg-green-800 text-white px-6 flex gap-2 items-center cursor-pointer"
-        onClick={onRecordNew}
-      >
-        <span className="text-lg">+</span> Record New Disaster
-      </Button>
+      {/* Record New Disaster - Only show if user has permission */}
+      {canCreateDisaster && (
+        <Button
+          className="bg-green-700 hover:bg-green-800 text-white px-6 flex gap-2 items-center cursor-pointer"
+          onClick={onRecordNew}
+        >
+          <span className="text-lg">+</span> Record New Disaster
+        </Button>
+      )}
     </div>
   );
 }
