@@ -967,9 +967,7 @@ exports.getEvacueesInformationbyDisasterEvacuationEventId = async (req, res, nex
   const parseJsonMaybe = (v) => {
     if (v == null) return null;
     if (typeof v === "object") return v;
-    if (typeof v === "string") {
-      try { return JSON.parse(v); } catch { return null; }
-    }
+    if (typeof v === "string") { try { return JSON.parse(v); } catch { return null; } }
     return null;
   };
   const has = (obj, key) => obj != null && Object.prototype.hasOwnProperty.call(obj, key);
@@ -980,17 +978,39 @@ exports.getEvacueesInformationbyDisasterEvacuationEventId = async (req, res, nex
     return suffix ? `${full} ${suffix}` : full;
   };
 
+  // Prefer snapshot barangay_of_origin; if it's a number, map id->name from barangays
+  const resolveBarangayNameFactory = (barangayNameById) => (snapValue, residentJoinName) => {
+    if (snapValue !== undefined && snapValue !== null) {
+      const num = Number(snapValue);
+      if (Number.isFinite(num)) {
+        return barangayNameById.get(num) || residentJoinName || "Unknown";
+      }
+      if (typeof snapValue === "string" && snapValue.trim() !== "") {
+        return snapValue.trim(); // legacy: snapshot stored a free-text barangay label
+      }
+    }
+    return residentJoinName || "Unknown";
+  };
+
   try {
-    // 0) Load vulnerability type names once (id -> name), so we can map ids to labels
+    // 0) vulnerability type names
     const { data: vulnTypes, error: vulnTypesErr } = await supabase
       .from("vulnerability_types")
       .select("id, name");
-    if (vulnTypesErr) {
-      console.warn("[WARN] fetching vulnerability_types:", vulnTypesErr);
-    }
+    if (vulnTypesErr) console.warn("[WARN] fetching vulnerability_types:", vulnTypesErr);
     const vulnNameById = new Map((vulnTypes || []).map((v) => [Number(v.id), v.name]));
 
-    // 1) Pull registrations for this event, including event-scoped fields
+    // 0.1) barangay id -> name map (for snapshot numeric values)
+    const { data: brgyRows, error: brgyErr } = await supabase
+      .from("barangays")
+      .select("id, name");
+    if (brgyErr) {
+      console.warn("[WARN] fetching barangays:", brgyErr);
+    }
+    const barangayNameById = new Map((brgyRows || []).map((b) => [Number(b.id), b.name]));
+    const resolveBarangayName = resolveBarangayNameFactory(barangayNameById);
+
+    // 1) registrations for this event (include resident + barangay join via FK)
     const { data: registrations, error: regError } = await supabase
       .from("evacuation_registrations")
       .select(`
@@ -1021,7 +1041,7 @@ exports.getEvacueesInformationbyDisasterEvacuationEventId = async (req, res, nex
             birthdate,
             sex,
             barangay_of_origin,
-            barangays ( name )
+            barangays:barangay_of_origin ( id, name )
           )
         ),
         ec_rooms:ec_rooms_id (
@@ -1036,12 +1056,11 @@ exports.getEvacueesInformationbyDisasterEvacuationEventId = async (req, res, nex
       console.error("[ERROR] fetching registrations:", regError);
       return next(new ApiError("Failed to fetch registrations", 500));
     }
-
     if (!registrations || registrations.length === 0) {
       return res.status(200).json([]);
     }
 
-    // 2) Group members by family_head_id for this event
+    // 2) group by family_head_id
     const familyGroups = new Map();
     for (const r of registrations) {
       const fhId = r.family_head_id ?? null;
@@ -1072,20 +1091,19 @@ exports.getEvacueesInformationbyDisasterEvacuationEventId = async (req, res, nex
         const resident = er?.residents ?? {};
         const snap = parseJsonMaybe(member?.profile_snapshot) || {};
 
-        // Prefer snapshot, fall back to global resident fields (per-field).
+        // prefer snapshot fields; fallback to resident
         const first_name  = has(snap, "first_name")  ? (snap.first_name  ?? null) : (resident.first_name  ?? null);
         const middle_name = has(snap, "middle_name") ? (snap.middle_name ?? null) : (resident.middle_name ?? null);
         const last_name   = has(snap, "last_name")   ? (snap.last_name   ?? null) : (resident.last_name   ?? null);
-        // IMPORTANT: if snapshot has suffix (even null), honor it; otherwise fallback
         const suffix      = has(snap, "suffix")      ? (snap.suffix      ?? null) : (resident.suffix      ?? null);
-
         const sexVal      = has(snap, "sex")         ? (snap.sex         ?? "Unknown") : (resident.sex ?? "Unknown");
         const birthdate   = has(snap, "birthdate")   ? (snap.birthdate   ?? null)      : (resident.birthdate ?? null);
 
-        // Barangay display: use resident join name; snapshot holds only the id
-        const barangayName = resident?.barangays?.name || "Unknown";
+        // barangay: prefer snapshot.barangay_of_origin (ID or string), fallback to resident join name
+        const barangayFromResident = resident?.barangays?.name || "Unknown";
+        const barangayName = resolveBarangayName(snap.barangay_of_origin, barangayFromResident);
 
-        // Age presentation + buckets
+        // age + buckets
         let ageStr = "—";
         if (birthdate) {
           const birth = new Date(birthdate);
@@ -1117,26 +1135,20 @@ exports.getEvacueesInformationbyDisasterEvacuationEventId = async (req, res, nex
         if (sexVal === "Male") summary.total_no_of_male++;
         else if (sexVal === "Female") summary.total_no_of_female++;
 
-        // Event-scoped vulnerabilities: coerce to numbers
+        // event-scoped vulnerabilities
         let vulnIdsRaw = Array.isArray(member?.vulnerability_type_ids)
           ? member.vulnerability_type_ids
           : parseJsonMaybe(member?.vulnerability_type_ids) || [];
         const vulnIds = (Array.isArray(vulnIdsRaw) ? vulnIdsRaw : [])
           .map((x) => Number(x))
           .filter(Number.isFinite);
+        const vulnNames = vulnIds.map((id) => vulnNameById.get(id)).filter(Boolean);
 
-        const vulnNames = vulnIds
-          .map((id) => vulnNameById.get(id))
-          .filter(Boolean);
-
-        // Count per family using the current event only
         if (vulnIds.includes(4)) summary.total_no_of_pwd++;
         if (vulnIds.includes(5)) summary.total_no_of_pregnant++;
         if (vulnIds.includes(6)) summary.total_no_of_lactating_women++;
 
         const memberFullName = buildFullName({ first_name, middle_name, last_name, suffix });
-
-        // Prefer event relationship when present (older rows may lack it in snapshot)
         const relationship =
           has(snap, "relationship_to_family_head")
             ? (snap.relationship_to_family_head ?? null)
@@ -1147,27 +1159,23 @@ exports.getEvacueesInformationbyDisasterEvacuationEventId = async (req, res, nex
           resident_id: resident.id ?? null,
           full_name: memberFullName || "Unknown",
           age: ageStr,
-          barangay_of_origin: barangayName,
+          barangay_of_origin: barangayName, // <-- now snapshot-first
           sex: sexVal,
-          vulnerability_types: vulnNames, // event-scoped labels
+          vulnerability_types: vulnNames,
           room_name: member?.ec_rooms?.room_name || "Unknown",
           arrival_timestamp: member.arrival_timestamp || null,
           relationship_to_family_head: relationship,
-          // keep raw for head resolution below (not returned)
           _snap: snap,
           _resident: resident,
         };
       });
 
-      // --- Head-of-family display (EVENT-SCOPED) ---
-      // Find the member whose event relationship is "Head" (prefer snapshot->relationship_to_family_head)
-      const headMember = familyMembers.find((m) => m.relationship_to_family_head === "Head")
-        // If none explicitly marked as Head (older data), fall back to first member
-        || familyMembers[0];
+      // Head-of-family display (prefer snapshot barangay; fallback to resident join)
+      const headMember =
+        familyMembers.find((m) => m.relationship_to_family_head === "Head") || familyMembers[0];
 
       let family_head_full_name = "Unknown";
       let family_head_barangay = "Unknown";
-
       if (headMember) {
         const snapH = headMember._snap || {};
         const residentH = headMember._resident || {};
@@ -1178,36 +1186,30 @@ exports.getEvacueesInformationbyDisasterEvacuationEventId = async (req, res, nex
         const suffixH      = has(snapH, "suffix")      ? (snapH.suffix      ?? null) : (residentH.suffix      ?? null);
 
         family_head_full_name = buildFullName({
-          first_name: first_nameH,
-          middle_name: middle_nameH,
-          last_name: last_nameH,
-          suffix: suffixH,
+          first_name: first_nameH, middle_name: middle_nameH, last_name: last_nameH, suffix: suffixH,
         });
 
-        // Barangay label from resident join (snapshot usually holds only the id)
-        family_head_barangay = residentH?.barangays?.name || "Unknown";
+        const residentJoinBrgy = residentH?.barangays?.name || "Unknown";
+        family_head_barangay = resolveBarangayName(snapH.barangay_of_origin, residentJoinBrgy);
       }
 
-      // Choose a stable room/decamp field (first member)
       const first = members[0] || {};
       response.push({
         id: familyHeadId,
         disaster_evacuation_event_id: eventId,
         family_head_full_name,
-        barangay: family_head_barangay,
+        barangay: family_head_barangay, // <-- now snapshot-first
         total_individuals: members.length,
         room_name: first?.ec_rooms?.room_name || "Unknown",
         decampment_timestamp: first?.decampment_timestamp || null,
-
         view_family: {
           evacuation_center_name: first?.ec_rooms?.evacuation_centers?.name || "Unknown",
           head_of_family: family_head_full_name,
           decampment: first?.decampment_timestamp || null,
           summary_per_family: summary,
         },
-
         list_of_family_members: {
-          family_members: familyMembers.map(({ _snap, _resident, ...pub }) => pub), // strip internals
+          family_members: familyMembers.map(({ _snap, _resident, ...pub }) => pub),
         },
       });
     }

@@ -66,7 +66,7 @@ async function resolveDisasterName({ disaster_id, disaster_evacuation_event_id }
   return null;
 }
 
-// Fetch registrations for event ids (use snapshot; we’ll filter “active as of” in Node)
+// Fetch registrations for event ids (filter “active as of” in Node)
 async function fetchRegistrationsForEvents(eventIds = []) {
   if (!eventIds.length) return [];
 
@@ -82,24 +82,27 @@ async function fetchRegistrationsForEvents(eventIds = []) {
       evacuee_resident_id,
       profile_snapshot,
       vulnerability_type_ids,
-evacuee_residents:evacuee_resident_id (
-  id,
-  residents:resident_id (
-    id,
-    barangay_of_origin,
-    barangays:barangay_of_origin ( id, name )
-  )
-),
-evacuation_center_rooms:ec_rooms_id (
-  id,
-  room_name,
-  evacuation_centers:evacuation_center_id (
-    id, name, address,
-    barangay_id,
-    barangays:barangay_id ( id, name )
-  )
-)
-
+      evacuee_residents:evacuee_resident_id (
+        id,
+        residents:resident_id (
+          id,
+          sex,
+          birthdate,
+          barangay_of_origin,
+          barangays:barangay_of_origin ( id, name )
+        )
+      ),
+      evacuation_center_rooms:ec_rooms_id (
+        id,
+        room_name,
+        evacuation_centers:evacuation_center_id (
+          id,
+          name,
+          address,
+          barangay_id,
+          barangays:barangay_id ( id, name )
+        )
+      )
     `)
     .in('disaster_evacuation_event_id', eventIds);
 
@@ -110,6 +113,41 @@ evacuation_center_rooms:ec_rooms_id (
   return data || [];
 }
 
+// Vulnerability type map (PWD / Pregnant / Lactating)
+async function fetchVulnerabilityTypeMap() {
+  const { data, error } = await supabase
+    .from('vulnerability_types')
+    .select('id, name');
+
+  if (error) {
+    console.error('[reports] fetchVulnerabilityTypeMap error:', error);
+    throw new ApiError('Failed to fetch vulnerability types.', 500);
+  }
+  const norm = (s) => String(s || '').toLowerCase();
+  const out = { pwd: null, pregnant: null, lactating: null };
+  for (const r of data || []) {
+    const n = norm(r.name);
+    if (out.pwd == null && (n.includes('pwd') || n.includes('disability'))) out.pwd = r.id;
+    if (out.pregnant == null && n.includes('pregnan')) out.pregnant = r.id;
+    if (out.lactating == null && (n.includes('lactat') || n.includes('breast'))) out.lactating = r.id;
+  }
+  return out;
+}
+
+// Barangay id -> name map (for snapshot numeric values)
+async function fetchBarangayMap() {
+  try {
+    const { data, error } = await supabase.from('barangays').select('id, name');
+    if (error) {
+      console.warn('[reports] fetchBarangayMap warn:', error);
+      return new Map();
+    }
+    return new Map((data || []).map((b) => [Number(b.id), b.name]));
+  } catch (e) {
+    console.warn('[reports] fetchBarangayMap exception:', e);
+    return new Map();
+  }
+}
 
 // “Active as of”: arrival <= asOf && (decamp is null || decamp > asOf)
 function filterActiveAsOf(rows, asOf) {
@@ -131,7 +169,7 @@ function filterActiveAsOf(rows, asOf) {
  *   disaster_id?,                    // XOR with disaster_evacuation_event_id
  *   disaster_evacuation_event_id?,   // XOR with disaster_id
  *   as_of,                           // ISO timestamp boundary
- *   file_format,                     // 'CSV' | 'PDF' | 'XLSX' (CSV implemented)
+ *   file_format,                     // 'CSV' | 'PDF' | 'XLSX'
  *   generated_by_user_id             // temp: explicit user id during dev
  * }
  */
@@ -213,17 +251,26 @@ exports.generateReport = async (req, res, next) => {
     // Resolve disaster name for headings
     const disasterName = await resolveDisasterName({ disaster_id, disaster_evacuation_event_id });
 
-    // Build file content by report type via service (CSV implemented)
+    // Vulnerability type mapping (PWD / Pregnant / Lactating) + Barangay map
+    const [vulnMap, barangayMap] = await Promise.all([
+      fetchVulnerabilityTypeMap(),
+      fetchBarangayMap(),
+    ]);
+
+    // Build file content by report type via service (supports CSV + XLSX as implemented)
     let buffer, contentType, ext, filenameBase;
     try {
-      ({ buffer, contentType, ext, filenameBase } = generateReportFile({
-        reportTypeName: rtype.report_type, // e.g., "Aggregated Status Report"
+      const gen = await generateReportFile({
+        reportTypeName: rtype.report_type, // e.g., "Aggregated Status Report" / "Disaggregated Status Report"
         fileFormat,
         regs,
         reportName: report_name,
         disasterName,
         asOf: as_of,
-      }));
+        vulnMap,      // used by Disaggregated XLSX
+        barangayMap,  // snapshot.id → name resolution
+      });
+      ({ buffer, contentType, ext, filenameBase } = gen);
     } catch (e) {
       if (e instanceof NotImplementedError) {
         return next(new ApiError(e.message, 501));
@@ -269,10 +316,10 @@ exports.generateReport = async (req, res, next) => {
       return next(new ApiError('File uploaded but failed to record metadata.', 500));
     }
 
-return res.status(201).json({
-  message: 'Report generated successfully.',
-  data: { ...ins, public_url: url },
-});
+    return res.status(201).json({
+      message: 'Report generated successfully.',
+      data: { ...ins, public_url: url },
+    });
   } catch (err) {
     console.error('[reports.generate] error:', err);
     const status = err instanceof ApiError ? err.statusCode : 500;
