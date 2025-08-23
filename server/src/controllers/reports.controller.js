@@ -84,6 +84,8 @@ async function fetchRegistrationsForEvents(eventIds = []) {
       vulnerability_type_ids,
       evacuee_residents:evacuee_resident_id (
         id,
+        purok,
+        relationship_to_family_head,
         residents:resident_id (
           id,
           sex,
@@ -112,6 +114,7 @@ async function fetchRegistrationsForEvents(eventIds = []) {
   }
   return data || [];
 }
+
 
 // Vulnerability type map (PWD / Pregnant / Lactating)
 async function fetchVulnerabilityTypeMap() {
@@ -183,6 +186,7 @@ exports.generateReport = async (req, res, next) => {
       as_of,
       file_format,
       generated_by_user_id,
+      barangay_id, // optional except when Per Barangay report
     } = req.body || {};
 
     // --- requireds ---
@@ -199,11 +203,13 @@ exports.generateReport = async (req, res, next) => {
       return next(new ApiError('Provide exactly one of: disaster_id OR disaster_evacuation_event_id.', 400));
     }
 
+    // as_of must be a valid ISO date
     const asDate = new Date(as_of);
     if (Number.isNaN(asDate.getTime())) {
       return next(new ApiError('Invalid as_of timestamp. Use ISO 8601.', 400));
     }
 
+    // file_format guard
     const fileFormat = String(file_format).toUpperCase();
     const allowedFormats = new Set(['CSV', 'PDF', 'XLSX']);
     if (!allowedFormats.has(fileFormat)) {
@@ -238,6 +244,16 @@ exports.generateReport = async (req, res, next) => {
       return next(new ApiError('Invalid report_type_id.', 400));
     }
 
+    // Detect Per Barangay report to require barangay_id
+    const isPerBarangay = /^per\s*barangay/i.test(String(rtype.report_type || ''));
+    let barangayId = null;
+    if (isPerBarangay) {
+      barangayId = Number(barangay_id);
+      if (!Number.isInteger(barangayId) || barangayId <= 0) {
+        return next(new ApiError('barangay_id is required and must be a positive integer for Per Barangay reports.', 400));
+      }
+    }
+
     // Resolve scope → event ids
     const eventIds = await resolveEventIds({ disaster_evacuation_event_id, disaster_id });
     if (!eventIds.length) {
@@ -251,24 +267,48 @@ exports.generateReport = async (req, res, next) => {
     // Resolve disaster name for headings
     const disasterName = await resolveDisasterName({ disaster_id, disaster_evacuation_event_id });
 
-    // Vulnerability type mapping (PWD / Pregnant / Lactating) + Barangay map
+    // Vulnerability type mapping + Barangay map (for labels & filtering)
     const [vulnMap, barangayMap] = await Promise.all([
-      fetchVulnerabilityTypeMap(),
-      fetchBarangayMap(),
+      (async () => {
+        const { data, error } = await supabase.from('vulnerability_types').select('id, name');
+        if (error) throw new ApiError('Failed to fetch vulnerability types.', 500);
+        const norm = (s) => String(s || '').toLowerCase();
+        const out = { pwd: null, pregnant: null, lactating: null };
+        for (const r of data || []) {
+          const n = norm(r.name);
+          if (out.pwd == null && (n.includes('pwd') || n.includes('disability'))) out.pwd = r.id;
+          if (out.pregnant == null && n.includes('pregnan')) out.pregnant = r.id;
+          if (out.lactating == null && (n.includes('lactat') || n.includes('breast'))) out.lactating = r.id;
+        }
+        return out;
+      })(),
+      (async () => {
+        try {
+          const { data, error } = await supabase.from('barangays').select('id, name');
+          if (error) return new Map();
+          return new Map((data || []).map((b) => [Number(b.id), b.name]));
+        } catch {
+          return new Map();
+        }
+      })(),
     ]);
 
-    // Build file content by report type via service (supports CSV + XLSX as implemented)
+    const barangayName = isPerBarangay ? (barangayMap.get(barangayId) || '') : '';
+
+    // Build file content by report type via service
     let buffer, contentType, ext, filenameBase;
     try {
       const gen = await generateReportFile({
-        reportTypeName: rtype.report_type, // e.g., "Aggregated Status Report" / "Disaggregated Status Report"
+        reportTypeName: rtype.report_type, // "Aggregated...", "Disaggregated...", "Per Barangay..."
         fileFormat,
         regs,
         reportName: report_name,
         disasterName,
         asOf: as_of,
-        vulnMap,      // used by Disaggregated XLSX
-        barangayMap,  // snapshot.id → name resolution
+        vulnMap,       // for PWD/Pregnant/Lactating buckets
+        barangayMap,   // for label resolution
+        barangayId,    // only used in Per Barangay
+        barangayName,  // banner cell in Per Barangay
       });
       ({ buffer, contentType, ext, filenameBase } = gen);
     } catch (e) {
