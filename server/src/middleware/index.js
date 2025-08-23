@@ -26,6 +26,7 @@ const {
   requireRoleAssignmentPermission,
   requireAnyPermission
 } = require('./enhancedPermissions');
+const { authenticateMobileApp, generateApiKey } = require('./deviceAuth');
 
 // Re-export all middleware functions
 module.exports = {
@@ -56,6 +57,10 @@ module.exports = {
   
   // Role assignment
   requireRoleAssignmentPermission,
+  
+  // Mobile app authentication
+  authenticateMobileApp,
+  generateApiKey,
   
   // Utilities
   getRoleConfig,

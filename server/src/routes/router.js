@@ -14,6 +14,7 @@ const roleRoutes = require('./role.routes');
 const notificationRoutes = require('./notification.routes');
 const dashboardRoutes = require('./dashboard.routes');
 const profileRoutes = require('./profile.routes');
+const mobileRoutes = require('./mobile.routes');
 
 // Middleware and controllers
 const { authenticateUser, requireRoleGroup, requireUserManagementAccess } = require('../middleware');
@@ -47,6 +48,7 @@ router.use('/evacuees', evacueesRoutes);
 router.use('/barangays', barangayRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/profile', profileRoutes);
+router.use('/mobile', mobileRoutes);
 
 
 // Role routes are handled in role.routes.js
