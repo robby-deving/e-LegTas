@@ -8,8 +8,10 @@ const { authenticateMobileApp, getRateLimitStatus } = require('../middleware/dev
 router.use(authenticateMobileApp);
 
 // Mobile app endpoints with API key protection
+
 router.get('/announcements', notificationController.getAllAnnouncements);
 router.get('/map-data', evacuationController.getEvacuationCenterMapData);
+router.post('/register', notificationController.registerDeviceToken);
 
 // Rate limit status endpoint (useful for debugging)
 router.get('/status', (req, res) => {
