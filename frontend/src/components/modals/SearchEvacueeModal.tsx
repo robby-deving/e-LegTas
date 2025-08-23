@@ -15,6 +15,7 @@ interface SearchEvacueeModalProps {
   onSelectEvacuee: (evacuee: Evacuee) => void;
   onManualRegister: () => void;
   registeredIds?: Set<number>;
+  canCreateFamilyInformation?: boolean;
 }
 
 export const SearchEvacueeModal = ({
@@ -26,6 +27,7 @@ export const SearchEvacueeModal = ({
   onSelectEvacuee,
   onManualRegister,
   registeredIds,
+  canCreateFamilyInformation = true, // Default to true for backward compatibility
 }: SearchEvacueeModalProps) => {
   if (!isOpen) return null;
 
@@ -137,12 +139,15 @@ export const SearchEvacueeModal = ({
           >
             Cancel
           </Button>
-          <Button
-            onClick={onManualRegister}
-            className="bg-green-700 hover:bg-green-800 text-white px-6 cursor-pointer"
-          >
-            Manual Register
-          </Button>
+          {/* Manual Register Button - Only visible with create_family_information permission */}
+          {canCreateFamilyInformation && (
+            <Button
+              onClick={onManualRegister}
+              className="bg-green-700 hover:bg-green-800 text-white px-6 cursor-pointer"
+            >
+              Manual Register
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

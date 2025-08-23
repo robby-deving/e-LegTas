@@ -143,7 +143,7 @@ export default function DisasterDetail() {
       <div className="py-1 flex flex-col flex-1">
         <div className="flex flex-col space-y-4 flex-1">
           <div className="flex items-center justify-between">
-            <h3 className="text-2xl font-bold">List of Evacuation Center</h3>
+            <h3 className="text-2xl font-bold">List of Evacuation Centers</h3>
           </div>
 
           <div className="w-full max-w-xs">

@@ -30,7 +30,17 @@ export const FamilyDetailsModal = ({
   evacuee,
   centerName,
   onEditMember,
-}: any) => {
+  canUpdateEvacuee = true, // Default to true for backward compatibility
+  canUpdateFamily = true, // Default to true for backward compatibility
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  evacuee: any;
+  centerName: string;
+  onEditMember: (member: any) => void;
+  canUpdateEvacuee?: boolean;
+  canUpdateFamily?: boolean;
+}) => {
   const navigate = useNavigate();
 
   // modal state for transfer-head
@@ -139,24 +149,27 @@ export const FamilyDetailsModal = ({
                     readOnly
                     className="w-full bg-gray-50"
                   />
-                  <Button
-                    className={`bg-green-700 hover:bg-green-800 text-white px-3 py-1 text-sm cursor-pointer ${
-                      !canTransfer ? "opacity-60 cursor-not-allowed" : ""
-                    }`}
-                    onClick={() => {
-                      setTransferOpen(true);
-                      setNewHeadEvacueeId("");
-                      setOldHeadNewRel("");
-                    }}
-                    disabled={!canTransfer}
-                    title={
-                      !canTransfer
-                        ? "No other members to transfer to"
-                        : "Transfer Head"
-                    }
-                  >
-                    Transfer Head
-                  </Button>
+                  {/* Transfer Head Button - Only visible with family update permission */}
+                  {canUpdateFamily && (
+                    <Button
+                      className={`bg-green-700 hover:bg-green-800 text-white px-3 py-1 text-sm cursor-pointer ${
+                        !canTransfer ? "opacity-60 cursor-not-allowed" : ""
+                      }`}
+                      onClick={() => {
+                        setTransferOpen(true);
+                        setNewHeadEvacueeId("");
+                        setOldHeadNewRel("");
+                      }}
+                      disabled={!canTransfer}
+                      title={
+                        !canTransfer
+                          ? "No other members to transfer to"
+                          : "Transfer Head"
+                      }
+                    >
+                      Transfer Head
+                    </Button>
+                  )}
                 </div>
               </div>
 
@@ -169,12 +182,15 @@ export const FamilyDetailsModal = ({
                     className="w-full bg-gray-50"
                   />
                 </div>
-                <Button
-                  className="bg-green-700 hover:bg-green-800 text-white px-3 py-1 text-sm cursor-pointer self-end"
-                  onClick={() => navigate(`/decampment/${evacuee.id}`)}
-                >
-                  Decamp
-                </Button>
+                {/* Decamp Button - Only visible with evacuee update permission */}
+                {canUpdateEvacuee && (
+                  <Button
+                    className="bg-green-700 hover:bg-green-800 text-white px-3 py-1 text-sm cursor-pointer self-end"
+                    onClick={() => navigate(`/decampment/${evacuee.id}`)}
+                  >
+                    Decamp
+                  </Button>
+                )}
               </div>
             </div>
 
@@ -395,13 +411,16 @@ export const FamilyDetailsModal = ({
                             {formatDate(member.arrival_timestamp)}
                           </TableCell>
                           <TableCell className="text-right flex justify-end items-center text-foreground">
-                            <Pencil
-                              className="w-4 h-4 text-gray-400 group-hover:text-green-700 cursor-pointer"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onEditMember(member);
-                              }}
-                            />
+                            {/* Only show edit button if user has family update permission */}
+                            {canUpdateFamily && (
+                              <Pencil
+                                className="w-4 h-4 text-gray-400 group-hover:text-green-700 cursor-pointer"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onEditMember(member);
+                                }}
+                              />
+                            )}
                           </TableCell>
                         </TableRow>
                       ))}

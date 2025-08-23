@@ -23,6 +23,7 @@ export const RegisterEvacueeModal = ({
   onSave,
   onFamilyHeadSearch,
   centerId,
+  canCreateFamilyInformation = true, // Default to true for backward compatibility
 }: RegisterEvacueeModalProps) => {
   const formRef = useRef<HTMLFormElement>(null);
   const [barangays, setBarangays] = useState<Barangay[]>([]);
@@ -486,80 +487,81 @@ export const RegisterEvacueeModal = ({
                   </div>
                 </div>
 
-                {formData.isFamilyHead === "No" && (
-                  <>
-                    {/* Family Head * (conditional) */}
-                    <div className="relative">
-                      <label className="block text-sm font-medium mb-2">Family Head:<span className="text-red-500">*</span></label>
+                {/* Family Head Section - Only visible with create_family_information permission */}
+                {formData.isFamilyHead === "No" && canCreateFamilyInformation && (
+                    <>
+                      {/* Family Head * (conditional) */}
                       <div className="relative">
-                        <Input
-                          placeholder="Search Family Head"
-                          value={formData.familyHead}
-                          onClick={onFamilyHeadSearch}
-                          readOnly
-                          className="w-full cursor-pointer bg-gray-50"
+                        <label className="block text-sm font-medium mb-2">Family Head:<span className="text-red-500">*</span></label>
+                        <div className="relative">
+                          <Input
+                            placeholder="Search Family Head"
+                            value={formData.familyHead}
+                            onClick={onFamilyHeadSearch}
+                            readOnly
+                            className="w-full cursor-pointer bg-gray-50"
+                          />
+                          {formData.familyHead && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onFormChange("familyHead", "");
+                                onFormChange("relationshipToFamilyHead", "");
+                              }}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                            >
+                              <XIcon className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
+                        <input
+                          type="text"
+                          value={formData.familyHead || ""}
+                          onChange={() => {}}
+                          required
+                          className="absolute inset-0 w-full h-10 opacity-0 pointer-events-none"
+                          tabIndex={-1}
                         />
-                        {formData.familyHead && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onFormChange("familyHead", "");
-                              onFormChange("relationshipToFamilyHead", "");
-                            }}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                          >
-                            <XIcon className="h-4 w-4" />
-                          </button>
-                        )}
                       </div>
-                      <input
-                        type="text"
-                        value={formData.familyHead || ""}
-                        onChange={() => {}}
-                        required
-                        className="absolute inset-0 w-full h-10 opacity-0 pointer-events-none"
-                        tabIndex={-1}
-                      />
-                    </div>
 
-                    {/* Relationship to Family Head * (conditional) */}
-                    <div className="relative">
-                      <label className="block text-sm font-medium mb-2">Relationship to Family Head:<span className="text-red-500">*</span></label>
-                      <Select
-                        value={formData.relationshipToFamilyHead}
-                        onValueChange={(v) =>
-                          onFormChange("relationshipToFamilyHead", v)
-                        }
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Relationship to Family Head" />
-                        </SelectTrigger>
-                        <SelectContent>
+                      {/* Relationship to Family Head * (conditional) */}
+                      <div className="relative">
+                        <label className="block text-sm font-medium mb-2">Relationship to Family Head:<span className="text-red-500">*</span></label>
+                        <Select
+                          value={formData.relationshipToFamilyHead}
+                          onValueChange={(v) =>
+                            onFormChange("relationshipToFamilyHead", v)
+                          }
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Relationship to Family Head" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {relationshipOptions.map((o) => (
+                              <SelectItem key={o} value={o}>
+                                {o}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <select
+                          value={formData.relationshipToFamilyHead || ""}
+                          onChange={() => {}}
+                          required
+                          className="absolute inset-0 w-full h-10 opacity-0 pointer-events-none"
+                          tabIndex={-1}
+                        >
+                          <option value="">Relationship to Family Head</option>
                           {relationshipOptions.map((o) => (
-                            <SelectItem key={o} value={o}>
+                            <option key={o} value={o}>
                               {o}
-                            </SelectItem>
+                            </option>
                           ))}
-                        </SelectContent>
-                      </Select>
-                      <select
-                        value={formData.relationshipToFamilyHead || ""}
-                        onChange={() => {}}
-                        required
-                        className="absolute inset-0 w-full h-10 opacity-0 pointer-events-none"
-                        tabIndex={-1}
-                      >
-                        <option value="">Relationship to Family Head</option>
-                        {relationshipOptions.map((o) => (
-                          <option key={o} value={o}>
-                            {o}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </>
-                )}
+                        </select>
+                      </div>
+                    </>
+                  )}
               </div>
 
               {/* Evacuation Room * */}

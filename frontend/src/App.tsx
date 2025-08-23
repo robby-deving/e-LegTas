@@ -208,7 +208,7 @@ function App() {
         } />
         <Route path="/evacuation-information/:id/:disasterEvacuationEventId" element={
           <ProtectedRoute>
-            <PermissionGate permission="view_disaster" fallback={<StatusCodes code={403} />}>
+            <PermissionGate permission="view_evacuee_information" fallback={<StatusCodes code={403} />}>
               <AppLayout>
                 <EvacuationCenterDetail />
               </AppLayout>

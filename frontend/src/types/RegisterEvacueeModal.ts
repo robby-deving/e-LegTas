@@ -7,6 +7,7 @@ export type RegisterEvacueeModalProps = {
   onVulnerabilityChange: (field: string, value: boolean) => void;
   onSave: () => void;
   onFamilyHeadSearch: () => void;
-  centerId: number; 
+  centerId: number;
+  canCreateFamilyInformation?: boolean;
 };
 
