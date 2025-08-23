@@ -1,5 +1,5 @@
 import { Card, CardHeader, CardTitle, CardContent } from "../ui/card";
-import { Pencil } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import type { Disaster } from "@/types/disaster";
 import {
   getTagColor,
@@ -17,11 +17,13 @@ interface Props {
   disaster: Disaster;
   onEdit: (d: Disaster) => void;
   onNavigate: (d: Disaster) => void;
+  onDelete?: (d: Disaster) => void;
 }
 
-export default function DisasterCard({ disaster, onEdit, onNavigate }: Props) {
+export default function DisasterCard({ disaster, onEdit, onNavigate, onDelete }: Props) {
   const { hasPermission } = usePermissions();
   const canUpdateDisaster = hasPermission('update_disaster');
+  const canDeleteDisaster = hasPermission('delete_disaster');
   
   return (
     <Card
@@ -32,18 +34,32 @@ export default function DisasterCard({ disaster, onEdit, onNavigate }: Props) {
         <CardTitle className={`text-2xl font-bold ${getTypeColor(disaster.type)}`}>
           {disaster.name}
         </CardTitle>
-        {canUpdateDisaster && (
-          <button
-            className="absolute top-4 right-4 p-1 rounded hover:bg-gray-100 transition"
-            title="Edit"
-            onClick={(e) => {
-              e.stopPropagation();
-              onEdit(disaster);
-            }}
-          >
-            <Pencil className="w-4 h-4 text-gray-400 group-hover:text-green-700 cursor-pointer" />
-          </button>
-        )}
+        <div className="absolute top-4 right-4 flex gap-1">
+          {canUpdateDisaster && (
+            <button
+              className="p-1 rounded hover:bg-gray-100 transition"
+              title="Edit"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit(disaster);
+              }}
+            >
+              <Pencil className="w-4 h-4 text-gray-400 group-hover:text-green-700 cursor-pointer" />
+            </button>
+          )}
+          {canDeleteDisaster && onDelete && (
+            <button
+              className="p-1 rounded hover:bg-gray-100 transition"
+              title="Delete"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(disaster);
+              }}
+            >
+              <Trash2 className="w-4 h-4 text-gray-400 hover:text-red-700 cursor-pointer" />
+            </button>
+          )}
+        </div>
       </CardHeader>
 
       <CardContent className="flex flex-col flex-1 justify-between">

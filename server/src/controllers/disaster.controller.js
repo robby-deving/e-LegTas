@@ -27,7 +27,8 @@ exports.getAllDisasters = async (req, res, next) => {
             .select(`
                 *,
                 disaster_types(name) // Join to get the name of the disaster type
-            `);
+            `)
+            .is('deleted_at', null); // Only get active disasters (not soft-deleted)
 
         if (error) {
             console.error('Supabase Error (getAllDisasters):', error);
@@ -79,6 +80,7 @@ exports.getDisasterById = async (req, res, next) => {
                 disaster_types(name) // Join to get the name of the disaster type
             `)
             .eq('id', id)
+            .is('deleted_at', null) // Only get active disasters (not soft-deleted)
             .single();
 
         if (error && error.code === 'PGRST116') {
@@ -212,9 +214,9 @@ exports.updateDisaster = async (req, res, next) => {
 };
 
 /**
- * @desc Delete a disaster entry
+ * @desc Soft delete a disaster entry (sets deleted_at timestamp)
  * @route DELETE /api/v1/disasters/:id
- * @access Private (requires authentication/authorization, but public for now)
+ * @access Private (requires authentication and delete_disaster permission)
  */
 exports.deleteDisaster = async (req, res, next) => {
     const { id } = req.params;
@@ -224,10 +226,12 @@ exports.deleteDisaster = async (req, res, next) => {
     }
 
     try {
+        // Soft delete - update deleted_at instead of actually deleting
         const { data, error } = await supabase
             .from(TABLE_NAME)
-            .delete()
+            .update({ deleted_at: new Date().toISOString() })
             .eq('id', id)
+            .is('deleted_at', null) // Only update if not already deleted
             .select();
 
         if (error) {
@@ -236,7 +240,7 @@ exports.deleteDisaster = async (req, res, next) => {
         }
 
         if (!data || data.length === 0) {
-            return next(new ApiError(`Disaster with ID ${id} not found for deletion.`, 404));
+            return next(new ApiError(`Disaster with ID ${id} not found for deletion or already deleted.`, 404));
         }
 
         res.status(200).json({

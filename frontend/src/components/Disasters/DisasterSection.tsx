@@ -10,6 +10,7 @@ interface Props {
   onToggle?: () => void;
   onEdit: (d: Disaster) => void;
   onNavigate: (d: Disaster) => void;
+  onDelete?: (d: Disaster) => void;
   emptyMessage: string;
   loading?: boolean;
 }
@@ -22,6 +23,7 @@ export default function DisasterSection({
   onToggle,
   onEdit,
   onNavigate,
+  onDelete,
   emptyMessage,
   loading
 }: Props) {
@@ -74,6 +76,7 @@ export default function DisasterSection({
           disaster={disaster}
           onEdit={onEdit}
           onNavigate={onNavigate}
+          onDelete={onDelete}
         />
       ))}
     </div>

@@ -48,7 +48,11 @@ router.put('/:id',
 
 // DELETE a disaster entry by ID
 // Example: DELETE /api/v1/disasters/123
-router.delete('/:id', deleteDisaster);
+router.delete('/:id', 
+  authenticateUser, 
+  requirePermission('delete_disaster'), 
+  deleteDisaster
+);
 
 
 
