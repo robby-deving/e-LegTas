@@ -281,7 +281,7 @@ async function buildDisaggregatedXLSX({ regs = [], disasterName = '', asOf, vuln
     if (!Array.isArray(ids)) ids = parseMaybeJSON(ids, []);
     if (vulnMap?.pwd != null && ids.includes(vulnMap.pwd)) g.pwd += 1;
     if (vulnMap?.pregnant != null && ids.includes(vulnMap.pregnant)) g.pregnant += 1;
-    if (vulnMap?.lactating != null && ids.includes(vulnMap.lactating)) g.lactinating += 1;
+    if (vulnMap?.lactating != null && ids.includes(vulnMap.lactating)) g.lactating += 1; // FIXED typo
   }
 
   const rows = Array.from(groups.values()).sort((a, b) => {
@@ -319,7 +319,7 @@ async function buildDisaggregatedXLSX({ regs = [], disasterName = '', asOf, vuln
     ws.getCell(r,11).value  = Number(g.seniors) || 0;
     ws.getCell(r,12).value  = Number(g.pwd) || 0;
     ws.getCell(r,13).value  = Number(g.pregnant) || 0;
-    ws.getCell(r,14).value  = Number(g.lactinating || g.lactating || 0);
+    ws.getCell(r,14).value  = Number(g.lactating || 0);
   });
 
   autoFitWorksheet(ws);
@@ -331,6 +331,106 @@ async function buildDisaggregatedXLSX({ regs = [], disasterName = '', asOf, vuln
     ext: 'xlsx',
     filenameBase: `${SLUG('disaggregated-status')}`,
   };
+}
+
+/* ------------------ Disaggregated (CSV) ------------------ */
+function buildDisaggregatedCSV({ regs = [], disasterName = '', asOf, vulnMap, barangayMap }) {
+  const groups = new Map(); // key: `${barangay}||${ecName}`
+
+  for (const r of regs) {
+    const resident = r?.evacuee_residents?.residents || {};
+    const snap = parseMaybeJSON(r?.profile_snapshot, {}) || {};
+
+    const sexVal = (snap.sex ?? resident.sex ?? '').toString().toLowerCase();
+    const birthdate = snap.birthdate ?? resident.birthdate ?? null;
+
+    const residentJoinName = resident?.barangays?.name || '';
+    const originName = resolveBarangayLabel(snap.barangay_of_origin, residentJoinName, barangayMap);
+    const ecName = r?.evacuation_center_rooms?.evacuation_centers?.name || '';
+
+    const key = `${originName}||${ecName}`;
+    if (!groups.has(key)) {
+      groups.set(key, {
+        barangay: originName,
+        ecName,
+        familyKeys: new Set(),
+        male: 0,
+        female: 0,
+        total: 0,
+        infants: 0,
+        children: 0,
+        youth: 0,
+        adults: 0,
+        seniors: 0,
+        pwd: 0,
+        pregnant: 0,
+        lactating: 0,
+      });
+    }
+    const g = groups.get(key);
+
+    const famKey = r.family_head_id ?? `solo:${r.evacuee_resident_id}`;
+    g.familyKeys.add(famKey);
+
+    if (sexVal === 'male') g.male += 1;
+    else if (sexVal === 'female') g.female += 1;
+
+    const age = ageInYears(birthdate, asOf);
+    if (age != null) {
+      if (age <= 1) g.infants += 1;
+      else if (age <= 12) g.children += 1;
+      else if (age <= 17) g.youth += 1;
+      else if (age <= 59) g.adults += 1;
+      else g.seniors += 1;
+    }
+
+    g.total += 1;
+
+    let ids = r.vulnerability_type_ids;
+    if (!Array.isArray(ids)) ids = parseMaybeJSON(ids, []);
+    if (vulnMap?.pwd != null && ids.includes(vulnMap.pwd)) g.pwd += 1;
+    if (vulnMap?.pregnant != null && ids.includes(vulnMap.pregnant)) g.pregnant += 1;
+    if (vulnMap?.lactating != null && ids.includes(vulnMap.lactating)) g.lactating += 1;
+  }
+
+  const rows = Array.from(groups.values()).sort((a, b) => {
+    const byB = (a.barangay || '').localeCompare(b.barangay || '');
+    if (byB !== 0) return byB;
+    return (a.ecName || '').localeCompare(b.ecName || '');
+  });
+
+  const lines = [];
+  lines.push(row(['Republic of the Philippines']));
+  lines.push(row(['City Government of Legazpi']));
+  lines.push(row([`STATUS REPORT FOR ${(disasterName || '').toUpperCase()}`]));
+  lines.push(row([`as of ${formatAsOf(asOf)}`]));
+  lines.push('');
+  lines.push(row([
+    'Barangay', 'Evacuation Center/Site', 'Family', 'Total No. of Male', 'Total No. of Female', 'Total No. of Individuals',
+    'Infant', 'Children', 'Youth', 'Adult', 'Senior Citizens', 'PWD', 'Pregnant Woman', 'Lactating Women'
+  ]));
+
+  for (const g of rows) {
+    lines.push(row([
+      g.barangay || '',
+      g.ecName || '',
+      g.familyKeys.size || 0,
+      g.male || 0,
+      g.female || 0,
+      g.total || 0,
+      g.infants || 0,
+      g.children || 0,
+      g.youth || 0,
+      g.adults || 0,
+      g.seniors || 0,
+      g.pwd || 0,
+      g.pregnant || 0,
+      g.lactating || 0,
+    ]));
+  }
+
+  const csv = '\uFEFF' + lines.join('\n');
+  return Buffer.from(csv, 'utf8');
 }
 
 /* ------------------ Per Barangay (XLSX via template) ------------------ */
@@ -486,7 +586,17 @@ async function buildPerBarangayXLSX({
     if (groupStart == null) { currentEC = g.ecName; groupStart = rowIdx; }
 
     ws.getCell(rowIdx, 2).value = g.headName || '';
-    ws.getCell(rowIdx, 3).value = g.purok != null && `${g.purok}`.trim() !== '' ? `${g.purok}` : '';
+    const purokStr = g.purok != null ? String(g.purok).trim() : '';
+    if (/^\d+$/.test(purokStr)) {
+      // purely numeric → store as number to avoid "number stored as text" warning
+      ws.getCell(rowIdx, 3).value = Number(purokStr);
+    } else if (purokStr) {
+      // alphanumeric like "P-2" stays text
+      ws.getCell(rowIdx, 3).value = purokStr;
+    } else {
+      ws.getCell(rowIdx, 3).value = '';
+    }
+    ws.getCell(rowIdx, 3).alignment = { vertical: 'middle', horizontal: 'center' };
     ws.getCell(rowIdx, 4).value = Number(g.male) || 0;
     ws.getCell(rowIdx, 5).value = Number(g.female) || 0;
     ws.getCell(rowIdx, 6).value = Number(g.total) || 0;
@@ -522,6 +632,131 @@ async function buildPerBarangayXLSX({
   };
 }
 
+/* ------------------ Per Barangay (CSV) ------------------ */
+function buildPerBarangayCSV({ regs = [], disasterName = '', asOf, vulnMap, barangayMap, barangayName }) {
+  const TARGET_LABEL = normalizeBarangayLabel(barangayName || '');
+  const families = new Map();
+
+  for (const r of regs) {
+    const resident = r?.evacuee_residents?.residents || {};
+    const snap = parseMaybeJSON(r?.profile_snapshot, {}) || {};
+
+    const residentJoinName = resident?.barangays?.name || '';
+    const originLabel = resolveBarangayLabel(snap.barangay_of_origin, residentJoinName, barangayMap);
+    if (originLabel !== TARGET_LABEL) continue;
+
+    const famKey = r.family_head_id ?? `solo:${r.evacuee_resident_id}`;
+    if (!families.has(famKey)) {
+      families.set(famKey, {
+        ecName: r?.evacuation_center_rooms?.evacuation_centers?.name || '',
+        headName: null,
+        purok: null,
+        male: 0, female: 0, total: 0,
+        inf: 0, ch: 0, y: 0, ad: 0, se: 0,
+        pwd: 0, preg: 0, lact: 0,
+      });
+    }
+    const f = families.get(famKey);
+
+    if (!f.ecName && r?.evacuation_center_rooms?.evacuation_centers?.name) {
+      f.ecName = r.evacuation_center_rooms.evacuation_centers.name;
+    }
+
+    const rel = snap.relationship_to_family_head ?? r?.evacuee_residents?.relationship_to_family_head ?? null;
+    const name = buildFullName({
+      first_name: snap.first_name ?? resident.first_name ?? null,
+      middle_name: snap.middle_name ?? resident.middle_name ?? null,
+      last_name:  snap.last_name  ?? resident.last_name  ?? null,
+      suffix: (Object.prototype.hasOwnProperty.call(snap, 'suffix') ? snap.suffix : resident.suffix) ?? null,
+    });
+    if (rel === 'Head' && !f.headName) f.headName = name;
+
+    if (!f.purok) {
+      const purokLabel = snap.purok ?? null;
+      if (purokLabel != null && String(purokLabel).trim() !== '') f.purok = String(purokLabel);
+    }
+
+    const sex = (snap.sex ?? resident.sex ?? '').toString().toLowerCase();
+    if (sex === 'male') f.male += 1;
+    else if (sex === 'female') f.female += 1;
+
+    const birthdate = snap.birthdate ?? resident.birthdate ?? null;
+    const age = ageInYears(birthdate, asOf);
+    if (age != null) {
+      if (age <= 1) f.inf += 1;
+      else if (age <= 12) f.ch += 1;
+      else if (age <= 17) f.y += 1;
+      else if (age <= 59) f.ad += 1;
+      else f.se += 1;
+    }
+
+    f.total += 1;
+
+    let ids = r.vulnerability_type_ids;
+    if (!Array.isArray(ids)) ids = parseMaybeJSON(ids, []);
+    if (vulnMap?.pwd != null && ids.includes(vulnMap.pwd)) f.pwd += 1;
+    if (vulnMap?.pregnant != null && ids.includes(vulnMap.pregnant)) f.preg += 1;
+    if (vulnMap?.lactating != null && ids.includes(vulnMap.lactating)) f.lact += 1;
+  }
+
+  const rows = Array.from(families.values()).sort((a, b) => {
+    const byEC = (a.ecName || '').localeCompare(b.ecName || '');
+    if (byEC !== 0) return byEC;
+    return (a.headName || '').localeCompare(b.headName || '');
+  });
+
+  const lines = [];
+  lines.push(row(['Republic of the Philippines']));
+  lines.push(row(['City Government of Legazpi']));
+  lines.push(row([TARGET_LABEL]));
+  lines.push(row([String(disasterName || '').toUpperCase()]));
+  lines.push(row([`as of ${formatAsOf(asOf)}`]));
+  lines.push('');
+  lines.push(row([
+    'Evacuation Centers', 'Family Head', 'Purok', 'Total No of Male', 'Total No of Female', 'Total Individuals',
+    'Infant', 'Children', 'Youth', 'Adult', 'Senior Citizens', 'PWD', 'Pregnant Women', 'Lactating Women'
+  ]));
+
+  let currentEC = null;
+  let totals = { families: 0, male: 0, female: 0, total: 0, inf: 0, ch: 0, y: 0, ad: 0, se: 0, pwd: 0, preg: 0, lact: 0 };
+  const flushTotals = () => {
+    lines.push(row(['SUBTOTAL', totals.families, '----', totals.male, totals.female, totals.total, totals.inf, totals.ch, totals.y, totals.ad, totals.se, totals.pwd, totals.preg, totals.lact]));
+    totals = { families: 0, male: 0, female: 0, total: 0, inf: 0, ch: 0, y: 0, ad: 0, se: 0, pwd: 0, preg: 0, lact: 0 };
+  };
+
+  for (const g of rows) {
+    if (currentEC !== null && g.ecName !== currentEC) flushTotals();
+    currentEC = g.ecName;
+
+    lines.push(row([
+      g.ecName || '',
+      g.headName || '',
+      g.purok != null ? String(g.purok) : '',
+      g.male || 0,
+      g.female || 0,
+      g.total || 0,
+      g.inf || 0,
+      g.ch || 0,
+      g.y || 0,
+      g.ad || 0,
+      g.se || 0,
+      g.pwd || 0,
+      g.preg || 0,
+      g.lact || 0,
+    ]));
+
+    totals.families += 1;
+    totals.male += g.male; totals.female += g.female; totals.total += g.total;
+    totals.inf += g.inf; totals.ch += g.ch; totals.y += g.y;
+    totals.ad += g.ad; totals.se += g.se; totals.pwd += g.pwd;
+    totals.preg += g.preg; totals.lact += g.lact;
+  }
+  if (currentEC !== null) flushTotals();
+
+  const csv = '\uFEFF' + lines.join('\n');
+  return Buffer.from(csv, 'utf8');
+}
+
 /* ------------------ Dispatcher ------------------ */
 async function generateReportFile({
   reportTypeName,
@@ -544,6 +779,22 @@ async function generateReportFile({
         contentType: 'text/csv',
         ext: 'csv',
         filenameBase: `${SLUG('aggregated-status')}-${SLUG(reportName || 'report')}`,
+      };
+    }
+    if (/^disaggregated/.test(type)) {
+      return {
+        buffer: buildDisaggregatedCSV({ regs, disasterName, asOf, vulnMap, barangayMap }),
+        contentType: 'text/csv',
+        ext: 'csv',
+        filenameBase: `${SLUG('disaggregated-status')}-${SLUG(reportName || 'report')}`,
+      };
+    }
+    if (/^per\s*barangay/.test(type)) {
+      return {
+        buffer: buildPerBarangayCSV({ regs, disasterName, asOf, vulnMap, barangayMap, barangayName }),
+        contentType: 'text/csv',
+        ext: 'csv',
+        filenameBase: `${SLUG('per-barangay')}-${SLUG(barangayName || 'report')}-${SLUG(reportName || 'report')}`,
       };
     }
     throw new NotImplementedError('CSV generation for this report type is not implemented yet.');

@@ -1,4 +1,6 @@
+// Reports.tsx
 import { useState, useEffect } from 'react';
+import axios from 'axios';
 import { usePageTitle } from '../hooks/usePageTitle';
 import CreateReportModal from '@/components/modals/CreateReportModal';
 import { Button } from "../components/ui/button";
@@ -6,540 +8,365 @@ import { Dialog, DialogTrigger } from "../components/ui/dialog";
 import { Plus } from "lucide-react";
 import ReportCard from '@/components/cards/ReportCard';
 import DeleteReportModal from '@/components/modals/DeleteReportModal';
-import AggregatedReport from '@/components/report-templates/AggregatedReport';
-import DisaggregatedReport from '@/components/report-templates/DisaggregatedReport';
-import BarangayReport from '@/components/report-templates/BarangayReport';
-import React from 'react';
-import { createRoot } from 'react-dom/client';
 
-type Report = {
+type FileIcon = 'PDF' | 'CSV' | 'XLSX';
+
+type CardReport = {
   id: string;
   name: string;
   type: string;
   disaster: string;
-  format: string;
+  format: FileIcon;
   date: string;
   size: string;
-  icon: 'PDF' | 'CSV' | 'XLSX';
+  icon: FileIcon;
+  publicUrl?: string | null;
 };
 
-const MOCK_REPORTS: Report[] = [
-  {
-    id: '1',
-    name: 'Kristine',
-    type: 'Aggregated',
-    disaster: 'Typhoon Kristine',
-    format: 'PDF',
-    date: 'October 21, 2024',
-    size: '10MB',
-    icon: 'PDF'
-  },
-  {
-    id: '2',
-    name: 'Kristine',
-    type: 'Aggregated',
-    disaster: 'Typhoon Kristine',
-    format: 'CSV',
-    date: 'October 21, 2024',
-    size: '5MB',
-    icon: 'CSV'
-  },
-  {
-    id: '3',
-    name: 'Kristine',
-    type: 'Aggregated',
-    disaster: 'Typhoon Kristine',
-    format: 'XLSX',
-    date: 'October 21, 2024',
-    size: '15MB',
-    icon: 'XLSX'
+type ApiReport = {
+  id: number | string;
+  report_name: string;
+  report_type: string;
+  file_format: FileIcon;
+  disaster_name: string | null;
+  as_of?: string | null;
+  file_size_human?: string | null;
+  public_url?: string | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
+type ReportTypeOption = { id: number; label: string; raw: string; pretty: string };
+type BarangayOptionAPI = { id: number; name: string };
+type DisasterOption = { id: number; name: string };
+
+type BarangayForModal = { id: string; name: string };
+type IdName = { id: string; name: string };
+
+type ApiResponse<T> = { message: string; data: T };
+
+// -------------------------
+const API_BASE = 'http://localhost:3000/api/v1';
+const FILE_FORMATS: FileIcon[] = ['PDF', 'CSV', 'XLSX'];
+const DEFAULT_GENERATOR_USER_ID = 2; // <— hard default
+// -------------------------
+
+const CURRENT_USER_KEY = 'auth:user';
+
+function readCurrentUserIdFromLocalStorage(): number | null {
+  try {
+    const raw = localStorage.getItem(CURRENT_USER_KEY);
+    if (!raw) return null;
+    const obj = JSON.parse(raw);
+    const id = Number(obj?.id ?? obj?.user_id ?? obj?.user?.id);
+    return Number.isFinite(id) ? id : null;
+  } catch {
+    return null;
   }
-];
+}
 
-const REPORT_TYPES = [
-  'Aggregated',
-  'Disaggregated', 
-  'Barangay Report'
-];
+const toLocalDateTime = (iso?: string | null) => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  return new Intl.DateTimeFormat(undefined, {
+    year: 'numeric', month: 'long', day: 'numeric',
+    hour: 'numeric', minute: '2-digit', hour12: true
+  }).format(d);
+};
 
-const MOCK_BARANGAYS: { id: string; name: string; municipality: string }[] = [
-  { id: 'b1', name: 'Barangay 1 - Albay', municipality: 'Legazpi City' },
-  { id: 'b2', name: 'Barangay 2 - Bitano', municipality: 'Legazpi City' },
-  { id: 'b3', name: 'Barangay 3 - Bonot', municipality: 'Legazpi City' },
-  { id: 'b4', name: 'Barangay 4 - Bonga', municipality: 'Legazpi City' },
-  { id: 'b5', name: 'Barangay 5 - Buyuan', municipality: 'Legazpi City' },
-  { id: 'b6', name: 'Barangay 6 - Cabangan', municipality: 'Legazpi City' },
-  { id: 'b7', name: 'Barangay 7 - Cagbacong', municipality: 'Legazpi City' },
-  { id: 'b8', name: 'Barangay 8 - Cagsawa', municipality: 'Legazpi City' },
-  { id: 'b9', name: 'Barangay 9 - Pinaric', municipality: 'Legazpi City' },
-  { id: 'b10', name: 'Barangay 10 - Rawis', municipality: 'Legazpi City' },
-];
+const coerceIcon = (fmt: string): FileIcon =>
+  fmt === 'PDF' ? 'PDF' : fmt === 'XLSX' ? 'XLSX' : 'CSV';
 
-const DISASTER_EVENTS = [
-  'Typhoon Kristine',
-  'Tropical Storm Fyang',
-  'Mayon Volcanic Eruption',
-  'Landslide Event',
-  'Typhoon Odette',
-  'Taal Volcanic Eruption'
-];
-
-const FILE_FORMATS = [
-  'PDF',
-  'CSV',
-  'XLSX'
-];
+const toISOFromDateAndTime = (date?: Date, time?: string) => {
+  const base = date ? new Date(date) : new Date();
+  const [hh, mm] = (time || '00:00').split(':').map((n) => Number(n));
+  if (!Number.isFinite(hh) || !Number.isFinite(mm)) return base.toISOString();
+  base.setHours(hh, mm, 0, 0);
+  return base.toISOString();
+};
 
 export default function Reports() {
   usePageTitle('Reports');
+
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [reportName, setReportName] = useState('');
   const [reportType, setReportType] = useState('');
-  const [disasterEvent, setDisasterEvent] = useState('');
-  const [fileFormat, setFileFormat] = useState('CSV');
-  // Date and time states
+  const [disasterEvent, setDisasterEvent] = useState(''); // name to submit
+  const [fileFormat, setFileFormat] = useState<FileIcon>('CSV');
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [time, setTime] = useState<string>('12:00');
 
-  // Barangay search states for Barangay Report
+  // current user id (optional; we’ll fallback to 2)
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+
+  // Barangay search state
   const [barangayQuery, setBarangayQuery] = useState('');
-  const [barangayResults, setBarangayResults] = useState(MOCK_BARANGAYS);
+  const [barangayResults, setBarangayResultsState] = useState<BarangayForModal[]>([]);
   const [selectedBarangay, setSelectedBarangay] = useState<{ id: string; name: string } | null>(null);
 
-  // Loading / error handling
+  // Disaster search state
+  const [disasterQuery, setDisasterQuery] = useState('');
+  const [disasterResults, setDisasterResultsState] = useState<IdName[]>([]);
+  const [selectedDisaster, setSelectedDisaster] = useState<IdName | null>(null);
+
   const [isCreating, setIsCreating] = useState(false);
   const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
+  const [isLoadingList, setIsLoadingList] = useState<boolean>(false);
 
-  // Reports state (mutable list shown in UI)
-  const [reports, setReports] = useState<Report[]>(MOCK_REPORTS);
+  const [reports, setReports] = useState<CardReport[]>([]);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [pendingDelete, setPendingDelete] = useState<Report | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<CardReport | null>(null);
 
+  const [reportTypeOptions, setReportTypeOptions] = useState<ReportTypeOption[]>([]);
+
+  const [typeNameToId, setTypeNameToId] = useState<Map<string, number>>(new Map());
+  const [disasterNameToId, setDisasterNameToId] = useState<Map<string, number>>(new Map());
+
+  // resolve current user id on mount (optional; we can still fall back to 2)
   useEffect(() => {
-    if (!barangayQuery) {
-      setBarangayResults(MOCK_BARANGAYS);
+    const local = readCurrentUserIdFromLocalStorage();
+    if (local) {
+      setCurrentUserId(local);
       return;
     }
-    const q = barangayQuery.toLowerCase();
-    setBarangayResults(MOCK_BARANGAYS.filter((b) => b.name.toLowerCase().includes(q) || (b.municipality || '').toLowerCase().includes(q)));
-  }, [barangayQuery]);
+    axios
+      .get<ApiResponse<{ id: number }>>(`${API_BASE}/auth/me`, { withCredentials: true })
+      .then((r) => {
+        const id = Number(r?.data?.data?.id);
+        if (Number.isFinite(id)) setCurrentUserId(id);
+      })
+      .catch(() => {
+        setCurrentUserId(null);
+      });
+  }, []);
 
   const validateForm = () => {
     const errors: { [key: string]: string } = {};
     if (!reportName.trim()) errors.reportName = 'Report name is required.';
     if (!reportType) errors.reportType = 'Report type is required.';
-    if (reportType === 'Barangay Report') {
-      if (!selectedBarangay) errors.barangay = 'Please select a barangay.';
-    } else {
-      if (!disasterEvent) errors.disasterEvent = 'Please select a disaster event.';
+    if (reportType === 'Barangay Report' && !selectedBarangay) {
+      errors.barangay = 'Please select a barangay.';
     }
+    if (!disasterEvent) errors.disasterEvent = 'Please select a disaster event.';
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
 
-  const generateTemplateData = (report: Report) => {
-    const baseProps = {
-      disasterEvent: report.disaster,
-      reportDate: new Date(report.date).toLocaleDateString(),
-      reportTime: new Date(report.date).toLocaleTimeString()
-    };
-
-    // Sample evacuation center data for templates
-    const sampleEvacuationCenters = [
-      {
-        name: "Legazpi Elementary School",
-        address: "Rizal Street, Legazpi City",
-        originBarangay: "Barangay 9 - Pinaric",
-        insideFamilies: 15,
-        insidePersons: 52,
-        outsideFamilies: 8,
-        outsidePersons: 28
-      },
-      {
-        name: "Barangay Hall - Pinaric", 
-        address: "Pinaric Road, Legazpi City",
-        originBarangay: "Barangay 9 - Pinaric",
-        insideFamilies: 12,
-        insidePersons: 45,
-        outsideFamilies: 5,
-        outsidePersons: 18
-      }
-    ];
-
-    // Sample data for disaggregated report
-    const sampleEvacuationSites = [
-      {
-        barangay: "Barangay 9 - Pinaric",
-        evacuationCenter: "Legazpi Elementary School",
-        families: 15,
-        male: 25,
-        female: 27,
-        total: 52,
-        infant: 3,
-        children: 12,
-        youth: 18,
-        adult: 15,
-        seniorCitizens: 4,
-        pwd: 2,
-        pregnant: 1,
-        lactating: 2
-      },
-      {
-        barangay: "Barangay 12 - Cabangan",
-        evacuationCenter: "Legazpi Sports Complex",
-        families: 25,
-        male: 45,
-        female: 44,
-        total: 89,
-        infant: 5,
-        children: 20,
-        youth: 30,
-        adult: 25,
-        seniorCitizens: 9,
-        pwd: 3,
-        pregnant: 2,
-        lactating: 3
-      }
-    ];
-
-    // Sample data for barangay report
-    const sampleBarangayData = [
-      {
-        name: "Legazpi Elementary School",
-        evacuees: [
-          {
-            familyHead: "Juan Dela Cruz",
-            purok: "Purok 1",
-            male: 2,
-            female: 3,
-            total: 5,
-            infant: 1,
-            children: 2,
-            youth: 1,
-            adult: 1,
-            seniorCitizens: 0,
-            pwd: 0,
-            pregnant: 0,
-            lactating: 1
-          },
-          {
-            familyHead: "Maria Santos",
-            purok: "Purok 2", 
-            male: 3,
-            female: 2,
-            total: 5,
-            infant: 0,
-            children: 2,
-            youth: 2,
-            adult: 1,
-            seniorCitizens: 0,
-            pwd: 1,
-            pregnant: 0,
-            lactating: 0
-          }
-        ]
-      }
-    ];
-
-    switch (report.type) {
-      case 'Aggregated':
-        return {
-          ...baseProps,
-          evacuationCenters: sampleEvacuationCenters
-        };
-      case 'Disaggregated':
-        return {
-          ...baseProps,
-          evacuationSites: sampleEvacuationSites
-        };
-      case 'Barangay Report':
-        return {
-          ...baseProps,
-          barangayName: selectedBarangay?.name || "Sample Barangay",
-          evacuationCenters: sampleBarangayData
-        };
-      default:
-        return {
-          ...baseProps,
-          evacuationCenters: sampleEvacuationCenters
-        };
-    }
-  };
-
-  const generatePDFFromTemplate = (report: Report) => {
-    const templateData = generateTemplateData(report);
-    
-    // Create a hidden container for rendering the template
-    const printContainer = document.createElement('div');
-    printContainer.style.position = 'absolute';
-    printContainer.style.left = '-9999px';
-    printContainer.style.width = '210mm'; // A4 width
-    printContainer.className = 'report-template';
-    
-    document.body.appendChild(printContainer);
-    
-    // Render the appropriate template
-    const root = createRoot(printContainer);
-    let templateElement;
-    
-    switch (report.type) {
-      case 'Aggregated':
-        templateElement = React.createElement(AggregatedReport, templateData as any);
-        break;
-      case 'Disaggregated':
-        templateElement = React.createElement(DisaggregatedReport, templateData as any);
-        break;
-      case 'Barangay Report':
-        templateElement = React.createElement(BarangayReport, templateData as any);
-        break;
-      default:
-        templateElement = React.createElement(AggregatedReport, templateData as any);
-    }
-    
-    root.render(templateElement);
-    
-    // Wait for render then trigger print
-    setTimeout(() => {
-      // Store original content and styles
-      const originalContent = document.body.innerHTML;
-      const originalClass = document.body.className;
-      
-      // Replace body content with rendered template
-      document.body.innerHTML = printContainer.innerHTML;
-      document.body.className = 'report-template';
-      
-      // Trigger print
-      window.print();
-      
-      // Restore original content
-      document.body.innerHTML = originalContent;
-      document.body.className = originalClass;
-      
-      // Clean up
-      if (document.body.contains(printContainer)) {
-        document.body.removeChild(printContainer);
-      }
-    }, 100);
-  };
-
-  const generateCSVContent = (report: Report) => {
-    const templateData = generateTemplateData(report);
-    
-    if (report.type === 'Aggregated' && (templateData as any).evacuationCenters) {
-      const headers = ['Evacuation Center', 'Address', 'Origin Barangay', 'Inside Families', 'Inside Persons', 'Outside Families', 'Outside Persons', 'Total Families', 'Total Persons'];
-      const centers = (templateData as any).evacuationCenters;
-      const rows = centers.map((center: any) => [
-        center.name,
-        center.address,
-        center.originBarangay,
-        center.insideFamilies.toString(),
-        center.insidePersons.toString(),
-        center.outsideFamilies.toString(),
-        center.outsidePersons.toString(),
-        (center.insideFamilies + center.outsideFamilies).toString(),
-        (center.insidePersons + center.outsidePersons).toString()
-      ]);
-      
-      const csvContent = [headers, ...rows]
-        .map(row => row.map((cell: string) => `"${cell.replace(/"/g, '""')}"`).join(','))
-        .join('\n');
-      
-      return `Report: ${report.name}\nDisaster: ${report.disaster}\nDate: ${report.date}\n\n${csvContent}`;
-    }
-    
-    if (report.type === 'Disaggregated' && (templateData as any).evacuationSites) {
-      const headers = ['Barangay', 'Evacuation Center', 'Families', 'Male', 'Female', 'Total', 'Infant', 'Children', 'Youth', 'Adult', 'Senior Citizens', 'PWD', 'Pregnant', 'Lactating'];
-      const sites = (templateData as any).evacuationSites;
-      const rows = sites.map((site: any) => [
-        site.barangay,
-        site.evacuationCenter,
-        site.families.toString(),
-        site.male.toString(),
-        site.female.toString(),
-        site.total.toString(),
-        site.infant.toString(),
-        site.children.toString(),
-        site.youth.toString(),
-        site.adult.toString(),
-        site.seniorCitizens.toString(),
-        site.pwd.toString(),
-        site.pregnant.toString(),
-        site.lactating.toString()
-      ]);
-      
-      const csvContent = [headers, ...rows]
-        .map(row => row.map((cell: string) => `"${cell.replace(/"/g, '""')}"`).join(','))
-        .join('\n');
-      
-      return `Report: ${report.name}\nDisaster: ${report.disaster}\nDate: ${report.date}\nBarangay: ${(templateData as any).barangayName || 'All'}\n\n${csvContent}`;
-    }
-    
-    if (report.type === 'Barangay Report' && (templateData as any).evacuationCenters) {
-      const headers = ['Evacuation Center', 'Family Head', 'Purok', 'Male', 'Female', 'Total', 'Infant', 'Children', 'Youth', 'Adult', 'Senior Citizens', 'PWD', 'Pregnant', 'Lactating'];
-      const centers = (templateData as any).evacuationCenters;
-      const rows: string[][] = [];
-      
-      centers.forEach((center: any) => {
-        center.evacuees?.forEach((evacuee: any) => {
-          rows.push([
-            center.name,
-            evacuee.familyHead,
-            evacuee.purok,
-            evacuee.male.toString(),
-            evacuee.female.toString(),
-            evacuee.total.toString(),
-            evacuee.infant.toString(),
-            evacuee.children.toString(),
-            evacuee.youth.toString(),
-            evacuee.adult.toString(),
-            evacuee.seniorCitizens.toString(),
-            evacuee.pwd.toString(),
-            evacuee.pregnant.toString(),
-            evacuee.lactating.toString()
-          ]);
-        });
-      });
-      
-      const csvContent = [headers, ...rows]
-        .map(row => row.map(cell => `"${cell.replace(/"/g, '""')}"`).join(','))
-        .join('\n');
-      
-      return `Report: ${report.name}\nDisaster: ${report.disaster}\nDate: ${report.date}\nBarangay: ${(templateData as any).barangayName}\n\n${csvContent}`;
-    }
-    
-    // Fallback to simple CSV
-    const headers = ['Report Name', 'Type', 'Disaster', 'Format', 'Date', 'Size'];
-    const values = [report.name, report.type, report.disaster, report.format, report.date, report.size];
-    return `${headers.join(',')}\n${values.map(v => `"${v.replace(/"/g, '""')}"`).join(',')}`;
-  };
-
-  const generateAndDownloadReport = (r: Report) => {
+  const fetchReports = async () => {
+    setIsLoadingList(true);
     try {
-      if (r.format === 'PDF') {
-        // Use template-based PDF generation
-        generatePDFFromTemplate(r);
-        return;
-      }
+      const res = await axios.get<ApiResponse<ApiReport[]>>(`${API_BASE}/reports/getAllReports`, { withCredentials: true });
+      const list = (res.data.data || []).map<CardReport>((r) => {
+        const icon = coerceIcon(r.file_format);
+        return {
+          id: String(r.id),
+          name: r.report_name,
+          type: r.report_type,
+          disaster: r.disaster_name || '—',
+          format: icon,
+          date: toLocalDateTime(r.as_of) || toLocalDateTime(r.created_at) || '',
+          size: r.file_size_human || '',
+          icon,
+          publicUrl: r.public_url || null
+        };
+      });
+      setReports(list);
+    } catch (err) {
+      console.error('Failed to fetch reports:', err);
+      setReports([]);
+    } finally {
+      setIsLoadingList(false);
+    }
+  };
 
-      let blob: Blob;
-      // Use report name as filename (sanitize to remove unsafe characters)
-      const sanitize = (s: string) => s.replace(/[^a-z0-9 _.-]/gi, '').trim().replace(/\s+/g, '_') || 'report';
-      const ext = r.format.toLowerCase();
-      const filename = `${sanitize(r.name)}.${ext}`;
+  useEffect(() => {
+    fetchReports();
+  }, []);
 
-      if (r.format === 'CSV') {
-        const csv = generateCSVContent(r);
-        blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      } else if (r.format === 'XLSX') {
-        // For XLSX, we'll generate CSV content and save with xlsx mimetype
-        // In a real app, you'd use a library like SheetJS (xlsx) to generate proper XLSX
-        const csv = generateCSVContent(r);
-        blob = new Blob([csv], { 
-          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
-        });
-      } else {
-        const txt = generateCSVContent(r);
-        blob = new Blob([txt], { type: 'text/plain' });
-      }
+  const loadOptions = async (barangaySearch = '', disasterSearch = '') => {
+    try {
+      const res = await axios.get<ApiResponse<{
+        report_types: Array<{ id: number; report_type: string; pretty: string }>;
+        barangays: BarangayOptionAPI[];
+        disasters: DisasterOption[];
+      }>>(`${API_BASE}/reports/options`, {
+        params: {
+          search: barangaySearch,
+          disaster_search: disasterSearch,
+          barangay_limit: 70,
+          disaster_limit: 200,
+          status: 'all',
+        },
+        withCredentials: true,
+      });
 
-      const url = URL.createObjectURL(blob);
+      const data = res.data.data;
+
+      const typeOpts: ReportTypeOption[] = (data.report_types || []).map((t) => {
+        const label = t.pretty === 'Per Barangay' ? 'Barangay Report' : t.pretty;
+        return { id: t.id, label, raw: t.report_type, pretty: t.pretty };
+      });
+      setReportTypeOptions(typeOpts);
+
+      const brgysForModal: BarangayForModal[] = (data.barangays || []).map((b) => ({
+        id: String(b.id),
+        name: b.name,
+      }));
+      setBarangayResultsState(brgysForModal);
+
+      const disasters = (data.disasters || []);
+      const disResults: IdName[] = disasterSearch
+        ? disasters.map(d => ({ id: String(d.id), name: d.name }))
+        : [];
+      setDisasterResultsState(disResults);
+
+      setTypeNameToId(new Map(typeOpts.map(t => [t.label, t.id])));
+      setDisasterNameToId(new Map(disasters.map(d => [d.name, d.id])));
+    } catch (err) {
+      console.error('Failed to load report options:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (createModalOpen) loadOptions('', '');
+  }, [createModalOpen]);
+
+  useEffect(() => {
+    if (!createModalOpen) return;
+    if (reportType !== 'Barangay Report') return;
+    loadOptions(barangayQuery, disasterQuery);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [barangayQuery, reportType, createModalOpen]);
+
+  useEffect(() => {
+    if (!createModalOpen) return;
+    loadOptions(barangayQuery, disasterQuery);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [disasterQuery, createModalOpen]);
+
+  /* ----- Card adapters ----- */
+  const onCardDownload = (r: any) => {
+    const pubUrl: string | null = r.publicUrl ?? r.public_url ?? r.publicURL ?? null;
+    if (pubUrl) {
       const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
+      a.href = pubUrl;
+      a.target = '_blank';
+      a.setAttribute('download', '');
       document.body.appendChild(a);
       a.click();
       a.remove();
-      URL.revokeObjectURL(url);
+      return;
+    }
+    alert('No file available for download. Please regenerate the report.');
+  };
+
+  const onCardDelete = (r: any) => {
+    const normalized: CardReport = {
+      id: String(r.id),
+      name: String(r.name ?? r.report_name ?? ''),
+      type: String(r.type ?? r.report_type ?? ''),
+      disaster: String(r.disaster ?? r.disaster_name ?? '—'),
+      format: coerceIcon(String(r.format ?? r.file_format ?? 'CSV')),
+      date: String(r.date ?? ''),
+      size: String(r.size ?? r.file_size_human ?? ''),
+      icon: coerceIcon(String(r.icon ?? r.format ?? r.file_format ?? 'CSV')),
+      publicUrl: r.publicUrl ?? r.public_url ?? null,
+    };
+    setPendingDelete(normalized);
+    setConfirmOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!pendingDelete) return;
+    try {
+      await axios.delete(`${API_BASE}/reports/${pendingDelete.id}`, { withCredentials: true });
+      setConfirmOpen(false);
+      setPendingDelete(null);
+      await fetchReports();
     } catch (err) {
-      console.error('Download failed', err);
-      alert('Failed to generate download.');
+      console.error('Failed to delete report:', err);
+      alert('Failed to delete report.');
     }
   };
 
-  const handleCreateReport = () => {
+  // Create via backend
+  const handleCreateReport = async () => {
     if (!validateForm()) return;
 
-    setIsCreating(true);
-    // Simulate async report generation
-    setTimeout(() => {
-      const id = String(Date.now());
-      
-      // Create a new date object with the selected date and time
-      const formattedDate = date ? new Date(date) : new Date();
-      if (time) {
-        const [hours, minutes] = time.split(':').map(Number);
-        // Create a new date with local date components but with the exact time
-        formattedDate.setHours(hours, minutes, 0, 0);
-      }
-      
-      // Format the date in the user's locale
-      const displayDate = new Intl.DateTimeFormat(undefined, {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true
-      }).format(formattedDate);
-      
-      const size = '1MB';
-      const newReport: Report = {
-        id,
-        name: reportName,
-        type: reportType || 'Aggregated',
-        disaster: reportType === 'Barangay Report' && selectedBarangay 
-          ? `Barangay Report: ${selectedBarangay.name}` 
-          : disasterEvent,
-        format: fileFormat,
-        date: displayDate,
-        size,
-        icon: fileFormat === 'PDF' ? 'PDF' : fileFormat === 'CSV' ? 'CSV' : 'XLSX'
+    try {
+      setIsCreating(true);
+
+      const typeId = typeNameToId.get(reportType);
+      if (!typeId) throw new Error('Unknown report type.');
+
+      const disasterId = disasterNameToId.get(disasterEvent);
+      if (!disasterId) throw new Error('Unknown disaster.');
+
+      const as_of = toISOFromDateAndTime(date, time);
+
+      // Use logged-in id if available, else default to 2
+      const generatorId = currentUserId ?? DEFAULT_GENERATOR_USER_ID;
+
+      const payload: any = {
+        report_name: reportName,
+        report_type_id: typeId,
+        disaster_id: disasterId,
+        as_of,
+        file_format: fileFormat,
+        generated_by_user_id: generatorId, // <-- fallback to 2 if needed
       };
 
-      setReports((prev) => [newReport, ...prev]);
+      if (reportType === 'Barangay Report') {
+        const bId = selectedBarangay?.id ? Number(selectedBarangay.id) : NaN;
+        if (!Number.isInteger(bId)) throw new Error('Please select a barangay.');
+        payload.barangay_id = bId;
+      }
 
-      // Auto-download after creation (since the modal button is 'Download Report')
-      generateAndDownloadReport(newReport);
+      const res = await axios.post<ApiResponse<any>>(`${API_BASE}/reports/generate`, payload, { withCredentials: true });
+      const pubUrl: string | undefined = res.data?.data?.public_url;
 
-      // Reset form
+      if (pubUrl) {
+        const a = document.createElement('a');
+        a.href = pubUrl;
+        a.target = '_blank';
+        a.setAttribute('download', '');
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      }
+
+      await fetchReports();
+
       setReportName('');
       setReportType('');
       setDisasterEvent('');
+      setSelectedDisaster(null);
+      setDisasterQuery('');
       setDate(undefined);
+      setTime('12:00');
       setFileFormat('CSV');
       setBarangayQuery('');
       setSelectedBarangay(null);
       setFormErrors({});
-      setIsCreating(false);
       setCreateModalOpen(false);
-    }, 800);
+    } catch (err) {
+      console.error('Failed to generate report:', err);
+      alert('Failed to generate report.');
+    } finally {
+      setIsCreating(false);
+    }
   };
 
-  const handleDownload = (report: Report) => {
-    // Trigger file generation and download
-    generateAndDownloadReport(report);
-  };
-
-  const handleDelete = (report: Report) => {
-    setPendingDelete(report);
-    setConfirmOpen(true);
-  };
-
-  const confirmDelete = () => {
-    if (!pendingDelete) return;
-    setReports((prev) => prev.filter((r) => r.id !== pendingDelete.id));
-    setPendingDelete(null);
-    setConfirmOpen(false);
-  };
+  const reportTypeLabels = reportTypeOptions.map((t) => t.label);
 
   return (
     <div className="text-black p-6 space-y-6">
-      {/* Header */}
+      {/* ... UI unchanged ... */}
       <div className="flex justify-start">
         <h1 className="text-3xl font-bold text-green-800">Reports</h1>
       </div>
       <div className="flex justify-end">
-        {/* Create Report Button */}
         <Dialog open={createModalOpen} onOpenChange={setCreateModalOpen}>
           <DialogTrigger asChild>
             <Button className="bg-green-700 hover:bg-green-800 text-white px-6 cursor-pointer">
@@ -550,20 +377,26 @@ export default function Reports() {
         </Dialog>
       </div>
 
-      {/* Recent Reports Section */}
+      {/* ... cards + modal props unchanged ... */}
       <div>
-        <h2 className="text-lg font-bold text-green-700 mb-4 ">Generated Reports</h2>
-
-        {reports.length === 0 ? (
+        <h2 className="text-lg font-bold text-green-700 mb-4">Generated Reports</h2>
+        {isLoadingList ? (
+          <div className="text-gray-500 py-8 text-center">Loading…</div>
+        ) : reports.length === 0 ? (
           <div className="text-gray-400 py-8 text-center">No reports available.</div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {reports.map((report) => (
-                <ReportCard key={report.id} report={report} onDownload={handleDownload} onDelete={handleDelete} />
-               ))}
-           </div>
-         )}
-       </div>
+              <ReportCard
+                key={report.id}
+                report={report}
+                onDownload={onCardDownload}
+                onDelete={onCardDelete}
+              />
+            ))}
+          </div>
+        )}
+      </div>
 
       <CreateReportModal
         isOpen={createModalOpen}
@@ -575,7 +408,7 @@ export default function Reports() {
         disasterEvent={disasterEvent}
         setDisasterEvent={setDisasterEvent}
         fileFormat={fileFormat}
-        setFileFormat={setFileFormat}
+        setFileFormat={(v: string) => setFileFormat(v as FileIcon)}
         evacuationQuery=""
         setEvacuationQuery={() => {}}
         evacuationResults={[]}
@@ -585,27 +418,31 @@ export default function Reports() {
         barangayQuery={barangayQuery}
         setBarangayQuery={setBarangayQuery}
         barangayResults={barangayResults}
-        setBarangayResults={setBarangayResults}
+        setBarangayResults={(arr) => setBarangayResultsState(arr)}
         selectedBarangay={selectedBarangay}
         setSelectedBarangay={setSelectedBarangay}
+        disasterQuery={disasterQuery}
+        setDisasterQuery={setDisasterQuery}
+        disasterResults={disasterResults}
+        setDisasterResults={(rows) => setDisasterResultsState(rows)}
+        selectedDisaster={selectedDisaster}
+        setSelectedDisaster={setSelectedDisaster}
         formErrors={formErrors}
         isCreating={isCreating}
         onCreate={handleCreateReport}
-        reportTypes={REPORT_TYPES}
-        disasterEvents={DISASTER_EVENTS}
+        reportTypes={reportTypeLabels}
         fileFormats={FILE_FORMATS}
         date={date}
         setDate={setDate}
         time={time}
         setTime={setTime}
         clearFormError={(key) => {
-          const newErrors = { ...formErrors };
-          delete newErrors[key];
-          setFormErrors(newErrors);
+          const next = { ...formErrors };
+          delete next[key];
+          setFormErrors(next);
         }}
       />
 
-      {/* Delete confirmation modal */}
       <DeleteReportModal
         isOpen={confirmOpen}
         onOpenChange={(open) => { setConfirmOpen(open); if (!open) setPendingDelete(null); }}
