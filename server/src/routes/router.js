@@ -16,7 +16,7 @@ const dashboardRoutes = require('./dashboard.routes');
 const profileRoutes = require('./profile.routes');
 
 // Middleware and controllers
-const { authenticateUser, requireRoleGroup, requireUserManagementAccess } = require('../middleware');
+const { authenticateUser, requirePermission } = require('../middleware');
 const { createRole, deleteRole, getUserCountsByRole } = require('../controllers/user.controller');
 
 const router = express.Router();
@@ -26,7 +26,7 @@ const baseAPI = '/api/v1';
 router.get(
   '/users/role-counts',
   authenticateUser,
-  requireRoleGroup('SYSTEM_ADMIN_GROUP'),
+  requirePermission('view_user_management'),
   getUserCountsByRole
 );
 

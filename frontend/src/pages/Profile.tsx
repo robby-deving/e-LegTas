@@ -9,12 +9,23 @@ import type { UserData } from '../components/modals/EditProfile';
 import { useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { setCredentials, selectCurrentUser, selectToken } from "../features/auth/authSlice";
+import { usePermissions } from "../contexts/PermissionContext";
+import StatusCodes from "../components/StatusCodes";
 
 export default function Profile() {
     usePageTitle('Profile');
     const currentUser = useSelector(selectCurrentUser);
     const token = useSelector(selectToken);
     const dispatch = useDispatch();
+    const { hasPermission } = usePermissions();
+
+    // Check if user has permission to view profile
+    if (!hasPermission('view_profile')) {
+        return <StatusCodes code={403} />;
+    }
+
+    // Check if user has permission to update profile
+    const canUpdateProfile = hasPermission('update_profile');
 
     // Use the actual authenticated user's ID instead of hardcoded value
     const user_id = currentUser?.user_id;
@@ -59,11 +70,26 @@ export default function Profile() {
     }, [user_id, token]); // re-fetch if userId changes
 
     const handleEditProfile = () => {
+        // Check if user has permission to update profile
+        if (!canUpdateProfile) {
+            console.warn("User does not have permission to update profile");
+            alert("You don't have permission to edit your profile");
+            return;
+        }
+        
         setIsEditModalOpen(true);
     };
 
     const handleSaveProfile = async (updatedData: UserData) => {
         if (!user_id || !token) return;
+        
+        // Check if user has permission to update profile
+        if (!canUpdateProfile) {
+            console.warn("User does not have permission to update profile");
+            alert("You don't have permission to update your profile");
+            return;
+        }
+        
         setIsUpdating(true);
 
         try {
@@ -162,16 +188,18 @@ export default function Profile() {
                                     </div>
                                 </div>
 
-                                {/* Edit Profile Button */}
-                                <div className="pt-3">
-                                    <Button 
-                                        className="bg-green-700 hover:bg-green-800 text-white px-4 py-2 rounded-lg flex items-center gap-2 cursor-pointer"
-                                        onClick={handleEditProfile}
-                                    >
-                                        <Edit className="w-4 h-4" />
-                                        Edit Profile
-                                    </Button>
-                                </div>
+                                {/* Edit Profile Button - Only visible with update_profile permission */}
+                                {canUpdateProfile && (
+                                    <div className="pt-3">
+                                        <Button 
+                                            className="bg-green-700 hover:bg-green-800 text-white px-4 py-2 rounded-lg flex items-center gap-2 cursor-pointer"
+                                            onClick={handleEditProfile}
+                                        >
+                                            <Edit className="w-4 h-4" />
+                                            Edit Profile
+                                        </Button>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Right Side - Illustration */}

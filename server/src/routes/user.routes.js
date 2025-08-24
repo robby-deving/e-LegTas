@@ -21,15 +21,9 @@ const {
 // Import middleware
 const { 
   authenticateUser,
-  filterUsersByRole,
-  requireRoleGroup,
-  originalRequirePermission,
-  originalRequireAnyPermission
+  requirePermission,
+  requireAnyPermission
 } = require('../middleware');
-
-// Alias DB-only permission checkers for clarity
-const requirePermission = originalRequirePermission;
-const requireAnyPermission = originalRequireAnyPermission;
 
 const router = express.Router();
 const { supabaseAdmin } = require('../config/supabase');
@@ -54,13 +48,11 @@ router.get('/stats',
 
 router.get('/recent', 
   requirePermission('view_user_management'),
-  filterUsersByRole(),
   getRecentUsers
 );
 
 router.get('/role/:roleId', 
   requirePermission('view_user_management'),
-  filterUsersByRole(),
   getUsersByRole
 );
 
@@ -77,7 +69,6 @@ router.post('/',
 
 router.get('/', 
   requirePermission('view_user_management'),
-  filterUsersByRole(),
   getUsers
 );
 

@@ -190,9 +190,11 @@ function App() {
         
         <Route path="/profile" element={
           <ProtectedRoute>
-            <AppLayout>
-              <Profile />
-            </AppLayout>
+            <PermissionGate permission="view_profile" fallback={<StatusCodes code={403} />}>
+              <AppLayout>
+                <Profile />
+              </AppLayout>
+            </PermissionGate>
           </ProtectedRoute>
         } />
         

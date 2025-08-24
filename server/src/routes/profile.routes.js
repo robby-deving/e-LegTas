@@ -1,7 +1,8 @@
 // routes/profile.routes.js
 
 const express = require('express');
-const profileController = require('../controllers/profile.controller');
+const { getUserProfile, updateUserProfile } = require('../controllers/profile.controller');
+const { authenticateUser, requirePermission } = require('../middleware');
 
 const router = express.Router();
 
@@ -9,7 +10,10 @@ const router = express.Router();
 
 // Get profile by userId
 // Example: GET /api/v1/profile/123
-router.get('/:userId', profileController.getUserProfile);
-router.put('/:userId', profileController.updateUserProfile);
+router.get('/:userId', authenticateUser, requirePermission('view_profile'), getUserProfile);
+
+// Update profile by userId
+// Example: PUT /api/v1/profile/123
+router.put('/:userId', authenticateUser, requirePermission('update_profile'), updateUserProfile);
 
 module.exports = router;

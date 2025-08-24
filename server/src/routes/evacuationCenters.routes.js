@@ -2,10 +2,7 @@
 
 const express = require('express');
 const evacuationController = require('../controllers/evacuationCenters.controller');
-const { authenticateUser, originalRequirePermission } = require('../middleware');
-
-// Alias the DB-backed permission checker for clarity
-const requirePermission = originalRequirePermission;
+const { authenticateUser, requirePermission } = require('../middleware');
 
 // Create an Express Router instance
 const router = express.Router();
