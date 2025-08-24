@@ -51,7 +51,12 @@ export default function EvacuationInfo() {
         setDisasters(parsed);
       } else {
         console.log("Fetching fresh disasters from API...");
-        const res = await axios.get("http://localhost:3000/api/v1/disasters");
+        const res = await axios.get("http://localhost:3000/api/v1/disasters", {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
         console.log("API response:", res.data);
         
         const transformed: Disaster[] = res.data.data.map((item: any) => ({
@@ -93,7 +98,12 @@ export default function EvacuationInfo() {
           const parsedCachedTypes: DisasterTypeWithId[] = JSON.parse(cachedTypes);
           setDisasterTypes([{ id: null, name: "All" }, ...parsedCachedTypes]);
         } else {
-          const res = await axios.get("http://localhost:3000/api/v1/disasters/types");
+          const res = await axios.get("http://localhost:3000/api/v1/disasters/types", {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
           // Map to include both id and name
           const typesWithId: DisasterTypeWithId[] = res.data.data.map((item: any) => ({
             id: item.id, // Assuming your API returns 'id' for disaster types

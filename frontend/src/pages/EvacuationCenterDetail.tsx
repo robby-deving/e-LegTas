@@ -27,6 +27,8 @@ import { differenceInYears } from "date-fns";
 import { mapEditPayloadToForm, mapSearchPayloadToForm } from "@/utils/mapEvacueePayload";
 import type { SortKey, SortState } from "@/types/EvacuationCenterDetails";
 import { usePermissions } from "../contexts/PermissionContext";
+import { useSelector } from "react-redux";
+import { selectToken } from "../features/auth/authSlice";
 
 export default function EvacuationCenterDetail() {
   const navigate = useNavigate();
@@ -34,6 +36,7 @@ export default function EvacuationCenterDetail() {
   const disasterId = decodeId(encodedDisasterId!);
   const centerId = decodeId(encodedCenterId!);
   const { hasPermission } = usePermissions();
+  const token = useSelector(selectToken);
   const canViewDashboardSpecific = hasPermission('view_dashboard_specific');
   const canViewFamilyInformation = hasPermission('view_family_information');
   const canCreateEvacueeInformation = hasPermission('create_evacuee_information');
@@ -149,7 +152,13 @@ const getRegisteredAt = (f: FamilyEvacueeInformation) => {
     const fetchDetails = async () => {
       try {
         const res = await axios.get<EvacuationCenterDetail>(
-          `http://localhost:3000/api/v1/evacuees/${centerId}/details`
+          `http://localhost:3000/api/v1/evacuees/${centerId}/details`,
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          }
         );
         setDetail(res.data);
       } catch (err) {
@@ -159,7 +168,13 @@ const getRegisteredAt = (f: FamilyEvacueeInformation) => {
     const fetchStatistics = async () => {
       try {
         const res = await axios.get<EvacueeStatistics>(
-          `http://localhost:3000/api/v1/evacuees/${centerId}/evacuee-statistics`
+          `http://localhost:3000/api/v1/evacuees/${centerId}/evacuee-statistics`,
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          }
         );
         setStatistics(res.data);
       } catch (err) {
@@ -171,7 +186,13 @@ const getRegisteredAt = (f: FamilyEvacueeInformation) => {
       setEvacueesLoading(true);
       try {
         const res = await axios.get<FamilyEvacueeInformation[]>(
-          `http://localhost:3000/api/v1/evacuees/${centerId}/evacuees-information`
+          `http://localhost:3000/api/v1/evacuees/${centerId}/evacuees-information`,
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          }
         );
         setEvacuees(Array.isArray(res.data) ? res.data : []);
       } catch (err) {
@@ -275,7 +296,13 @@ const { paginatedEvacuees, totalRows, totalPages } = useMemo(() => {
       if (!evacueeResidentId) return;
 
       const res = await axios.get<EditEvacueeApi>(
-        `http://localhost:3000/api/v1/evacuees/${centerId}/${evacueeResidentId}/edit`
+        `http://localhost:3000/api/v1/evacuees/${centerId}/${evacueeResidentId}/edit`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
       );
       const data = res.data;
 
@@ -310,7 +337,13 @@ const { paginatedEvacuees, totalRows, totalPages } = useMemo(() => {
     try {
       const { data } = await axios.get<any[]>(
         "http://localhost:3000/api/v1/evacuees/search",
-        { params: { name: value } }
+        { 
+          params: { name: value },
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
       );
       setSearchResults(Array.isArray(data) ? data : []);
     } catch (err) {
@@ -338,7 +371,13 @@ const { paginatedEvacuees, totalRows, totalPages } = useMemo(() => {
         setFhLoading(true);
         const { data } = await axios.get<{ data: FamilyHeadResult[] }>(
           `http://localhost:3000/api/v1/evacuees/${centerId}/family-heads`,
-          { params: { q } }
+          { 
+            params: { q },
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          }
         );
         setFamilyHeadSearchResults(data?.data || []);
       } catch (e) {
@@ -537,13 +576,24 @@ const { paginatedEvacuees, totalRows, totalPages } = useMemo(() => {
         console.log("[handleRegisterEvacuee] POST /evacuees");
         const resp = await axios.post(
           "http://localhost:3000/api/v1/evacuees",
-          payload
+          payload,
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          }
         );
         console.log("[handleRegisterEvacuee] POST OK", resp.status, resp.data);
       } else if (evacueeModalMode === "edit" && selectedEvacuee?.id) {
         const url = `http://localhost:3000/api/v1/evacuees/${selectedEvacuee.id}`;
         console.log("[handleRegisterEvacuee] PUT", url);
-        const resp = await axios.put(url, payload);
+        const resp = await axios.put(url, payload, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
         console.log("[handleRegisterEvacuee] PUT OK", resp.status, resp.data);
       } else {
         console.warn(
