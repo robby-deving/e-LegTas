@@ -7,21 +7,32 @@ import profileIllustration from '../assets/profile-illustration.svg';
 import EditProfileModal from '../components/modals/EditProfile';
 import type { UserData } from '../components/modals/EditProfile';
 import { useEffect } from "react";
+import { useSelector, useDispatch } from "react-redux";
+import { setCredentials, selectCurrentUser, selectToken } from "../features/auth/authSlice";
 
 export default function Profile() {
     usePageTitle('Profile');
+    const currentUser = useSelector(selectCurrentUser);
+    const token = useSelector(selectToken);
+    const dispatch = useDispatch();
 
-    // Temporary hardcoded userId (will be replaced by authenticated user's ID later)
-    const user_id = "32";
+    // Use the actual authenticated user's ID instead of hardcoded value
+    const user_id = currentUser?.user_id;
 
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isUpdating, setIsUpdating] = useState(false);
-    // Local state for profile
     const [userData, setUserData] = useState<UserData | null>(null);
 
     const fetchProfile = async () => {
+    if (!user_id || !token) return;
+
     try {
-        const res = await fetch(`http://localhost:3000/api/v1/profile/${user_id}`);
+        const res = await fetch(`http://localhost:3000/api/v1/profile/${user_id}`, {
+            headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+            },
+        });
         const json = await res.json();
 
         console.log("📡 Response status:", res.status);
@@ -45,76 +56,18 @@ export default function Profile() {
 
     useEffect(() => {
     fetchProfile();
-    }, [user_id]); // re-fetch if userId changes
-
-    // useEffect(() => {
-    //     const fetchProfile = async () => {
-    //         try {
-    //             const res = await fetch(`http://localhost:3000/api/v1/profile/${user_id}`);
-    //             const json = await res.json();
-
-    //             console.log("📡 Response status:", res.status);
-    //             console.log("📡 Response JSON:", json);
-
-    //             if (res.ok) {
-    //                 // Flatten backend data into frontend format
-    //                 setUserData({
-    //                     name: `${json.data.first_name ?? ''} ${json.data.last_name ?? ''}`.trim(),
-    //                     role: json.data.role ?? "-",
-    //                     employeeId: json.data.employee_number ?? "-",
-    //                     email: json.data.email ?? "-",
-    //                     phone: json.data.phone_number ?? "-"
-    //                 });
-    //             } else {
-    //                 console.error("Error fetching profile:", json.message);
-    //             }
-    //         } catch (err) {
-    //             console.error("Network error fetching profile:", err);
-    //         }
-    //     };
-
-    //     fetchProfile();
-    // }, [user_id]); // re-fetch if userId changes
-
-    if (!userData) {
-        return (
-            <div className="flex flex-col items-center justify-center h-[400px] text-center"> 
-                <div className="text-lg text-gray-500 max-w-2xl">
-                    Loading profile...
-                </div>
-            </div>
-        );
-    }
+    }, [user_id, token]); // re-fetch if userId changes
 
     const handleEditProfile = () => {
         setIsEditModalOpen(true);
     };
 
     const handleSaveProfile = async (updatedData: UserData) => {
+        if (!user_id || !token) return;
         setIsUpdating(true);
-        
-        // try {
-        //     // Simulate API call
-        //     await new Promise((resolve) => {
-        //         setTimeout(() => {
-        //             resolve(null);
-        //         }, 1000);
-        //     });
 
-        //     // Update the user data (but keep the role unchanged)
-        //     setUserData({
-        //         ...updatedData,
-        //         role: userData.role // Keep the original role
-        //     });
-        //     setIsEditModalOpen(false);
-            
-        // } catch (error) {
-        //     console.error('Error updating profile:', error);
-        // } finally {
-        //     setIsUpdating(false);
-        // }
         try {
-            // split "First Last ...", keep everything after first token as last name
+            // split "First Last ...", keep everything after first token
             const parts = updatedData.name.trim().split(/\s+/);
             const firstName = parts[0] ?? '';
             const lastName = parts.slice(1).join(' ') || '';
@@ -128,18 +81,28 @@ export default function Profile() {
 
             const res = await fetch(`http://localhost:3000/api/v1/profile/${user_id}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+            },
             body: JSON.stringify(payload)
             });
 
             const json = await res.json();
             if (!res.ok) throw new Error(json.message || 'Failed to update profile');
 
-            // Option A: refetch from backend for truth
+            // refetch from backend for truth
             await fetchProfile();
 
-            // Option B (optional): or optimistic update (you already had this)
-            // setUserData(prev => prev ? { ...prev, ...updatedData, role: prev.role } : updatedData);
+            dispatch(setCredentials({
+            user: {
+                ...currentUser, // keep existing fields
+                first_name: firstName,
+                last_name: lastName,
+                email: updatedData.email
+            },
+            token
+            }));
 
             setIsEditModalOpen(false);
         } catch (error: any) {
@@ -149,6 +112,16 @@ export default function Profile() {
             setIsUpdating(false);
         }
     };
+
+    if (!userData) {
+        return (
+            <div className="flex flex-col items-center justify-center h-[400px] text-center"> 
+                <div className="text-lg text-gray-500 max-w-2xl">
+                    Loading profile...
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="text-black p-6 space-y-6">

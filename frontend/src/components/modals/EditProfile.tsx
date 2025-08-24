@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../ui/dialog";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 export type UserData = {
   name: string;
@@ -31,7 +31,8 @@ export default function EditProfile({
   const [employeeId, setEmployeeId] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [errorMessage, setErrorMessage] = useState("");
+
+  const formRef = useRef<HTMLFormElement>(null);
 
   // Initialize form when modal opens
   useEffect(() => {
@@ -53,19 +54,15 @@ export default function EditProfile({
 
   const handleSave = () => {
     // Reset any old error
-    setErrorMessage("");
-
-    // Basic validation
-    if (!firstName.trim() || !lastName.trim() || !employeeId.trim() || !email.trim() || !phone.trim()) {
-        setErrorMessage("Please fill in all fields");
-        return;
+    if (formRef.current && !formRef.current.reportValidity()) {
+      return; // stop if invalid
     }
 
-    // Simple email validation
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        setErrorMessage("Please enter a valid email address");
-        return;
-    }
+    // // Simple email validation
+    // if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    //     setErrorMessage("Please enter a valid email address");
+    //     return;
+    // }
 
     // Save the data
     const fullName = `${firstName.trim()} ${lastName.trim()}`;
@@ -74,7 +71,7 @@ export default function EditProfile({
       role: userData.role,
       employeeId: employeeId.trim(),
       email: email.trim().toLowerCase(),
-      phone: phone.trim() === "" ? "-" : phone.replace(/[^\d]/g, '') // Keep only digits
+      phone: phone.replace(/[^\d]/g, '') // Keep only digits
     };
 
     onSave(updatedData);
@@ -89,15 +86,8 @@ export default function EditProfile({
           </DialogTitle>
         </DialogHeader>
 
+        <form ref={formRef} className="space-y-4" onSubmit={(e) => e.preventDefault()}>
         <div className="space-y-4">
-          <div>
-            {errorMessage && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded mb-4 text-sm">
-                {errorMessage}
-            </div>
-            )}
-          </div>
-          
           <div>
             <label className="block text-sm font-semibold mb-2">First Name:</label>
             <Input
@@ -105,6 +95,7 @@ export default function EditProfile({
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
               disabled={isUpdating}
+              required
             />
           </div>
 
@@ -115,6 +106,7 @@ export default function EditProfile({
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
               disabled={isUpdating}
+              required
             />
           </div>
 
@@ -125,6 +117,7 @@ export default function EditProfile({
               value={employeeId}
               onChange={(e) => setEmployeeId(e.target.value)}
               disabled={true}
+              required
             />
           </div>
 
@@ -136,6 +129,7 @@ export default function EditProfile({
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={true}
+              required
             />
           </div>
 
@@ -147,9 +141,11 @@ export default function EditProfile({
               value={phone}
               onChange={(e) => handlePhoneChange(e.target.value)}
               disabled={isUpdating}
+              required
             />
           </div>
         </div>
+        </form>
 
         <DialogFooter className="flex justify-between mt-6">
           <Button 
