@@ -10,5 +10,6 @@ const router = express.Router();
 // Get profile by userId
 // Example: GET /api/v1/profile/123
 router.get('/:userId', profileController.getUserProfile);
+router.put('/:userId', profileController.updateUserProfile);
 
 module.exports = router;
