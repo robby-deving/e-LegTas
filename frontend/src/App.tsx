@@ -7,7 +7,7 @@ import { useAutoRefreshToken } from './features/auth/useAutoRefreshToken';
 import TopNav from './components/TopNav';
 import SideNav from './components/SideNav';
 import { PermissionGate } from './components/PermissionGate';
-import AccessDenied from './components/feedback/AccessDenied';
+import StatusCodes from './components/StatusCodes';
 import Dashboard from './pages/Dashboard';
 import Map from './pages/Map';
 import EvacuationCenters from './pages/EvacuationCenters';
@@ -15,7 +15,7 @@ import Announcements from './pages/Announcements';
 import UserManagement from './pages/UserManagement';
 import RoleModuleConfig from './pages/RoleModuleConfig';
 import Reports from './pages/Reports';
-import EvacuationInfo from './pages/EvacuationInfo'; 
+import EvacuationInfo from './pages/EvacuationInfo';
 import Profile from './pages/Profile';
 import Login from './pages/Login';
 import ForgotPassword from './pages/ForgotPassword';
@@ -23,10 +23,10 @@ import ForgotPassword1 from './pages/ForgotPassword1';
 import ForgotPassword2 from './pages/ForgotPassword2';
 import DisasterDetail from './pages/DisasterDetail';
 import EvacuationCenterDetail from './pages/EvacuationCenterDetail';
-
+// Temporary testing route
+import CampManagerDashboard from './components/Dashboard/CampManagerDashboard';
 
 import PrintReport from './pages/PrintReport';
-
 
 // Protected Route Component
 interface ProtectedRouteProps {
@@ -35,11 +35,11 @@ interface ProtectedRouteProps {
 
 function ProtectedRoute({ children }: ProtectedRouteProps) {
   const isAuthenticated = useSelector(selectIsAuthenticated);
-  
+
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
-  
+
   return <>{children}</>;
 }
 
@@ -50,9 +50,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
       <SideNav />
       <div className="flex flex-col flex-1 overflow-hidden">
         <TopNav />
-        <div className="flex-1 p-4 overflow-y-auto">
-          {children}
-        </div>
+        <div className="flex-1 p-4 overflow-y-auto">{children}</div>
       </div>
     </div>
   );
@@ -67,159 +65,167 @@ function App() {
     <PermissionProvider>
       <Routes>
         {/* Redirect root to appropriate page based on auth status */}
-        <Route 
-          path="/" 
+        <Route
+          path="/"
           element={
-            isAuthenticated ? 
-              <Navigate to="/dashboard" replace /> : 
+            isAuthenticated ? (
+              <Navigate to="/dashboard" replace />
+            ) : (
               <Navigate to="/login" replace />
-          } 
+            )
+          }
         />
-        
+
         {/* Login routes - redirect to dashboard if already authenticated */}
-        <Route 
-          path="/login" 
-          element={
-            isAuthenticated ? 
-              <Navigate to="/dashboard" replace /> : 
-              <Login />
-          } 
-        />
-        <Route 
-          path="/forgot-password" 
-          element={
-            isAuthenticated ? 
-              <Navigate to="/dashboard" replace /> : 
-              <ForgotPassword />
-          } 
-        />
-        <Route 
-          path="/forgot-password/verify" 
-          element={
-            isAuthenticated ? 
-              <Navigate to="/dashboard" replace /> : 
-              <ForgotPassword1 />
-          } 
-        />
-        <Route 
-          path="/forgot-password/reset" 
-          element={
-            isAuthenticated ? 
-              <Navigate to="/dashboard" replace /> : 
-              <ForgotPassword2 />
-          } 
-        />
+        <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login />} />
+        <Route path="/forgot-password" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <ForgotPassword />} />
+        <Route path="/forgot-password/verify" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <ForgotPassword1 />} />
+        <Route path="/forgot-password/reset" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <ForgotPassword2 />} />
 
         {/* Protected routes with layout */}
-        <Route path="/dashboard" element={
-          <ProtectedRoute>
-            <AppLayout>
-              <Dashboard />
-            </AppLayout>
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/map" element={
-          <ProtectedRoute>
-            <AppLayout>
-              <Map />
-            </AppLayout>
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/evacuation-information" element={
-          <ProtectedRoute>
-            <AppLayout>
-              <EvacuationInfo />
-            </AppLayout>
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/evacuation-centers" element={
-          <ProtectedRoute>
-            <AppLayout>
-              <PermissionGate permission="view_evacuation_centers" fallback={<AccessDenied />}>
-                <EvacuationCenters />
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <PermissionGate permission="view_dashboard" fallback={<StatusCodes code={403} />}>
+                <AppLayout>
+                  <Dashboard />
+                </AppLayout>
               </PermissionGate>
-            </AppLayout>
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/reports" element={
-          <ProtectedRoute>
-            <AppLayout>
-              <Reports />
-            </AppLayout>
-          </ProtectedRoute>
-        } />
-        
+            </ProtectedRoute>
+          }
+        />
 
-        
-        <Route path="/announcements" element={
-          <ProtectedRoute>
-            <AppLayout>
-              <Announcements />
-            </AppLayout>
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/user-management" element={
-          <ProtectedRoute>
-            <AppLayout>
-              <UserManagement />
-            </AppLayout>
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/role-module-config" element={
-          <ProtectedRoute>
-            <AppLayout>
-              <RoleModuleConfig />
-            </AppLayout>
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/profile" element={
-          <ProtectedRoute>
-            <AppLayout>
-              <Profile />
-            </AppLayout>
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/evacuation-information/:id" element={
-          <ProtectedRoute>
-            <AppLayout>
-              <DisasterDetail />
-            </AppLayout>
-          </ProtectedRoute>
-        } />
-        <Route path="/evacuation-information/:id/:disasterEvacuationEventId" element={
-          <ProtectedRoute>
-            <AppLayout>
-              <EvacuationCenterDetail />
-            </AppLayout>
-          </ProtectedRoute>
-        } />
-        
+        <Route
+          path="/map"
+          element={
+            <ProtectedRoute>
+              <PermissionGate permission="view_map" fallback={<StatusCodes code={403} />}>
+                <AppLayout>
+                  <Map />
+                </AppLayout>
+              </PermissionGate>
+            </ProtectedRoute>
+          }
+        />
 
+        <Route
+          path="/evacuation-information"
+          element={
+            <ProtectedRoute>
+              <AppLayout>
+                <EvacuationInfo />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
 
+        <Route
+          path="/evacuation-centers"
+          element={
+            <ProtectedRoute>
+              <PermissionGate permission="view_evacuation_centers" fallback={<StatusCodes code={403} />}>
+                <AppLayout>
+                  <EvacuationCenters />
+                </AppLayout>
+              </PermissionGate>
+            </ProtectedRoute>
+          }
+        />
 
+        <Route
+          path="/reports"
+          element={
+            <ProtectedRoute>
+              <AppLayout>
+                <Reports />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
 
+        <Route
+          path="/announcements"
+          element={
+            <ProtectedRoute>
+              <PermissionGate permission="view_announcement_page" fallback={<StatusCodes code={403} />}>
+                <AppLayout>
+                  <Announcements />
+                </AppLayout>
+              </PermissionGate>
+            </ProtectedRoute>
+          }
+        />
 
+        <Route
+          path="/user-management"
+          element={
+            <ProtectedRoute>
+              <PermissionGate permission="view_user_management" fallback={<StatusCodes code={403} />}>
+                <AppLayout>
+                  <UserManagement />
+                </AppLayout>
+              </PermissionGate>
+            </ProtectedRoute>
+          }
+        />
 
+        <Route
+          path="/role-module-config"
+          element={
+            <ProtectedRoute>
+              <AppLayout>
+                <RoleModuleConfig />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
 
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <AppLayout>
+                <Profile />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
 
+        <Route
+          path="/evacuation-information/:id"
+          element={
+            <ProtectedRoute>
+              <AppLayout>
+                <DisasterDetail />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/evacuation-information/:id/:disasterEvacuationEventId"
+          element={
+            <ProtectedRoute>
+              <AppLayout>
+                <EvacuationCenterDetail />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
 
+        {/* Temporary testing route */}
+        <Route
+          path="/camp-dashboard"
+          element={
+            <ProtectedRoute>
+              <AppLayout>
+                <CampManagerDashboard />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
 
-
-
-
-
-
-
-
-
+        {/* Unprotected print route used by Puppeteer */}
         <Route path="/print" element={<PrintReport />} />
       </Routes>
     </PermissionProvider>
