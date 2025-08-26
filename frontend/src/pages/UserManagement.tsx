@@ -170,15 +170,19 @@ export default function UserManagement(){
 
     // Helper function to get assignable roles for current user
     const getAssignableRoles = () => {
-        if (!currentRoleConfig || !currentRoleConfig.assignableRoleIds) return roles;
-        
-        // If "all" is specified, return all roles
-        if (currentRoleConfig.assignableRoleIds === "all") {
-            return roles;
+        if (!currentRoleConfig || !currentRoleConfig.assignableRoleIds) {
+            // Exclude System Admin (role_id 1) from all assignable roles
+            return roles.filter(role => role.id !== 1);
         }
         
-        // Otherwise, filter by the specified role IDs
+        // If "all" is specified, return all roles except System Admin
+        if (currentRoleConfig.assignableRoleIds === "all") {
+            return roles.filter(role => role.id !== 1);
+        }
+        
+        // Otherwise, filter by the specified role IDs and exclude System Admin
         return roles.filter(role => 
+            role.id !== 1 && // Always exclude System Admin
             Array.isArray(currentRoleConfig.assignableRoleIds) && 
             currentRoleConfig.assignableRoleIds.includes(role.id)
         );
@@ -353,6 +357,9 @@ export default function UserManagement(){
     // Filter users based on search term and role filter
     useEffect(() => {
         let filtered = users;
+        
+        // Always exclude System Admin users (role_id 1) from the table
+        filtered = filtered.filter(user => user.role_id !== 1);
         
         // Apply role filter first
         if (selectedRoleFilter !== 'all') {
@@ -919,11 +926,14 @@ export default function UserManagement(){
                                 }}
                             >
                                 <option value="all">All Roles</option>
-                                {!rolesLoading && roles.map(role => (
-                                    <option key={role.id} value={role.id}>
-                                        {role.name.toUpperCase()}
-                                    </option>
-                                ))}
+                                {!rolesLoading && roles
+                                    .filter(role => role.id !== 1) // Exclude System Admin (role_id 1)
+                                    .map(role => (
+                                        <option key={role.id} value={role.id}>
+                                            {role.name.toUpperCase()}
+                                        </option>
+                                    ))
+                                }
                                 {rolesLoading && (
                                     <option disabled>Loading roles...</option>
                                 )}
