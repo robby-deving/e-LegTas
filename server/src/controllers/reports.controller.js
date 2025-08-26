@@ -360,7 +360,7 @@ exports.generateReport = async (req, res, next) => {
       report_type_id: Number(report_type_id),
       disaster_id: hasDisaster ? Number(disaster_id) : null,
       disaster_evacuation_event_id: hasEvent ? Number(disaster_evacuation_event_id) : null,
-      generation_timestamp: timestamp,
+       generation_timestamp: new Date(as_of).toISOString(),
       generated_by_user_id: generatedBy,
       file_path: path,
       file_format: fileFormat,

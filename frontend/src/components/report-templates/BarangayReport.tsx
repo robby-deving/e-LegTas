@@ -43,6 +43,9 @@ export default function BarangayReportTemplate({
   logo1Src = legazpiLogo1,
   logo2Src = legazpiLogo2,
 }: BarangayReportProps) {
+  // Preserve 0, blank only if null/undefined
+  const showNum = (value?: number | null) => (value === 0 ? 0 : (value ?? ''));
+
   // Make sure we always work with arrays
   const centers: EvacuationCenter[] = Array.isArray(evacuationCenters)
     ? evacuationCenters.map((c) => ({
@@ -150,7 +153,9 @@ export default function BarangayReportTemplate({
           <div className="text-xs">Republic of the Philippines</div>
           <div className="text-xs font-bold">City Government of Legazpi</div>
           <div className="text-sm underline font-bold p-2">{titleBarangay}</div>
-          <div className="text-sm font-bold mt-1">EVACUATION DATA FOR {titleDisaster}</div>
+          <div className="text-sm font-bold mt-4">
+            EVACUATION DATA FOR <span className="uppercase">{titleDisaster}</span>
+          </div>
           <div className="text-xs">
             as of {titleDate}
             {titleTime ? `, ${titleTime}` : ''}
@@ -262,37 +267,37 @@ export default function BarangayReportTemplate({
                       )}
                       <td className="border border-black p-1">{evacuee.familyHead}</td>
                       <td className="border border-black p-1 text-center">{evacuee.purok}</td>
-                      <td className="border border-black p-1 text-center">{evacuee.male || ''}</td>
-                      <td className="border border-black p-1 text-center">{evacuee.female || ''}</td>
-                      <td className="border border-black p-1 text-center">{evacuee.total || ''}</td>
-                      <td className="border border-black p-1 text-center">{evacuee.infant || ''}</td>
-                      <td className="border border-black p-1 text-center">{evacuee.children || ''}</td>
-                      <td className="border border-black p-1 text-center">{evacuee.youth || ''}</td>
-                      <td className="border border-black p-1 text-center">{evacuee.adult || ''}</td>
-                      <td className="border border-black p-1 text-center">{evacuee.seniorCitizens || ''}</td>
-                      <td className="border border-black p-1 text-center">{evacuee.pwd || ''}</td>
-                      <td className="border border-black p-1 text-center">{evacuee.pregnant || ''}</td>
-                      <td className="border border-black p-1 text-center">{evacuee.lactating || ''}</td>
+                      <td className="border border-black p-1 text-center">{showNum(evacuee.male)}</td>
+                      <td className="border border-black p-1 text-center">{showNum(evacuee.female)}</td>
+                      <td className="border border-black p-1 text-center">{showNum(evacuee.total)}</td>
+                      <td className="border border-black p-1 text-center">{showNum(evacuee.infant)}</td>
+                      <td className="border border-black p-1 text-center">{showNum(evacuee.children)}</td>
+                      <td className="border border-black p-1 text-center">{showNum(evacuee.youth)}</td>
+                      <td className="border border-black p-1 text-center">{showNum(evacuee.adult)}</td>
+                      <td className="border border-black p-1 text-center">{showNum(evacuee.seniorCitizens)}</td>
+                      <td className="border border-black p-1 text-center">{showNum(evacuee.pwd)}</td>
+                      <td className="border border-black p-1 text-center">{showNum(evacuee.pregnant)}</td>
+                      <td className="border border-black p-1 text-center">{showNum(evacuee.lactating)}</td>
                     </tr>
                   ))}
 
-                  {/* Subtotal Row (note: first visible cell here is under "Family Head" column 
-                      because the center name cell is row-spanned above) */}
-                  <tr className="font-bold bg-gray-100">
-                    <td className="border border-black p-1 text-center">{subtotal.families || ''}</td>
-                    <td className="border border-black p-1"></td>
-                    <td className="border border-black p-1 text-center">{subtotal.male || ''}</td>
-                    <td className="border border-black p-1 text-center">{subtotal.female || ''}</td>
-                    <td className="border border-black p-1 text-center">{subtotal.total || ''}</td>
-                    <td className="border border-black p-1 text-center">{subtotal.infant || ''}</td>
-                    <td className="border border-black p-1 text-center">{subtotal.children || ''}</td>
-                    <td className="border border-black p-1 text-center">{subtotal.youth || ''}</td>
-                    <td className="border border-black p-1 text-center">{subtotal.adult || ''}</td>
-                    <td className="border border-black p-1 text-center">{subtotal.seniorCitizens || ''}</td>
-                    <td className="border border-black p-1 text-center">{subtotal.pwd || ''}</td>
-                    <td className="border border-black p-1 text-center">{subtotal.pregnant || ''}</td>
-                    <td className="border border-black p-1 text-center">{subtotal.lactating || ''}</td>
-                  </tr>
+                  {/* Subtotal Row */}
+<tr className="font-bold bg-gray-100">
+  <td className="border border-black p-1 text-center">{subtotal.families || ''}</td>
+  <td className="border border-black p-1 text-center">----</td> {/* Purok */}
+  <td className="border border-black p-1 text-center">{subtotal.male || ''}</td>
+  <td className="border border-black p-1 text-center">{subtotal.female || ''}</td>
+  <td className="border border-black p-1 text-center">{subtotal.total || ''}</td>
+  <td className="border border-black p-1 text-center">{subtotal.infant || ''}</td>
+  <td className="border border-black p-1 text-center">{subtotal.children || ''}</td>
+  <td className="border border-black p-1 text-center">{subtotal.youth || ''}</td>
+  <td className="border border-black p-1 text-center">{subtotal.adult || ''}</td>
+  <td className="border border-black p-1 text-center">{subtotal.seniorCitizens || ''}</td>
+  <td className="border border-black p-1 text-center">{subtotal.pwd || ''}</td>
+  <td className="border border-black p-1 text-center">{subtotal.pregnant || ''}</td>
+  <td className="border border-black p-1 text-center">{subtotal.lactating || ''}</td>
+</tr>
+
                 </React.Fragment>
               );
             })
@@ -300,22 +305,23 @@ export default function BarangayReportTemplate({
 
           {/* Grand Total Row */}
           {centers.length > 0 && (
-            <tr className="font-bold bg-gray-200">
-              <td className="border border-black p-1">Total</td>
-              <td className="border border-black p-1 text-center">{grandTotal.families || ''}</td>
-              <td className="border border-black p-1"></td>
-              <td className="border border-black p-1 text-center">{grandTotal.male || ''}</td>
-              <td className="border border-black p-1 text-center">{grandTotal.female || ''}</td>
-              <td className="border border-black p-1 text-center">{grandTotal.total || ''}</td>
-              <td className="border border-black p-1 text-center">{grandTotal.infant || ''}</td>
-              <td className="border border-black p-1 text-center">{grandTotal.children || ''}</td>
-              <td className="border border-black p-1 text-center">{grandTotal.youth || ''}</td>
-              <td className="border border-black p-1 text-center">{grandTotal.adult || ''}</td>
-              <td className="border border-black p-1 text-center">{grandTotal.seniorCitizens || ''}</td>
-              <td className="border border-black p-1 text-center">{grandTotal.pwd || ''}</td>
-              <td className="border border-black p-1 text-center">{grandTotal.pregnant || ''}</td>
-              <td className="border border-black p-1 text-center">{grandTotal.lactating || ''}</td>
-            </tr>
+<tr className="font-bold bg-gray-200">
+  <td className="border border-black p-1">Total</td>
+  <td className="border border-black p-1 text-center">{grandTotal.families || ''}</td>
+  <td className="border border-black p-1 text-center">----</td> {/* Purok */}
+  <td className="border border-black p-1 text-center">{grandTotal.male || ''}</td>
+  <td className="border border-black p-1 text-center">{grandTotal.female || ''}</td>
+  <td className="border border-black p-1 text-center">{grandTotal.total || ''}</td>
+  <td className="border border-black p-1 text-center">{grandTotal.infant || ''}</td>
+  <td className="border border-black p-1 text-center">{grandTotal.children || ''}</td>
+  <td className="border border-black p-1 text-center">{grandTotal.youth || ''}</td>
+  <td className="border border-black p-1 text-center">{grandTotal.adult || ''}</td>
+  <td className="border border-black p-1 text-center">{grandTotal.seniorCitizens || ''}</td>
+  <td className="border border-black p-1 text-center">{grandTotal.pwd || ''}</td>
+  <td className="border border-black p-1 text-center">{grandTotal.pregnant || ''}</td>
+  <td className="border border-black p-1 text-center">{grandTotal.lactating || ''}</td>
+</tr>
+
           )}
         </tbody>
       </table>

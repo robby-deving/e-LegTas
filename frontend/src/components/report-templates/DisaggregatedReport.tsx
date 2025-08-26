@@ -39,7 +39,10 @@ export default function DisaggregatedReportTemplate({
   logo2Src = legazpiLogo2,
   showTotals = false,
 }: DisaggregatedReportProps) {
-  // Normalize input to avoid runtime errors
+  // Preserve 0, blank only if null/undefined
+  const showNum = (value?: number | null) => (value === 0 ? 0 : (value ?? ''));
+
+  // Normalize input
   const sites: EvacuationSiteData[] = Array.isArray(evacuationSites)
     ? evacuationSites.map((s) => ({
         barangay: s?.barangay ?? '',
@@ -64,7 +67,6 @@ export default function DisaggregatedReportTemplate({
   const titleTime = reportTime || '—';
 
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
-    // Hide broken images gracefully
     e.currentTarget.style.display = 'none';
   };
 
@@ -100,7 +102,7 @@ export default function DisaggregatedReportTemplate({
       }
     );
 
-  // Keep the page layout consistent for printing: show blank rows if no data
+  // Keep print layout consistent
   const displayRows: EvacuationSiteData[] =
     sites.length > 0
       ? sites
@@ -141,7 +143,9 @@ export default function DisaggregatedReportTemplate({
         <div className="text-center">
           <div className="text-xs">Republic of the Philippines</div>
           <div className="text-xs font-bold">City Government of Legazpi</div>
-          <div className="text-sm font-bold mt-4">EVACUATION DATA FOR {titleDisaster}</div>
+          <div className="text-sm font-bold mt-4">
+            EVACUATION DATA FOR <span className="uppercase">{titleDisaster}</span>
+          </div>
           <div className="text-xs">
             as of {titleDate}
             {titleTime ? `, ${titleTime}` : ''}
@@ -167,59 +171,17 @@ export default function DisaggregatedReportTemplate({
             <th className="w-32 border border-black p-1">Barangay</th>
             <th className="w-48 border border-black p-1">Evacuation Center/Site</th>
             <th className="w-20 border border-black p-1">Family</th>
-            <th className="w-20 border border-black p-1">
-              Total No. of
-              <br />
-              Male
-            </th>
-            <th className="w-20 border border-black p-1">
-              Total No. of
-              <br />
-              Female
-            </th>
-            <th className="w-20 border border-black p-1">
-              Total No. of
-              <br />
-              Individuals
-            </th>
-            <th className="w-20 border border-black p-1">
-              Infant
-              <br />
-              (1 year old)
-            </th>
-            <th className="w-20 border border-black p-1">
-              Children
-              <br />
-              (2-12 yrs. old)
-            </th>
-            <th className="w-20 border border-black p-1">
-              Youth
-              <br />
-              (13-17 yrs. old)
-            </th>
-            <th className="w-20 border border-black p-1">
-              Adult
-              <br />
-              (18-59 yrs. old)
-            </th>
-            <th className="w-20 border border-black p-1">
-              Senior
-              <br />
-              Citizens
-              <br />
-              (60+ yrs.)
-            </th>
+            <th className="w-20 border border-black p-1">Total No. of<br />Male</th>
+            <th className="w-20 border border-black p-1">Total No. of<br />Female</th>
+            <th className="w-20 border border-black p-1">Total No. of<br />Individuals</th>
+            <th className="w-20 border border-black p-1">Infant<br />(1 year old)</th>
+            <th className="w-20 border border-black p-1">Children<br />(2-12 yrs. old)</th>
+            <th className="w-20 border border-black p-1">Youth<br />(13-17 yrs. old)</th>
+            <th className="w-20 border border-black p-1">Adult<br />(18-59 yrs. old)</th>
+            <th className="w-20 border border-black p-1">Senior<br />Citizens<br />(60+ yrs.)</th>
             <th className="w-16 border border-black p-1">PWD</th>
-            <th className="w-20 border border-black p-1">
-              Pregnant
-              <br />
-              Woman
-            </th>
-            <th className="w-20 border border-black p-1">
-              Lactating
-              <br />
-              Women
-            </th>
+            <th className="w-20 border border-black p-1">Pregnant<br />Woman</th>
+            <th className="w-20 border border-black p-1">Lactating<br />Women</th>
           </tr>
         </thead>
         <tbody>
@@ -227,42 +189,36 @@ export default function DisaggregatedReportTemplate({
             <tr key={index}>
               <td className="h-6 border border-black p-1">{site.barangay}</td>
               <td className="h-6 border border-black p-1">{site.evacuationCenter}</td>
-              <td className="h-6 border border-black p-1 text-center">{site.families || ''}</td>
-              <td className="h-6 border border-black p-1 text-center">{site.male || ''}</td>
-              <td className="h-6 border border-black p-1 text-center">{site.female || ''}</td>
-              <td className="h-6 border border-black p-1 text-center">{site.total || ''}</td>
-              <td className="h-6 border border-black p-1 text-center">{site.infant || ''}</td>
-              <td className="h-6 border border-black p-1 text-center">{site.children || ''}</td>
-              <td className="h-6 border border-black p-1 text-center">{site.youth || ''}</td>
-              <td className="h-6 border border-black p-1 text-center">{site.adult || ''}</td>
-              <td className="h-6 border border-black p-1 text-center">
-                {site.seniorCitizens || ''}
-              </td>
-              <td className="h-6 border border-black p-1 text-center">{site.pwd || ''}</td>
-              <td className="h-6 border border-black p-1 text-center">{site.pregnant || ''}</td>
-              <td className="h-6 border border-black p-1 text-center">{site.lactating || ''}</td>
+              <td className="h-6 border border-black p-1 text-center">{showNum(site.families)}</td>
+              <td className="h-6 border border-black p-1 text-center">{showNum(site.male)}</td>
+              <td className="h-6 border border-black p-1 text-center">{showNum(site.female)}</td>
+              <td className="h-6 border border-black p-1 text-center">{showNum(site.total)}</td>
+              <td className="h-6 border border-black p-1 text-center">{showNum(site.infant)}</td>
+              <td className="h-6 border border-black p-1 text-center">{showNum(site.children)}</td>
+              <td className="h-6 border border-black p-1 text-center">{showNum(site.youth)}</td>
+              <td className="h-6 border border-black p-1 text-center">{showNum(site.adult)}</td>
+              <td className="h-6 border border-black p-1 text-center">{showNum(site.seniorCitizens)}</td>
+              <td className="h-6 border border-black p-1 text-center">{showNum(site.pwd)}</td>
+              <td className="h-6 border border-black p-1 text-center">{showNum(site.pregnant)}</td>
+              <td className="h-6 border border-black p-1 text-center">{showNum(site.lactating)}</td>
             </tr>
           ))}
 
           {showTotals && sites.length > 0 && (
             <tr className="font-bold bg-gray-200">
-              <td className="border border-black p-1" colSpan={2}>
-                TOTAL
-              </td>
-              <td className="border border-black p-1 text-center">{totals.families}</td>
-              <td className="border border-black p-1 text-center">{totals.male}</td>
-              <td className="border border-black p-1 text-center">{totals.female}</td>
-              <td className="border border-black p-1 text-center">{totals.total}</td>
-              <td className="border border-black p-1 text-center">{totals.infant || ''}</td>
-              <td className="border border-black p-1 text-center">{totals.children || ''}</td>
-              <td className="border border-black p-1 text-center">{totals.youth || ''}</td>
-              <td className="border border-black p-1 text-center">{totals.adult || ''}</td>
-              <td className="border border-black p-1 text-center">
-                {totals.seniorCitizens || ''}
-              </td>
-              <td className="border border-black p-1 text-center">{totals.pwd || ''}</td>
-              <td className="border border-black p-1 text-center">{totals.pregnant || ''}</td>
-              <td className="border border-black p-1 text-center">{totals.lactating || ''}</td>
+              <td className="border border-black p-1" colSpan={2}>TOTAL</td>
+              <td className="border border-black p-1 text-center">{showNum(totals.families)}</td>
+              <td className="border border-black p-1 text-center">{showNum(totals.male)}</td>
+              <td className="border border-black p-1 text-center">{showNum(totals.female)}</td>
+              <td className="border border-black p-1 text-center">{showNum(totals.total)}</td>
+              <td className="border border-black p-1 text-center">{showNum(totals.infant)}</td>
+              <td className="border border-black p-1 text-center">{showNum(totals.children)}</td>
+              <td className="border border-black p-1 text-center">{showNum(totals.youth)}</td>
+              <td className="border border-black p-1 text-center">{showNum(totals.adult)}</td>
+              <td className="border border-black p-1 text-center">{showNum(totals.seniorCitizens)}</td>
+              <td className="border border-black p-1 text-center">{showNum(totals.pwd)}</td>
+              <td className="border border-black p-1 text-center">{showNum(totals.pregnant)}</td>
+              <td className="border border-black p-1 text-center">{showNum(totals.lactating)}</td>
             </tr>
           )}
         </tbody>

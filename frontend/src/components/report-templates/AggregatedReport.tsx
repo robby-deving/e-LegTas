@@ -18,8 +18,6 @@ export interface AggregatedReportProps {
   }>;
   logo1Src?: string;
   logo2Src?: string;
-  /** Minimum number of rows to display for nice printing; blank rows will pad if needed. */
-  minRows?: number;
 }
 
 export default function AggregatedReportTemplate({
@@ -29,31 +27,27 @@ export default function AggregatedReportTemplate({
   evacuationCenters = [],
   logo1Src = legazpiLogo1,
   logo2Src = legazpiLogo2,
-  minRows = 20,
 }: AggregatedReportProps) {
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
-    // Hide the broken image so the header stays clean
     e.currentTarget.style.display = 'none';
   };
 
-  // create a padded list so the table always has at least `minRows` rows
   const centers = Array.isArray(evacuationCenters) ? evacuationCenters : [];
-  const padCount = Math.max(0, minRows - centers.length);
-  const padded = [
-    ...centers,
-    ...Array.from({ length: padCount }, () => ({
-      name: '',
-      address: '',
-      originBarangay: '',
-      insideFamilies: null,
-      insidePersons: null,
-      outsideFamilies: null,
-      outsidePersons: null,
-    })),
-  ];
 
-  // show empty string for null/undefined/0 to keep blanks on padded rows
-  const show = (v?: number | null) => (v ? String(v) : '');
+  // Totals (Inside ECs)
+  const totals = centers.reduce(
+    (acc, c) => {
+      acc.insideFamilies += Number(c.insideFamilies ?? 0);
+      acc.insidePersons  += Number(c.insidePersons ?? 0);
+      return acc;
+    },
+    { insideFamilies: 0, insidePersons: 0 }
+  );
+
+// new — show 0 as "0", keep only null/undefined blank
+const show = (v?: number | null) => (v === 0 ? '0' : (v == null ? '' : String(v)));
+
+
 
   return (
     <div className="report-template landscape bg-white p-2">
@@ -74,7 +68,7 @@ export default function AggregatedReportTemplate({
           <div className="text-xs">Republic of the Philippines</div>
           <div className="text-xs font-bold">City Government of Legazpi</div>
           <div className="text-sm font-bold mt-4">
-            STATUS REPORT {disasterEvent ? `FOR ${disasterEvent}` : ''}
+            STATUS REPORT <span className="uppercase">{disasterEvent ? `FOR ${disasterEvent}` : ''}</span>
           </div>
           {(reportDate || reportTime) && (
             <div className="text-xs">
@@ -127,8 +121,9 @@ export default function AggregatedReportTemplate({
             <th className="w-20 border border-black p-1 text-xs">Persons</th>
           </tr>
         </thead>
+
         <tbody>
-          {padded.map((center, idx) => (
+          {centers.map((center, idx) => (
             <tr key={idx}>
               <td className="border border-black p-1 text-xs">{center.name}</td>
               <td className="border border-black p-1 text-xs">{center.address}</td>
@@ -139,8 +134,23 @@ export default function AggregatedReportTemplate({
               <td className="border border-black p-1 text-xs text-center">{show(center.outsidePersons)}</td>
             </tr>
           ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
+
+            {/* Totals row (Inside ECs) + Outside totals show dashes */}
+            <tr>
+              <td className="border border-black p-1 text-xs font-bold text-right" colSpan={3}>
+                TOTAL
+              </td>
+              <td className="border border-black p-1 text-xs text-center font-bold">
+                {totals.insideFamilies}
+              </td>
+              <td className="border border-black p-1 text-xs text-center font-bold">
+                {totals.insidePersons}
+              </td>
+              <td className="border border-black p-1 text-xs text-center font-bold">----</td>
+              <td className="border border-black p-1 text-xs text-center font-bold">----</td>
+            </tr>
+                    </tbody>
+                  </table>
+                </div>
+              );
+            }

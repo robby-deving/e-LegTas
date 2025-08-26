@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
-import { Clock } from "lucide-react";
+import { Clock, Loader2 } from "lucide-react";
 import { DateTimePicker } from "../ui/date-time-picker";
 
 type EvacuationCenter = { id: string; name: string; barangay?: string };
@@ -20,14 +20,14 @@ export type CreateReportModalProps = {
   reportType: string;
   setReportType: (value: string) => void;
 
-  // value to submit (name); we’ll set this when user picks a disaster
+  // value to submit (name)
   disasterEvent: string;
   setDisasterEvent: (value: string) => void;
 
   fileFormat: string;
   setFileFormat: (value: string) => void;
 
-  // Legacy props - kept for compatibility but not used
+  // Legacy props
   evacuationQuery: string;
   setEvacuationQuery: (value: string) => void;
   evacuationResults: EvacuationCenter[];
@@ -43,7 +43,7 @@ export type CreateReportModalProps = {
   selectedBarangay: { id: string; name: string } | null;
   setSelectedBarangay: (barangay: { id: string; name: string } | null) => void;
 
-  // NEW: Disaster Event search (same pattern as Barangay)
+  // Disaster Event search
   disasterQuery: string;
   setDisasterQuery: (value: string) => void;
   disasterResults: IdName[];
@@ -56,7 +56,6 @@ export type CreateReportModalProps = {
   onCreate: () => void;
 
   reportTypes: string[];
-  // removed disasterEvents[] dropdown (we now use search)
   fileFormats: string[];
 
   clearFormError?: (key: string) => void;
@@ -92,7 +91,7 @@ export default function CreateReportModal(props: CreateReportModalProps) {
     setBarangayResults,
     selectedBarangay,
     setSelectedBarangay,
-    // NEW disaster search props
+    // Disaster search props
     disasterQuery,
     setDisasterQuery,
     disasterResults,
@@ -118,6 +117,8 @@ export default function CreateReportModal(props: CreateReportModalProps) {
           <DialogTitle className="text-green-700 text-xl font-bold">Create Report</DialogTitle>
         </DialogHeader>
 
+        <div className="max-h-[70vh] overflow-y-auto pr-2 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500">
+
         <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); onCreate(); }}>
           {/* Report Name */}
           <div>
@@ -141,7 +142,6 @@ export default function CreateReportModal(props: CreateReportModalProps) {
                 setReportType(v);
                 clearFormError && clearFormError('reportType');
 
-                // If switching away from Barangay Report, clear barangay selection
                 if (v !== 'Barangay Report') {
                   setSelectedBarangay(null);
                   setBarangayQuery('');
@@ -172,41 +172,41 @@ export default function CreateReportModal(props: CreateReportModalProps) {
                 value={barangayQuery}
                 onChange={(e) => { setBarangayQuery(e.target.value); setSelectedBarangay(null); clearFormError && clearFormError('barangay'); }}
               />
-
-              {selectedBarangay ? (
-                <div className="text-sm mt-2 flex items-center gap-2">
-                  <div className="font-medium">Selected: {selectedBarangay.name}</div>
-                  <button
-                    type="button"
-                    className="text-xs text-red-500 underline"
-                    onClick={() => { setSelectedBarangay(null); setBarangayQuery(''); }}
-                  >
-                    Clear
-                  </button>
-                </div>
-              ) : (
-                barangayQuery && (
-                  <ul className="border rounded mt-2 max-h-40 overflow-auto bg-white">
-                    {barangayResults.map((b) => (
-                      <li
+              {barangayQuery && !selectedBarangay && (
+                <div
+                  className="
+                    mt-2 border rounded bg-white shadow-sm z-20
+                    space-y-1
+                    max-h-60 overflow-y-auto pr-2
+                    [&::-webkit-scrollbar]:w-2
+                    [&::-webkit-scrollbar-track]:rounded-full
+                    [&::-webkit-scrollbar-track]:bg-gray-100
+                    [&::-webkit-scrollbar-thumb]:rounded-full
+                    [&::-webkit-scrollbar-thumb]:bg-gray-300
+                    dark:[&::-webkit-scrollbar-track]:bg-neutral-700
+                    dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500
+                  "
+                >
+                  {barangayResults.length > 0 ? (
+                    barangayResults.map((b) => (
+                      <button
                         key={b.id}
-                        className="p-2 hover:bg-gray-100 cursor-pointer"
+                        type="button"
+                        className="w-full text-left p-2 hover:bg-gray-100 rounded cursor-pointer"
                         onClick={() => {
                           setSelectedBarangay({ id: b.id, name: b.name });
-                          setBarangayQuery(b.name);
-                          setBarangayResults([]); // clear after pick
+                          setBarangayQuery(b.name);   // reflect selection in the input
+                          setBarangayResults([]);     // hide list after pick
                         }}
                       >
                         <div className="text-sm font-medium">{b.name}</div>
-                      </li>
-                    ))}
-                    {barangayResults.length === 0 && (
-                      <li className="p-2 text-sm text-gray-500">No results</li>
-                    )}
-                  </ul>
-                )
+                      </button>
+                    ))
+                  ) : (
+                    <div className="p-2 text-sm text-gray-500">No results</div>
+                  )}
+                </div>
               )}
-
               {formErrors.barangay && <p className="text-red-600 text-sm mt-1">{formErrors.barangay}</p>}
             </div>
           )}
@@ -225,46 +225,42 @@ export default function CreateReportModal(props: CreateReportModalProps) {
                 clearFormError && clearFormError('disasterEvent');
               }}
             />
-
-            {selectedDisaster ? (
-              <div className="text-sm mt-2 flex items-center gap-2">
-                <div className="font-medium">Selected: {selectedDisaster.name}</div>
-                <button
-                  type="button"
-                  className="text-xs text-red-500 underline"
-                  onClick={() => {
-                    setSelectedDisaster(null);
-                    setDisasterQuery('');
-                    setDisasterEvent('');
-                  }}
-                >
-                  Clear
-                </button>
-              </div>
-            ) : (
-              disasterQuery && (
-                <ul className="border rounded mt-2 max-h-40 overflow-auto bg-white">
-                  {disasterResults.map((d) => (
-                    <li
+            {disasterQuery && !selectedDisaster && (
+              <div
+                className="
+                  mt-2 border rounded bg-white shadow-sm z-20
+                  space-y-1
+                  max-h-60 overflow-y-auto pr-2
+                  [&::-webkit-scrollbar]:w-2
+                  [&::-webkit-scrollbar-track]:rounded-full
+                  [&::-webkit-scrollbar-track]:bg-gray-100
+                  [&::-webkit-scrollbar-thumb]:rounded-full
+                  [&::-webkit-scrollbar-thumb]:bg-gray-300
+                  dark:[&::-webkit-scrollbar-track]:bg-neutral-700
+                  dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500
+                "
+              >
+                {disasterResults.length > 0 ? (
+                  disasterResults.map((d) => (
+                    <button
                       key={d.id}
-                      className="p-2 hover:bg-gray-100 cursor-pointer"
+                      type="button"
+                      className="w-full text-left p-2 hover:bg-gray-100 rounded cursor-pointer"
                       onClick={() => {
                         setSelectedDisaster({ id: d.id, name: d.name });
                         setDisasterQuery(d.name);
-                        setDisasterEvent(d.name);   // <- this is the value used to POST
-                        setDisasterResults([]);      // clear results after pick
+                        setDisasterEvent(d.name);  
+                        setDisasterResults([]);    
                       }}
                     >
                       <div className="text-sm font-medium">{d.name}</div>
-                    </li>
-                  ))}
-                  {disasterResults.length === 0 && (
-                    <li className="p-2 text-sm text-gray-500">No results</li>
-                  )}
-                </ul>
-              )
+                    </button>
+                  ))
+                ) : (
+                  <div className="p-2 text-sm text-gray-500">No results</div>
+                )}
+              </div>
             )}
-
             {formErrors.disasterEvent && <p className="text-red-600 text-sm mt-1">{formErrors.disasterEvent}</p>}
           </div>
 
@@ -313,13 +309,15 @@ export default function CreateReportModal(props: CreateReportModalProps) {
             </Select>
           </div>
         </form>
+        </div>
 
         <DialogFooter className="flex justify-between mt-6">
           <DialogClose asChild>
             <Button variant="outline" className="cursor-pointer">Cancel</Button>
           </DialogClose>
           <Button
-            className="bg-green-700 hover:bg-green-800 text-white cursor-pointer"
+            type="button"
+            className="bg-green-700 hover:bg-green-800 text-white cursor-pointer disabled:opacity-90"
             onClick={onCreate}
             disabled={
               isCreating ||
@@ -327,8 +325,11 @@ export default function CreateReportModal(props: CreateReportModalProps) {
               !reportType ||
               (reportType === 'Barangay Report' ? !selectedBarangay : !disasterEvent)
             }
+            aria-busy={isCreating}
+            aria-live="polite"
           >
-            {isCreating ? 'Generating...' : 'Download Report'}
+            {isCreating && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />}
+            {isCreating ? 'Generating…' : 'Download Report'}
           </Button>
         </DialogFooter>
       </DialogContent>
