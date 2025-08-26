@@ -10,15 +10,14 @@ const barangayRoutes = require('./barangay.routes');
 const authRoutes = require('./auth.routes');
 const userRoutes = require('./user.routes');
 const permissionRoutes = require('./permission.routes');
-const roleRoutes = require('./role.routes');
 const notificationRoutes = require('./notification.routes');
 const dashboardRoutes = require('./dashboard.routes');
-const profileRoutes = require('./profile.routes');
-const reportsRoutes = require('./reports.routes');
 
+
+const reportsRoutes = require('./reports.routes');
 // Middleware and controllers
-const { authenticateUser, requireRoleGroup } = require('../middleware');
-const { getUserCountsByRole } = require('../controllers/user.controller');
+const { authenticateUser, requireRoleGroup, requireUserManagementAccess } = require('../middleware');
+const { createRole, deleteRole, getUserCountsByRole } = require('../controllers/user.controller');
 
 const router = express.Router();
 const baseAPI = '/api/v1';
@@ -33,16 +32,8 @@ router.get(
 
 // Mount routes
 router.use('/auth', authRoutes);
-
-// Apply auth to all /users routes so permission middleware has req.user
-router.use('/users', authenticateUser, userRoutes);
-
+router.use('/users', userRoutes);
 router.use('/permissions', permissionRoutes);
-router.use('/roles', roleRoutes);
-
-// Protect all notifications endpoints so permission checks have req.user
-router.use('/notifications', authenticateUser, notificationRoutes);
-
 router.use('/evacuation-centers', evacuationCentersRoutes);
 router.use('/disasters', disasterRoutes);
 router.use('/rooms', roomRoutes);
@@ -50,12 +41,31 @@ router.use('/disaster-events', disasterEventRoutes);
 router.use('/dashboard', dashboardRoutes);
 router.use('/evacuees', evacueesRoutes);
 router.use('/barangays', barangayRoutes);
-router.use('/profile', profileRoutes);
+router.use('/notifications', notificationRoutes);
 
-// Your feature: reports
-router.use('/reports', reportsRoutes);
 
-// Role routes are handled in role.routes.js
+
+
+
+router.use('/reports', reportsRoutes);      
+
+// Role creation route
+router.post(
+  '/roles',
+  authenticateUser,
+  requireRoleGroup('SYSTEM_ADMIN_GROUP'),
+  requireUserManagementAccess('add'),
+  createRole
+);
+
+// Role deletion route
+router.delete(
+  '/roles/:id',
+  authenticateUser,
+  requireRoleGroup('SYSTEM_ADMIN_GROUP'),
+  requireUserManagementAccess('delete'),
+  deleteRole
+);
 
 // Health check
 router.get('/health', (req, res) => {
