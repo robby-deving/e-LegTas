@@ -12,8 +12,9 @@ const userRoutes = require('./user.routes');
 const permissionRoutes = require('./permission.routes');
 const notificationRoutes = require('./notification.routes');
 const dashboardRoutes = require('./dashboard.routes');
-const reportsRoutes = require('./reports.routes');
 
+
+const reportsRoutes = require('./reports.routes');
 // Middleware and controllers
 const { authenticateUser, requireRoleGroup, requireUserManagementAccess } = require('../middleware');
 const { createRole, deleteRole, getUserCountsByRole } = require('../controllers/user.controller');
@@ -41,6 +42,11 @@ router.use('/dashboard', dashboardRoutes);
 router.use('/evacuees', evacueesRoutes);
 router.use('/barangays', barangayRoutes);
 router.use('/notifications', notificationRoutes);
+
+
+
+
+
 router.use('/reports', reportsRoutes);      
 
 // Role creation route

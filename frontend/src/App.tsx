@@ -23,7 +23,8 @@ import ForgotPassword1 from './pages/ForgotPassword1';
 import ForgotPassword2 from './pages/ForgotPassword2';
 import DisasterDetail from './pages/DisasterDetail';
 import EvacuationCenterDetail from './pages/EvacuationCenterDetail';
-// at the top with other page imports
+
+
 import PrintReport from './pages/PrintReport';
 
 
@@ -186,7 +187,6 @@ function App() {
           </ProtectedRoute>
         } />
         
-
         <Route path="/evacuation-information/:id" element={
           <ProtectedRoute>
             <AppLayout>
@@ -201,6 +201,25 @@ function App() {
             </AppLayout>
           </ProtectedRoute>
         } />
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         <Route path="/print" element={<PrintReport />} />
       </Routes>
     </PermissionProvider>
