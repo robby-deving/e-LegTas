@@ -204,34 +204,90 @@ const createUser = async (req, res) => {
     const saltRounds = 12;
     const passwordHash = await bcrypt.hash(password, saltRounds);
 
-    // Create resident first
-    const { data: resident, error: residentError } = await supabaseAdmin
+    // Check if resident already exists with the same identity
+    let residentId;
+    let existingResident = null;
+    const { data: existingResidentData, error: residentCheckError } = await supabaseAdmin
       .from('residents')
-      .insert({
-        first_name: firstName,
-        middle_name: middleName || null,
-        last_name: lastName,
-        suffix: suffix || null,
-        sex: sex,
-        birthdate: birthdate,
-        barangay_of_origin: barangayOfOrigin ? parseInt(barangayOfOrigin) : null
-      })
-      .select()
+      .select('id, first_name, last_name, birthdate')
+      .eq('first_name', firstName)
+      .eq('last_name', lastName)
+      .eq('birthdate', birthdate)
       .single();
 
-    if (residentError) {
-      console.error('Error creating resident:', residentError);
+    if (residentCheckError && residentCheckError.code !== 'PGRST116') {
+      // Error other than "not found"
+      console.error('Error checking existing resident:', residentCheckError);
       return res.status(500).json({ 
-        message: 'Failed to create resident profile',
-        error: residentError.message
+        message: 'Failed to check existing resident',
+        error: residentCheckError.message
       });
+    }
+
+    if (existingResidentData) {
+      existingResident = existingResidentData;
+      console.log(`Found existing resident: ID ${existingResident.id}, ${existingResident.first_name} ${existingResident.last_name} (${existingResident.birthdate})`);
+      
+      // Resident exists, check if they already have a user profile
+      const { data: existingUserProfile, error: profileCheckError } = await supabaseAdmin
+        .from('users_profile')
+        .select('id, email')
+        .eq('resident_id', existingResident.id)
+        .is('deleted_at', null)
+        .single();
+
+      if (profileCheckError && profileCheckError.code !== 'PGRST116') {
+        console.error('Error checking existing user profile:', profileCheckError);
+        return res.status(500).json({ 
+          message: 'Failed to check existing user profile',
+          error: profileCheckError.message
+        });
+      }
+
+      if (existingUserProfile) {
+        console.log(`Resident ${existingResident.id} already has user profile: ${existingUserProfile.email}`);
+        return res.status(409).json({ 
+          message: `A user already exists for resident ${existingResident.first_name} ${existingResident.last_name} (${existingResident.birthdate}). Each resident can only have one user account.` 
+        });
+      }
+
+      // Resident exists but has no user profile, reuse their ID
+      residentId = existingResident.id;
+      console.log(`Reusing existing resident ID: ${residentId} for ${firstName} ${lastName} - no existing user profile found`);
+    } else {
+      console.log(`No existing resident found for ${firstName} ${lastName} (${birthdate}), creating new resident`);
+      // Create new resident
+      const { data: resident, error: residentError } = await supabaseAdmin
+        .from('residents')
+        .insert({
+          first_name: firstName,
+          middle_name: middleName || null,
+          last_name: lastName,
+          suffix: suffix || null,
+          sex: sex,
+          birthdate: birthdate,
+          barangay_of_origin: barangayOfOrigin ? parseInt(barangayOfOrigin) : null
+        })
+        .select()
+        .single();
+
+      if (residentError) {
+        console.error('Error creating resident:', residentError);
+        return res.status(500).json({ 
+          message: 'Failed to create resident profile',
+          error: residentError.message
+        });
+      }
+
+      residentId = resident.id;
+      console.log(`Created new resident ID: ${residentId} for ${firstName} ${lastName}`);
     }
 
     // Create users_profile
     const { data: userProfile, error: profileError } = await supabaseAdmin
       .from('users_profile')
       .insert({
-        resident_id: resident.id,
+        resident_id: residentId,
         email: email,
         password_hash: passwordHash,
         role_id: parseInt(roleId),
@@ -247,7 +303,7 @@ const createUser = async (req, res) => {
       await supabaseAdmin
         .from('residents')
         .delete()
-        .eq('id', resident.id);
+        .eq('id', residentId);
 
       return res.status(500).json({ 
         message: 'Failed to create user profile',
@@ -277,7 +333,7 @@ const createUser = async (req, res) => {
       await supabaseAdmin
         .from('residents')
         .delete()
-        .eq('id', resident.id);
+        .eq('id', residentId);
 
       return res.status(500).json({ 
         message: 'Failed to create user',
@@ -315,7 +371,7 @@ const createUser = async (req, res) => {
       await supabaseAdmin
         .from('residents')
         .delete()
-        .eq('id', resident.id);
+        .eq('id', residentId);
 
       return res.status(500).json({ 
         message: 'Failed to create authentication user. User creation rolled back.',
@@ -406,6 +462,7 @@ const createUser = async (req, res) => {
         employee_number: employeeNumber,
         email: email,
         resident: {
+          resident_id: residentId,
           first_name: firstName,
           middle_name: middleName,
           last_name: lastName,
@@ -415,7 +472,8 @@ const createUser = async (req, res) => {
         },
         role_id: roleId,
         is_active: true,
-        evacuation_assignment: evacuationCenterAssignment
+        evacuation_assignment: evacuationCenterAssignment,
+        resident_reused: existingResident ? true : false
       }
     };
 
@@ -1149,15 +1207,45 @@ const getBarangays = async (req, res) => {
   try {
     const { data: barangays, error } = await supabaseAdmin
       .from('barangays')
-      .select('id, name')
-      .order('name');
+      .select('id, name');
 
     if (error) {
       console.error('Error fetching barangays:', error);
       return res.status(500).json({ message: 'Failed to fetch barangays' });
     }
 
-    res.status(200).json({ barangays });
+    // Natural sorting function that handles numbers correctly
+    const naturalSort = (a, b) => {
+      const aName = a.name.toLowerCase();
+      const bName = b.name.toLowerCase();
+      
+      // Extract numbers from barangay names (e.g., "Barangay 1" -> 1)
+      const aMatch = aName.match(/(\d+)/);
+      const bMatch = bName.match(/(\d+)/);
+      
+      if (aMatch && bMatch) {
+        // Both have numbers, sort numerically
+        const aNum = parseInt(aMatch[1]);
+        const bNum = parseInt(bMatch[1]);
+        if (aNum !== bNum) {
+          return aNum - bNum;
+        }
+      } else if (aMatch && !bMatch) {
+        // Only a has a number, put a after b
+        return 1;
+      } else if (!aMatch && bMatch) {
+        // Only b has a number, put b after a
+        return -1;
+      }
+      
+      // If numbers are equal or both don't have numbers, sort alphabetically
+      return aName.localeCompare(bName, 'en', { sensitivity: 'base' });
+    };
+
+    // Sort barangays using natural sorting
+    const sortedBarangays = barangays.sort(naturalSort);
+
+    res.status(200).json({ barangays: sortedBarangays });
 
   } catch (error) {
     console.error('Get barangays error:', error);
