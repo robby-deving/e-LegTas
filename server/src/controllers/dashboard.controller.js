@@ -280,21 +280,10 @@ exports.getEvacueeStatisticsByDisaster = async (req, res, next) => {
         .from("evacuation_registrations")
         .select(`
           id,
-          evacuee_residents (
-            id,
-            resident_id,
-            resident:residents (
-              id,
-              birthdate,
-              sex
-            ),
-            vulnerabilities:resident_vulnerabilities (
-              id,
-              vulnerability_type:vulnerability_types (
-                name
-              )
-            )
-          )
+          profile_snapshot,
+          vulnerability_type_ids,
+          arrival_timestamp,
+          disaster_evacuation_event_id
         `)
         .in("disaster_evacuation_event_id", eventIds)
         .gte("arrival_timestamp", from)
@@ -322,17 +311,28 @@ exports.getEvacueeStatisticsByDisaster = async (req, res, next) => {
       const today = new Date();
 
       registrations.forEach(reg => {
-        const resident = reg.evacuee_residents?.resident;
-        const vulnerabilities = reg.evacuee_residents?.vulnerabilities || [];
+        const vulnIds = reg?.vulnerability_type_ids || [];
 
-        if (resident) {
-          // Sex counts
-          if (resident.sex?.toLowerCase() === "male") stats.total_no_of_male++;
-          if (resident.sex?.toLowerCase() === "female") stats.total_no_of_female++;
+        let snapshot = reg?.profile_snapshot ?? null;
+        if (snapshot && typeof snapshot === "string") {
+          try {
+            snapshot = JSON.parse(snapshot);
+          } catch (e) {
+            // If parsing fails, drop snapshot (don't crash)
+            snapshot = null;
+          }
+        }
 
-          // Age group counts
-          if (resident.birthdate) {
-            const birthDate = new Date(resident.birthdate);
+        // Sex Counts
+        const sex = snapshot?.sex ? String(snapshot.sex).toLowerCase() : null;
+        if (sex === "male") stats.total_no_of_male++;
+        if (sex === "female") stats.total_no_of_female++;
+
+        // Age Groups
+        const birthdateStr = snapshot?.birthdate || null;
+        if (birthdateStr) {
+          const birthDate = new Date(birthdateStr);
+          if (!isNaN(birthDate.getTime())) {
             const age =
               today.getFullYear() -
               birthDate.getFullYear() -
@@ -347,12 +347,14 @@ exports.getEvacueeStatisticsByDisaster = async (req, res, next) => {
         }
 
         // Vulnerabilities
-        vulnerabilities.forEach(v => {
-          const typeName = v.vulnerability_type?.name?.toLowerCase();
-          if (typeName === "person with disability") stats.total_no_of_pwd++;
-          if (typeName === "pregnant woman") stats.total_no_of_pregnant++;
-          if (typeName === "lactating woman") stats.total_no_of_lactating_women++;
-        });
+        if (Array.isArray(vulnIds)) {
+          vulnIds.forEach(id => {
+            // treat id as string or number
+            if (id === "4" || id === 4) stats.total_no_of_pwd++; // Person with Disability
+            if (id === "5" || id === 5) stats.total_no_of_pregnant++; // Pregnant Woman
+            if (id === "6" || id === 6) stats.total_no_of_lactating_women++; // Lactating Woman
+          });
+        }
       });
 
       return res.status(200).json({
@@ -694,14 +696,7 @@ exports.getCampManagerDashboardSummary = async (req, res) => {
           family_head_id,
           arrival_timestamp,
           vulnerability_type_ids,
-          evacuee_residents (
-            id,
-            resident:residents (
-              id,
-              birthdate,
-              sex
-            )
-          )
+          profile_snapshot
         `)
         .eq("disaster_evacuation_event_id", eventId)
         .gte("arrival_timestamp", from)
@@ -740,17 +735,27 @@ exports.getCampManagerDashboardSummary = async (req, res) => {
       const today = new Date();
 
       (registrations || []).forEach(reg => {
-        const resident = reg.evacuee_residents?.resident;
         const vulnIds = reg.vulnerability_type_ids || [];
 
-        if (resident) {
-          // Count sex
-          if (resident.sex?.toLowerCase() === "male") stats.total_no_of_male++;
-          if (resident.sex?.toLowerCase() === "female") stats.total_no_of_female++;
+        let snapshot = reg?.profile_snapshot ?? null; // could be object or string
+        if (snapshot && typeof snapshot === "string") {
+          try {
+            snapshot = JSON.parse(snapshot);
+          } catch {
+            snapshot = null;
+          }
+        }
 
-          // Age groups
-          if (resident.birthdate) {
-            const birthDate = new Date(resident.birthdate);
+        // Count Sex
+        const sex = snapshot?.sex ? String(snapshot.sex).toLowerCase() : null;
+        if (sex === "male") stats.total_no_of_male++;
+        if (sex === "female") stats.total_no_of_female++;
+
+        // Age Groups
+        const birthdateStr = snapshot?.birthdate || null;
+        if (birthdateStr) {
+          const birthDate = new Date(birthdateStr);
+          if (!isNaN(birthDate.getTime())) {
             const age =
               today.getFullYear() -
               birthDate.getFullYear() -
