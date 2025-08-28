@@ -6,6 +6,7 @@ const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const dotenv = require('dotenv');
 const { router, baseAPI } = require('./routes/router');
+const { ensureReportsBucket } = require('./config/storage');
 
 // Load environment variables
 dotenv.config();

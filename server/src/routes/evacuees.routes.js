@@ -14,6 +14,7 @@ const {
 } = require('../controllers/evacuee.controller');
 const { searchEvacueeByName, searchFamilyHeads } = require('../controllers/evacueeSearch.controller');
 const { authenticateUser, requirePermission } = require('../middleware');
+const { decampFamily } = require('../controllers/decamp.controller');
 
 // Create an Express Router instance
 const router = express.Router();
@@ -52,6 +53,8 @@ router.get('/barangays', getAllBarangays);
 // @access Private (requires update_family_information permission)
 router.post('/:disasterEvacuationEventId/transfer-head', authenticateUser, requirePermission('update_family_information'), transferHead);
 
+// Decamp a whole family for a specific event
+router.post('/:disasterEvacuationEventId/families/:familyHeadId/decamp', decampFamily);
 
 // Update an evacuee's details by ID
 // Example: PUT /api/v1/evacuees/123

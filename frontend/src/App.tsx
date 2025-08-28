@@ -24,6 +24,10 @@ import ForgotPassword2 from './pages/ForgotPassword2';
 import DisasterDetail from './pages/DisasterDetail';
 import EvacuationCenterDetail from './pages/EvacuationCenterDetail';
 
+
+import PrintReport from './pages/PrintReport';
+
+
 // Protected Route Component
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -198,7 +202,6 @@ function App() {
           </ProtectedRoute>
         } />
         
-
         <Route path="/evacuation-information/:id" element={
           <ProtectedRoute>
             <PermissionGate permission="view_disaster" fallback={<StatusCodes code={403} />}>
@@ -217,8 +220,28 @@ function App() {
             </PermissionGate>
           </ProtectedRoute>
         } />
+        
 
-        {/* Temporary testing route */}
+        <Route path="/print" element={<PrintReport />} />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
       </Routes>
     </PermissionProvider>
   );

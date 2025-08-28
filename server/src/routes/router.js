@@ -15,6 +15,8 @@ const notificationRoutes = require('./notification.routes');
 const dashboardRoutes = require('./dashboard.routes');
 const profileRoutes = require('./profile.routes');
 
+
+const reportsRoutes = require('./reports.routes');
 // Middleware and controllers
 const { authenticateUser, requirePermission } = require('../middleware');
 const { createRole, deleteRole, getUserCountsByRole } = require('../controllers/user.controller');
@@ -45,9 +47,18 @@ router.use('/disaster-events', disasterEventRoutes);
 router.use('/dashboard', dashboardRoutes);
 router.use('/evacuees', evacueesRoutes);
 router.use('/barangays', barangayRoutes);
-router.use('/notifications', notificationRoutes);
+
 router.use('/profile', profileRoutes);
 
+router.use('/reports', reportsRoutes);
+
+// Role creation route
+router.post(
+  '/roles',
+  authenticateUser,
+  requirePermission('create_role'),
+  createRole
+);
 
 // Role routes are handled in role.routes.js
 
