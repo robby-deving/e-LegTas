@@ -69,6 +69,96 @@ function splitAsOf(asOfISO) {
 
 const normalizeBarangayLabel = (s) => String(s || '').replace(/\s+/g, ' ').trim();
 
+// --- Chronological Barangay order (Bgy. 1 -> Bgy. 70) ---
+const BARANGAY_ORDER = [
+  "Bgy. 1 - EM's Barrio",
+  "Bgy. 2 - EM's Barrio South",
+  "Bgy. 3 - EM's Barrio East",
+  "Bgy. 4 - Sagpon",
+  "Bgy. 5 - Sagmin",
+  "Bgy. 6 - Bañadero",
+  "Bgy. 7 - Baño",
+  "Bgy. 8 - Bagumbayan",
+  "Bgy. 9 - Pinaric",
+  "Bgy. 10 - Cabugao",
+  "Bgy. 11 - Maoyod",
+  "Bgy. 12 - Tula-tula",
+  "Bgy. 13 - Ilawod West",
+  "Bgy. 14 - Ilawod",
+  "Bgy. 15 - Ilawod East",
+  "Bgy. 16 - Kawit-East Washington Drive",
+  "Bgy. 17 - Rizal Street",
+  "Bgy. 18 - Cabagñan West",
+  "Bgy. 19 - Cabagñan",
+  "Bgy. 20 - Cabagñan East",
+  "Bgy. 21 - Binanuahan West",
+  "Bgy. 22 - Binanuahan East",
+  "Bgy. 23 - Imperial Court Subd.",
+  "Bgy. 24 - Rizal Street",
+  "Bgy. 25 - Lapu-lapu",
+  "Bgy. 26 - Dinagaan",
+  "Bgy. 27 - Victory Village South",
+  "Bgy. 28 - Victory Village North",
+  "Bgy. 29 - Sabang",
+  "Bgy. 30 - Pigcale",
+  "Bgy. 31 - Centro-Baybay",
+  "Bgy. 32 - San Roque",
+  "Bgy. 33 - PNR-Peñaranda St.-Iraya",
+  "Bgy. 34 - Oro Site-Magallanes St.",
+  "Bgy. 35 - Tinago",
+  "Bgy. 36 - Kapanatawan",
+  "Bgy. 37 - Bitano",
+  "Bgy. 38 - Gogon",
+  "Bgy. 39 - Bonot",
+  "Bgy. 40 - Cruzada",
+  "Bgy. 41 - Bogtong",
+  "Bgy. 42 - Rawis",
+  "Bgy. 43 - Tamaoyan",
+  "Bgy. 44 - Pawa",
+  "Bgy. 45 - Dita",
+  "Bgy. 46 - San Joaquin",
+  "Bgy. 47 - Arimbay",
+  "Bgy. 48 - Bagong Abre",
+  "Bgy. 49 - Bigaa",
+  "Bgy. 50 - Padang",
+  "Bgy. 51 - Buyoan",
+  "Bgy. 52 - Matanag",
+  "Bgy. 53 - Bonga",
+  "Bgy. 54 - Mabinit",
+  "Bgy. 55 - Estanza",
+  "Bgy. 56 - Taysan",
+  "Bgy. 57 - Dap-dap",
+  "Bgy. 58 - Buragwis",
+  "Bgy. 59 - Puro",
+  "Bgy. 60 - Lamba",
+  "Bgy. 61 - Maslog",
+  "Bgy. 62 - Homapon",
+  "Bgy. 63 - Mariawa",
+  "Bgy. 64 - Bagacay",
+  "Bgy. 65 - Imalnod",
+  "Bgy. 66 - Banquerohan",
+  "Bgy. 67 - Bariis",
+  "Bgy. 68 - San Francisco",
+  "Bgy. 69 - Buenavista",
+  "Bgy. 70 - Cagbacong",
+];
+
+// Normalize for ranking (trim, collapse spaces, case-insensitive, strip accents)
+const normalizeBarangayKey = (s) =>
+  normalizeBarangayLabel(s)
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, ''); // remove diacritics (e.g., Peñaranda)
+
+const BARANGAY_RANK = new Map(
+  BARANGAY_ORDER.map((name, i) => [normalizeBarangayKey(name), i])
+);
+
+function barangayRankOf(label) {
+  const k = normalizeBarangayKey(label || '');
+  return BARANGAY_RANK.has(k) ? BARANGAY_RANK.get(k) : Number.POSITIVE_INFINITY;
+}
+
 function resolveBarangayLabel(snapValue, residentJoinName, barangayMap) {
   if (snapValue !== undefined && snapValue !== null) {
     const num = Number(snapValue);
@@ -137,25 +227,27 @@ function autoFitWorksheet(ws, { min = 8, max = 50 } = {}) {
 
 /* ------------------ Aggregated (CSV) ------------------ */
 function buildAggregatedStatusCSV({ regs = [], disasterName = '', asOf, barangayMap }) {
-  const byEc = new Map();
+  const byBgy = new Map();
 
   for (const r of regs) {
     const ec = r?.evacuation_center_rooms?.evacuation_centers || {};
-    const ecId = ec?.id ?? 'unknown';
     const ecName = ec?.name ?? '';
-    const ecBarangayName = ec?.barangays?.name || '';
-    const ecAddr = ecBarangayName || asBarangayName(ec?.address || '');
+    const bgyRaw = ec?.barangays?.name || asBarangayName(ec?.address || '');
+    const barangay = normalizeBarangayLabel(bgyRaw);
 
-    if (!byEc.has(ecId)) {
-      byEc.set(ecId, {
-        ecName,
-        address: ecAddr,
+    if (!byBgy.has(barangay)) {
+      byBgy.set(barangay, {
+        barangay,
+        ecNames: new Set(),
+        address: barangay || '',            
         originNames: new Set(),
         persons: 0,
         familiesKeys: new Set(),
-    });
+      });
     }
-    const bucket = byEc.get(ecId);
+    const bucket = byBgy.get(barangay);
+
+    if (ecName) bucket.ecNames.add(ecName);
 
     const famKey = r.family_head_id ?? `solo:${r.evacuee_resident_id}`;
     bucket.familiesKeys.add(famKey);
@@ -167,8 +259,18 @@ function buildAggregatedStatusCSV({ regs = [], disasterName = '', asOf, barangay
     if (originFinal) bucket.originNames.add(originFinal);
   }
 
-  let totalFamilies = 0;
-  let totalPersons  = 0;
+  // Sort by chronological barangay order
+  const rows = Array.from(byBgy.values()).sort((a, b) => {
+    const ra = barangayRankOf(a.barangay);
+    const rb = barangayRankOf(b.barangay);
+    if (ra !== rb) return ra - rb;
+    // tie-break by first EC name
+    const aFirst = Array.from(a.ecNames).sort()[0] || '';
+    const bFirst = Array.from(b.ecNames).sort()[0] || '';
+    return aFirst.localeCompare(bFirst);
+  });
+
+  let totalFamilies = 0, totalPersons = 0;
 
   const lines = [];
   lines.push(row(['LEGAZPI CITY']));
@@ -182,47 +284,47 @@ function buildAggregatedStatusCSV({ regs = [], disasterName = '', asOf, barangay
   lines.push(row(['','','','INSIDE ECs','','OUTSIDE ECs','']));
   lines.push(row(['','','','Families','Persons','Families','Persons']));
 
-  for (const [, agg] of byEc) {
-    const families = agg.familiesKeys.size;
-    const persons  = agg.persons;
+  for (const g of rows) {
+    const nameJoined = Array.from(g.ecNames).sort((a,b)=>a.localeCompare(b)).join(', ');
+    const families = g.familiesKeys.size || 0;
+    const persons  = g.persons || 0;
     totalFamilies += families;
     totalPersons  += persons;
-    const originsJoined = Array.from(agg.originNames).sort((a,b)=>a.localeCompare(b)).join(' / ');
-    lines.push(row([agg.ecName, agg.address, originsJoined, families, persons, '', '']));
+    const originsJoined = Array.from(g.originNames).sort((a,b)=>a.localeCompare(b)).join(' / ');
+    lines.push(row([nameJoined, g.address, originsJoined, families, persons, '', '']))
   }
 
-  // FINAL TOTAL ROW (outside ECs default to 0)
-  lines.push(row(['TOTAL', '', '', totalFamilies, totalPersons, 0, 0]));
-
+  lines.push(row(['TOTAL', '', '', totalFamilies, totalPersons, '-----', '-----']));
   const csv = '\uFEFF' + lines.join('\n');
   return Buffer.from(csv, 'utf8');
 }
-
 
 /* ------------------ Aggregated (XLSX via template) ------------------ */
 /* Template: templates/Aggregated.xlsx
    Banners: A4 = "STATUS REPORT FOR DISASTER", A5 = "as of ..."
    Headers at row 7–9; first data row = row 10 (A..E). F/G (Outside EC’s) remain blank. */
 async function buildAggregatedStatusXLSX({ regs = [], disasterName = '', asOf, barangayMap }) {
-  const byEc = new Map();
+  const byBgy = new Map();
 
   for (const r of regs) {
     const ec = r?.evacuation_center_rooms?.evacuation_centers || {};
-    const ecId = ec?.id ?? 'unknown';
     const ecName = ec?.name ?? '';
-    const ecBarangayName = ec?.barangays?.name || '';
-    const ecAddr = ecBarangayName || asBarangayName(ec?.address || '');
+    const bgyRaw = ec?.barangays?.name || asBarangayName(ec?.address || '');
+    const barangay = normalizeBarangayLabel(bgyRaw);
 
-    if (!byEc.has(ecId)) {
-      byEc.set(ecId, {
-        ecName,
-        address: ecAddr,
+    if (!byBgy.has(barangay)) {
+      byBgy.set(barangay, {
+        barangay,
+        ecNames: new Set(),
+        address: barangay || '',
         originNames: new Set(),
         persons: 0,
         familiesKeys: new Set(),
       });
     }
-    const bucket = byEc.get(ecId);
+    const bucket = byBgy.get(barangay);
+
+    if (ecName) bucket.ecNames.add(ecName);
 
     const famKey = r.family_head_id ?? `solo:${r.evacuee_resident_id}`;
     bucket.familiesKeys.add(famKey);
@@ -234,9 +336,14 @@ async function buildAggregatedStatusXLSX({ regs = [], disasterName = '', asOf, b
     if (originFinal) bucket.originNames.add(originFinal);
   }
 
-  const rows = Array.from(byEc.values()).sort((a, b) =>
-    (a.ecName || '').localeCompare(b.ecName || '')
-  );
+  const rows = Array.from(byBgy.values()).sort((a, b) => {
+    const ra = barangayRankOf(a.barangay);
+    const rb = barangayRankOf(b.barangay);
+    if (ra !== rb) return ra - rb;
+    const aFirst = Array.from(a.ecNames).sort()[0] || '';
+    const bFirst = Array.from(b.ecNames).sort()[0] || '';
+    return aFirst.localeCompare(bFirst);
+  });
 
   const templatePath = path.resolve(__dirname, '../../templates/Aggregated.xlsx');
   const wb = new ExcelJS.Workbook();
@@ -247,17 +354,16 @@ async function buildAggregatedStatusXLSX({ regs = [], disasterName = '', asOf, b
   ws.getCell('A5').value = `as of ${formatAsOf(asOf)}`;
 
   const START = 10;
-
   for (let r = START; r < START + 2000; r++) {
     for (let c = 1; c <= 7; c++) ws.getCell(r, c).value = null;
   }
 
-  let totalFamilies = 0;
-  let totalPersons  = 0;
+  let totalFamilies = 0, totalPersons = 0;
 
   rows.forEach((g, i) => {
     const r = START + i;
-    ws.getCell(r, 1).value = g.ecName || '';
+    const nameJoined = Array.from(g.ecNames).sort((a,b)=>a.localeCompare(b)).join(', ');
+    ws.getCell(r, 1).value = nameJoined || '';
     ws.getCell(r, 2).value = g.address || '';
     ws.getCell(r, 3).value = Array.from(g.originNames).sort((a,b)=>a.localeCompare(b)).join(' / ');
     const fam = Number(g.familiesKeys.size) || 0;
@@ -268,16 +374,14 @@ async function buildAggregatedStatusXLSX({ regs = [], disasterName = '', asOf, b
     totalPersons  += per;
   });
 
-  // FINAL TOTAL ROW (outside EC’s = 0)
-const totalRow = START + rows.length;
-ws.getCell(totalRow, 1).value = 'TOTAL';
-ws.getCell(totalRow, 2).value = '-----';
-ws.getCell(totalRow, 3).value = '-----';
-ws.getCell(totalRow, 4).value = totalFamilies;
-ws.getCell(totalRow, 5).value = totalPersons;
-ws.getCell(totalRow, 6).value = '-----';
-ws.getCell(totalRow, 7).value = '-----';
-
+  const totalRow = START + rows.length;
+  ws.getCell(totalRow, 1).value = 'TOTAL';
+  ws.getCell(totalRow, 2).value = '-----';
+  ws.getCell(totalRow, 3).value = '-----';
+  ws.getCell(totalRow, 4).value = totalFamilies;
+  ws.getCell(totalRow, 5).value = totalPersons;
+  ws.getCell(totalRow, 6).value = '-----';
+  ws.getCell(totalRow, 7).value = '-----';
 
   autoFitWorksheet(ws, { min: 10, max: 60 });
 
@@ -290,10 +394,10 @@ ws.getCell(totalRow, 7).value = '-----';
   };
 }
 
-
 /* ------------------ Disaggregated (XLSX via template) ------------------ */
 async function buildDisaggregatedXLSX({ regs = [], disasterName = '', asOf, vulnMap, barangayMap }) {
-  const groups = new Map();
+  // Group BY BARANGAY (collect EC names, union families, sum counts)
+  const byBgy = new Map();
 
   for (const r of regs) {
     const resident = r?.evacuee_residents?.residents || {};
@@ -303,14 +407,13 @@ async function buildDisaggregatedXLSX({ regs = [], disasterName = '', asOf, vuln
     const birthdate = snap.birthdate ?? resident.birthdate ?? null;
 
     const residentJoinName = resident?.barangays?.name || '';
-    const originName = resolveBarangayLabel(snap.barangay_of_origin, residentJoinName, barangayMap);
+    const barangay = resolveBarangayLabel(snap.barangay_of_origin, residentJoinName, barangayMap);
     const ecName = r?.evacuation_center_rooms?.evacuation_centers?.name || '';
 
-    const key = `${originName}||${ecName}`;
-    if (!groups.has(key)) {
-      groups.set(key, {
-        barangay: originName,
-        ecName,
+    if (!byBgy.has(barangay)) {
+      byBgy.set(barangay, {
+        barangay,
+        ecNames: new Set(),
         familyKeys: new Set(),
         male: 0,
         female: 0,
@@ -325,7 +428,9 @@ async function buildDisaggregatedXLSX({ regs = [], disasterName = '', asOf, vuln
         lactating: 0,
       });
     }
-    const g = groups.get(key);
+    const g = byBgy.get(barangay);
+
+    if (ecName) g.ecNames.add(ecName);
 
     const famKey = r.family_head_id ?? `solo:${r.evacuee_resident_id}`;
     g.familyKeys.add(famKey);
@@ -351,10 +456,14 @@ async function buildDisaggregatedXLSX({ regs = [], disasterName = '', asOf, vuln
     if (vulnMap?.lactating != null && ids.includes(vulnMap.lactating)) g.lactating += 1;
   }
 
-  const rows = Array.from(groups.values()).sort((a, b) => {
-    const byB = (a.barangay || '').localeCompare(b.barangay || '');
-    if (byB !== 0) return byB;
-    return (a.ecName || '').localeCompare(b.ecName || '');
+  // Chronological sort by barangay, tie-break by first EC name
+  const rows = Array.from(byBgy.values()).sort((a, b) => {
+    const ra = barangayRankOf(a.barangay);
+    const rb = barangayRankOf(b.barangay);
+    if (ra !== rb) return ra - rb;
+    const aFirst = Array.from(a.ecNames).sort()[0] || '';
+    const bFirst = Array.from(b.ecNames).sort()[0] || '';
+    return aFirst.localeCompare(bFirst);
   });
 
   const templatePath = path.resolve(__dirname, '../../templates/Disaggregated.xlsx');
@@ -380,9 +489,10 @@ async function buildDisaggregatedXLSX({ regs = [], disasterName = '', asOf, vuln
   rows.forEach((g, i) => {
     const r = START_ROW + i;
     const fam = Number(g.familyKeys.size) || 0;
+    const ecJoined = Array.from(g.ecNames).sort((a,b)=>a.localeCompare(b)).join(', ');
 
     ws.getCell(r, 1).value  = g.barangay || '';
-    ws.getCell(r, 2).value  = g.ecName || '';
+    ws.getCell(r, 2).value  = ecJoined || '';
     ws.getCell(r, 3).value  = fam;
     ws.getCell(r, 4).value  = Number(g.male) || 0;
     ws.getCell(r, 5).value  = Number(g.female) || 0;
@@ -394,7 +504,7 @@ async function buildDisaggregatedXLSX({ regs = [], disasterName = '', asOf, vuln
     ws.getCell(r,11).value  = Number(g.seniors) || 0;
     ws.getCell(r,12).value  = Number(g.pwd) || 0;
     ws.getCell(r,13).value  = Number(g.pregnant) || 0;
-    ws.getCell(r,14).value  = Number(g.lactating || 0);
+    ws.getCell(r,14).value  = Number(g.lactating) || 0;
 
     totals.families  += fam;
     totals.male      += g.male || 0;
@@ -439,9 +549,10 @@ async function buildDisaggregatedXLSX({ regs = [], disasterName = '', asOf, vuln
 }
 
 
+
 /* ------------------ Disaggregated (CSV) ------------------ */
 function buildDisaggregatedCSV({ regs = [], disasterName = '', asOf, vulnMap, barangayMap }) {
-  const groups = new Map();
+  const byBgy = new Map();
 
   for (const r of regs) {
     const resident = r?.evacuee_residents?.residents || {};
@@ -451,14 +562,13 @@ function buildDisaggregatedCSV({ regs = [], disasterName = '', asOf, vulnMap, ba
     const birthdate = snap.birthdate ?? resident.birthdate ?? null;
 
     const residentJoinName = resident?.barangays?.name || '';
-    const originName = resolveBarangayLabel(snap.barangay_of_origin, residentJoinName, barangayMap);
+    const barangay = resolveBarangayLabel(snap.barangay_of_origin, residentJoinName, barangayMap);
     const ecName = r?.evacuation_center_rooms?.evacuation_centers?.name || '';
 
-    const key = `${originName}||${ecName}`;
-    if (!groups.has(key)) {
-      groups.set(key, {
-        barangay: originName,
-        ecName,
+    if (!byBgy.has(barangay)) {
+      byBgy.set(barangay, {
+        barangay,
+        ecNames: new Set(),
         familyKeys: new Set(),
         male: 0,
         female: 0,
@@ -473,7 +583,9 @@ function buildDisaggregatedCSV({ regs = [], disasterName = '', asOf, vulnMap, ba
         lactating: 0,
       });
     }
-    const g = groups.get(key);
+    const g = byBgy.get(barangay);
+
+    if (ecName) g.ecNames.add(ecName);
 
     const famKey = r.family_head_id ?? `solo:${r.evacuee_resident_id}`;
     g.familyKeys.add(famKey);
@@ -499,10 +611,13 @@ function buildDisaggregatedCSV({ regs = [], disasterName = '', asOf, vulnMap, ba
     if (vulnMap?.lactating != null && ids.includes(vulnMap.lactating)) g.lactating += 1;
   }
 
-  const rows = Array.from(groups.values()).sort((a, b) => {
-    const byB = (a.barangay || '').localeCompare(b.barangay || '');
-    if (byB !== 0) return byB;
-    return (a.ecName || '').localeCompare(b.ecName || '');
+  const rows = Array.from(byBgy.values()).sort((a, b) => {
+    const ra = barangayRankOf(a.barangay);
+    const rb = barangayRankOf(b.barangay);
+    if (ra !== rb) return ra - rb;
+    const aFirst = Array.from(a.ecNames).sort()[0] || '';
+    const bFirst = Array.from(b.ecNames).sort()[0] || '';
+    return aFirst.localeCompare(bFirst);
   });
 
   const totals = {
@@ -524,9 +639,10 @@ function buildDisaggregatedCSV({ regs = [], disasterName = '', asOf, vulnMap, ba
 
   for (const g of rows) {
     const fam = g.familyKeys.size || 0;
+    const ecJoined = Array.from(g.ecNames).sort((a,b)=>a.localeCompare(b)).join(', ');
     lines.push(row([
       g.barangay || '',
-      g.ecName || '',
+      ecJoined || '',
       fam,
       g.male || 0,
       g.female || 0,
@@ -566,6 +682,7 @@ function buildDisaggregatedCSV({ regs = [], disasterName = '', asOf, vulnMap, ba
   const csv = '\uFEFF' + lines.join('\n');
   return Buffer.from(csv, 'utf8');
 }
+
 
 
 
@@ -950,22 +1067,33 @@ function encodeProps(props) {
 
 async function renderTemplatePDF({ templateKey, props, pdfOptions = {} }) {
   if (!PRINT_BASE_URL) throw new Error('PRINT_BASE_URL is not configured.');
-  const url = `${PRINT_BASE_URL}?t=${encodeURIComponent(templateKey)}&props=${encodeURIComponent(encodeProps(props))}`;
+  const url = `${PRINT_BASE_URL}?t=${encodeURIComponent(templateKey)}`;
 
   const browser = await puppeteer.launch(LAUNCH_OPTS);
   try {
     const page = await browser.newPage();
+
+    page.setDefaultNavigationTimeout(120000);
+    page.setDefaultTimeout(120000);
+    page.on('console', m => console.log('[print console]', m.type(), m.text()));
     page.on('pageerror', e => console.error('[print pageerror]', e));
+    page.on('requestfailed', r => console.warn('[print req failed]', r.url(), r.failure()?.errorText));
 
-    await page.goto(url, { waitUntil: 'networkidle2', timeout: 60_000 });
-    await page.waitForSelector('#print-ready', { timeout: 60_000 });
+    // inject props for the SPA
+    await page.evaluateOnNewDocument((p) => {
+      // @ts-ignore
+      window.__PRINT_PROPS = p;
+      try { sessionStorage.setItem('print:props', JSON.stringify(p)); } catch {}
+    }, props);
 
-const buffer = await page.pdf({
-  ...DEFAULT_PDF_OPTS,
-  margin: { top: '0', right: '0', bottom: '0', left: '0' },
-  preferCSSPageSize: true,
-});
+    await page.goto(url, { waitUntil: 'domcontentloaded' });
+    await page.waitForSelector('#print-ready', { timeout: 120000 });
 
+    const buffer = await page.pdf({
+      ...DEFAULT_PDF_OPTS,      
+      preferCSSPageSize: false, 
+      ...pdfOptions,            
+    });
 
     return buffer;
   } finally {
@@ -975,24 +1103,28 @@ const buffer = await page.pdf({
 
 // Build props for Aggregated template and print to PDF
 async function buildAggregatedStatusPDF({ regs = [], disasterName = '', asOf, barangayMap }) {
-  // Reuse grouping like CSV/XLSX
-  const byEc = new Map();
+  const byBgy = new Map();
+
   for (const r of regs) {
     const ec = r?.evacuation_center_rooms?.evacuation_centers || {};
-    const ecId = ec?.id ?? 'unknown';
     const ecName = ec?.name ?? '';
-    const ecBarangayName = ec?.barangays?.name || '';
-    const ecAddr = ecBarangayName || asBarangayName(ec?.address || '');
-    if (!byEc.has(ecId)) {
-      byEc.set(ecId, {
-        name: ecName,
-        address: ecAddr,
+    const bgyRaw = ec?.barangays?.name || asBarangayName(ec?.address || '');
+    const barangay = normalizeBarangayLabel(bgyRaw);
+
+    if (!byBgy.has(barangay)) {
+      byBgy.set(barangay, {
+        barangay,
+        ecNames: new Set(),
+        address: barangay || '',
         originNames: new Set(),
         persons: 0,
         familiesKeys: new Set(),
       });
     }
-    const bucket = byEc.get(ecId);
+    const bucket = byBgy.get(barangay);
+
+    if (ecName) bucket.ecNames.add(ecName);
+
     const famKey = r.family_head_id ?? `solo:${r.evacuee_resident_id}`;
     bucket.familiesKeys.add(famKey);
     bucket.persons += 1;
@@ -1003,23 +1135,28 @@ async function buildAggregatedStatusPDF({ regs = [], disasterName = '', asOf, ba
     if (originFinal) bucket.originNames.add(originFinal);
   }
 
-  const evacuationCenters = Array.from(byEc.values()).map(v => ({
-    name: v.name || '',
+  const rows = Array.from(byBgy.values()).sort((a, b) => {
+    const ra = barangayRankOf(a.barangay);
+    const rb = barangayRankOf(b.barangay);
+    if (ra !== rb) return ra - rb;
+    const aFirst = Array.from(a.ecNames).sort()[0] || '';
+    const bFirst = Array.from(b.ecNames).sort()[0] || '';
+    return aFirst.localeCompare(bFirst);
+  });
+
+  // Map to template shape (join EC names by comma)
+  const evacuationCenters = rows.map(v => ({
+    name: Array.from(v.ecNames).sort((a,b)=>a.localeCompare(b)).join(', ') || '',
     address: v.address || '',
     originBarangay: Array.from(v.originNames).sort((a,b)=>a.localeCompare(b)).join(' / '),
     insideFamilies: v.familiesKeys.size || 0,
     insidePersons: v.persons || 0,
-    outsideFamilies: null,
+    outsideFamilies: null,     // keep null unless your template expects 0
     outsidePersons: null,
-  })).sort((a, b) => a.name.localeCompare(b.name));
+  }));
 
   const { reportDate, reportTime } = splitAsOf(asOf);
-  const props = {
-    disasterEvent: disasterName || '',
-    reportDate,
-    reportTime,
-    evacuationCenters,
-  };
+  const props = { disasterEvent: disasterName || '', reportDate, reportTime, evacuationCenters };
   const buffer = await renderTemplatePDF({ templateKey: 'aggregated', props });
   return {
     buffer,
@@ -1029,31 +1166,41 @@ async function buildAggregatedStatusPDF({ regs = [], disasterName = '', asOf, ba
   };
 }
 
+
 // Build props for Disaggregated template and print to PDF
 async function buildDisaggregatedPDF({ regs = [], disasterName = '', asOf, vulnMap, barangayMap }) {
-  const groups = new Map(); // key: `${barangay}||${ecName}`
+  const byBgy = new Map(); // key: barangay
+
   for (const r of regs) {
     const resident = r?.evacuee_residents?.residents || {};
     const snap = parseMaybeJSON(r?.profile_snapshot, {}) || {};
+
     const sexVal = (snap.sex ?? resident.sex ?? '').toString().toLowerCase();
     const birthdate = snap.birthdate ?? resident.birthdate ?? null;
     const residentJoinName = resident?.barangays?.name || '';
-    const originName = resolveBarangayLabel(snap.barangay_of_origin, residentJoinName, barangayMap);
+    const barangay = resolveBarangayLabel(snap.barangay_of_origin, residentJoinName, barangayMap);
     const ecName = r?.evacuation_center_rooms?.evacuation_centers?.name || '';
-    const key = `${originName}||${ecName}`;
-    if (!groups.has(key)) {
-      groups.set(key, {
-        barangay: originName, ecName,
-        familyKeys: new Set(), male: 0, female: 0, total: 0,
+
+    if (!byBgy.has(barangay)) {
+      byBgy.set(barangay, {
+        barangay,
+        ecNames: new Set(),
+        familyKeys: new Set(),
+        male: 0, female: 0, total: 0,
         infants: 0, children: 0, youth: 0, adults: 0, seniors: 0,
         pwd: 0, pregnant: 0, lactating: 0,
       });
     }
-    const g = groups.get(key);
+    const g = byBgy.get(barangay);
+
+    if (ecName) g.ecNames.add(ecName);
+
     const famKey = r.family_head_id ?? `solo:${r.evacuee_resident_id}`;
     g.familyKeys.add(famKey);
+
     if (sexVal === 'male') g.male += 1;
     else if (sexVal === 'female') g.female += 1;
+
     const age = ageInYears(birthdate, asOf);
     if (age != null) {
       if (age <= 1) g.infants += 1;
@@ -1063,6 +1210,7 @@ async function buildDisaggregatedPDF({ regs = [], disasterName = '', asOf, vulnM
       else g.seniors += 1;
     }
     g.total += 1;
+
     let ids = r.vulnerability_type_ids;
     if (!Array.isArray(ids)) ids = parseMaybeJSON(ids, []);
     if (vulnMap?.pwd != null && ids.includes(vulnMap.pwd)) g.pwd += 1;
@@ -1070,13 +1218,18 @@ async function buildDisaggregatedPDF({ regs = [], disasterName = '', asOf, vulnM
     if (vulnMap?.lactating != null && ids.includes(vulnMap.lactating)) g.lactating += 1;
   }
 
-  const evacuationSites = Array.from(groups.values()).sort((a, b) => {
-    const byB = (a.barangay || '').localeCompare(b.barangay || '');
-    if (byB !== 0) return byB;
-    return (a.ecName || '').localeCompare(b.ecName || '');
-  }).map(g => ({
+  const rows = Array.from(byBgy.values()).sort((a, b) => {
+    const ra = barangayRankOf(a.barangay);
+    const rb = barangayRankOf(b.barangay);
+    if (ra !== rb) return ra - rb;
+    const aFirst = Array.from(a.ecNames).sort()[0] || '';
+    const bFirst = Array.from(b.ecNames).sort()[0] || '';
+    return aFirst.localeCompare(bFirst);
+  });
+
+  const evacuationSites = rows.map(g => ({
     barangay: g.barangay || '',
-    evacuationCenter: g.ecName || '',
+    evacuationCenter: Array.from(g.ecNames).sort((a,b)=>a.localeCompare(b)).join(', ') || '',
     families: g.familyKeys.size || 0,
     male: g.male || 0,
     female: g.female || 0,
@@ -1108,16 +1261,20 @@ async function buildDisaggregatedPDF({ regs = [], disasterName = '', asOf, vulnM
   };
 }
 
+
 // Build props for Barangay template and print to PDF
 async function buildPerBarangayPDF({ regs = [], disasterName = '', asOf, vulnMap, barangayMap, barangayName }) {
   const TARGET_LABEL = normalizeBarangayLabel(barangayName || '');
   const families = new Map();
+
+  // -------- collect family rows (same as before) --------
   for (const r of regs) {
     const resident = r?.evacuee_residents?.residents || {};
     const snap = parseMaybeJSON(r?.profile_snapshot, {}) || {};
     const residentJoinName = resident?.barangays?.name || '';
     const originLabel = resolveBarangayLabel(snap.barangay_of_origin, residentJoinName, barangayMap);
     if (originLabel !== TARGET_LABEL) continue;
+
     const famKey = r.family_head_id ?? `solo:${r.evacuee_resident_id}`;
     if (!families.has(famKey)) {
       families.set(famKey, {
@@ -1130,6 +1287,11 @@ async function buildPerBarangayPDF({ regs = [], disasterName = '', asOf, vulnMap
       });
     }
     const f = families.get(famKey);
+
+    if (!f.ecName && r?.evacuation_center_rooms?.evacuation_centers?.name) {
+      f.ecName = r.evacuation_center_rooms.evacuation_centers.name;
+    }
+
     const rel = snap.relationship_to_family_head ?? r?.evacuee_residents?.relationship_to_family_head ?? null;
     const name = buildFullName({
       first_name: snap.first_name ?? resident.first_name ?? null,
@@ -1138,13 +1300,16 @@ async function buildPerBarangayPDF({ regs = [], disasterName = '', asOf, vulnMap
       suffix: (Object.prototype.hasOwnProperty.call(snap, 'suffix') ? snap.suffix : resident.suffix) ?? null,
     });
     if (rel === 'Head' && !f.headName) f.headName = name;
+
     if (!f.purok) {
       const purokLabel = snap.purok ?? null;
       if (purokLabel != null && String(purokLabel).trim() !== '') f.purok = String(purokLabel);
     }
+
     const sex = (snap.sex ?? resident.sex ?? '').toString().toLowerCase();
     if (sex === 'male') f.male += 1;
     else if (sex === 'female') f.female += 1;
+
     const age = ageInYears(snap.birthdate ?? resident.birthdate ?? null, asOf);
     if (age != null) {
       if (age <= 1) f.infant += 1;
@@ -1153,7 +1318,9 @@ async function buildPerBarangayPDF({ regs = [], disasterName = '', asOf, vulnMap
       else if (age <= 59) f.adult += 1;
       else f.seniorCitizens += 1;
     }
+
     f.total += 1;
+
     let ids = r.vulnerability_type_ids;
     if (!Array.isArray(ids)) ids = parseMaybeJSON(ids, []);
     if (vulnMap?.pwd != null && ids.includes(vulnMap.pwd)) f.pwd += 1;
@@ -1161,28 +1328,104 @@ async function buildPerBarangayPDF({ regs = [], disasterName = '', asOf, vulnMap
     if (vulnMap?.lactating != null && ids.includes(vulnMap.lactating)) f.lactating += 1;
   }
 
-  // Convert to template shape
+  // -------- shape evacuees per EC (detail rows) --------
   const evacByCenter = new Map();
   for (const f of families.values()) {
     if (!evacByCenter.has(f.ecName)) evacByCenter.set(f.ecName, []);
     evacByCenter.get(f.ecName).push({
       familyHead: f.headName || '',
       purok: f.purok || '',
-      male: f.male || 0,
-      female: f.female || 0,
-      total: f.total || 0,
-      infant: f.infant || 0,
-      children: f.children || 0,
-      youth: f.youth || 0,
-      adult: f.adult || 0,
-      seniorCitizens: f.seniorCitizens || 0,
-      pwd: f.pwd || 0,
-      pregnant: f.pregnant || 0,
-      lactating: f.lactating || 0,
+      male: Number(f.male) || 0,
+      female: Number(f.female) || 0,
+      total: Number(f.total) || 0,
+      infant: Number(f.infant) || 0,
+      children: Number(f.children) || 0,
+      youth: Number(f.youth) || 0,
+      adult: Number(f.adult) || 0,
+      seniorCitizens: Number(f.seniorCitizens) || 0,
+      pwd: Number(f.pwd) || 0,
+      pregnant: Number(f.pregnant) || 0,
+      lactating: Number(f.lactating) || 0,
     });
   }
-  const evacuationCenters = Array.from(evacByCenter.entries()).sort((a,b)=>a[0].localeCompare(b[0]))
-    .map(([name, evacuees]) => ({ name, evacuees }));
+
+  // -------- compute per-EC subtotals (ALWAYS numbers, 0 if none) --------
+  const centerAgg = new Map(); // ecName -> { familyKeys:Set, sums... }
+  for (const [famKey, f] of families.entries()) {
+    const ec = f.ecName || '';
+    if (!centerAgg.has(ec)) {
+      centerAgg.set(ec, {
+        familyKeys: new Set(),
+        male: 0, female: 0, total: 0,
+        infant: 0, children: 0, youth: 0, adult: 0, seniorCitizens: 0,
+        pwd: 0, pregnant: 0, lactating: 0,
+      });
+    }
+    const a = centerAgg.get(ec);
+    a.familyKeys.add(famKey);
+    a.male           += Number(f.male) || 0;
+    a.female         += Number(f.female) || 0;
+    a.total          += Number(f.total) || 0;
+    a.infant         += Number(f.infant) || 0;
+    a.children       += Number(f.children) || 0;
+    a.youth          += Number(f.youth) || 0;
+    a.adult          += Number(f.adult) || 0;
+    a.seniorCitizens += Number(f.seniorCitizens) || 0;
+    a.pwd            += Number(f.pwd) || 0;
+    a.pregnant       += Number(f.pregnant) || 0;
+    a.lactating      += Number(f.lactating) || 0;
+  }
+
+  const evacuationCenters = Array
+    .from(evacByCenter.entries())
+    .sort((a, b) => (a[0] || '').localeCompare(b[0] || ''))
+    .map(([name, evacuees]) => {
+      const sub = centerAgg.get(name) || {
+        familyKeys: new Set(),
+        male: 0, female: 0, total: 0,
+        infant: 0, children: 0, youth: 0, adult: 0, seniorCitizens: 0,
+        pwd: 0, pregnant: 0, lactating: 0,
+      };
+      return {
+        name,
+        evacuees,
+        subtotal: {
+          families: sub.familyKeys.size || 0,
+          male: sub.male || 0,
+          female: sub.female || 0,
+          total: sub.total || 0,
+          infant: sub.infant || 0,
+          children: sub.children || 0,
+          youth: sub.youth || 0,
+          adult: sub.adult || 0,
+          seniorCitizens: sub.seniorCitizens || 0,
+          pwd: sub.pwd || 0,
+          pregnant: sub.pregnant || 0,
+          lactating: sub.lactating || 0,
+        },
+      };
+    });
+
+  // -------- compute GRAND TOTALS (ALWAYS numbers, 0 if none) --------
+  const grandTotals = {
+    families: families.size || 0,
+    male: 0, female: 0, total: 0,
+    infant: 0, children: 0, youth: 0, adult: 0, seniorCitizens: 0,
+    pwd: 0, pregnant: 0, lactating: 0,
+  };
+  for (const f of families.values()) {
+    grandTotals.male           += Number(f.male) || 0;
+    grandTotals.female         += Number(f.female) || 0;
+    grandTotals.total          += Number(f.total) || 0;
+    grandTotals.infant         += Number(f.infant) || 0;
+    grandTotals.children       += Number(f.children) || 0;
+    grandTotals.youth          += Number(f.youth) || 0;
+    grandTotals.adult          += Number(f.adult) || 0;
+    grandTotals.seniorCitizens += Number(f.seniorCitizens) || 0;
+    grandTotals.pwd            += Number(f.pwd) || 0;
+    grandTotals.pregnant       += Number(f.pregnant) || 0;
+    grandTotals.lactating      += Number(f.lactating) || 0;
+  }
 
   const { reportDate, reportTime } = splitAsOf(asOf);
   const props = {
@@ -1191,7 +1434,12 @@ async function buildPerBarangayPDF({ regs = [], disasterName = '', asOf, vulnMap
     reportDate,
     reportTime,
     evacuationCenters,
+    totals: grandTotals,       // <- include totals with zeros when empty
+    grandTotals,               // <- duplicate key for template flexibility
+    showTotals: true,
+    showSubtotals: true,
   };
+
   const buffer = await renderTemplatePDF({ templateKey: 'barangay', props });
   return {
     buffer,
@@ -1200,6 +1448,7 @@ async function buildPerBarangayPDF({ regs = [], disasterName = '', asOf, vulnMap
     filenameBase: `${SLUG('per-barangay')}-${SLUG(TARGET_LABEL || 'report')}`,
   };
 }
+
 
 /* ------------------ Dispatcher ------------------ */
 async function generateReportFile({

@@ -9,11 +9,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Pencil, Calendar, Clock } from "lucide-react";
 import type { FamilyMember } from "@/types/EvacuationCenterDetails";
 import { formatDate } from "@/utils/dateFormatter";
-import "react-datepicker/dist/react-datepicker.css";
-import ReactDatePicker from "react-datepicker";
+// import "react-datepicker/dist/react-datepicker.css";
+// import ReactDatePicker from "react-datepicker";
 import { RegisterBlockDialog } from "@/components/modals/RegisterBlockDialog";
-import { Popover, PopoverTrigger, PopoverContent } from "../ui/popover";
-import { Calendar as DateCalendar } from "../ui/calendar";
+// import { Popover, PopoverTrigger, PopoverContent } from "../ui/popover";
+// import { Calendar as DateCalendar } from "../ui/calendar";
+import { DateTimePicker } from "../ui/date-time-picker";
 import { startOfDayLocal, DateBound, formatMMDDYYYY, parseMMDDYYYY, mergeDateAndTime, checkDateBounds } from "@/utils/dateInput";
 
 const INVERSE_REL: Record<string, string> = {
@@ -75,12 +76,6 @@ useEffect(() => {
 const originalDecamp = evacuee?.decampment_timestamp ? new Date(evacuee.decampment_timestamp) : null;
 const hasChanges = (originalDecamp?.getTime() ?? null) !== (decampDate?.getTime() ?? null);
 
-const fmtTimeOnly = (d: Date) =>
-  new Intl.DateTimeFormat(undefined, {
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(d);
-
 const toLocalStart = (v: string | Date) => startOfDayLocal(new Date(v));
 const minDate =
   disasterStartDate ? toLocalStart(disasterStartDate)
@@ -91,14 +86,18 @@ const maxDate = useMemo(() => new Date(), []);
 const missingTimeForNew = !hadExistingDecamp && touched.date && !touched.time;
 const canSaveDecamp = hasChanges && !savingDecamp && !missingTimeForNew;
 
-const handleChangeTimeOnly = (picked: Date | null) => {
-  if (!picked || !decampDate) return;
-  const merged = mergeDateAndTime(decampDate, picked);
-  if (!enforceDecampDateTimeBounds(merged)) return;
-  setDecampError(null);
-  setDecampDate(merged);
-  setTouched(t => ({ ...t, time: true }));
-};
+const fmtHHMM = (d: Date) =>
+  `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+
+const [decampTime, setDecampTime] = useState<string>(() =>
+  decampDate ? fmtHHMM(decampDate) : ""
+);
+
+// keep time field in sync when date changes programmatically
+useEffect(() => {
+  setDecampTime(decampDate ? fmtHHMM(decampDate) : "");
+}, [decampDate]);
+
 
 const [transferOpen, setTransferOpen] = useState(false);
 const [newHeadEvacueeId, setNewHeadEvacueeId] = useState<string>("");
@@ -414,142 +413,142 @@ function enforceDecampDateTimeBounds(dt: Date | null): boolean {
               <div className="w-full md:col-span-2 lg:col-span-1">
                 <label className="block text-sm font-semibold mb-2">Decampment:</label>
                 <div className="flex flex-wrap items-center gap-3">
-                {/* DATE (Popover + DateCalendar) */}
-                <div className="relative flex-1 min-w-[12rem] min-h-10">
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      {/* Typeable input (MM/DD/YYYY) that also opens the calendar */}
-                      <div className="relative w-full">
-                        <Input
-                          value={decampText}
-                          onChange={(e) => {
-                            const v = e.target.value;
-                            setDecampText(v);
-
-                            const parsed = parseMMDDYYYY(v);
-                            if (parsed) {
-                              const merged = mergeDateAndTime(parsed, decampDate); 
-                              if (!merged || !enforceDecampDateTimeBounds(merged)) {
-                                setDecampText("");
-                                setDecampDate(null);
-                                setTouched({ date: false, time: false });
-                                setDecampError(null);
-                                return;
-                              }
-                              setDecampDate(merged);
-                              setDecampError(null);
-                            }
-                          }}
-                          placeholder="MM/DD/YYYY"
-                          className="w-full pl-10 pr-10 h-10 cursor-pointer"
-                          inputMode="numeric"
-                          pattern="\d{2}/\d{2}/\d{4}"
-                          onBlur={() => {
-                            const parsed = parseMMDDYYYY(decampText);
-                            if (!parsed) {
-                              // Not a valid date pattern → clear
-                              setDecampText("");
-                              setDecampDate(null);
-                              setTouched({ date: false, time: false });
-                              return;
-                            }
-
-                            // Validate AFTER merging date+time (so we can block future times on today)
-                            const merged = mergeDateAndTime(parsed, decampDate);
-                            if (!merged || !enforceDecampDateTimeBounds(merged)) {
-                              // Out of range → clear
-                              setDecampText("");
-                              setDecampDate(null);
-                              setTouched({ date: false, time: false });
-                              return;
-                            }
-
-                            // Valid & in-range → keep time, normalize text
-                            setDecampDate(merged);
-                            setDecampText(formatMMDDYYYY(merged));
-                            setTouched((t) => ({ ...t, date: true }));
-                          }}
-                        />
-                        <Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-
-                        {decampDate && (
-                          <button
-                            type="button"
-                            aria-label="Clear decampment date"
-                            onMouseDown={(e) => e.preventDefault()}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setDecampDate(null);
-                              setDecampText("");
-                              setTouched({ date: false, time: false });
-                              setDecampError(null);
-                            }}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 z-20 inline-flex h-5 w-5 items-center justify-center rounded-full bg-green-700 text-white hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-green-600 cursor-pointer"
-                          >
-                            ×
-                          </button>
-                        )}
-                      </div>
-                    </PopoverTrigger>
-
-                    <PopoverContent className="w-auto p-3" align="start">
-                      <DateCalendar
-                        mode="single"
-                        captionLayout="label"  // plain caption + arrows
-                        disabled={[
-                          ...(minDate ? [{ before: minDate }] : []),
-                          ...(maxDate ? [{ after: maxDate }] : []),
-                        ]}
-                        selected={decampDate ?? undefined}
-                        defaultMonth={decampDate ?? minDate ?? new Date()}
-                        onSelect={(date) => {
-                          setTouched((prev) => ({ ...prev, date: true }));
-                          if (!date) return;
-                          const merged = mergeDateAndTime(date, decampDate);
-                          if (!merged || !enforceDecampDateTimeBounds(merged)) {
-                            setDecampText("");
-                            setDecampDate(null);
-                            setTouched({ date: false, time: false });
-                            return;
-                          }
-
-                          setDecampDate(merged);
-                          setDecampText(formatMMDDYYYY(merged));
+                {/* DATE (typeable + left calendar icon trigger) */}
+                <div className="relative flex-1 min-w-[12rem]">
+                  {/* LEFT calendar trigger (DateTimePicker is invisible; icon is visible) */}
+                  <div className="absolute left-2 top-1/2 -translate-y-1/2 h-10 w-10 z-30">
+                    <DateTimePicker
+                      value={decampDate ?? undefined}
+                      onChange={(d) => {
+                        setTouched((t) => ({ ...t, date: true }));
+                        if (!d) {
+                          setDecampText("");
+                          setDecampDate(null);
+                          setTouched({ date: false, time: false });
                           setDecampError(null);
-                        }}
-                        numberOfMonths={1}
-                        className="pb-1"
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-
-                  {/* TIME */}
-                  <div className="relative w-40 sm:w-44 md:w-48">
-                    <ReactDatePicker
-                      selected={touched.time ? decampDate : null}
-                      onChange={handleChangeTimeOnly}
-                      showTimeSelect
-                      showTimeSelectOnly
-                      timeIntervals={5}
-                      timeCaption="Time"
-                      dateFormat="h:mm aa"
-                      disabled={!decampDate}
-                      placeholderText={
-                        touched.time && decampDate ? fmtTimeOnly(decampDate) : "HH:MM AM/PM"
-                      }
-                      popperPlacement="bottom"
-                      customInput={
-                        <Input
-                          className={`h-10 w-full pl-10 pr-3 bg-gray-50 ${
-                            !decampDate ? "opacity-60 cursor-not-allowed" : ""
-                          }`}
-                        />
-                      }
+                          return;
+                        }
+                        // keep the currently-chosen time component
+                        const merged = mergeDateAndTime(d, decampDate);
+                        if (!merged || !enforceDecampDateTimeBounds(merged)) {
+                          setDecampText("");
+                          setDecampDate(null);
+                          setTouched({ date: false, time: false });
+                          return;
+                        }
+                        setDecampDate(merged);
+                        setDecampText(formatMMDDYYYY(merged));
+                        setDecampError(null);
+                      }}
+                      showTime={false}
+                      placeholder=" "
+                      className="absolute inset-0 h-10 w-10 p-0 opacity-0 cursor-pointer"
+                      // Year bounds (days still enforced by enforceDecampDateTimeBounds)
+                      minYear={(minDate ?? new Date(1900, 0, 1)).getFullYear()}
+                      maxYear={maxDate.getFullYear()}
                     />
-                    <Clock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    {/* Visible icon (non-interactive) */}
+                    <Calendar className="pointer-events-none absolute left-1/2 top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 text-gray-400" />
                   </div>
 
+                  {/* Typeable input MM/DD/YYYY (same look as other <Input> fields) */}
+                  <Input
+                    value={decampText}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setDecampText(v);
+                      const parsed = parseMMDDYYYY(v);
+                      if (parsed) {
+                        const merged = mergeDateAndTime(parsed, decampDate);
+                        if (!merged || !enforceDecampDateTimeBounds(merged)) {
+                          setDecampText("");
+                          setDecampDate(null);
+                          setTouched({ date: false, time: false });
+                          setDecampError(null);
+                          return;
+                        }
+                        setDecampDate(merged);
+                        setDecampError(null);
+                      }
+                    }}
+                    placeholder="MM/DD/YYYY"
+                    className="w-full pl-10 pr-10 h-10"
+                    inputMode="numeric"
+                    pattern="\d{2}/\d{2}/\d{4}"
+                    onBlur={() => {
+                      const parsed = parseMMDDYYYY(decampText);
+                      if (!parsed) {
+                        setDecampText("");
+                        setDecampDate(null);
+                        setTouched({ date: false, time: false });
+                        return;
+                      }
+                      const merged = mergeDateAndTime(parsed, decampDate);
+                      if (!merged || !enforceDecampDateTimeBounds(merged)) {
+                        setDecampText("");
+                        setDecampDate(null);
+                        setTouched({ date: false, time: false });
+                        return;
+                      }
+                      setDecampDate(merged);
+                      setDecampText(formatMMDDYYYY(merged));
+                      setTouched((t) => ({ ...t, date: true }));
+                    }}
+                  />
+
+                  {/* Clear × button */}
+                  {decampDate && (
+                    <button
+                      type="button"
+                      aria-label="Clear decampment date"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDecampDate(null);
+                        setDecampText("");
+                        setTouched({ date: false, time: false });
+                        setDecampError(null);
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 z-20 inline-flex h-5 w-5 items-center justify-center rounded-full bg-green-700 text-white hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-green-600 cursor-pointer"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+
+
+                {/* TIME (match CreateReportModal style) */}
+                <div className="relative w-40 sm:w-44 md:w-48">
+                  <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                    <Clock className="h-4 w-4 text-gray-400" />
+                  </div>
+                  <Input
+                    type="time"
+                    value={decampTime}
+                    onChange={(e) => {
+                      const val = e.target.value; // "HH:MM"
+                      setDecampTime(val);
+                      if (!decampDate) return;
+
+                      const [hhStr, mmStr] = val.split(":");
+                      const hh = parseInt(hhStr ?? "", 10);
+                      const mm = parseInt(mmStr ?? "", 10);
+                      if (Number.isNaN(hh) || Number.isNaN(mm)) return;
+
+                      const merged = new Date(decampDate);
+                      merged.setHours(hh, mm, 0, 0);
+
+                      if (!enforceDecampDateTimeBounds(merged)) return;
+
+                      setDecampDate(merged);
+                      setTouched((t) => ({ ...t, time: true }));
+                      setDecampError(null);
+                    }}
+                    className={`pl-9 h-10 ${!decampDate ? "opacity-60 cursor-not-allowed" : ""}`}
+                    disabled={!decampDate}
+                  />
+                </div>
+                
                   {/* SAVE */}
                   <Button
                     className="h-10 bg-green-700 hover:bg-green-800 text-white px-4 text-sm cursor-pointer disabled:opacity-60"

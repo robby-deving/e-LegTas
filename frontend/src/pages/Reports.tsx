@@ -1,4 +1,4 @@
-// Reports.tsx — with filter bar for type + month/year
+// Reports.tsx 
 import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { usePageTitle } from '../hooks/usePageTitle';
@@ -18,7 +18,7 @@ type FileIcon = 'PDF' | 'CSV' | 'XLSX';
 type CardReport = {
   id: string;
   name: string;
-  type: string; // Pretty label: Aggregated | Disaggregated | Barangay Report
+  type: string; 
   disaster: string;
   format: FileIcon;
   date: string; 
@@ -239,14 +239,11 @@ export default function Reports() {
     }
   };
 
-  // Load initial data
   useEffect(() => {
-    // Preload options so typeNameToId is ready for filtering
     (async () => {
       try { await loadOptions('', ''); } catch {}
       await fetchReports();
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadOptions = async (barangaySearch = '', disasterSearch = '') => {
@@ -287,23 +284,23 @@ export default function Reports() {
     }
   };
 
-  // When opening the modal, refresh options
   useEffect(() => {
-    if (createModalOpen) loadOptions('', '');
+    if (!createModalOpen) {
+      setIsCreating(false);
+    } else {
+      setFormErrors({});
+    }
   }, [createModalOpen]);
 
-  // Live-search effects (modal)
   useEffect(() => {
     if (!createModalOpen) return;
     if (reportType !== 'Barangay Report') return;
     loadOptions(barangayQuery, disasterQuery);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [barangayQuery, reportType, createModalOpen]);
 
   useEffect(() => {
     if (!createModalOpen) return;
     loadOptions(barangayQuery, disasterQuery);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [disasterQuery, createModalOpen]);
 
   /* Card adapters */
@@ -376,17 +373,21 @@ export default function Reports() {
         try { await forceDownload(pubUrl); } catch (e) { console.error(e); alert('Failed to download file.'); }
       }
       await fetchReports();
-      // reset form
       setReportName(''); setReportType(''); setDisasterEvent(''); setSelectedDisaster(null);
       setDisasterQuery(''); setDate(undefined); setTime('12:00'); setFileFormat('CSV');
       setBarangayQuery(''); setSelectedBarangay(null); setFormErrors({}); setCreateModalOpen(false);
-    } catch (err) {
-      console.error('Failed to generate report:', err);
-      alert('Failed to generate report.');
-    } finally {
-      setIsCreating(false);
-    }
-  };
+  } catch (err: any) {
+    console.error('Failed to generate report:', err);
+    const msg =
+      err?.response?.data?.message ||
+      err?.response?.data?.error ||
+      err?.message ||
+      'Failed to generate report.';
+    alert(msg);
+  } finally {
+    setIsCreating(false);
+  }
+};
 
   // ------------------------- Derived: date & type filtering -------------------------
   const dateFilteredReports = useMemo(() => {
@@ -400,8 +401,8 @@ export default function Reports() {
       if (month == null) return true;
       const m = Number(month);
       if (!Number.isFinite(m)) return true;
-      if (m >= 0 && m <= 11) return d.getMonth() === m;       // zero-based
-      if (m >= 1 && m <= 12) return d.getMonth() + 1 === m;   // one-based
+      if (m >= 0 && m <= 11) return d.getMonth() === m;       
+      if (m >= 1 && m <= 12) return d.getMonth() + 1 === m;   
       return true;
     });
   }, [reports, year, month]);
@@ -470,8 +471,6 @@ const filteredReports = useMemo(() => {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          
-
           {/* Month / Year Filter */}
           <MonthYearGridPicker
             month={month}
@@ -492,7 +491,6 @@ const filteredReports = useMemo(() => {
 
         {/* List */}
         <div>
-          
           <h2 className="text-lg font-bold text-green-700 mb-4">Generated Reports</h2>
             {/* Search */}
           <div className="w-full max-w-xs mb-4">

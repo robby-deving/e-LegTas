@@ -126,6 +126,8 @@ export type Barangay = {
 export type RoomOption = {
   id: number;
   room_name: string;
+  available?: number;   // <= new
+  capacity?: number;    // <= new
 };
 
 export type RegisterEvacuee = {

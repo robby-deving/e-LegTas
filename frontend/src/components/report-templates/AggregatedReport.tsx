@@ -44,15 +44,12 @@ export default function AggregatedReportTemplate({
     { insideFamilies: 0, insidePersons: 0 }
   );
 
-// new — show 0 as "0", keep only null/undefined blank
 const show = (v?: number | null) => (v === 0 ? '0' : (v == null ? '' : String(v)));
 
-
-
   return (
-    <div className="report-template landscape bg-white p-2">
+   <div className="report-template landscape bg-white p-[6mm]"> 
       {/* Header with Logos */}
-      <div className="flex items-center justify-between my-4">
+      <div className="flex items-center justify-between mt-0 mb-2">
         <div className="w-20 h-20">
           {logo1Src ? (
             <img

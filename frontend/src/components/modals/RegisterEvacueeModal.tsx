@@ -7,15 +7,17 @@ import { Button } from "../ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Checkbox } from "../ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
-import { Calendar, X as XIcon, Loader2 } from "lucide-react";
+import { X as XIcon, Loader2 } from "lucide-react";
 // import ReactDatePicker from "react-datepicker";
-import "react-datepicker/dist/react-datepicker.css";
+// import "react-datepicker/dist/react-datepicker.css";
 import type { Barangay, RoomOption } from "@/types/EvacuationCenterDetails";
 import type { RegisterEvacueeModalProps } from "@/types/RegisterEvacueeModal";
-import { Popover, PopoverTrigger, PopoverContent } from "../ui/popover";
-import { Calendar as DateCalendar } from "../ui/calendar"; 
-import { formatMMDDYYYY, parseMMDDYYYY, toISODateLocal } from "@/utils/dateInput";
-
+// import { Popover, PopoverTrigger, PopoverContent } from "../ui/popover";
+// import { Calendar as DateCalendar } from "../ui/calendar"; 
+// import { formatMMDDYYYY, parseMMDDYYYY, toISODateLocal } from "@/utils/dateInput";
+import { DateTimePicker } from "../ui/date-time-picker";
+import { toISODateLocal } from "@/utils/dateInput";
+import BirthdayMaskedInput from '../EvacuationCenterDetail/BirthdayMaskedInput';
 
 export const RegisterEvacueeModal = ({
   isOpen,
@@ -34,14 +36,6 @@ export const RegisterEvacueeModal = ({
   const [roomsLoading, setRoomsLoading] = useState(false);
   const [roomsError, setRoomsError] = useState<string | null>(null);
 
-  const [birthdayText, setBirthdayText] = useState<string>(
-  formData.birthday ? formatMMDDYYYY(new Date(formData.birthday)) : ""
-  );
-  useEffect(() => {
-    setBirthdayText(formData.birthday ? formatMMDDYYYY(new Date(formData.birthday)) : "");
-  }, [formData.birthday]);
-
-
   const [saving, setSaving] = useState(false);
 
   const handleClickSave = async () => {
@@ -59,8 +53,9 @@ export const RegisterEvacueeModal = ({
   const maritalStatusOptions = ["Single", "Married", "Widowed", "Separated"];
   const educationalAttainmentOptions = ["No Formal Education", "Elementary Level", "Elementary Graduate", "High School Level", "High School Graduate", "Senior High School Level", "Senior High School Graduate", "Vocational/Technical", "College Level", "College Graduate", "Postgraduate/Master’s Level", "Master’s Graduate", "Doctorate Level", "Doctorate Graduate"];
   const purokOptions = Array.from({ length: 20 }, (_, i) => (i + 1).toString());
-  const relationshipOptions = ["Head", "Spouse", "Child", "Parent", "Sibling", "Grandparent", "Grandchild", "In-law", "Relative", "Household Member", "Boarder", "Partner"];
-  
+  const relationshipOptions = ["Spouse", "Child", "Parent", "Sibling", "Grandparent", "Grandchild", "In-law", "Relative", "Household Member", "Boarder", "Partner"];
+  const [allRoomsFull, setAllRoomsFull] = useState(false);
+
   const SUFFIX_NONE = "__NULL__";
   const isEdit = mode === "edit";
 
@@ -78,40 +73,41 @@ export const RegisterEvacueeModal = ({
     fetchBarangays();
   }, []);
 
-  useEffect(() => {
-    if (!isOpen || !centerId) return;
-    const fetchRooms = async () => {
-      try {
-        setRoomsLoading(true);
-        setRoomsError(null);
-        const res = await axios.get<{ data: RoomOption[] }>(
-          `http://localhost:3000/api/v1/evacuees/${centerId}/rooms`
-        );
-        setRooms(res.data?.data || []);
-      } catch (err) {
-        console.error("Error fetching rooms:", err);
-        setRooms([]);
-        setRoomsError("Failed to load rooms");
-      } finally {
-        setRoomsLoading(false);
-      }
-    };
-    fetchRooms();
-  }, [isOpen, centerId]);
+useEffect(() => {
+  if (!isOpen || !centerId) return;
+  const fetchRooms = async () => {
+    try {
+      setRoomsLoading(true);
+      setRoomsError(null);
 
-  useEffect(() => {
-    if (!formData.evacuationRoomName || rooms.length === 0) return;
+      const res = await axios.get<{
+        data: RoomOption[];
+        all_full?: boolean;
+      }>(`http://localhost:3000/api/v1/evacuees/${centerId}/rooms?only_available=1`);
 
-    const match = rooms.find(
-      (r) =>
-        r.room_name.trim().toLowerCase() ===
-        formData.evacuationRoomName.trim().toLowerCase()
-    );
-
-    if (match) {
-      onFormChange("searchEvacuationRoom", String(match.id));
+      const rows = res.data?.data ?? [];
+      setRooms(rows);
+      setAllRoomsFull(Boolean(res.data?.all_full) || rows.length === 0);
+    } catch (err) {
+      console.error("Error fetching rooms:", err);
+      setRooms([]);
+      setRoomsError("Failed to load rooms");
+      setAllRoomsFull(false);
+    } finally {
+      setRoomsLoading(false);
     }
-  }, [formData.evacuationRoomName, rooms]);
+  };
+  fetchRooms();
+}, [isOpen, centerId]);
+
+useEffect(() => {
+  if (
+    formData.searchEvacuationRoom &&
+    !rooms.some(r => String(r.id) === formData.searchEvacuationRoom)
+  ) {
+    onFormChange("searchEvacuationRoom", "");
+  }
+}, [rooms, formData.searchEvacuationRoom]);
 
   return (
     <Dialog
@@ -266,101 +262,42 @@ export const RegisterEvacueeModal = ({
                   </select>
                 </div>
 
-{/* Birthday * */}
-<div>
-  <label className="block text-sm font-medium mb-2">
-    Birthday:<span className="text-red-500">*</span>
-  </label>
+                {/* Birthday * */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Birthday:<span className="text-red-500">*</span>
+                  </label>
 
-  <Popover>
-    {/* Make the whole input act as the trigger so clicking opens the calendar */}
-    <PopoverTrigger asChild>
-      <div className="relative w-full">
-        {/* Typeable input in MM/DD/YYYY */}
-        <Input
-          value={birthdayText}
-          onChange={(e) => {
-            const v = e.target.value;
-            setBirthdayText(v);
-            const parsed = parseMMDDYYYY(v);
-            if (parsed) {
-              // write canonical yyyy-mm-dd to your form state
-              onFormChange("birthday", toISODateLocal(parsed));
-            }
-          }}
-          placeholder="MM/DD/YYYY"
-          className="w-full pl-10 pr-10 h-10"
-          inputMode="numeric"
-          pattern="\d{2}/\d{2}/\d{4}"
-          aria-label="Birthday (MM/DD/YYYY)"
-          // Optional: normalize/clear on blur if invalid/incomplete
-          onBlur={() => {
-            const parsed = parseMMDDYYYY(birthdayText);
-            if (!parsed) {
-              setBirthdayText("");
-              onFormChange("birthday", "");
-            } else {
-              setBirthdayText(formatMMDDYYYY(parsed));
-              onFormChange("birthday", toISODateLocal(parsed));
-            }
-          }}
-        />
+                  <div className="relative w-full">
+                    {/* Masked text input – same look as other <Input> fields */}
+                    <BirthdayMaskedInput
+                      value={formData.birthday}
+                      onChange={(iso) => onFormChange("birthday", iso)}
+                      required
+                      className="pl-10 pr-10"  
+                    />
 
-        {/* Left calendar icon */}
-        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-
-        {/* Small circular green clear button */}
-        {birthdayText && (
-          <button
-            type="button"
-            aria-label="Clear date"
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={(e) => {
-              e.stopPropagation(); // don't toggle popover
-              setBirthdayText("");
-              onFormChange("birthday", "");
-            }}
-            className="absolute right-2 top-1/2 -translate-y-1/2 z-20 inline-flex h-5 w-5 items-center justify-center rounded-full bg-green-700 text-white hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-green-600 cursor-pointer"
-          >
-            ×
-          </button>
-        )}
-
-        {/* Invisible native input still enforces `required` on the canonical value */}
-        <input
-          type="text"
-          value={formData.birthday || ""}
-          onChange={() => {}}
-          required
-          className="absolute inset-y-0 right-0 h-10 opacity-0 pointer-events-none w-[calc(100%-5rem)]"
-          style={{ left: "2.5rem" }}
-          aria-hidden="true"
-          tabIndex={-1}
-        />
-      </div>
-    </PopoverTrigger>
-
-    {/* Calendar mirrors whatever you've typed (once it's a valid date) */}
-    <PopoverContent className="w-auto p-3" align="start">
-      <DateCalendar
-        mode="single"
-        selected={formData.birthday ? new Date(formData.birthday) : undefined}
-        // Show the month of the typed/selected date; fallback to today
-        defaultMonth={
-          formData.birthday ? new Date(formData.birthday) : new Date()
-        }
-        onSelect={(date) => {
-          if (!date) return;
-          setBirthdayText(formatMMDDYYYY(date));
-          onFormChange("birthday", toISODateLocal(date));
-        }}
-        numberOfMonths={1}
-        className="pb-1"
-      />
-    </PopoverContent>
-  </Popover>
-</div>
-
+                    {/* LEFT calendar trigger (render this AFTER the input so it’s on top) */}
+                    <div className="absolute left-2 top-1/2 -translate-y-1/2 h-10 w-10 z-30">
+                      {/* Invisible clickable button from DateTimePicker */}
+                      <DateTimePicker
+                        value={formData.birthday ? new Date(formData.birthday) : undefined}
+                        onChange={(d) => onFormChange("birthday", d ? toISODateLocal(d) : "")}
+                        showTime={false}
+                        placeholder=" "
+                        className="absolute inset-0 h-10 w-10 p-0 opacity-0 cursor-pointer" // clickable area
+                        minYear={1900}
+                        maxYear={new Date().getFullYear()}
+                      />
+                      {/* Visible calendar icon (doesn’t block clicks) */}
+                      <div className="pointer-events-none absolute inset-0 grid place-items-center">
+                        <svg viewBox="0 0 24 24" className="h-4 w-4 text-muted-foreground">
+                          <path fill="currentColor" d="M7 2h2v2h6V2h2v2h3a1 1 0 0 1 1 1v15a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h3V2Zm13 6H4v12h16V8Z"/>
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
                 {/* Educational Attainment * */}
                 <div className="relative">
@@ -635,11 +572,14 @@ export const RegisterEvacueeModal = ({
 
               {/* Evacuation Room * */}
               <div className="relative">
-                <label className="block text-sm font-medium mb-2">Evacuation Room:<span className="text-red-500">*</span></label>
+                <label className="block text-sm font-medium mb-2">
+                  Evacuation Room:<span className="text-red-500">*</span>
+                </label>
+
                 <Select
                   value={formData.searchEvacuationRoom}
                   onValueChange={(v) => onFormChange("searchEvacuationRoom", v)}
-                  disabled={roomsLoading || !!roomsError}
+                  disabled={roomsLoading || !!roomsError || allRoomsFull}
                 >
                   <SelectTrigger className="w-full">
                     <SelectValue
@@ -648,23 +588,33 @@ export const RegisterEvacueeModal = ({
                           ? "Loading rooms..."
                           : roomsError
                           ? roomsError
+                          : allRoomsFull
+                          ? "All rooms are full"
                           : "Select a room"
                       }
                     />
                   </SelectTrigger>
+
                   <SelectContent>
                     {rooms.map((r) => (
                       <SelectItem key={r.id} value={String(r.id)}>
                         {r.room_name}
+                        {typeof r.available === "number" && typeof r.capacity === "number"
+                          ? ` (${r.available}/${r.capacity} left)`
+                          : typeof r.available === "number"
+                          ? ` (${r.available} left)`
+                          : ""}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+
+                {/* Hidden native select to keep HTML5 required validation */}
                 <select
                   value={formData.searchEvacuationRoom || ""}
                   onChange={() => {}}
-                  required={!roomsLoading && !roomsError}
-                  disabled={roomsLoading || !!roomsError}
+                  required={!roomsLoading && !roomsError && !allRoomsFull}
+                  disabled={roomsLoading || !!roomsError || allRoomsFull}
                   className="absolute inset-0 w-full h-10 opacity-0"
                   style={{ pointerEvents: "none" }}
                   aria-hidden="true"
@@ -675,16 +625,28 @@ export const RegisterEvacueeModal = ({
                       ? "Loading rooms..."
                       : roomsError
                       ? roomsError
+                      : allRoomsFull
+                      ? "All rooms are full"
                       : "Select a room"}
                   </option>
                   {rooms.map((r) => (
                     <option key={r.id} value={String(r.id)}>
                       {r.room_name}
+                      {typeof r.available === "number" && typeof r.capacity === "number"
+                        ? ` (${r.available}/${r.capacity} left)`
+                        : typeof r.available === "number"
+                        ? ` (${r.available} left)`
+                        : ""}
                     </option>
                   ))}
                 </select>
+
+                {/* Optional helper when full */}
+                {!roomsLoading && !roomsError && allRoomsFull && (
+                  <p className="mt-1 text-xs text-red-600">All rooms are full.</p>
+                )}
               </div>
-            </div>
+              </div>
 
             {/* --- Vulnerability Classification (all optional) --- */}
             <div className="space-y-4">

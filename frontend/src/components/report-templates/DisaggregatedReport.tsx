@@ -1,4 +1,4 @@
-// DisaggregatedReport.tsx
+// src/components/report-templates/DisaggregatedReport.tsx
 import React from 'react';
 import legazpiLogo1 from '../../assets/legazpi-logo1.png';
 import legazpiLogo2 from '../../assets/legazpi-logo2.jpg';
@@ -39,10 +39,8 @@ export default function DisaggregatedReportTemplate({
   logo2Src = legazpiLogo2,
   showTotals = false,
 }: DisaggregatedReportProps) {
-  // Preserve 0, blank only if null/undefined
   const showNum = (value?: number | null) => (value === 0 ? 0 : (value ?? ''));
 
-  // Normalize input
   const sites: EvacuationSiteData[] = Array.isArray(evacuationSites)
     ? evacuationSites.map((s) => ({
         barangay: s?.barangay ?? '',
@@ -70,39 +68,37 @@ export default function DisaggregatedReportTemplate({
     e.currentTarget.style.display = 'none';
   };
 
-  const calculateTotals = () =>
-    sites.reduce(
-      (acc, site) => ({
-        families: acc.families + (site.families || 0),
-        male: acc.male + (site.male || 0),
-        female: acc.female + (site.female || 0),
-        total: acc.total + (site.total || 0),
-        infant: acc.infant + (site.infant || 0),
-        children: acc.children + (site.children || 0),
-        youth: acc.youth + (site.youth || 0),
-        adult: acc.adult + (site.adult || 0),
-        seniorCitizens: acc.seniorCitizens + (site.seniorCitizens || 0),
-        pwd: acc.pwd + (site.pwd || 0),
-        pregnant: acc.pregnant + (site.pregnant || 0),
-        lactating: acc.lactating + (site.lactating || 0),
-      }),
-      {
-        families: 0,
-        male: 0,
-        female: 0,
-        total: 0,
-        infant: 0,
-        children: 0,
-        youth: 0,
-        adult: 0,
-        seniorCitizens: 0,
-        pwd: 0,
-        pregnant: 0,
-        lactating: 0,
-      }
-    );
+  const totals = sites.reduce(
+    (acc, site) => ({
+      families: acc.families + (site.families || 0),
+      male: acc.male + (site.male || 0),
+      female: acc.female + (site.female || 0),
+      total: acc.total + (site.total || 0),
+      infant: acc.infant + (site.infant || 0),
+      children: acc.children + (site.children || 0),
+      youth: acc.youth + (site.youth || 0),
+      adult: acc.adult + (site.adult || 0),
+      seniorCitizens: acc.seniorCitizens + (site.seniorCitizens || 0),
+      pwd: acc.pwd + (site.pwd || 0),
+      pregnant: acc.pregnant + (site.pregnant || 0),
+      lactating: acc.lactating + (site.lactating || 0),
+    }),
+    {
+      families: 0,
+      male: 0,
+      female: 0,
+      total: 0,
+      infant: 0,
+      children: 0,
+      youth: 0,
+      adult: 0,
+      seniorCitizens: 0,
+      pwd: 0,
+      pregnant: 0,
+      lactating: 0,
+    }
+  );
 
-  // Keep print layout consistent
   const displayRows: EvacuationSiteData[] =
     sites.length > 0
       ? sites
@@ -123,12 +119,10 @@ export default function DisaggregatedReportTemplate({
           lactating: 0,
         }));
 
-  const totals = calculateTotals();
-
   return (
     <div className="report-template landscape bg-white p-2">
       {/* Header */}
-      <div className="flex items-center justify-between my-4">
+      <div className="flex items-center justify-between my-4 print:break-inside-avoid">
         <div className="w-20 h-20">
           {logo1Src && (
             <img
@@ -164,29 +158,62 @@ export default function DisaggregatedReportTemplate({
         </div>
       </div>
 
-      {/* Table */}
-      <table className="report-table w-full border-collapse border border-black text-xs">
+      {/* Table (no <colgroup> to avoid React whitespace/hydration errors) */}
+      <table
+        className="report-table w-full border-collapse border border-black text-xs"
+        style={{ tableLayout: 'fixed' }}
+      >
         <thead>
           <tr>
-            <th className="w-32 border border-black p-1">Barangay</th>
-            <th className="w-48 border border-black p-1">Evacuation Center/Site</th>
-            <th className="w-20 border border-black p-1">Family</th>
-            <th className="w-20 border border-black p-1">Total No. of<br />Male</th>
-            <th className="w-20 border border-black p-1">Total No. of<br />Female</th>
-            <th className="w-20 border border-black p-1">Total No. of<br />Individuals</th>
-            <th className="w-20 border border-black p-1">Infant<br />(1 year old)</th>
-            <th className="w-20 border border-black p-1">Children<br />(2-12 yrs. old)</th>
-            <th className="w-20 border border-black p-1">Youth<br />(13-17 yrs. old)</th>
-            <th className="w-20 border border-black p-1">Adult<br />(18-59 yrs. old)</th>
-            <th className="w-20 border border-black p-1">Senior<br />Citizens<br />(60+ yrs.)</th>
-            <th className="w-16 border border-black p-1">PWD</th>
-            <th className="w-20 border border-black p-1">Pregnant<br />Woman</th>
-            <th className="w-20 border border-black p-1">Lactating<br />Women</th>
+            <th className="border border-black p-1" style={{ width: '12%' }}>
+              Barangay
+            </th>
+            <th className="border border-black p-1" style={{ width: '20%' }}>
+              Evacuation Center/Site
+            </th>
+            {/* 12 numeric columns ~5.66% each */}
+            <th className="border border-black p-1" style={{ width: '5.66%' }}>
+              Family
+            </th>
+            <th className="border border-black p-1" style={{ width: '5.66%' }}>
+              Total No. of<br />Male
+            </th>
+            <th className="border border-black p-1" style={{ width: '5.66%' }}>
+              Total No. of<br />Female
+            </th>
+            <th className="border border-black p-1" style={{ width: '5.66%' }}>
+              Total No. of<br />Individuals
+            </th>
+            <th className="border border-black p-1" style={{ width: '5.66%' }}>
+              Infant<br />(1 yr)
+            </th>
+            <th className="border border-black p-1" style={{ width: '5.66%' }}>
+              Children<br />(2–12)
+            </th>
+            <th className="border border-black p-1" style={{ width: '5.66%' }}>
+              Youth<br />(13–17)
+            </th>
+            <th className="border border-black p-1" style={{ width: '5.66%' }}>
+              Adult<br />(18–59)
+            </th>
+            <th className="border border-black p-1" style={{ width: '5.66%' }}>
+              Senior<br />Citizens<br />(60+)
+            </th>
+            <th className="border border-black p-1" style={{ width: '5.66%' }}>
+              PWD
+            </th>
+            <th className="border border-black p-1" style={{ width: '5.66%' }}>
+              Pregnant<br />Women
+            </th>
+            <th className="border border-black p-1" style={{ width: '5.66%' }}>
+              Lactating<br />Women
+            </th>
           </tr>
         </thead>
+
         <tbody>
           {displayRows.map((site, index) => (
-            <tr key={index}>
+            <tr key={index} className="print:break-inside-avoid">
               <td className="h-6 border border-black p-1">{site.barangay}</td>
               <td className="h-6 border border-black p-1">{site.evacuationCenter}</td>
               <td className="h-6 border border-black p-1 text-center">{showNum(site.families)}</td>
@@ -205,7 +232,7 @@ export default function DisaggregatedReportTemplate({
           ))}
 
           {showTotals && sites.length > 0 && (
-            <tr className="font-bold bg-gray-200">
+            <tr className="font-bold bg-gray-200 print:break-inside-avoid">
               <td className="border border-black p-1" colSpan={2}>TOTAL</td>
               <td className="border border-black p-1 text-center">{showNum(totals.families)}</td>
               <td className="border border-black p-1 text-center">{showNum(totals.male)}</td>

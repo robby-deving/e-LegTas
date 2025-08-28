@@ -327,10 +327,10 @@ exports.generateReport = async (req, res, next) => {
         reportName: report_name,
         disasterName,
         asOf: as_of,
-        vulnMap,       // for PWD/Pregnant/Lactating buckets
-        barangayMap,   // for label resolution
-        barangayId,    // only used in Per Barangay
-        barangayName,  // banner cell in Per Barangay
+        vulnMap,       
+        barangayMap,  
+        barangayId,    
+        barangayName,  
       });
       ({ buffer, contentType, ext, filenameBase } = gen);
     } catch (e) {
@@ -397,8 +397,6 @@ exports.generateReport = async (req, res, next) => {
   }
 };
 
-
-// --- Pretty printer for report type names (yours is fine)
 function prettyReportType(label = '') {
   const s = String(label).toLowerCase();
   if (s.startsWith('aggregated')) return 'Aggregated';
@@ -459,7 +457,6 @@ async function resolveSizesForPaths(paths = []) {
 
   return result; // Map(path -> bytes|null)
 }
-
 
 /**
  * @desc Get all generated reports (pretty fields)
@@ -617,10 +614,6 @@ exports.deleteReport = async (req, res, next) => {
 };
 
 
-
-// --- Pretty printer is already in your file; re-use it here ---
-// function prettyReportType(label = '') { ... }
-
 function uiReportType(label = '') {
   // Keep your UI label convention: "Barangay Report"
   const s = String(label).toLowerCase();
@@ -644,9 +637,9 @@ exports.getReportTypes = async (req, res, next) => {
 
     const out = (data || []).map((r) => ({
       id: r.id,
-      name: r.report_type,                           // raw DB value
-      pretty_name: prettyReportType(r.report_type),  // "Aggregated" | "Disaggregated" | "Per Barangay"
-      ui_label: uiReportType(r.report_type),         // matches your modal: "Aggregated" | "Disaggregated" | "Barangay Report"
+      name: r.report_type,                          
+      pretty_name: prettyReportType(r.report_type),  
+      ui_label: uiReportType(r.report_type),         
     }));
 
     return res.status(200).json({ message: 'Fetched report types.', data: out });
@@ -655,10 +648,6 @@ exports.getReportTypes = async (req, res, next) => {
     return next(new ApiError('Failed to fetch report types.', 500));
   }
 };
-
-
-
-
 
 /**
  * GET /api/v1/reports/options
