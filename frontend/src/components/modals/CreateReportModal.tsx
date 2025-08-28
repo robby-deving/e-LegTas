@@ -144,13 +144,15 @@ export default function CreateReportModal(props: CreateReportModalProps) {
         </DialogHeader>
 
         <div className="max-h-[70vh] overflow-y-auto pr-2 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500">
-          <form
-            className="space-y-4"
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (canDownload) onCreate();
-            }}
-          >
+<form
+  id="createReportForm"
+  className="space-y-4"
+  onSubmit={(e) => {
+    e.preventDefault();
+    if (canDownload) onCreate();
+  }}
+>
+
             {/* Report Name */}
             <div>
               <label className="block text-sm font-semibold mb-2">Report Name:</label>
@@ -374,20 +376,22 @@ export default function CreateReportModal(props: CreateReportModalProps) {
               Cancel
             </Button>
           </DialogClose>
-          <Button
-            type="submit" // use form submit; remove onClick
-          className="bg-green-700 text-white hover:bg-green-800
-                      disabled:bg-green-700 disabled:text-white disabled:hover:bg-green-700
-                      disabled:opacity-60 disabled:pointer-events-none disabled:cursor-default"
-            disabled={!canDownload}
-            aria-busy={isCreating}
-            aria-live="polite"
-            aria-disabled={!canDownload}
-            title={!canDownload ? "Fill required fields and ensure there is data to export." : undefined}
-          >
-            {isCreating && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />}
-            {isCreating ? "Generating…" : "Download Report"}
-          </Button>
+<Button
+  type="submit"
+  form="createReportForm"
+  className="bg-green-700 text-white hover:bg-green-800 cursor-pointer
+             disabled:bg-green-700 disabled:text-white disabled:hover:bg-green-700
+             disabled:opacity-60 disabled:cursor-pointer"
+  disabled={!canDownload}
+  aria-busy={isCreating}
+  aria-live="polite"
+  aria-disabled={!canDownload}
+  title={!canDownload ? 'Fill required fields and ensure there is data to export.' : undefined}
+>
+  {isCreating && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />}
+  {isCreating ? 'Generating…' : 'Download Report'}
+</Button>
+
         </DialogFooter>
       </DialogContent>
     </Dialog>
