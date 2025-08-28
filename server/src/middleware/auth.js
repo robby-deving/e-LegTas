@@ -144,18 +144,11 @@ const authenticateUser = async (req, res, next) => {
       });
     }
 
-    // Set comprehensive user information
+    // Set only necessary user information
     req.user = { 
-      ...user,
-      role_id: userProfile.role_id,
-      role_name: userProfile.roles?.role_name,
+      id: user.id,
       email: userProfile.email,
-      first_name: userProfile.residents?.first_name,
-      last_name: userProfile.residents?.last_name,
-      middle_name: userProfile.residents?.middle_name,
-      suffix: userProfile.residents?.suffix,
-      is_active: userProfile.is_active,
-      profile: userProfile
+      role_id: userProfile.role_id
     };
     
     next();
