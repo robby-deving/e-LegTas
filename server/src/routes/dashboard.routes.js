@@ -20,23 +20,53 @@ const router = express.Router();
 // --- Dashboard API Routes ---
 
 // GET total active evacuation centers for a specific disaster
-// Example: GET /api/v1/dashboard/evacuation-centers/:disasterId
-router.get('/active-evacuation-centers/:disasterId', getActiveEvacuationCentersByDisaster);
+// Example: GET /api/v1/dashboard/active-evacuation-centers/:disasterId
+router.get(
+  '/active-evacuation-centers/:disasterId',
+  authenticateUser,
+  requirePermission('view_dashboard'),
+  getActiveEvacuationCentersByDisaster
+);
 // GET total registered evacuees for a specific disaster
 // Example: GET /api/v1/dashboard/registered-evacuees/:disasterId
-router.get('/registered-evacuees/:disasterId', getTotalRegisteredEvacueesByDisaster);
+router.get(
+  '/registered-evacuees/:disasterId',
+  authenticateUser,
+  requirePermission('view_dashboard'),
+  getTotalRegisteredEvacueesByDisaster
+);
 // GET total registered families for a specific disaster
 // Example: GET /api/v1/dashboard/registered-families/:disasterId
-router.get('/registered-families/:disasterId', getTotalRegisteredFamiliesByDisaster);
+router.get(
+  '/registered-families/:disasterId',
+  authenticateUser,
+  requirePermission('view_dashboard'),
+  getTotalRegisteredFamiliesByDisaster
+);
 // GET evacuee statistics by vulnerability type for a specific disaster
 // Example: GET /api/v1/dashboard/evacuee-statistics/:disasterId
-router.get('/evacuee-statistics/:disasterId', getEvacueeStatisticsByDisaster);
+router.get(
+  '/evacuee-statistics/:disasterId',
+  authenticateUser,
+  requirePermission('view_dashboard'),
+  getEvacueeStatisticsByDisaster
+);
 // GET evacuation center capacity status for a specific disaster
 // Example: GET /api/v1/dashboard/capacity-status/:disasterId
-router.get('/capacity-status/:disasterId', getEvacuationCenterCapacityStatus);
+router.get(
+  '/capacity-status/:disasterId',
+  authenticateUser,
+  requirePermission('view_dashboard'),
+  getEvacuationCenterCapacityStatus
+);
 // GET all active disasters
 // Example: GET - /api/v1/dashboard/disasters
-router.get('/disasters', getActiveDisasters);
+router.get(
+  '/disasters',
+  authenticateUser,
+  requirePermission('view_dashboard'),
+  getActiveDisasters
+);
 
 // For Camp Manager Dashboard - Protected with view_dashboard_specific permission
 
