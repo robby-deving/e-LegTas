@@ -89,11 +89,20 @@ export default function RoleModuleConfig() {
         return 'Other';
     };
     
-    // Add group to permissions
-    const permissionsWithGroups = permissions.map(permission => ({
-        ...permission,
-        group: getPermissionGroup(permission.permission_name)
-    }));
+    // Exclude specific permissions from modal
+    const EXCLUDED_PERMISSION_LABELS = new Set<string>([
+        'Delete Evacuee Information',
+        'Delete Family Member Information',
+        'Edit Existing Report',
+    ]);
+
+    // Add group to permissions (after filtering out excluded labels)
+    const permissionsWithGroups = permissions
+        .filter(permission => !EXCLUDED_PERMISSION_LABELS.has(permission.label))
+        .map(permission => ({
+            ...permission,
+            group: getPermissionGroup(permission.permission_name)
+        }));
     
     const permissionGroups = Array.from(new Set(permissionsWithGroups.map(p => p.group))).sort();
     
