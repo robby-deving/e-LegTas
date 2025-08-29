@@ -11,6 +11,7 @@ import ReportCard from '@/components/cards/ReportCard';
 import DeleteReportModal from '@/components/modals/DeleteReportModal';
 import MonthYearGridPicker from '@/components/Disasters/MonthYearGridPicker'; 
 import { Input } from "../components/ui/input";
+import { usePermissions } from '../contexts/PermissionContext';
 
 // Types 
 type FileIcon = 'PDF' | 'CSV' | 'XLSX';
@@ -116,6 +117,10 @@ const toISOFromDateAndTime = (date?: Date, time?: string) => {
 // Component
 export default function Reports() {
   usePageTitle('Reports');
+  const { hasPermission } = usePermissions();
+  const canCreateReport = hasPermission('create_report');
+  const canDeleteReport = hasPermission('delete_report');
+  const canDownloadReport = hasPermission('download_report');
 
   // Modal state
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -478,15 +483,17 @@ const filteredReports = useMemo(() => {
             onMonthYearChange={(m, y) => { setMonth(m); setYear(y); }}
           />
 
-          {/* Create Report */}
-          <Dialog open={createModalOpen} onOpenChange={setCreateModalOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-green-700 hover:bg-green-800 text-white px-6 cursor-pointer">
-                <Plus className="w-4 h-4" />
-                Create Report
-              </Button>
-            </DialogTrigger>
-          </Dialog>
+          {/* Create Report - only if allowed */}
+          {canCreateReport && (
+            <Dialog open={createModalOpen} onOpenChange={setCreateModalOpen}>
+              <DialogTrigger asChild>
+                <Button className="bg-green-700 hover:bg-green-800 text-white px-6 cursor-pointer">
+                  <Plus className="w-4 h-4" />
+                  Create Report
+                </Button>
+              </DialogTrigger>
+            </Dialog>
+          )}
         </div>
 
         {/* List */}
@@ -539,56 +546,60 @@ const filteredReports = useMemo(() => {
                   report={report}
                   onDownload={onCardDownload}
                   onDelete={onCardDelete}
+                  canDelete={canDeleteReport}
+                  canDownload={canDownloadReport}
                 />
               ))}
             </div>
           )}
         </div>
       {/* Create Modal */}
-      <CreateReportModal
-        isOpen={createModalOpen}
-        onOpenChange={setCreateModalOpen}
-        reportName={reportName}
-        setReportName={setReportName}
-        reportType={reportType}
-        setReportType={setReportType}
-        disasterEvent={disasterEvent}
-        setDisasterEvent={setDisasterEvent}
-        fileFormat={fileFormat}
-        setFileFormat={(v: string) => setFileFormat(v as FileIcon)}
-        evacuationQuery=""
-        setEvacuationQuery={() => {}}
-        evacuationResults={[]}
-        setEvacuationResults={() => {}}
-        selectedCenter={null}
-        setSelectedCenter={() => {}}
-        barangayQuery={barangayQuery}
-        setBarangayQuery={setBarangayQuery}
-        barangayResults={barangayResults}
-        setBarangayResults={(arr) => setBarangayResultsState(arr)}
-        selectedBarangay={selectedBarangay}
-        setSelectedBarangay={setSelectedBarangay}
-        disasterQuery={disasterQuery}
-        setDisasterQuery={setDisasterQuery}
-        disasterResults={disasterResults}
-        setDisasterResults={(rows) => setDisasterResultsState(rows)}
-        selectedDisaster={selectedDisaster}
-        setSelectedDisaster={setSelectedDisaster}
-        formErrors={formErrors}
-        isCreating={isCreating}
-        onCreate={handleCreateReport}
-        reportTypes={reportTypeLabels}
-        fileFormats={FILE_FORMATS}
-        date={date}
-        setDate={setDate}
-        time={time}
-        setTime={setTime}
-        clearFormError={(key) => {
-          const next = { ...formErrors };
-          delete next[key];
-          setFormErrors(next);
-        }}
-      />
+      {canCreateReport && (
+        <CreateReportModal
+          isOpen={createModalOpen}
+          onOpenChange={setCreateModalOpen}
+          reportName={reportName}
+          setReportName={setReportName}
+          reportType={reportType}
+          setReportType={setReportType}
+          disasterEvent={disasterEvent}
+          setDisasterEvent={setDisasterEvent}
+          fileFormat={fileFormat}
+          setFileFormat={(v: string) => setFileFormat(v as FileIcon)}
+          evacuationQuery=""
+          setEvacuationQuery={() => {}}
+          evacuationResults={[]}
+          setEvacuationResults={() => {}}
+          selectedCenter={null}
+          setSelectedCenter={() => {}}
+          barangayQuery={barangayQuery}
+          setBarangayQuery={setBarangayQuery}
+          barangayResults={barangayResults}
+          setBarangayResults={(arr) => setBarangayResultsState(arr)}
+          selectedBarangay={selectedBarangay}
+          setSelectedBarangay={setSelectedBarangay}
+          disasterQuery={disasterQuery}
+          setDisasterQuery={setDisasterQuery}
+          disasterResults={disasterResults}
+          setDisasterResults={(rows) => setDisasterResultsState(rows)}
+          selectedDisaster={selectedDisaster}
+          setSelectedDisaster={setSelectedDisaster}
+          formErrors={formErrors}
+          isCreating={isCreating}
+          onCreate={handleCreateReport}
+          reportTypes={reportTypeLabels}
+          fileFormats={FILE_FORMATS}
+          date={date}
+          setDate={setDate}
+          time={time}
+          setTime={setTime}
+          clearFormError={(key) => {
+            const next = { ...formErrors };
+            delete next[key];
+            setFormErrors(next);
+          }}
+        />
+      )}
 
       {/* Delete Modal */}
       <DeleteReportModal

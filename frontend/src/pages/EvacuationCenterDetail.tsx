@@ -896,6 +896,8 @@ const { paginatedEvacuees, totalRows, totalPages } = useMemo(() => {
                 selectedFamily?.view_family?.evacuation_center_name || ""
               }
               onEditMember={handleEditMember}
+              canUpdateEvacuee={canUpdateEvacueeInformation}
+              canUpdateFamily={canUpdateFamilyInformation}
             />
 
             <RegisterEvacueeModal

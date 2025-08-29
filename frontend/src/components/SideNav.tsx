@@ -32,6 +32,7 @@ export default function SideNav() {
   const canViewUserManagement = hasPermission('view_user_management');
   const canViewAnnouncements = hasPermission('view_announcement_page');
   const canViewDisaster = hasPermission('view_disaster');
+  const canViewReports = hasPermission('view_reports');
   const canViewProfile = hasPermission('view_profile');
 
   const handleLogout = async () => {
@@ -115,7 +116,9 @@ export default function SideNav() {
           {canViewEvacCenters && (
             <SideItem collapsed={collapsed} icon={evacuationCenterIcon} label="Evacuation Centers" to="/evacuation-centers" />
           )}
-          <SideItem collapsed={collapsed} icon={reportIcon} label="Reports" to="/reports" />
+          {canViewReports && (
+            <SideItem collapsed={collapsed} icon={reportIcon} label="Reports" to="/reports" />
+          )}
           {canViewAnnouncements && (
             <SideItem collapsed={collapsed} icon={announcementIcon} label="Announcements" to="/announcements" />
           )}

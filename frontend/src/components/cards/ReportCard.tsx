@@ -17,6 +17,8 @@ type Props = {
   report: Report;
   onDownload: (r: Report) => void;
   onDelete: (r: Report) => void;
+  canDelete?: boolean;
+  canDownload?: boolean;
 };
 
 const getFileIcon = (format: string) => {
@@ -33,7 +35,7 @@ const getFileIcon = (format: string) => {
   }
 };
 
-export default function ReportCard({ report, onDownload, onDelete }: Props) {
+export default function ReportCard({ report, onDownload, onDelete, canDelete = true, canDownload = true }: Props) {
   return (
     <Card className="relative group flex flex-col gap-0 rounded-xl h-full transition-transform duration-100 hover:scale-102 ease-in-out hover:shadow-md cursor-pointer border-gray-200">
       <CardHeader className="pb-3">
@@ -46,20 +48,24 @@ export default function ReportCard({ report, onDownload, onDelete }: Props) {
             </div>
           </div>
 			<div className="flex gap-2 flex-shrink-0">
-				<button
-					className="p-1 rounded transition opacity-100 group hover:bg-green-50"
-					onClick={() => onDownload(report)}
-					title="Download Report"
-				>
-					<Download className="w-4 h-4 text-gray-500 group-hover:text-green-700 cursor-pointer" />
-				</button>
-				<button
-					className="p-1 rounded transition opacity-100 group hover:bg-red-50"
-					onClick={() => onDelete(report)}
-					title="Delete Report"
-				>
-					<Trash2 className="w-4 h-4 text-gray-500 group-hover:text-red-600 cursor-pointer" />
-				</button>
+				{canDownload && (
+					<button
+						className="p-1 rounded transition opacity-100 group hover:bg-green-50"
+						onClick={() => onDownload(report)}
+						title="Download Report"
+					>
+						<Download className="w-4 h-4 text-gray-500 group-hover:text-green-700 cursor-pointer" />
+					</button>
+				)}
+				{canDelete && (
+					<button
+						className="p-1 rounded transition opacity-100 group hover:bg-red-50"
+						onClick={() => onDelete(report)}
+						title="Delete Report"
+					>
+						<Trash2 className="w-4 h-4 text-gray-500 group-hover:text-red-600 cursor-pointer" />
+					</button>
+				)}
 			</div>
         </div>
       </CardHeader>
