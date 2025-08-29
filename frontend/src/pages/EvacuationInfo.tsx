@@ -123,7 +123,12 @@ export default function EvacuationInfo() {
 
  const handleCreateDisaster = async (payload: DisasterPayload) => {
   try {
-    await axios.post("http://localhost:3000/api/v1/disasters", payload);
+    await axios.post("http://localhost:3000/api/v1/disasters", payload, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
     console.log("Disaster created successfully:", payload);
     setCreateOpen(false);
     // Invalidate cache
@@ -141,7 +146,12 @@ const handleUpdateDisaster = async (payload: DisasterPayload) => {
     return;
   }
   try {
-    await axios.put(`http://localhost:3000/api/v1/disasters/${editingDisaster.id}`, payload);
+    await axios.put(`http://localhost:3000/api/v1/disasters/${editingDisaster.id}`, payload, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
     console.log("Disaster updated successfully:", payload);
     setEditOpen(false);
     setEditingDisaster(undefined);

@@ -1,6 +1,8 @@
 // Reports.tsx 
 import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
+import { useSelector } from 'react-redux';
+import { selectToken } from '../features/auth/authSlice';
 import { usePageTitle } from '../hooks/usePageTitle';
 import CreateReportModal from '@/components/modals/CreateReportModal';
 import { Button } from "../components/ui/button";
@@ -117,6 +119,7 @@ const toISOFromDateAndTime = (date?: Date, time?: string) => {
 // Component
 export default function Reports() {
   usePageTitle('Reports');
+  const token = useSelector(selectToken);
   const { hasPermission } = usePermissions();
   const canCreateReport = hasPermission('create_report');
   const canDeleteReport = hasPermission('delete_report');
@@ -216,7 +219,7 @@ export default function Reports() {
       const params: Record<string, any> = {}; 
       const res = await axios.get<ApiResponse<ApiReport[]>>(
         `${API_BASE}/reports/getAllReports`,
-        { params, withCredentials: true }
+        { params, withCredentials: true, headers: { 'Authorization': `Bearer ${token}` } }
       );
 
       const list = (res.data.data || []).map<CardReport>((r) => {
@@ -266,6 +269,7 @@ export default function Reports() {
           status: 'all',
         },
         withCredentials: true,
+        headers: { 'Authorization': `Bearer ${token}` },
       });
 
       const data = res.data.data;
@@ -338,7 +342,7 @@ export default function Reports() {
   const confirmDelete = async () => {
     if (!pendingDelete) return;
     try {
-      await axios.delete(`${API_BASE}/reports/${pendingDelete.id}`, { withCredentials: true });
+      await axios.delete(`${API_BASE}/reports/${pendingDelete.id}`, { withCredentials: true, headers: { 'Authorization': `Bearer ${token}` } });
       setConfirmOpen(false);
       setPendingDelete(null);
       await fetchReports();
@@ -372,7 +376,7 @@ export default function Reports() {
         if (!Number.isInteger(bId)) throw new Error('Please select a barangay.');
         payload.barangay_id = bId;
       }
-      const res = await axios.post<ApiResponse<any>>(`${API_BASE}/reports/generate`, payload, { withCredentials: true });
+      const res = await axios.post<ApiResponse<any>>(`${API_BASE}/reports/generate`, payload, { withCredentials: true, headers: { 'Authorization': `Bearer ${token}` } });
       const pubUrl: string | undefined = res.data?.data?.public_url;
       if (pubUrl) {
         try { await forceDownload(pubUrl); } catch (e) { console.error(e); alert('Failed to download file.'); }
