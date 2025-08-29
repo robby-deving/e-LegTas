@@ -1,3 +1,54 @@
+// Custom CSS for green checkboxes
+const checkboxGreenStyle = `
+.brand-checkbox {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 1.1em;
+    height: 1.1em;
+    border: 2px solid #00824E;
+    border-radius: 0.25em;
+    background: #fff;
+    cursor: pointer;
+    position: relative;
+    margin-right: 0.75rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+.brand-checkbox:checked {
+    background-color: #00824E;
+    border-color: #00824E;
+}
+.brand-checkbox:checked:after {
+    content: '';
+    position: absolute;
+    left: 0.28em;
+    top: 0.05em;
+    width: 0.35em;
+    height: 0.7em;
+    border: solid #fff;
+    border-width: 0 0.18em 0.18em 0;
+    transform: rotate(45deg);
+    pointer-events: none;
+    display: block;
+}
+.brand-checkbox:indeterminate {
+    background-color: #00824E;
+    border-color: #00824E;
+}
+.brand-checkbox:indeterminate:after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 0.6em;
+    height: 0.13em;
+    background: #fff;
+    border-radius: 1px;
+    display: block;
+    transform: translate(-50%, -50%);
+}
+`;
+    // Inject custom CSS for green checkboxes at the top of the component
+    // ...existing code...
 import { usePageTitle } from '../hooks/usePageTitle';
 import { useSelector } from 'react-redux';
 import { selectCurrentUser, selectToken } from '../features/auth/authSlice';
@@ -529,7 +580,9 @@ export default function RoleModuleConfig() {
     }
 
     return (
-        <div className='p-6'>
+        <>
+            <style>{checkboxGreenStyle}</style>
+            <div className='p-6'>
             {/* Title */}
             <h1 
                 className='font-bold mb-6'
@@ -793,7 +846,7 @@ export default function RoleModuleConfig() {
                                                             }
                                                         }}
                                                         onChange={() => handleCategoryToggle(group)}
-                                                        className="mr-3 rounded w-4 h-4 accent-black"
+                                                        className="brand-checkbox"
                                                         disabled={!canModifyRolePermissions}
                                                     />
                                                     <span className="font-bold text-base">{group}</span>
@@ -807,7 +860,7 @@ export default function RoleModuleConfig() {
                                                                     type="checkbox"
                                                                     checked={formData.permissions.includes(permission.permission_name)}
                                                                     onChange={() => handlePermissionChange(permission.permission_name)}
-                                                                    className="mr-3 rounded w-4 h-4 accent-black"
+                                                                    className="brand-checkbox"
                                                                     disabled={!canModifyRolePermissions}
                                                                 />
                                                                 <span className="text-base">{permission.label}</span>
@@ -894,5 +947,6 @@ export default function RoleModuleConfig() {
                 </div>
             )}
         </div>
+        </>
     );
 }
