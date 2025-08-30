@@ -14,7 +14,7 @@ export type ServerAnnouncement = {
 export type CreateAnnouncementPayload = {
   title: string;
   content: string;
-  created_by?: number;
+  created_by: number;
 };
 
 export type AnnouncementsResponse = {

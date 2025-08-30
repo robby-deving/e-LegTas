@@ -8,7 +8,7 @@ type UIAnnouncement = {
   id: number;
   title: string;
   body: string;
-  created_by?: number;
+  created_by: number;
   created_at: string;
   updated_at?: string | null;
   expires_at?: string | null;
@@ -18,7 +18,7 @@ type UIAnnouncement = {
 type CreateAnnouncementInput = {
   title: string;
   body: string;
-  created_by?: number;
+  created_by: number;
 };
 
 function formatDisplayDate(dateString?: string): string {
@@ -57,7 +57,7 @@ export function useAnnouncements() {
     id: a.id,
     title: a?.title ?? '',
     body: a?.content ?? '',
-    created_by: a?.created_by,
+    created_by: a.created_by,
     created_at: a?.created_at,
     updated_at: a?.updated_at,
     expires_at: a?.expires_at,

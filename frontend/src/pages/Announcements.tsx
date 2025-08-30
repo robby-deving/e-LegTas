@@ -12,6 +12,7 @@ import { useSelector } from 'react-redux';
 import type { RootState } from '../store';
 import { selectUserId } from '../features/auth/authSlice';
 import LoadingSpinner from '../components/loadingSpinner';
+import { useNavigate } from 'react-router-dom';
 
 type Announcement = {
   id: number;
@@ -26,6 +27,7 @@ type Announcement = {
 
 export default function AnnouncementsPage() {
   usePageTitle('Announcements');
+  const navigate = useNavigate();
 
   const auth = useSelector((s: RootState) => s.auth);
 
@@ -114,6 +116,11 @@ export default function AnnouncementsPage() {
   };
 
   const handleConfirmPost = async () => {
+    if (!userId) {
+      navigate('/login');
+      return;
+    }
+
     const created = await createAnnouncement({
       title: formData.title.trim(),
       body: formData.body.trim(),
