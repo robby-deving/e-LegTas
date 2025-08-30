@@ -1,5 +1,5 @@
 // src/components/announcements/AnnouncementsPage.tsx
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { usePageTitle } from '../hooks/usePageTitle';
 import AnnouncementsHeader from '../components/Announcement/AnnouncementsHeader';
 import AnnouncementsPagination from '../components/Announcement/AnnouncementsPagination';
@@ -11,6 +11,7 @@ import { useAnnouncements } from '../hooks/useAnnouncements.ts';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../store';
 import { selectUserId } from '../features/auth/authSlice';
+import LoadingSpinner from '../components/loadingSpinner';
 
 type Announcement = {
   id: number;
@@ -36,16 +37,25 @@ export default function AnnouncementsPage() {
     announcements,
     loading,
     error,
+    saving,
+    deleting,
+    isSearching,
     createAnnouncement,
     deleteAnnouncement,
+    // Pagination state
+    totalCount,
+    currentPage,
+    rowsPerPage,
+    searchTerm,
+    totalPages,
+    // Pagination handlers
+    handlePageChange,
+    handleRowsPerPageChange,
+    handleSearchChange
   } = useAnnouncements();
 
   const userId = useSelector(selectUserId);
 
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filteredAnnouncements, setFilteredAnnouncements] = useState<Announcement[]>([]);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
   const [selectedAnnouncements] = useState<string[]>([]);
   const [expandedRows, setExpandedRows] = useState<Record<number, { title: boolean; body: boolean }>>({});
 
@@ -61,32 +71,13 @@ export default function AnnouncementsPage() {
     body: ''
   });
 
-  // Update filtered list when announcements or search term changes
-  useEffect(() => {
-    const list = (announcements as unknown as Announcement[]) || [];
-    const filtered = list.filter((a) =>
-      a.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      a.body.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-    setFilteredAnnouncements(filtered);
-    setCurrentPage(1);
-  }, [announcements, searchTerm]);
-
   // Handle rows per page change
-  const handleRowsPerPageChange = (value: string) => {
-    setRowsPerPage(Number(value));
-    setCurrentPage(1);
+  const handleRowsPerPageChangeWrapper = (value: string) => {
+    handleRowsPerPageChange(Number(value));
   };
 
-  // Pagination logic
-  const totalRows = filteredAnnouncements.length;
-  const totalPages = Math.ceil(totalRows / rowsPerPage);
-  const startIndex = (currentPage - 1) * rowsPerPage;
-  const endIndex = startIndex + rowsPerPage;
-  const currentRows = useMemo(
-    () => filteredAnnouncements.slice(startIndex, endIndex),
-    [filteredAnnouncements, startIndex, endIndex]
-  );
+  // Use announcements directly since pagination is handled server-side
+  const currentRows = announcements as unknown as Announcement[];
 
   // Modal handlers
   const handleAddAnnouncement = () => {
@@ -150,34 +141,44 @@ export default function AnnouncementsPage() {
     <div className="text-black p-6 space-y-6 flex flex-col">
       <AnnouncementsHeader
         searchTerm={searchTerm}
-        onSearchChange={setSearchTerm}
+        onSearchChange={handleSearchChange}
         onAddAnnouncement={handleAddAnnouncement}
+        isSearching={isSearching}
       />
 
-      {/* Optional: lightweight loading/error states */}
+      {/* Loading State */}
       {loading && (
-        <div className="text-sm text-gray-500">Loading announcements...</div>
+        <div className="flex flex-col items-center justify-center py-12">
+          <LoadingSpinner text="Loading announcements..." />
+        </div>
       )}
+
+      {/* Error State */}
       {error && (
         <div className="text-sm text-red-600">{error}</div>
       )}
 
-      <AnnouncementsTable
-        currentRows={currentRows}
-        expandedRows={expandedRows}
-        onToggleExpand={toggleExpand}
-        onDeleteClick={handleDeleteClick}
-      />
+      {/* Content (only show when not loading) */}
+      {!loading && !error && (
+        <>
+          <AnnouncementsTable
+            currentRows={currentRows}
+            expandedRows={expandedRows}
+            onToggleExpand={toggleExpand}
+            onDeleteClick={handleDeleteClick}
+          />
 
-      <AnnouncementsPagination
-        currentPage={currentPage}
-        totalPages={totalPages}
-        onPageChange={setCurrentPage}
-        rowsPerPage={rowsPerPage}
-        totalRows={totalRows}
-        onRowsPerPageChange={handleRowsPerPageChange}
-        selectedRowsCount={selectedAnnouncements.length}
-      />
+          <AnnouncementsPagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+            rowsPerPage={rowsPerPage}
+            totalRows={totalCount}
+            onRowsPerPageChange={handleRowsPerPageChangeWrapper}
+            selectedRowsCount={selectedAnnouncements.length}
+          />
+        </>
+      )}
 
       <CreateAnnouncementModal
         isOpen={isModalOpen}
@@ -196,6 +197,7 @@ export default function AnnouncementsPage() {
         onClose={() => setIsConfirmPostDialogOpen(false)}
         onConfirm={handleConfirmPost}
         formData={formData}
+        isSaving={saving}
         onBackToEdit={() => {
           setIsConfirmPostDialogOpen(false);
           setIsModalOpen(true);
@@ -207,6 +209,7 @@ export default function AnnouncementsPage() {
         onClose={() => setIsDeleteDialogOpen(false)}
         onConfirm={handleConfirmDelete}
         announcement={announcementToDelete}
+        isDeleting={deleting}
       />
     </div>
   );

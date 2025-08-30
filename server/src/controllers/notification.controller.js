@@ -26,12 +26,21 @@ class ApiError extends Error {
  */
 exports.getAllAnnouncements = async (req, res, next) => {
     try {
-        const { limit = 10, offset = 0 } = req.query;
+        const { limit = 10, offset = 0, search } = req.query;
 
-        const { data, error } = await supabase
+        let query = supabase
             .from(ANNOUNCEMENTS_TABLE)
-            .select('*')
-            .order('date_posted', { ascending: false })
+            .select('*', { count: 'exact' })
+            .order('date_posted', { ascending: false });
+
+        // Apply search filter if provided
+        if (search && search.trim()) {
+            const searchTerm = search.trim();
+            query = query.or(`title.ilike.%${searchTerm}%,content.ilike.%${searchTerm}%`);
+        }
+
+        // Apply pagination
+        const { data, error, count } = await query
             .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
 
         if (error) {
@@ -42,13 +51,16 @@ exports.getAllAnnouncements = async (req, res, next) => {
         if (!data || data.length === 0) {
             return res.status(200).json({
                 message: 'No announcements found.',
-                data: []
+                data: [],
+                count: 0,
+                totalCount: count || 0
             });
         }
 
         res.status(200).json({
             message: 'Successfully retrieved announcements.',
             count: data.length,
+            totalCount: count || 0,
             data: data
         });
     } catch (err) {
