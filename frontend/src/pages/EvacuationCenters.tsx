@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "../components/ui/table";
@@ -7,11 +7,17 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Plus, MoreHorizontal, Trash2, Edit } from "lucide-react";
 import { usePageTitle } from '../hooks/usePageTitle';
 import { EvacuationCenterModal } from '../components/EvacuationCenter/EvacuationCenterModal';
+import DeleteConfirmationDialog from '../components/EvacuationCenter/DeleteConfirmationDialog';
 import { useEvacuationCenters } from '../hooks/useEvacuationCenters';
 import { useEvacuationCenterMutations } from '../hooks/useEvacuationCenterMutations';
+import { useDebounce } from '../hooks/useDebounce';
 import type { EvacuationCenter } from '../types/evacuation';
 import { evacuationCenterService } from '../services/evacuationCenterService';
 import { usePermissions } from '../contexts/PermissionContext';
+import { useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
+import { selectIsAuthenticated, selectUserId } from '../features/auth/authSlice';
+import LoadingSpinner from '../components/loadingSpinner';
 
 const STATUS_COLORS = {
   'Available': 'text-green-600 bg-green-100',
@@ -22,35 +28,71 @@ const STATUS_COLORS = {
 
 export default function EvacuationCentersPage() {
   usePageTitle('Evacuation Centers');
-  
+
+  const navigate = useNavigate();
+  const isAuthenticated = useSelector(selectIsAuthenticated);
+  const currentUserId = useSelector(selectUserId);
+
   const { hasPermission } = usePermissions();
   const canCreateCenter = hasPermission('create_evacuation_center');
+  const canUpdateCenter = hasPermission('update_evacuation_center');
+  const canDeleteCenter = hasPermission('delete_evacuation_center');
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [filteredCenters, setFilteredCenters] = useState<EvacuationCenter[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  
+
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
   const [editingCenter, setEditingCenter] = useState<EvacuationCenter | undefined>(undefined);
 
-  // Hooks
-  const { centers, loading, error, refreshCenters } = useEvacuationCenters();
-  const { deleteCenter } = useEvacuationCenterMutations();
-  const canUpdateCenter = hasPermission('update_evacuation_center');
-  const canDeleteCenter = hasPermission('delete_evacuation_center');
+  // Delete modal states
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [centerToDelete, setCenterToDelete] = useState<EvacuationCenter | null>(null);
 
-  // Filter evacuation centers based on search term
+  // Debounce search term
+  const debouncedSearchTerm = useDebounce(searchTerm, 500);
+
+  // Hooks
+  const {
+    centers,
+    loading,
+    error,
+    pagination,
+    refreshCenters,
+    refetchWithParams
+  } = useEvacuationCenters();
+
+  const {
+    deleteCenter,
+    isCreating,
+    isUpdating,
+    isDeleting
+  } = useEvacuationCenterMutations();
+
+  // Stable refetch function
+  const stableRefetch = useCallback((params: { limit: number; offset: number; search: string }) => {
+    refetchWithParams(params);
+  }, [refetchWithParams]);
+
+  // Handle search and pagination changes
   useEffect(() => {
-    const filtered = centers.filter(center =>
-      center.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      center.address.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-    setFilteredCenters(filtered);
-    setCurrentPage(1);
-  }, [searchTerm, centers]);
+    setCurrentPage(1); // Reset to first page when search changes
+    stableRefetch({
+      limit: rowsPerPage,
+      offset: 0,
+      search: debouncedSearchTerm
+    });
+  }, [debouncedSearchTerm, rowsPerPage, stableRefetch]);
+
+  useEffect(() => {
+    stableRefetch({
+      limit: rowsPerPage,
+      offset: (currentPage - 1) * rowsPerPage,
+      search: debouncedSearchTerm
+    });
+  }, [currentPage, rowsPerPage, debouncedSearchTerm, stableRefetch]);
 
   // Handle rows per page change
   const handleRowsPerPageChange = (value: string) => {
@@ -58,21 +100,30 @@ export default function EvacuationCentersPage() {
     setCurrentPage(1);
   };
 
-  // Pagination logic
-  const totalRows = filteredCenters.length;
-  const totalPages = Math.ceil(totalRows / rowsPerPage);
-  const startIndex = (currentPage - 1) * rowsPerPage;
-  const endIndex = startIndex + rowsPerPage;
-  const currentRows = filteredCenters.slice(startIndex, endIndex);
+  // Use pagination data from server
+  const currentRows = centers;
+  const totalRows = pagination?.total || 0;
+  const totalPages = pagination?.totalPages || 0;
 
   // Modal handlers
   const handleAddCenter = () => {
+    if (!isAuthenticated || !currentUserId) {
+      console.warn('User not authenticated, redirecting to login');
+      navigate('/login');
+      return;
+    }
     setModalMode('add');
     setEditingCenter(undefined);
     setIsModalOpen(true);
   };
 
   const handleEditCenter = async (center: EvacuationCenter) => {
+    if (!isAuthenticated || !currentUserId) {
+      console.warn('User not authenticated, redirecting to login');
+      navigate('/login');
+      return;
+    }
+
     try {
       // Fetch the complete center data including rooms
       const completeCenter = await evacuationCenterService.getEvacuationCenter(center.id);
@@ -85,13 +136,30 @@ export default function EvacuationCentersPage() {
     }
   };
 
-  const handleDeleteCenter = async (center: EvacuationCenter) => {
-    if (confirm(`Are you sure you want to delete "${center.name}"?`)) {
-      const success = await deleteCenter(center.id);
-      if (success) {
-        refreshCenters();
-      }
+  const handleDeleteCenter = (center: EvacuationCenter) => {
+    if (!isAuthenticated || !currentUserId) {
+      console.warn('User not authenticated, redirecting to login');
+      navigate('/login');
+      return;
     }
+    setCenterToDelete(center);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!centerToDelete) return;
+
+    const success = await deleteCenter(centerToDelete.id);
+    if (success) {
+      refreshCenters();
+      setIsDeleteModalOpen(false);
+      setCenterToDelete(null);
+    }
+  };
+
+  const handleCloseDeleteModal = () => {
+    setIsDeleteModalOpen(false);
+    setCenterToDelete(null);
   };
 
   const handleModalSuccess = () => {
@@ -103,18 +171,27 @@ export default function EvacuationCentersPage() {
     setEditingCenter(undefined);
   };
 
-  if (loading) {
+  if (loading && !centers.length) {
     return (
       <div className="flex items-center justify-center p-8">
-        <div className="text-lg">Loading evacuation centers...</div>
+        <LoadingSpinner text="Loading evacuation centers..." size="lg" />
       </div>
     );
   }
 
-  if (error) {
+  if (error && !centers.length) {
     return (
       <div className="flex items-center justify-center p-8">
-        <div className="text-red-600 text-lg">Error: {error}</div>
+        <div className="text-center">
+          <div className="text-red-600 text-lg font-medium mb-2">Error loading evacuation centers</div>
+          <p className="text-gray-600">{error}</p>
+          <Button
+            onClick={refreshCenters}
+            className="mt-4 bg-green-700 hover:bg-green-800"
+          >
+            Try Again
+          </Button>
+        </div>
       </div>
     );
   }
@@ -136,12 +213,22 @@ export default function EvacuationCentersPage() {
             className="max-w-sm"
           />
           {canCreateCenter && (
-            <Button 
+            <Button
               onClick={handleAddCenter}
-              className="bg-green-700 hover:bg-green-800 text-white px-6 flex gap-2 items-center"
+              disabled={isCreating}
+              className="bg-green-700 hover:bg-green-800 text-white px-6 flex gap-2 items-center disabled:opacity-50"
             >
-              <Plus className="w-4 h-4" />
-              Add Evacuation Center
+              {isCreating ? (
+                <>
+                  <LoadingSpinner size="sm" />
+                  <span>Adding...</span>
+                </>
+              ) : (
+                <>
+                  <Plus className="w-4 h-4" />
+                  Add Evacuation Center
+                </>
+              )}
             </Button>
           )}
         </div>
@@ -150,10 +237,14 @@ export default function EvacuationCentersPage() {
       {/* Table */}
       <div className="rounded-md border border-input overflow-hidden">
         <div className="relative w-full overflow-x-auto">
-          {currentRows.length === 0 ? (
+          {loading && centers.length > 0 ? (
+            <div className="flex items-center justify-center p-8">
+              <LoadingSpinner text="Loading..." size="md" />
+            </div>
+          ) : currentRows.length === 0 ? (
             <div className="flex flex-col items-center justify-center p-8 text-center">
               <div className="text-gray-500 text-lg font-medium mb-2">
-                No evacuation centers found
+                {searchTerm ? 'No evacuation centers found matching your search' : 'No evacuation centers found'}
               </div>
               <p className="text-gray-400 text-sm">
                 {searchTerm ? 'Try adjusting your search criteria' : 'Click "Add Evacuation Center" to get started'}
@@ -202,27 +293,43 @@ export default function EvacuationCentersPage() {
                     <TableCell className="text-center">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0"
+                            disabled={isCreating || isUpdating || isDeleting}
+                          >
                             <MoreHorizontal className="w-4 h-4" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           {canUpdateCenter && (
-                            <DropdownMenuItem 
+                            <DropdownMenuItem
                               onClick={() => handleEditCenter(center)}
                               className="cursor-pointer"
+                              disabled={isUpdating}
                             >
                               <Edit className="w-4 h-4 mr-2" />
                               Edit
                             </DropdownMenuItem>
                           )}
                           {canDeleteCenter && (
-                            <DropdownMenuItem 
+                            <DropdownMenuItem
                               onClick={() => handleDeleteCenter(center)}
                               className="cursor-pointer text-red-600"
+                              disabled={isDeleting}
                             >
-                              <Trash2 className="w-4 h-4 mr-2" />
-                              Delete
+                              {isDeleting ? (
+                                <>
+                                  <LoadingSpinner size="sm" />
+                                  <span className="ml-2">Deleting...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Trash2 className="w-4 h-4 mr-2" />
+                                  Delete
+                                </>
+                              )}
                             </DropdownMenuItem>
                           )}
                         </DropdownMenuContent>
@@ -258,6 +365,15 @@ export default function EvacuationCentersPage() {
         mode={modalMode}
         center={editingCenter}
         onSuccess={handleModalSuccess}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmationDialog
+        isOpen={isDeleteModalOpen}
+        onClose={handleCloseDeleteModal}
+        onConfirm={handleConfirmDelete}
+        center={centerToDelete}
+        isDeleting={isDeleting}
       />
     </div>
   );

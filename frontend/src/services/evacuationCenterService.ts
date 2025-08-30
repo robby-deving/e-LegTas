@@ -25,13 +25,36 @@ class EvacuationCenterService {
     return headers;
   }
 
-  async getEvacuationCenters(): Promise<EvacuationCenter[]> {
-    const response = await fetch(`${this.baseUrl}/evacuation-centers`, {
+  async getEvacuationCenters(params?: {
+    limit?: number;
+    offset?: number;
+    search?: string;
+  }): Promise<{
+    data: EvacuationCenter[];
+    pagination: {
+      total: number;
+      limit: number;
+      offset: number;
+      totalPages: number;
+      currentPage: number;
+    };
+  }> {
+    const queryParams = new URLSearchParams();
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.offset) queryParams.append('offset', params.offset.toString());
+    if (params?.search) queryParams.append('search', params.search);
+
+    const url = `${this.baseUrl}/evacuation-centers${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+
+    const response = await fetch(url, {
       headers: this.buildHeaders(),
     });
     if (!response.ok) throw new Error('Failed to fetch evacuation centers');
     const result = await response.json();
-    return result.data; // Extract the data array from the response
+    return {
+      data: result.data,
+      pagination: result.pagination
+    };
   }
 
   async getEvacuationCenter(id: number): Promise<EvacuationCenter> {
@@ -71,14 +94,32 @@ class EvacuationCenterService {
   }
 
   async createEvacuationCenter(data: CreateEvacuationCenterRequest): Promise<EvacuationCenter> {
+    console.log('Creating evacuation center with data:', data); // Debug log
+
     const response = await fetch(`${this.baseUrl}/evacuation-centers`, {
       method: 'POST',
       headers: this.buildHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(data),
     });
-    if (!response.ok) throw new Error('Failed to create evacuation center');
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Create evacuation center failed:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorText
+      });
+      throw new Error(`Failed to create evacuation center: ${response.status} ${response.statusText} - ${errorText}`);
+    }
+
     const result = await response.json();
-    return result.data; // Return the data property from the response
+    console.log('Create evacuation center response:', result); // Debug log
+
+    if (!result.data) {
+      throw new Error('No data returned from server');
+    }
+
+    return result.data;
   }
 
   async updateEvacuationCenter(id: number, data: UpdateEvacuationCenterRequest): Promise<EvacuationCenter> {

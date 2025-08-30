@@ -20,39 +20,88 @@ class ApiError extends Error {
  * @desc Get all evacuation center entries
  * @route GET /api/v1/evacuation-centers
  * @access Public
+ * @query {number} limit - Number of records to return (default: 10)
+ * @query {number} offset - Number of records to skip (default: 0)
+ * @query {string} search - Search term for name or address
+ * @query {boolean} include_deleted - Include soft-deleted records (default: false)
  */
 exports.getAllEvacuationCenters = async (req, res, next) => {
     try {
-        // Add include_deleted query parameter option
+        // Parse query parameters
+        const limit = parseInt(req.query.limit) || 10;
+        const offset = parseInt(req.query.offset) || 0;
+        const search = req.query.search || '';
         const includeSoftDeleted = req.query.include_deleted === 'true';
-        
+
         let query = supabase
             .from(TABLE_NAME)
-            .select('*');
+            .select('*', { count: 'exact' });
 
         // Only add the filter if we don't want to include soft-deleted records
         if (!includeSoftDeleted) {
             query = query.is('deleted_at', null);
         }
 
-        const { data, error } = await query;
+        // Add search filter if provided
+        if (search) {
+            query = query.or(`name.ilike.%${search}%,address.ilike.%${search}%`);
+        }
+
+        // Add pagination
+        query = query.range(offset, offset + limit - 1);
+
+        const { data, error, count } = await query;
 
         if (error) {
             console.error('Supabase Error (getAllEvacuationCenters):', error);
             return next(new ApiError('Failed to retrieve evacuation center entries.', 500));
         }
 
+        // Get total count for pagination metadata
+        let totalCount = count;
+        if (search || !includeSoftDeleted) {
+            // If we have search or deleted_at filter, we need to get the total count separately
+            let countQuery = supabase
+                .from(TABLE_NAME)
+                .select('*', { count: 'exact', head: true });
+
+            if (!includeSoftDeleted) {
+                countQuery = countQuery.is('deleted_at', null);
+            }
+
+            if (search) {
+                countQuery = countQuery.or(`name.ilike.%${search}%,address.ilike.%${search}%`);
+            }
+
+            const { count: filteredCount } = await countQuery;
+            totalCount = filteredCount;
+        }
+
         if (!data || data.length === 0) {
-            return res.status(200).json({ 
-                message: 'No evacuation center entries found.', 
-                data: [] 
+            return res.status(200).json({
+                message: 'No evacuation center entries found.',
+                data: [],
+                pagination: {
+                    total: totalCount || 0,
+                    limit,
+                    offset,
+                    totalPages: Math.ceil((totalCount || 0) / limit),
+                    currentPage: Math.floor(offset / limit) + 1
+                }
             });
         }
 
         res.status(200).json({
-            message: 'Successfully retrieved all evacuation center entries.',
+            message: 'Successfully retrieved evacuation center entries.',
             count: data.length,
-            data: data
+            data: data,
+            pagination: {
+                total: totalCount || 0,
+                limit,
+                offset,
+                totalPages: Math.ceil((totalCount || 0) / limit),
+                currentPage: Math.floor(offset / limit) + 1
+            }
         });
     } catch (err) {
         next(new ApiError('Internal server error during getAllEvacuationCenters.', 500));
