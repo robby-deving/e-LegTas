@@ -423,10 +423,10 @@ exports.restoreEvacuationCenter = async (req, res, next) => {
         next(new ApiError('Internal server error during restoreEvacuationCenter.', 500));
     }
 };
-
 exports.getEvacuationCenterMapData = async (req, res, next) => {
     try {
-        const { data, error } = await supabase
+        // First, get all active evacuation centers with their basic data
+        const { data: centers, error: centersError } = await supabase
             .from(TABLE_NAME) // evacuation_centers
             .select(`
                 *,
@@ -442,18 +442,71 @@ exports.getEvacuationCenterMapData = async (req, res, next) => {
                         phone_number
                     )
                 )
-            `);
+            `)
+            .is('deleted_at', null); // Only get active (non-deleted) evacuation centers
 
-        if (error) {
-            console.error('Supabase Error (getEvacuationCenterMapData):', error);
-            return next(new ApiError('Failed to retrieve detailed evacuation center data.', 500));
+        if (centersError) {
+            console.error('Supabase Error (getEvacuationCenterMapData - centers):', centersError);
+            return next(new ApiError('Failed to retrieve evacuation center data.', 500));
+        }
+
+        if (!centers || centers.length === 0) {
+            return res.status(200).json({
+                message: 'No evacuation centers found.',
+                count: 0,
+                data: []
+            });
+        }
+
+        // Get all active disaster evacuation events for these centers
+        const centerIds = centers.map(center => center.id);
+        const { data: activeEvents, error: eventsError } = await supabase
+            .from('disaster_evacuation_event')
+            .select('id, evacuation_center_id')
+            .in('evacuation_center_id', centerIds)
+            .is('evacuation_end_date', null);
+
+        if (eventsError) {
+            console.error('Supabase Error (getEvacuationCenterMapData - active events):', eventsError);
+            return next(new ApiError('Failed to retrieve active disaster events.', 500));
+        }
+
+        // Get the latest evacuation summaries for these events
+        let currentCapacities = {};
+        if (activeEvents && activeEvents.length > 0) {
+            const eventIds = activeEvents.map(event => event.id);
+            const { data: summaries, error: summariesError } = await supabase
+                .from('evacuation_summaries')
+                .select('disaster_evacuation_event_id, total_no_of_individuals, created_at')
+                .in('disaster_evacuation_event_id', eventIds)
+                .order('created_at', { ascending: false });
+
+            if (summariesError) {
+                console.error('Supabase Error (getEvacuationCenterMapData - summaries):', summariesError);
+                return next(new ApiError('Failed to retrieve evacuation summaries.', 500));
+            }
+
+            // Group summaries by evacuation center and get the latest one for each
+            const summariesByEvent = {};
+            summaries?.forEach(summary => {
+                if (!summariesByEvent[summary.disaster_evacuation_event_id]) {
+                    summariesByEvent[summary.disaster_evacuation_event_id] = summary;
+                }
+            });
+
+            // Map summaries to centers
+            activeEvents.forEach(event => {
+                if (summariesByEvent[event.id]) {
+                    currentCapacities[event.evacuation_center_id] = summariesByEvent[event.id].total_no_of_individuals;
+                }
+            });
         }
 
         // Transform the data to flatten the nested objects and combine names
-        const transformedData = data.map(ec => {
+        const transformedData = centers.map(ec => {
             const barangayName = ec.barangays ? ec.barangays.name : null;
             let campManagerName = null;
-            let campManagerPhoneNumber = null; // New variable for phone number
+            let campManagerPhoneNumber = null;
 
             if (ec.users && ec.users.user_profile) {
                 const userProfile = ec.users.user_profile;
@@ -480,7 +533,8 @@ exports.getEvacuationCenterMapData = async (req, res, next) => {
                 ...rest, // Spread all other properties of the evacuation center
                 barangay_name: barangayName,
                 camp_manager_name: campManagerName,
-                camp_manager_phone_number: campManagerPhoneNumber // Include phone number
+                camp_manager_phone_number: campManagerPhoneNumber,
+                current_capacity: currentCapacities[ec.id] || 0 // Add current capacity from summaries
             };
         });
 
@@ -490,6 +544,7 @@ exports.getEvacuationCenterMapData = async (req, res, next) => {
             data: transformedData
         });
     } catch (err) {
+        console.error('Internal server error during getEvacuationCenterMapData:', err);
         next(new ApiError('Internal server error during getEvacuationCenterMapData.', 500));
     }
 };
