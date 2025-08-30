@@ -55,9 +55,10 @@ const CACHE_TTL = 15 * 60 * 1000; // 15 minutes in milliseconds
 type GISMapProps = {
   onMarkerClick: (evacuationCenter: EvacuationCenter) => void;
   onLastUpdatedChange?: (timestamp: Date | null) => void;
+  height?: string; // Add this prop
 };
 
-export default function GISMap({ onMarkerClick, onLastUpdatedChange }: GISMapProps) {
+export default function GISMap({ onMarkerClick, onLastUpdatedChange, height = '100vh' }: GISMapProps) {
   const mapRef = useRef<L.Map | null>(null);
   const [evacuationCenters, setEvacuationCenters] = useState<EvacuationCenter[]>([]);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -197,11 +198,11 @@ export default function GISMap({ onMarkerClick, onLastUpdatedChange }: GISMapPro
       center={[13.1391, 123.7438]}
       zoom={15}
       scrollWheelZoom={true}
-      style={{ height: '100vh', width: '100%' }}
+      style={{ height: height, width: '100%' }} // Use the height prop
       ref={mapRef}
+      className="z-0"
     >
       <TileLayer
-        attribution='&copy; <a href="http://osm.org/copyright">OpenStreetMap</a>'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       {evacuationCenters.map((center) => (

@@ -5,10 +5,11 @@ import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuIte
 import { useEffect, useState, useCallback } from 'react';
 import { Input } from "../../components/ui/input";
 import { Calendar, ExternalLink } from "lucide-react";
-
+import { useNavigate } from 'react-router-dom';
 import activeEC from '../../assets/activeEC.svg';
 import registeredEvacuees from '../../assets/registeredEvacuees.svg';
 import registeredFamilies from '../../assets/registeredFamilies.svg';
+import GISMap from '../Map/GISMap';
 
 import StatCard from '../../components/StatCard';
 import EvacueeStatisticsChart from '../../components/EvacueeStatisticsChart';
@@ -36,7 +37,9 @@ export default function Dashboard() {
   const { hasPermission } = usePermissions();
   const canViewMap = hasPermission('view_map');
   const [isEvacueeInfoModalOpen, setIsEvacueeInfoModalOpen] = useState(false);
+  const navigate = useNavigate();
   const [selectedDateRange, setSelectedDateRange] = useState<DateRange | undefined>(undefined);
+  const [selectedEvacuationCenter, setSelectedEvacuationCenter] = useState<EvacuationCenter | null>(null);
   const { 
     disasters, 
     selectedDisaster, 
@@ -86,34 +89,28 @@ export default function Dashboard() {
     ) : selectedDisaster ? (
       <>
 
-      {/* Map Placeholder */}
-      {canViewMap && (
-        <div className="w-full h-48 md:h-56 rounded-xl border overflow-hidden bg-gray-100 flex items-center justify-center">
-          <span className="text-gray-400">[Map Placeholder]</span>
-        </div>
-      )}
-
-      {/* Map Placeholder */}
-      {/* <div className="relative w-full h-48 md:h-56 rounded-xl border overflow-hidden">
-        <GISMap onMarkerClick={setSelectedEvacuationCenter} /> */}
-
-        {/* Expand Button */}
-        {/* <button
-          onClick={() => navigate('/map')}
-          className="absolute bottom-2 right-2 bg-white rounded-full p-2 shadow-md hover:bg-gray-100 transition z-[1000]"
-          title="Expand GIS Map"
-        >
-          <svg
-            className="w-5 h-5 text-gray-600"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-            viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M16 4h4v4m0-4l-7 7M8 20H4v-4m0 4l7-7" />
-          </svg>
-        </button>
-      </div> */}
+{canViewMap && (
+  <div className="relative w-full h-48 md:h-56 rounded-xl border overflow-hidden bg-gray-100 flex items-center justify-center z-0">
+    <GISMap onMarkerClick={setSelectedEvacuationCenter} height="100%" />
+    
+    {/* Expand Button */}
+    <button
+      onClick={() => navigate('/map')}
+      className="absolute bottom-2 right-2 bg-white rounded-full p-2 shadow-md hover:bg-gray-100 transition z-50"
+      title="Expand GIS Map"
+    >
+      <svg
+        className="w-5 h-5 text-gray-600"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={2}
+        viewBox="0 0 24 24"
+      >
+        <path strokeLinecap="round" strokeLinejoin="round" d="M16 4h4v4m0-4l-7 7M8 20H4v-4m0 4l7-7" />
+      </svg>
+    </button>
+  </div>
+)}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
