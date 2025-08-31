@@ -90,7 +90,10 @@ export default function SystemAdminDashboard() {
         loadData();
     }, []);
     
-    const totalRows = recentUsers.length;
+    // Limit the number of users displayed
+    const RECENT_USERS_LIMIT = 7;
+    const displayedUsers = recentUsers.slice(0, RECENT_USERS_LIMIT);
+    const totalRows = displayedUsers.length;
 
     return (
         <div className='p-6'>
@@ -224,10 +227,10 @@ export default function SystemAdminDashboard() {
                                 </td>
                             </tr>
                         ) : (
-                            recentUsers.map((user: RecentUser, index: number) => (
+                            displayedUsers.map((user: RecentUser, index: number) => (
                                 <tr 
                                     key={user.id || index} 
-                                    className={`hover:bg-gray-50 ${index !== recentUsers.length - 1 ? 'border-b border-gray-200' : ''}`}
+                                    className={`hover:bg-gray-50 ${index !== displayedUsers.length - 1 ? 'border-b border-gray-200' : ''}`}
                                 >
                                     <td className="px-6 py-4 whitespace-nowrap text-gray-900 text-base">
                                         {user.full_name || 'N/A'}
