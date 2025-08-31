@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { Input } from "../components/ui/input";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "../components/ui/table";
@@ -14,10 +14,13 @@ import { formatDate } from "@/utils/dateFormatter";
 import { getTypeColor, getTagColor } from "@/constants/disasterTypeColors";
 import { encodeId } from "@/utils/secureId";
 import { selectToken } from "../features/auth/authSlice";
+import { disasterService } from "@/services/disasterService";
+import LoadingSpinner from "@/components/loadingSpinner";
 
 export default function DisasterDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const token = useSelector(selectToken);
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -25,6 +28,8 @@ export default function DisasterDetail() {
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [disaster, setDisaster] = useState<Disaster | null>(null);
+  const [disasterLoading, setDisasterLoading] = useState(false);
+  const [disasterError, setDisasterError] = useState<string | null>(null);
 
   // Get auth headers for API calls
   const getAuthHeaders = () => {
@@ -43,17 +48,55 @@ export default function DisasterDetail() {
   const disasterId = decodeId(rawDisasterId);
 
   useEffect(() => {
-    const storedDisasters = localStorage.getItem("disasters");
-    if (storedDisasters) {
-      try {
-        const parsed: Disaster[] = JSON.parse(storedDisasters);
-        const disasterDetails = parsed.find((d) => d.id === disasterId);
-        if (disasterDetails) setDisaster(disasterDetails);
-      } catch (e) {
-        console.error("Error parsing disasters from localStorage", e);
+    const loadDisaster = async () => {
+      if (!disasterId || isNaN(disasterId)) {
+        setDisasterError("Invalid disaster ID");
+        return;
       }
-    }
-  }, [disasterId]);
+
+      setDisasterLoading(true);
+      setDisasterError(null);
+
+      try {
+        // First try to get from navigation state (if passed from EvacuationInfo)
+        const disasterFromState = location.state?.disaster as Disaster | undefined;
+        if (disasterFromState && disasterFromState.id === disasterId) {
+          setDisaster(disasterFromState);
+          setDisasterLoading(false);
+          return;
+        }
+
+        // Then try localStorage
+        const storedDisasters = localStorage.getItem("disasters");
+        if (storedDisasters) {
+          try {
+            const parsed: Disaster[] = JSON.parse(storedDisasters);
+            const disasterDetails = parsed.find((d) => d.id === disasterId);
+            if (disasterDetails) {
+              setDisaster(disasterDetails);
+              setDisasterLoading(false);
+              return;
+            }
+          } catch (e) {
+            console.error("Error parsing disasters from localStorage", e);
+          }
+        }
+
+        // Finally, fetch from API if not found in localStorage
+        console.log("Fetching disaster from API...");
+        const fetchedDisaster = await disasterService.fetchDisasterById(disasterId, token || "");
+        setDisaster(fetchedDisaster);
+        
+      } catch (error) {
+        console.error("Failed to load disaster:", error);
+        setDisasterError("Failed to load disaster details");
+      } finally {
+        setDisasterLoading(false);
+      }
+    };
+
+    loadDisaster();
+  }, [disasterId, token, location.state]);
 
   usePageTitle(disaster?.name ?? "");
 
@@ -83,8 +126,41 @@ export default function DisasterDetail() {
     setCurrentPage(1);
   };
 
-  if (!disaster) {
-    return <div className="text-red-500 p-6">Disaster not found</div>;
+  // Show loading state
+  // Show loading state
+  if (disasterLoading) {
+    return (
+      <div className="text-black p-6 space-y-6 flex flex-col min-h-screen">
+        <div className="flex justify-center items-center py-20">
+          <LoadingSpinner text="Loading disaster details..." size="lg" />
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (disasterError || !disaster) {
+    return (
+      <div className="text-black p-6 space-y-6 flex flex-col min-h-screen">
+        <div className="flex justify-center items-center py-20">
+          <div className="text-center">
+            <div className="text-red-500 text-xl mb-4">⚠️</div>
+            <p className="text-red-600 font-semibold mb-2">
+              {disasterError || "Disaster not found"}
+            </p>
+            <p className="text-gray-600 text-sm">
+              The disaster you're looking for could not be loaded.
+            </p>
+            <button
+              onClick={() => navigate("/evacuation-information")}
+              className="mt-4 px-4 py-2 bg-green-800 text-white rounded hover:bg-green-900 transition-colors"
+            >
+              Back to Disaster List
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   const filteredCenters = evacuationCenters.filter(

@@ -24,7 +24,7 @@ import {
 } from "../ui/select";
 import { Button } from "../ui/button";
 import { CalendarIcon } from "lucide-react";
-import type { Disaster, DisasterPayload, DisasterTypeWithId } from "@/types/disaster"; // Import new type
+import type { Disaster, DisasterPayload, DisasterTypeWithId } from "@/types/disaster";
 
 interface Props {
   mode: "create" | "edit";
@@ -32,7 +32,8 @@ interface Props {
   open: boolean;
   onClose: () => void;
   onSave: (d: DisasterPayload) => void;
-  disasterTypes: DisasterTypeWithId[]; // Changed prop type
+  disasterTypes: DisasterTypeWithId[];
+  loading?: boolean;
 }
 
 export default function DisasterFormDialog({
@@ -42,6 +43,7 @@ export default function DisasterFormDialog({
   onClose,
   onSave,
   disasterTypes,
+  loading = false,
 }: Props) {
   const [name, setName] = useState("");
   const [type, setType] = useState(""); // Stores the display name of the type
@@ -213,8 +215,12 @@ export default function DisasterFormDialog({
           <Button
             className="bg-green-700 hover:bg-green-800 text-white cursor-pointer"
             onClick={handleSave}
+            disabled={loading}
           >
-            {mode === "create" ? "Add Disaster" : "Save Changes"}
+            {loading
+              ? (mode === "create" ? "Adding..." : "Saving...")
+              : (mode === "create" ? "Add Disaster" : "Save Changes")
+            }
           </Button>
         </DialogFooter>
       </DialogContent>
