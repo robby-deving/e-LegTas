@@ -194,8 +194,8 @@ const fetchEvacueesList = useCallback(async (opts?: { silent?: boolean }) => {
 const refreshAll = useCallback(async (opts?: { silent?: boolean }) => {
   await Promise.all([
     fetchEvacueesList(opts),
-    fetchDetails(),    // no spinner needed
-    fetchStatistics(), // no spinner needed
+    fetchDetails(),   
+    fetchStatistics(), 
   ]);
 }, [fetchEvacueesList, fetchDetails, fetchStatistics]);
 
@@ -222,7 +222,6 @@ const refreshAllDebounced = useMemo(() => {
   if (!centerId) return;
 
   const channel = supabase.channel(`ec-detail-core-${centerId}`);
-
   // 1) Any registration insert/update/delete for this event → list + stats + details
   channel.on(
     'postgres_changes',
@@ -234,21 +233,18 @@ const refreshAllDebounced = useMemo(() => {
     },
     () => refreshAllDebounced()
   );
-
   // 2) Resident profile edits (names/sex/birthdate/barangay) → affect list/details
   channel.on(
     'postgres_changes',
     { event: '*', schema: 'public', table: 'residents' },
     () => refreshAllDebounced()
   );
-
   // 3) Evacuee resident record changes (relationship, etc.)
   channel.on(
     'postgres_changes',
     { event: '*', schema: 'public', table: 'evacuee_residents' },
     () => refreshAllDebounced()
   );
-
   // 4) Aggregate stats table used by your /evacuee-statistics endpoint
   channel.on(
     'postgres_changes',
@@ -260,7 +256,6 @@ const refreshAllDebounced = useMemo(() => {
     },
     () => refreshAllDebounced()
   );
-
   // 5) Event ended / updated → headers, breadcrumbs, etc.
   channel.on(
     'postgres_changes',
@@ -285,7 +280,6 @@ useEffect(() => {
   const channel = supabase.channel(`ec-detail-meta-${centerId}`);
 
   if (ecId) {
-    // Room name changes and center metadata updates
     channel.on(
       'postgres_changes',
       {
@@ -325,12 +319,9 @@ useEffect(() => {
   return () => { supabase.removeChannel(channel); };
 }, [centerId, detail?.evacuation_center?.evacuation_center_id, detail?.disaster?.disasters_id, refreshAllDebounced]);
 
-
-
 const { paginatedEvacuees, totalRows, totalPages } = useMemo(() => {
   const base = Array.isArray(evacuees) ? evacuees : [];
 
-  // text search
   const q = search.trim().toLowerCase();
   const searched = q
     ? base.filter(
@@ -340,12 +331,10 @@ const { paginatedEvacuees, totalRows, totalPages } = useMemo(() => {
       )
     : base;
 
-  // default: newest registrations first
   const defaultSorted = [...searched].sort(
     (a, b) => getRegisteredAt(b) - getRegisteredAt(a)
   );
 
-  // apply column sort (if user clicked headers)
   const sorted = sort ? sortRows(defaultSorted, sort) : defaultSorted;
 
   // paginate
@@ -1010,21 +999,20 @@ const { paginatedEvacuees, totalRows, totalPages } = useMemo(() => {
                 onRowsPerPageChange={(value) => setRowsPerPage(Number(value))}
               />
             </div>
-<FamilyDetailsModal
-  isOpen={!!selectedFamily}
-  onClose={handleCloseModal}
-  evacuee={selectedFamily}
-  centerName={selectedFamily?.view_family?.evacuation_center_name || ""}
-  onEditMember={handleEditMember}
-  canUpdateEvacuee={canUpdateEvacueeInformation}
-  canUpdateFamily={canUpdateFamilyInformation}
-  disasterStartDate={detail?.disaster?.disaster_start_date ?? null}
-  onSaved={async (_patch) => {
-    // _patch is available if you want to do optimistic updates later
-    await refreshAll({ silent: true });
-  }}
-/>
-
+            <FamilyDetailsModal
+              isOpen={!!selectedFamily}
+              onClose={handleCloseModal}
+              evacuee={selectedFamily}
+              centerName={selectedFamily?.view_family?.evacuation_center_name || ""}
+              onEditMember={handleEditMember}
+              canUpdateEvacuee={canUpdateEvacueeInformation}
+              canUpdateFamily={canUpdateFamilyInformation}
+              disasterStartDate={detail?.disaster?.disaster_start_date ?? null}
+              onSaved={async (_patch) => {
+                // _patch is available if you want to do optimistic updates later
+                await refreshAll({ silent: true });
+              }}
+            />
             <RegisterEvacueeModal
               isOpen={evacueeModalOpen}
               onClose={handleEvacueeModalClose}

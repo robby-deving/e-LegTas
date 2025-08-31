@@ -1,7 +1,5 @@
 // evacuee.controller.js
-
 const { supabase } = require('../config/supabase');
-
 class ApiError extends Error {
   constructor(message, statusCode = 500) {
     super(message);
