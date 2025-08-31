@@ -11,7 +11,6 @@ import { useAnnouncements } from '../hooks/useAnnouncements.ts';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../store';
 import { selectUserId } from '../features/auth/authSlice';
-import LoadingSpinner from '../components/loadingSpinner';
 import { useNavigate } from 'react-router-dom';
 
 type Announcement = {
@@ -153,37 +152,34 @@ export default function AnnouncementsPage() {
         isSearching={isSearching}
       />
 
-      {/* Loading State */}
-      {loading && (
-        <div className="flex flex-col items-center justify-center py-12">
-          <LoadingSpinner text="Loading announcements..." />
-        </div>
-      )}
-
       {/* Error State */}
       {error && (
         <div className="text-sm text-red-600">{error}</div>
       )}
 
-      {/* Content (only show when not loading) */}
-      {!loading && !error && (
+      {/* Content */}
+      {!error && (
         <>
           <AnnouncementsTable
             currentRows={currentRows}
             expandedRows={expandedRows}
             onToggleExpand={toggleExpand}
             onDeleteClick={handleDeleteClick}
+            loading={loading}
+            rowsPerPage={rowsPerPage}
           />
 
-          <AnnouncementsPagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={handlePageChange}
-            rowsPerPage={rowsPerPage}
-            totalRows={totalCount}
-            onRowsPerPageChange={handleRowsPerPageChangeWrapper}
-            selectedRowsCount={selectedAnnouncements.length}
-          />
+          {!loading && (
+            <AnnouncementsPagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+              rowsPerPage={rowsPerPage}
+              totalRows={totalCount}
+              onRowsPerPageChange={handleRowsPerPageChangeWrapper}
+              selectedRowsCount={selectedAnnouncements.length}
+            />
+          )}
         </>
       )}
 

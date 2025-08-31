@@ -237,17 +237,62 @@ export default function EvacuationCentersPage() {
       {/* Table */}
       <div className="rounded-md border border-input overflow-hidden">
         <div className="relative w-full overflow-x-auto">
-          {loading && centers.length > 0 ? (
-            <div className="flex items-center justify-center p-8">
-              <LoadingSpinner text="Loading..." size="md" />
-            </div>
+          {loading ? (
+            // Loading rows with skeleton animation
+            <Table>
+              <TableHeader className="bg-gray-50">
+                <TableRow>
+                  <TableHead className="text-left">Evacuation Center</TableHead>
+                  <TableHead className="text-left">Address</TableHead>
+                  <TableHead className="text-left">Category</TableHead>
+                  <TableHead className="text-left">Total Individual</TableHead>
+                  <TableHead className="text-left">Longitude</TableHead>
+                  <TableHead className="text-left">Latitude</TableHead>
+                  <TableHead className="text-left">Status</TableHead>
+                  <TableHead className="text-center w-12">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {Array.from({ length: rowsPerPage }, (_, index) => (
+                  <TableRow key={`loading-${index}`}>
+                    <TableCell className="py-4">
+                      <div className="flex items-center space-x-2">
+                        <LoadingSpinner size="sm" />
+                        <div className="h-4 bg-gray-200 rounded animate-pulse w-32"></div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="h-4 bg-gray-200 rounded animate-pulse w-48"></div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="h-4 bg-gray-200 rounded animate-pulse w-20"></div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="h-4 bg-gray-200 rounded animate-pulse w-16"></div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="h-4 bg-gray-200 rounded animate-pulse w-20"></div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="h-4 bg-gray-200 rounded animate-pulse w-20"></div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="h-6 bg-gray-200 rounded-full animate-pulse w-16"></div>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <div className="h-8 w-8 bg-gray-200 rounded animate-pulse mx-auto"></div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           ) : currentRows.length === 0 ? (
             <div className="flex flex-col items-center justify-center p-8 text-center">
               <div className="text-gray-500 text-lg font-medium mb-2">
-                {searchTerm ? 'No evacuation centers found matching your search' : 'No evacuation centers found'}
+                {debouncedSearchTerm ? 'No evacuation centers found matching your search' : 'No evacuation centers found'}
               </div>
               <p className="text-gray-400 text-sm">
-                {searchTerm ? 'Try adjusting your search criteria' : 'Click "Add Evacuation Center" to get started'}
+                {debouncedSearchTerm ? 'Try adjusting your search criteria' : 'Click "Add Evacuation Center" to get started'}
               </p>
             </div>
           ) : (
