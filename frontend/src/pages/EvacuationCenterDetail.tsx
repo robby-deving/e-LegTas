@@ -1,5 +1,6 @@
 // EvacuationCenterDetail.tsx
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { supabase } from "@/lib/supabaseClient";
 import { useNavigate, useParams } from "react-router-dom";
 import { ChevronRight, Calendar, ArrowRight, ArrowUpDown } from "lucide-react";
 import axios from "axios";
@@ -170,29 +171,43 @@ export default function EvacuationCenterDetail() {
     }
   }, [centerId, token]);
 
-  const fetchEvacueesList = useCallback(async () => {
-    setEvacueesLoading(true);
-    try {
-      const res = await axios.get<FamilyEvacueeInformation[]>(
-        `http://localhost:3000/api/v1/evacuees/${centerId}/evacuees-information`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
+const fetchEvacueesList = useCallback(async (opts?: { silent?: boolean }) => {
+  if (!opts?.silent) setEvacueesLoading(true);
+  try {
+    const res = await axios.get<FamilyEvacueeInformation[]>(
+      `http://localhost:3000/api/v1/evacuees/${centerId}/evacuees-information`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
-      );
-      setEvacuees(Array.isArray(res.data) ? res.data : []);
-    } catch {
-      setEvacuees([]);
-    } finally {
-      setEvacueesLoading(false);
-    }
-  }, [centerId, token]);
+      }
+    );
+    setEvacuees(Array.isArray(res.data) ? res.data : []);
+  } catch {
+    setEvacuees([]);
+  } finally {
+    if (!opts?.silent) setEvacueesLoading(false);
+  }
+}, [centerId, token]);
 
-  const refreshAll = useCallback(async () => {
-    await Promise.all([fetchEvacueesList(), fetchDetails(), fetchStatistics()]);
-  }, [fetchEvacueesList, fetchDetails, fetchStatistics]);
+const refreshAll = useCallback(async (opts?: { silent?: boolean }) => {
+  await Promise.all([
+    fetchEvacueesList(opts),
+    fetchDetails(),    // no spinner needed
+    fetchStatistics(), // no spinner needed
+  ]);
+}, [fetchEvacueesList, fetchDetails, fetchStatistics]);
+
+const refreshAllDebounced = useMemo(() => {
+  let t: number | undefined;
+  return () => {
+    if (t) window.clearTimeout(t);
+    t = window.setTimeout(() => {
+      refreshAll({ silent: true });
+    }, 400);
+  };
+}, [refreshAll]);
 
   useEffect(() => {
     console.log("✅ Decoded IDs:", { disasterId, centerId });
@@ -202,6 +217,115 @@ export default function EvacuationCenterDetail() {
     }
     refreshAll();
   }, [centerId, disasterId, refreshAll]);
+
+  useEffect(() => {
+  if (!centerId) return;
+
+  const channel = supabase.channel(`ec-detail-core-${centerId}`);
+
+  // 1) Any registration insert/update/delete for this event → list + stats + details
+  channel.on(
+    'postgres_changes',
+    {
+      event: '*',
+      schema: 'public',
+      table: 'evacuation_registrations',
+      filter: `disaster_evacuation_event_id=eq.${centerId}`
+    },
+    () => refreshAllDebounced()
+  );
+
+  // 2) Resident profile edits (names/sex/birthdate/barangay) → affect list/details
+  channel.on(
+    'postgres_changes',
+    { event: '*', schema: 'public', table: 'residents' },
+    () => refreshAllDebounced()
+  );
+
+  // 3) Evacuee resident record changes (relationship, etc.)
+  channel.on(
+    'postgres_changes',
+    { event: '*', schema: 'public', table: 'evacuee_residents' },
+    () => refreshAllDebounced()
+  );
+
+  // 4) Aggregate stats table used by your /evacuee-statistics endpoint
+  channel.on(
+    'postgres_changes',
+    {
+      event: '*',
+      schema: 'public',
+      table: 'evacuation_summaries',
+      filter: `disaster_evacuation_event_id=eq.${centerId}`
+    },
+    () => refreshAllDebounced()
+  );
+
+  // 5) Event ended / updated → headers, breadcrumbs, etc.
+  channel.on(
+    'postgres_changes',
+    {
+      event: '*',
+      schema: 'public',
+      table: 'disaster_evacuation_event',
+      filter: `id=eq.${centerId}`
+    },
+    () => refreshAllDebounced()
+  );
+
+  channel.subscribe();
+  return () => { supabase.removeChannel(channel); };
+}, [centerId, refreshAllDebounced]);
+
+useEffect(() => {
+  const ecId = detail?.evacuation_center?.evacuation_center_id;
+  const disasterIdForDetail = detail?.disaster?.disasters_id;
+  if (!ecId && !disasterIdForDetail) return;
+
+  const channel = supabase.channel(`ec-detail-meta-${centerId}`);
+
+  if (ecId) {
+    // Room name changes and center metadata updates
+    channel.on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'evacuation_center_rooms',
+        filter: `evacuation_center_id=eq.${ecId}`
+      },
+      () => refreshAllDebounced()
+    );
+    channel.on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'evacuation_centers',
+        filter: `id=eq.${ecId}`
+      },
+      () => refreshAllDebounced()
+    );
+  }
+
+  if (disasterIdForDetail) {
+    channel.on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'disasters',
+        filter: `id=eq.${disasterIdForDetail}`
+      },
+      () => refreshAllDebounced()
+    );
+  }
+
+  channel.subscribe();
+  return () => { supabase.removeChannel(channel); };
+}, [centerId, detail?.evacuation_center?.evacuation_center_id, detail?.disaster?.disasters_id, refreshAllDebounced]);
+
+
 
 const { paginatedEvacuees, totalRows, totalPages } = useMemo(() => {
   const base = Array.isArray(evacuees) ? evacuees : [];
@@ -886,17 +1010,21 @@ const { paginatedEvacuees, totalRows, totalPages } = useMemo(() => {
                 onRowsPerPageChange={(value) => setRowsPerPage(Number(value))}
               />
             </div>
-            <FamilyDetailsModal
-              isOpen={!!selectedFamily}
-              onClose={handleCloseModal}
-              evacuee={selectedFamily}
-              centerName={selectedFamily?.view_family?.evacuation_center_name || ""}
-              onEditMember={handleEditMember}
-              canUpdateEvacuee={canUpdateEvacueeInformation}
-              canUpdateFamily={canUpdateFamilyInformation}
-              disasterStartDate={detail?.disaster?.disaster_start_date ?? null}
-              onSaved={refreshAll}
-            />
+<FamilyDetailsModal
+  isOpen={!!selectedFamily}
+  onClose={handleCloseModal}
+  evacuee={selectedFamily}
+  centerName={selectedFamily?.view_family?.evacuation_center_name || ""}
+  onEditMember={handleEditMember}
+  canUpdateEvacuee={canUpdateEvacueeInformation}
+  canUpdateFamily={canUpdateFamilyInformation}
+  disasterStartDate={detail?.disaster?.disaster_start_date ?? null}
+  onSaved={async (_patch) => {
+    // _patch is available if you want to do optimistic updates later
+    await refreshAll({ silent: true });
+  }}
+/>
+
             <RegisterEvacueeModal
               isOpen={evacueeModalOpen}
               onClose={handleEvacueeModalClose}

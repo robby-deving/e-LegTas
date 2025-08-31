@@ -1221,7 +1221,6 @@ exports.getEvacueesInformationbyDisasterEvacuationEventId = async (req, res, nex
   }
 };
 
-
 /**
  * @desc Get evacuee demographic statistics by disaster evacuation event ID
  * @route GET /api/v1/evacuees/:disasterEvacuationEventId/evacuee-statistics 
