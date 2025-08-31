@@ -569,30 +569,29 @@ const { paginatedEvacuees, totalRows, totalPages } = useMemo(() => {
           ? { existing_evacuee_resident_id: formData.existingEvacueeResidentId }
           : {}),
       };
-
       if (evacueeModalMode === "register") {
-        const resp = await axios.post(
+        await axios.post(
           "http://localhost:3000/api/v1/evacuees",
           payload,
           {
             headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
-            }
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
           }
         );
       } else if (evacueeModalMode === "edit" && selectedEvacuee?.id) {
         const url = `http://localhost:3000/api/v1/evacuees/${selectedEvacuee.id}`;
-        const resp = await axios.put(url, payload, {
+        await axios.put(url, payload, {
           headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
         });
       } else {
         return;
       }
-
+      
       setEvacueeModalOpen(false);
       await refreshAll();
     } catch (error: any) {
@@ -861,7 +860,7 @@ const { paginatedEvacuees, totalRows, totalPages } = useMemo(() => {
                           </TableCell>
                           <TableCell className="text-foreground">{evac.room_name}</TableCell>
                           <TableCell className="text-foreground">
-                            {evac.decampment_timestamp || "—"}
+                            {evac.decampment_timestamp ? formatDate(evac.decampment_timestamp) : "—"}
                           </TableCell>
                           <TableCell className="flex justify-end items-center text-foreground">
                             <ArrowRight className="w-4 h-4 text-muted-foreground" />
@@ -887,19 +886,17 @@ const { paginatedEvacuees, totalRows, totalPages } = useMemo(() => {
                 onRowsPerPageChange={(value) => setRowsPerPage(Number(value))}
               />
             </div>
-
             <FamilyDetailsModal
               isOpen={!!selectedFamily}
               onClose={handleCloseModal}
               evacuee={selectedFamily}
-              centerName={
-                selectedFamily?.view_family?.evacuation_center_name || ""
-              }
+              centerName={selectedFamily?.view_family?.evacuation_center_name || ""}
               onEditMember={handleEditMember}
               canUpdateEvacuee={canUpdateEvacueeInformation}
               canUpdateFamily={canUpdateFamilyInformation}
+              disasterStartDate={detail?.disaster?.disaster_start_date ?? null}
+              onSaved={refreshAll}
             />
-
             <RegisterEvacueeModal
               isOpen={evacueeModalOpen}
               onClose={handleEvacueeModalClose}
@@ -912,7 +909,12 @@ const { paginatedEvacuees, totalRows, totalPages } = useMemo(() => {
               centerId={centerId}
               canCreateFamilyInformation={canCreateFamilyInformation}
             />
-
+            <RegisterBlockDialog
+              open={regBlockOpen}
+              onOpenChange={setRegBlockOpen}
+              personName={regBlockName}
+              ecName={regBlockEcName}
+            />
             <SearchEvacueeModal
               isOpen={showSearchModal}
               onClose={() => setShowSearchModal(false)}
