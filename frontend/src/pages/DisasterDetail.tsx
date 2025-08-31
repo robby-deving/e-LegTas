@@ -24,12 +24,17 @@ export default function DisasterDetail() {
   const token = useSelector(selectToken);
 
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [evacuationCenters, setCenters] = useState<ActiveEvacuation[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [totalRecords, setTotalRecords] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
   const [disaster, setDisaster] = useState<Disaster | null>(null);
-  const [disasterLoading, setDisasterLoading] = useState(false);
+  const [disasterLoading, setDisasterLoading] = useState(true);
   const [disasterError, setDisasterError] = useState<string | null>(null);
+  const [hasError, setHasError] = useState(false);
+  const [tableLoading, setTableLoading] = useState(false);
 
   // Get auth headers for API calls
   const getAuthHeaders = () => {
@@ -48,14 +53,17 @@ export default function DisasterDetail() {
   const disasterId = decodeId(rawDisasterId);
 
   useEffect(() => {
+    
     const loadDisaster = async () => {
       if (!disasterId || isNaN(disasterId)) {
         setDisasterError("Invalid disaster ID");
+        setHasError(true);
         return;
       }
 
       setDisasterLoading(true);
       setDisasterError(null);
+      setHasError(false);
 
       try {
         // First try to get from navigation state (if passed from EvacuationInfo)
@@ -63,6 +71,7 @@ export default function DisasterDetail() {
         if (disasterFromState && disasterFromState.id === disasterId) {
           setDisaster(disasterFromState);
           setDisasterLoading(false);
+          setHasError(false);
           return;
         }
 
@@ -75,6 +84,7 @@ export default function DisasterDetail() {
             if (disasterDetails) {
               setDisaster(disasterDetails);
               setDisasterLoading(false);
+              setHasError(false);
               return;
             }
           } catch (e) {
@@ -86,10 +96,12 @@ export default function DisasterDetail() {
         console.log("Fetching disaster from API...");
         const fetchedDisaster = await disasterService.fetchDisasterById(disasterId, token || "");
         setDisaster(fetchedDisaster);
-        
+        setHasError(false);
+
       } catch (error) {
         console.error("Failed to load disaster:", error);
         setDisasterError("Failed to load disaster details");
+        setHasError(true);
       } finally {
         setDisasterLoading(false);
       }
@@ -100,33 +112,90 @@ export default function DisasterDetail() {
 
   usePageTitle(disaster?.name ?? "");
 
-  useEffect(() => {
-    const fetchEvacuationCenters = async () => {
-      if (!disasterId || isNaN(disasterId)) return;
+  const fetchEvacuationCenters = async (page = currentPage, limit = rowsPerPage, searchTerm = debouncedSearchTerm) => {
+    if (!disasterId || isNaN(disasterId)) return;
 
-      try {
-        const res = await axios.get(
-          `http://localhost:3000/api/v1/disaster-events/by-disaster/${disasterId}/details`,
-          { headers: getAuthHeaders() }
-        );
-        
-        // Type-safe data extraction
-        const responseData = res.data as { data: ActiveEvacuation[] };
-        setCenters(responseData.data || []);
-      } catch (err) {
-        console.error("Failed to fetch evacuation data", err);
+    setTableLoading(true);
+    try {
+      // Build query parameters
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString()
+      });
+
+      // Add search parameter if provided
+      if (searchTerm && searchTerm.trim()) {
+        params.append('search', searchTerm.trim());
       }
-    };
 
+      const res = await axios.get(
+        `http://localhost:3000/api/v1/disaster-events/by-disaster/${disasterId}/details?${params.toString()}`,
+        { headers: getAuthHeaders() }
+      );
+
+      // Type-safe data extraction with pagination
+      const responseData = res.data as {
+        data: ActiveEvacuation[];
+        pagination: {
+          current_page: number;
+          per_page: number;
+          total_pages: number;
+          total_records: number;
+          has_next_page: boolean;
+          has_prev_page: boolean;
+        }
+      };
+
+      setCenters(responseData.data || []);
+      setTotalRecords(responseData.pagination.total_records);
+      setTotalPages(responseData.pagination.total_pages);
+    } catch (err) {
+      console.error("Failed to fetch evacuation data", err);
+      setCenters([]);
+      setTotalRecords(0);
+      setTotalPages(0);
+    } finally {
+      setTableLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchEvacuationCenters();
   }, [disasterId, token]);
+
+  useEffect(() => {
+    if (disasterId && !disasterLoading) {
+      fetchEvacuationCenters(currentPage, rowsPerPage, debouncedSearchTerm);
+    }
+  }, [currentPage, rowsPerPage, debouncedSearchTerm]);
 
   const handleRowsPerPageChange = (value: string) => {
     setRowsPerPage(Number(value));
     setCurrentPage(1);
+    fetchEvacuationCenters(1, Number(value), debouncedSearchTerm);
   };
 
-  // Show loading state
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    fetchEvacuationCenters(page, rowsPerPage, debouncedSearchTerm);
+  };
+
+  // Reset to page 1 when search term changes
+  useEffect(() => {
+    if (debouncedSearchTerm !== '') {
+      setCurrentPage(1);
+    }
+  }, [debouncedSearchTerm]);
+
+  // Debounce search term
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 300); // 300ms delay
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
   // Show loading state
   if (disasterLoading) {
     return (
@@ -139,7 +208,7 @@ export default function DisasterDetail() {
   }
 
   // Show error state
-  if (disasterError || !disaster) {
+  if (hasError || (!disaster && !disasterLoading)) {
     return (
       <div className="text-black p-6 space-y-6 flex flex-col min-h-screen">
         <div className="flex justify-center items-center py-20">
@@ -163,21 +232,8 @@ export default function DisasterDetail() {
     );
   }
 
-  const filteredCenters = evacuationCenters.filter(
-    (center) =>
-      center.evacuation_center_name
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase()) ||
-      center.evacuation_center_barangay_name
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase())
-  );
-
-  const totalRows = filteredCenters.length;
-  const totalPages = Math.ceil(totalRows / rowsPerPage);
-  const startIndex = (currentPage - 1) * rowsPerPage;
-  const endIndex = startIndex + rowsPerPage;
-  const currentRows = filteredCenters.slice(startIndex, endIndex);
+  // Data is now filtered by backend, so no local filtering needed
+  const filteredCenters = evacuationCenters;
 
   return (
     <div className="text-black p-6 space-y-6 flex flex-col min-h-screen">
@@ -193,7 +249,7 @@ export default function DisasterDetail() {
             Disaster
           </button>
           <ChevronRight className="w-4 h-4 mx-2" />
-          <span className="text-gray-900 font-semibold">{disaster.name}</span>
+          <span className="text-gray-900 font-semibold">{disaster!.name}</span>
         </div>
       </div>
 
@@ -201,17 +257,17 @@ export default function DisasterDetail() {
         <div className="space-y-3">
           <div
             className={`inline-block rounded px-3 py-1 text-sm font-semibold ${getTagColor(
-              disaster.type
+              disaster!.type
             )}`}
           >
-            {disaster.type}
+            {disaster!.type}
           </div>
-          <h2 className={`text-3xl font-bold ${getTypeColor(disaster.type)}`}>
-            {disaster.name}
+          <h2 className={`text-3xl font-bold ${getTypeColor(disaster!.type)}`}>
+            {disaster!.name}
           </h2>
           <div className="flex items-center gap-2 text-gray-600">
             <Calendar className="w-4 h-4" />
-            <span className="text-sm">{formatDate(disaster.start_date)}</span>
+            <span className="text-sm">{formatDate(disaster!.start_date)}</span>
           </div>
         </div>
       </div>
@@ -223,12 +279,19 @@ export default function DisasterDetail() {
           </div>
 
           <div className="w-full max-w-xs">
-            <Input
-              placeholder="Search"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full"
-            />
+            <div className="relative">
+              <Input
+                placeholder="Search evacuation centers or barangays"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pr-8"
+              />
+              {searchTerm !== debouncedSearchTerm && (
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  <div className="w-4 h-4 border-2 border-gray-300 border-t-green-600 rounded-full animate-spin"></div>
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="rounded-md border border-input overflow-x-auto">
@@ -246,17 +309,44 @@ export default function DisasterDetail() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {currentRows.length === 0 ? (
+                  {tableLoading ? (
+                    // Loading rows with spinners
+                    Array.from({ length: rowsPerPage }, (_, index) => (
+                      <TableRow key={`loading-${index}`}>
+                        <TableCell className="py-4">
+                          <div className="flex items-center space-x-2">
+                            <LoadingSpinner size="sm" />
+                            <div className="h-4 bg-gray-200 rounded animate-pulse w-32"></div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="h-4 bg-gray-200 rounded animate-pulse w-24"></div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="h-4 bg-gray-200 rounded animate-pulse w-16"></div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="h-4 bg-gray-200 rounded animate-pulse w-20"></div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center justify-between">
+                            <div className="h-4 bg-gray-200 rounded animate-pulse w-28"></div>
+                            <div className="h-4 w-4 bg-gray-200 rounded animate-pulse"></div>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : filteredCenters.length === 0 ? (
                     <TableRow>
                       <TableCell
                         colSpan={5}
                         className="text-center py-4 text-gray-500"
                       >
-                        No evacuation operations found
+                        {debouncedSearchTerm ? `No evacuation operations found for "${debouncedSearchTerm}"` : "No evacuation operations found"}
                       </TableCell>
                     </TableRow>
                   ) : (
-                    currentRows.map((center) => (
+                    filteredCenters.map((center) => (
                       <TableRow
                         key={center.evacuation_center_id}
                         className="cursor-pointer hover:bg-gray-50"
@@ -295,14 +385,14 @@ export default function DisasterDetail() {
 
           <div className="flex items-center justify-between mt-auto pt-4">
             <div className="flex-1 text-sm text-muted-foreground">
-              {currentRows.length} of {totalRows} row(s) shown.
+              {filteredCenters.length} of {totalRecords} row(s) shown.
             </div>
             <Pagination
               currentPage={currentPage}
               totalPages={totalPages}
-              onPageChange={setCurrentPage}
+              onPageChange={handlePageChange}
               rowsPerPage={rowsPerPage}
-              totalRows={totalRows}
+              totalRows={totalRecords}
               onRowsPerPageChange={handleRowsPerPageChange}
             />
           </div>

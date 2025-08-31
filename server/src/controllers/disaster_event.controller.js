@@ -25,13 +25,41 @@ class ApiError extends Error {
  */
 exports.getDisasterEventDetailsByDisasterId = async (req, res, next) => {
     const { disasterId } = req.params;
+    const { page = 1, limit = 10, search } = req.query;
 
     if (!disasterId || isNaN(Number(disasterId))) {
         return next(new ApiError('Invalid Disaster ID provided.', 400));
     }
 
+    // Validate pagination parameters
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
+
+    if (pageNum < 1 || limitNum < 1 || limitNum > 100) {
+        return next(new ApiError('Invalid pagination parameters. Page must be >= 1, limit must be 1-100.', 400));
+    }
+
+    const offset = (pageNum - 1) * limitNum;
+
     try {
-        const { data, error } = await supabase
+        // Build the base query for counting
+        let countQuery = supabase
+            .from(TABLE_NAME)
+            .select('*', { count: 'exact', head: true })
+            .eq('disaster_id', disasterId);
+
+        const { count, error: countError } = await countQuery;
+
+        if (countError) {
+            console.error('Supabase Error (count query):', countError);
+            return next(new ApiError('Failed to retrieve disaster event count.', 500));
+        }
+
+        // Ensure count is a number
+        let totalCount = count || 0;
+
+        // Build the main data query
+        let dataQuery = supabase
             .from(TABLE_NAME) // Disaster_Evacuation_Event
             .select(`
                 *,
@@ -57,63 +85,193 @@ exports.getDisasterEventDetailsByDisasterId = async (req, res, next) => {
             `)
             .eq('disaster_id', disasterId); // Filter by disaster_id
 
+        // Apply search filter if provided
+        // For now, we'll implement a simpler search that works with the current Supabase setup
+        if (search && search.trim()) {
+            const searchTerm = search.trim().toLowerCase();
+
+            // Get all data first, then filter in application code
+            // This is not ideal for performance but works with the current schema
+            const { data: allData, error: allDataError } = await dataQuery;
+
+            if (allDataError) {
+                console.error('Supabase Error (data query):', allDataError);
+                return next(new ApiError('Failed to retrieve disaster event data.', 500));
+            }
+
+            if (!allData || allData.length === 0) {
+                return res.status(200).json({
+                    message: `No disaster evacuation events found for Disaster ID ${disasterId}.`,
+                    data: [],
+                    pagination: {
+                        current_page: pageNum,
+                        per_page: limitNum,
+                        total_pages: Math.ceil(totalCount / limitNum),
+                        total_records: totalCount,
+                        has_next_page: pageNum < Math.ceil(totalCount / limitNum),
+                        has_prev_page: pageNum > 1
+                    }
+                });
+            }
+
+            // Filter data based on search term
+            const filteredData = allData.filter(event => {
+                const centerName = event.evacuation_centers?.name?.toLowerCase() || '';
+                const barangayName = event.evacuation_centers?.barangays?.name?.toLowerCase() || '';
+                return centerName.includes(searchTerm) || barangayName.includes(searchTerm);
+            });
+
+            // Update total count for pagination based on filtered results
+            const filteredTotalCount = filteredData.length;
+            const filteredTotalPages = Math.ceil(filteredTotalCount / limitNum);
+
+            // Apply pagination to filtered results
+            const startIndex = (pageNum - 1) * limitNum;
+            const endIndex = startIndex + limitNum;
+            const paginatedData = filteredData.slice(startIndex, endIndex);
+
+            // Transform and return filtered data
+            const transformedData = paginatedData.map(event => {
+                try {
+                    // Extract Summary data
+                    const summary = event.evacuation_summaries;
+                    const totalNoOfFamily = summary ? summary.total_no_of_family : 0;
+                    const totalNoOfIndividuals = summary ? summary.total_no_of_individuals : 0;
+
+                    // Extract Evacuation Center data
+                    const evacuationCenter = event.evacuation_centers;
+                    const evacuationCenterName = evacuationCenter ? evacuationCenter.name : null;
+                    const evacuationCenterTotalCapacity = evacuationCenter ? evacuationCenter.total_capacity : 0;
+                    const evacuationCenterBarangayName = (evacuationCenter && evacuationCenter.barangays) ? evacuationCenter.barangays.name : null;
+
+                    // Extract Assigned User Name
+                    let assignedUserName = null;
+                    if (event.users && event.users.user_profile && event.users.user_profile.residents) {
+                        const resident = event.users.user_profile.residents;
+                        assignedUserName = [
+                            resident.first_name,
+                            resident.middle_name,
+                            resident.last_name,
+                            resident.suffix
+                        ].filter(Boolean).join(' ');
+                    }
+
+                    // Destructure to omit the original nested objects
+                    const { evacuation_summaries, evacuation_centers, users, ...rest } = event;
+
+                    return {
+                        ...rest,
+                        total_no_of_family: totalNoOfFamily,
+                        total_no_of_individuals: totalNoOfIndividuals,
+                        evacuation_center_name: evacuationCenterName,
+                        evacuation_center_total_capacity: evacuationCenterTotalCapacity,
+                        evacuation_center_barangay_name: evacuationCenterBarangayName,
+                        assigned_user_name: assignedUserName
+                    };
+                } catch (transformError) {
+                    console.error('Error transforming event data:', transformError, event);
+                    return null;
+                }
+            }).filter(item => item !== null);
+
+            return res.status(200).json({
+                message: `Successfully retrieved detailed disaster evacuation events for Disaster ID ${disasterId}.`,
+                data: transformedData,
+                pagination: {
+                    current_page: pageNum,
+                    per_page: limitNum,
+                    total_pages: filteredTotalPages,
+                    total_records: filteredTotalCount,
+                    has_next_page: pageNum < filteredTotalPages,
+                    has_prev_page: pageNum > 1
+                }
+            });
+        }
+
+        const { data, error } = await dataQuery
+            .range(offset, offset + limitNum - 1); // Apply pagination
+
         if (error) {
             console.error('Supabase Error (getDisasterEventDetailsByDisasterId):', error);
             return next(new ApiError('Failed to retrieve detailed disaster event data.', 500));
         }
 
         if (!data || data.length === 0) {
+            const totalPages = Math.ceil(totalCount / limitNum);
             return res.status(200).json({
                 message: `No disaster evacuation events found for Disaster ID ${disasterId}.`,
-                data: []
+                data: [],
+                pagination: {
+                    current_page: pageNum,
+                    per_page: limitNum,
+                    total_pages: totalPages,
+                    total_records: totalCount,
+                    has_next_page: pageNum < totalPages,
+                    has_prev_page: pageNum > 1
+                }
             });
         }
 
         // Transform the data to flatten the nested objects and combine names
         const transformedData = data.map(event => {
-            // Extract Summary data
-            const summary = event.evacuation_summaries;
-            const totalNoOfFamily = summary ? summary.total_no_of_family : 0;
-            const totalNoOfIndividuals = summary ? summary.total_no_of_individuals : 0;
+            try {
+                // Extract Summary data
+                const summary = event.evacuation_summaries;
+                const totalNoOfFamily = summary ? summary.total_no_of_family : 0;
+                const totalNoOfIndividuals = summary ? summary.total_no_of_individuals : 0;
 
-            // Extract Evacuation Center data
-            const evacuationCenter = event.evacuation_centers;
-            const evacuationCenterName = evacuationCenter ? evacuationCenter.name : null;
-            const evacuationCenterTotalCapacity = evacuationCenter ? evacuationCenter.total_capacity : 0;
-            const evacuationCenterBarangayName = (evacuationCenter && evacuationCenter.barangays) ? evacuationCenter.barangays.name : null;
+                // Extract Evacuation Center data
+                const evacuationCenter = event.evacuation_centers;
+                const evacuationCenterName = evacuationCenter ? evacuationCenter.name : null;
+                const evacuationCenterTotalCapacity = evacuationCenter ? evacuationCenter.total_capacity : 0;
+                const evacuationCenterBarangayName = (evacuationCenter && evacuationCenter.barangays) ? evacuationCenter.barangays.name : null;
 
-            // Extract Assigned User Name - FIX: Changed from event.Users to event.users
-            let assignedUserName = null;
-            if (event.users && event.users.user_profile && event.users.user_profile.residents) {
-                const resident = event.users.user_profile.residents;
-                assignedUserName = [
-                    resident.first_name,
-                    resident.middle_name,
-                    resident.last_name,
-                    resident.suffix
-                ].filter(Boolean).join(' ');
+                // Extract Assigned User Name - FIX: Changed from event.Users to event.users
+                let assignedUserName = null;
+                if (event.users && event.users.user_profile && event.users.user_profile.residents) {
+                    const resident = event.users.user_profile.residents;
+                    assignedUserName = [
+                        resident.first_name,
+                        resident.middle_name,
+                        resident.last_name,
+                        resident.suffix
+                    ].filter(Boolean).join(' ');
+                }
+
+                // Destructure to omit the original nested objects from the final output - FIX: Updated property names
+                const { evacuation_summaries, evacuation_centers, users, ...rest } = event;
+
+                return {
+                    ...rest, // Spread all other properties of the Disaster_Evacuation_Event
+                    total_no_of_family: totalNoOfFamily,
+                    total_no_of_individuals: totalNoOfIndividuals,
+                    evacuation_center_name: evacuationCenterName,
+                    evacuation_center_total_capacity: evacuationCenterTotalCapacity,
+                    evacuation_center_barangay_name: evacuationCenterBarangayName,
+                    assigned_user_name: assignedUserName
+                };
+            } catch (transformError) {
+                console.error('Error transforming event data:', transformError, event);
+                return null;
             }
+        }).filter(item => item !== null); // Remove any null items from failed transformations
 
-            // Destructure to omit the original nested objects from the final output - FIX: Updated property names
-            const { evacuation_summaries, evacuation_centers, users, ...rest } = event;
-
-            return {
-                ...rest, // Spread all other properties of the Disaster_Evacuation_Event
-                total_no_of_family: totalNoOfFamily,
-                total_no_of_individuals: totalNoOfIndividuals,
-                evacuation_center_name: evacuationCenterName,
-                evacuation_center_total_capacity: evacuationCenterTotalCapacity,
-                evacuation_center_barangay_name: evacuationCenterBarangayName,
-                assigned_user_name: assignedUserName
-            };
-        });
+        const totalPages = Math.ceil(totalCount / limitNum);
 
         res.status(200).json({
             message: `Successfully retrieved detailed disaster evacuation events for Disaster ID ${disasterId}.`,
-            count: transformedData.length,
-            data: transformedData
+            data: transformedData,
+            pagination: {
+                current_page: pageNum,
+                per_page: limitNum,
+                total_pages: totalPages,
+                total_records: totalCount,
+                has_next_page: pageNum < totalPages,
+                has_prev_page: pageNum > 1
+            }
         });
     } catch (err) {
+        console.error('Unexpected error in getDisasterEventDetailsByDisasterId:', err);
         next(new ApiError('Internal server error during getDisasterEventDetailsByDisasterId.', 500));
     }
 };
