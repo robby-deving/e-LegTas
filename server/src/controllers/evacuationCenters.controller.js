@@ -605,3 +605,43 @@ exports.getEvacuationCenterWithRooms = async (req, res, next) => {
         next(new ApiError('Internal server error during getEvacuationCenterWithRooms.', 500));
     }
 };
+
+/**
+ * @desc Get assigned evacuation center ID for a user
+ * @route GET /api/v1/evacuation-centers/user/:userId
+ * @access Private (requires authentication/authorization)
+ * @param {number} userId - User ID to find assigned evacuation center for
+ * @returns {object} Response with evacuation_center_id or null if not assigned
+ */
+exports.getAssignedEvacuationCenter = async (req, res, next) => {
+    const { userId } = req.params;
+
+    if (!userId || isNaN(Number(userId))) {
+        return next(new ApiError('Invalid user ID provided.', 400));
+    }
+
+    try {
+        const { data, error } = await supabase
+            .from(TABLE_NAME)
+            .select('id')
+            .eq('assigned_user_id', userId)
+            .is('deleted_at', null) // Only get active centers
+            .single();
+
+        if (error && error.code !== 'PGRST116') { // PGRST116 is "not found" which is okay
+            console.error('Supabase Error (getAssignedEvacuationCenter):', error);
+            return next(new ApiError('Failed to retrieve assigned evacuation center.', 500));
+        }
+
+        const evacuationCenterId = data ? data.id : null;
+
+        res.status(200).json({
+            message: data 
+                ? `Successfully retrieved assigned evacuation center ID for user ${userId}.`
+                : `No evacuation center assigned to user ${userId}.`,
+            evacuation_center_id: evacuationCenterId
+        });
+    } catch (err) {
+        next(new ApiError('Internal server error during getAssignedEvacuationCenter.', 500));
+    }
+};

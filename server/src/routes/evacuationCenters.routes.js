@@ -88,5 +88,13 @@ router.put(
   evacuationController.restoreEvacuationCenter
 );
 
+// GET assigned evacuation center for a user
+// Example: GET /api/v1/evacuation-centers/user/123
+router.get(
+  '/user/:userId',
+  authenticateUser,
+  evacuationController.getAssignedEvacuationCenter
+);
+
 // Export the router
 module.exports = router;

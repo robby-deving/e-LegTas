@@ -9,10 +9,17 @@ import ErrorBoundary from "../components/Disasters/ErrorBoundary";
 import LoadingSpinner from "../components/loadingSpinner";
 import type { Disaster, DisasterPayload } from "@/types/disaster";
 import { encodeId } from "@/utils/secureId";
+import { usePermissions } from "../contexts/PermissionContext";
+import { useSelector } from "react-redux";
+import { selectUserId, selectToken } from "../features/auth/authSlice";
+import { disasterService } from "../services/disasterService";
 
 export default function EvacuationInfo() {
   usePageTitle("Evacuation Information");
   const navigate = useNavigate();
+  const { hasPermission } = usePermissions();
+  const currentUserId = useSelector(selectUserId);
+  const token = useSelector(selectToken);
 
   const {
     disasters,
@@ -34,6 +41,8 @@ export default function EvacuationInfo() {
   const [editOpen, setEditOpen] = useState(false);
   const [editingDisaster, setEditingDisaster] = useState<Disaster | undefined>();
   const [deleteConfirmDisaster, setDeleteConfirmDisaster] = useState<Disaster | null>(null);
+  const [assignedEvacuationCenterId, setAssignedEvacuationCenterId] = useState<number | null>(null);
+  const [loadingAssignedCenter, setLoadingAssignedCenter] = useState(false);
 
   const today = new Date();
   const [filterMonth, setFilterMonth] = useState<number | null>(today.getMonth()); // 0-11
@@ -43,6 +52,32 @@ export default function EvacuationInfo() {
   useEffect(() => {
     fetchDisastersByMonthYear(filterMonth, filterYear);
   }, [filterMonth, filterYear, fetchDisastersByMonthYear]);
+
+  // Fetch assigned evacuation center if user has specific permission
+  useEffect(() => {
+    const fetchAssignedEvacuationCenter = async () => {
+      if (hasPermission("view_only_specific_dashboard_evacuation") && currentUserId) {
+        setLoadingAssignedCenter(true);
+        try {
+          if (!token) {
+            console.warn("No authentication token found in Redux store");
+            setAssignedEvacuationCenterId(null);
+            return;
+          }
+          const evacuationCenterId = await disasterService.fetchAssignedEvacuationCenter(currentUserId, token);
+          setAssignedEvacuationCenterId(evacuationCenterId);
+          console.log("Assigned evacuation center ID:", evacuationCenterId);
+        } catch (error) {
+          console.error("Error fetching assigned evacuation center:", error);
+          setAssignedEvacuationCenterId(null);
+        } finally {
+          setLoadingAssignedCenter(false);
+        }
+      }
+    };
+
+    fetchAssignedEvacuationCenter();
+  }, [hasPermission, currentUserId, token]);
 
  const handleCreateDisaster = async (payload: DisasterPayload) => {
   try {
@@ -102,9 +137,16 @@ const handleDeleteDisaster = async (disaster: Disaster) => {
 
 const navigateToDetail = (d: Disaster) => {
   const encoded = encodeId(d.id);
+  const encodedEvacuationCenterId = assignedEvacuationCenterId ? encodeId(assignedEvacuationCenterId) : null;
   console.log("Encoded Disaster ID:", encoded, d.id);
 
-  navigate(`/evacuation-information/${encoded}`);
+  if (hasPermission("view_only_specific_dashboard_evacuation") && assignedEvacuationCenterId !== d.id && encodedEvacuationCenterId) {
+    console.log("Navigating to specific evacuation center:", d.id, assignedEvacuationCenterId);
+    navigate(`/evacuation-information/${encoded}/${encodedEvacuationCenterId}`);
+  } else {
+    navigate(`/evacuation-information/${encoded}`);
+  }
+
 };
 
   return (

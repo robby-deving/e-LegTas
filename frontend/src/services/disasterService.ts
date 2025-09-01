@@ -13,6 +13,10 @@ interface DisasterTypesApiResponse {
   count?: number;
 }
 
+interface EvacuationCenterResponse {
+  evacuation_center_id: number;
+}
+
 class DisasterService {
   private baseUrl = "/api/v1";
 
@@ -96,7 +100,7 @@ class DisasterService {
 
   async fetchDisasterById(disasterId: number, token: string): Promise<Disaster> {
     try {
-      const response = await axios.get(
+      const response = await axios.get<DisasterApiResponse>(
         `${this.baseUrl}/disasters/${disasterId}`,
         {
           headers: {
@@ -106,7 +110,7 @@ class DisasterService {
         }
       );
 
-      const item = response.data.data;
+      const item = response.data.data as any;
       const transformed: Disaster = {
         id: item.id,
         name: item.disaster_name,
@@ -152,6 +156,28 @@ class DisasterService {
       });
     } catch (error) {
       console.error("Failed to delete disaster:", error);
+      throw error;
+    }
+  }
+
+  async fetchAssignedEvacuationCenter(userId: number, token: string): Promise<number | null> {
+    try {
+      const response = await axios.get<EvacuationCenterResponse>(
+        `${this.baseUrl}/evacuation-centers/user/${userId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (response.data && response.data.evacuation_center_id) {
+        return response.data.evacuation_center_id;
+      }
+      return null;
+    } catch (error) {
+      console.error("Failed to fetch assigned evacuation center:", error);
       throw error;
     }
   }
