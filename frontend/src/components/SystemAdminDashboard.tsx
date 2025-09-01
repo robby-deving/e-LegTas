@@ -66,7 +66,7 @@ export default function SystemAdminDashboard() {
     // Fetch recent users
     const fetchRecentUsers = async () => {
         try {
-            const response = await fetch('/api/v1/users/recent', {
+            const response = await fetch('/api/v1/users/recent?limit=7', {
                 headers: getAuthHeaders()
             });
             if (!response.ok) {
@@ -90,9 +90,8 @@ export default function SystemAdminDashboard() {
         loadData();
     }, []);
     
-    // Limit the number of users displayed
-    const RECENT_USERS_LIMIT = 7;
-    const displayedUsers = recentUsers.slice(0, RECENT_USERS_LIMIT);
+    // No need to slice, backend limits the results
+    const displayedUsers = recentUsers;
     const totalRows = displayedUsers.length;
 
     return (
