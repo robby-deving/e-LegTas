@@ -53,6 +53,34 @@ type IdName = { id: string; name: string };
 
 type ApiResponse<T> = { message: string; data: T };
 
+// ---- cache helpers (sessionStorage; survives route changes but not full reload) ----
+const REPORTS_CACHE_KEY = 'reports.cache.v1';
+const CACHE_TTL_MS = 5 * 60_000; // 5 minutes (tweak as you like)
+
+function readReportsCache(): CardReport[] | null {
+  try {
+    const raw = sessionStorage.getItem(REPORTS_CACHE_KEY);
+    if (!raw) return null;
+    const { ts, items } = JSON.parse(raw);
+    if (!Array.isArray(items)) return null;
+    if (Date.now() - ts > CACHE_TTL_MS) return null; // stale
+    return items;
+  } catch {
+    return null;
+  }
+}
+
+function writeReportsCache(items: CardReport[]) {
+  try {
+    sessionStorage.setItem(REPORTS_CACHE_KEY, JSON.stringify({ ts: Date.now(), items }));
+  } catch {}
+}
+
+function invalidateReportsCache() {
+  try { sessionStorage.removeItem(REPORTS_CACHE_KEY); } catch {}
+}
+
+
 // Utils
 async function forceDownload(url: string, fallbackName = 'report') {
   const res = await fetch(url, { credentials: 'omit' });
@@ -213,46 +241,57 @@ export default function Reports() {
     return Object.keys(errors).length === 0;
   };
 
-  const fetchReports = async () => {
-    setIsLoadingList(true);
-    try {
-      const params: Record<string, any> = {}; 
-      const res = await axios.get<ApiResponse<ApiReport[]>>(
-        `${API_BASE}/reports/getAllReports`,
-        { params, withCredentials: true, headers: { 'Authorization': `Bearer ${token}` } }
-      );
-
-      const list = (res.data.data || []).map<CardReport>((r) => {
-        const icon = coerceIcon(r.file_format);
-        const asOfISO = r.as_of || r.created_at || '';
-        return {
-          id: String(r.id),
-          name: r.report_name,
-          type: asUIType(r.report_type),
-          disaster: r.disaster_name || '—',
-          format: icon,
-          date: toLocalDateTime(asOfISO),
-          asOfISO,
-          size: r.file_size_human || '',
-          icon,
-          publicUrl: r.public_url || null,
-        };
-      });
-      setReports(list);
-    } catch (err) {
-      console.error('Failed to fetch reports:', err);
-      setReports([]);
-    } finally {
-      setIsLoadingList(false);
+const fetchReports = async (force = false) => {
+  setIsLoadingList(true);
+  try {
+    // 1) serve from cache unless forced
+    if (!force) {
+      const cached = readReportsCache();
+      if (cached) {
+        setReports(cached);
+        setIsLoadingList(false);
+        return;
+      }
     }
-  };
 
-  useEffect(() => {
-    (async () => {
-      try { await loadOptions('', ''); } catch {}
-      await fetchReports();
-    })();
-  }, []);
+    // 2) network fetch (AUTH HEADER KEPT)
+    const params: Record<string, any> = {};
+    const res = await axios.get<ApiResponse<ApiReport[]>>(
+      `${API_BASE}/reports/getAllReports`,
+      { params, withCredentials: true, headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    const list = (res.data.data || []).map<CardReport>((r) => {
+      const icon = coerceIcon(r.file_format);
+      const asOfISO = r.as_of || r.created_at || '';
+      return {
+        id: String(r.id),
+        name: r.report_name,
+        type: asUIType(r.report_type),
+        disaster: r.disaster_name || '—',
+        format: icon,
+        date: toLocalDateTime(asOfISO),
+        asOfISO,
+        size: r.file_size_human || '',
+        icon,
+        publicUrl: r.public_url || null,
+      };
+    });
+
+    setReports(list);
+    writeReportsCache(list); // 3) cache fresh data
+  } catch (err) {
+    console.error('Failed to fetch reports:', err);
+    setReports([]);
+    invalidateReportsCache(); // optional: drop bad cache
+  } finally {
+    setIsLoadingList(false);
+  }
+};
+
+
+useEffect(() => { fetchReports(); }, []);
+useEffect(() => { loadOptions('', ''); }, []);
 
   const loadOptions = async (barangaySearch = '', disasterSearch = '') => {
     try {
@@ -342,10 +381,14 @@ export default function Reports() {
   const confirmDelete = async () => {
     if (!pendingDelete) return;
     try {
-      await axios.delete(`${API_BASE}/reports/${pendingDelete.id}`, { withCredentials: true, headers: { 'Authorization': `Bearer ${token}` } });
-      setConfirmOpen(false);
-      setPendingDelete(null);
-      await fetchReports();
+await axios.delete(`${API_BASE}/reports/${pendingDelete.id}`, { withCredentials: true, headers: { 'Authorization': `Bearer ${token}` } });
+
+invalidateReportsCache();
+await fetchReports(true);
+
+setConfirmOpen(false);
+setPendingDelete(null);
+
     } catch (err) {
       console.error('Failed to delete report:', err);
       alert('Failed to delete report.');
@@ -381,7 +424,8 @@ export default function Reports() {
       if (pubUrl) {
         try { await forceDownload(pubUrl); } catch (e) { console.error(e); alert('Failed to download file.'); }
       }
-      await fetchReports();
+      invalidateReportsCache();
+      await fetchReports(true);
       setReportName(''); setReportType(''); setDisasterEvent(''); setSelectedDisaster(null);
       setDisasterQuery(''); setDate(undefined); setTime('12:00'); setFileFormat('CSV');
       setBarangayQuery(''); setSelectedBarangay(null); setFormErrors({}); setCreateModalOpen(false);

@@ -1,7 +1,5 @@
 // evacuee.controller.js
-
 const { supabase } = require('../config/supabase');
-
 class ApiError extends Error {
   constructor(message, statusCode = 500) {
     super(message);
@@ -1220,7 +1218,6 @@ exports.getEvacueesInformationbyDisasterEvacuationEventId = async (req, res, nex
     return next(new ApiError("Internal server error", 500));
   }
 };
-
 
 /**
  * @desc Get evacuee demographic statistics by disaster evacuation event ID
