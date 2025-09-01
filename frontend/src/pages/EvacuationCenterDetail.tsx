@@ -789,46 +789,79 @@ const { paginatedEvacuees, totalRows, totalPages } = useMemo(() => {
         </div>
       </div>
 
-      {/* Disaster Information Card */}
-      <div className="py-3">
-        <div className="space-y-3">
-          <div className={`inline-block rounded px-3 py-1 text-sm font-semibold ${getTagColor(disaster.type)}`}>{disaster.type}</div>
-          <h2 className={`text-3xl font-bold ${getTypeColor(disaster.type)}`}>{disaster.name}</h2>
-          {detail?.disaster?.disaster_start_date && (
-            <div className="flex items-center gap-2 text-gray-600">
-              <Calendar className="w-4 h-4" />
-              <span className="text-sm">{formatDate(detail.disaster.disaster_start_date)}</span>
-            </div>
-          )}
-        </div>
-      </div>
-
       {/* Center Summary & Statistics */}
       {canViewDashboardSpecific && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
-          <div className="md:col-span-1">
-            <EvacuationCenterNameCard
-              name={centerName}
-              barangay={centerBarangay}
-            />
-            <div className="flex flex-col gap-6 mt-5">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <RegisteredFamiliesCard count={familiesCount} />
-                <RegisteredEvacueesCard count={evacueesCount} />
-                <ECCapacityCard count={capacityCount} />
+        <div className="mb-10">
+          {canViewOnlySpecificDashboardEvacuation ? (
+            /* When canViewOnlySpecificDashboardEvacuation is true, show Disaster Info and Center Name on same line */
+            <div className="flex flex-col lg:flex-row gap-6">
+              {/* Disaster Information Card */}
+              <div className="flex-1 py-3">
+                <div className="space-y-3">
+                  <div className={`inline-block rounded px-3 py-1 text-sm font-semibold ${getTagColor(disaster.type)}`}>{disaster.type}</div>
+                  <h2 className={`text-3xl font-bold ${getTypeColor(disaster.type)}`}>{disaster.name}</h2>
+                  {detail?.disaster?.disaster_start_date && (
+                    <div className="flex items-center gap-2 text-gray-600">
+                      <Calendar className="w-4 h-4" />
+                      <span className="text-sm">{formatDate(detail.disaster.disaster_start_date)}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="flex-1">
+                <EvacuationCenterNameCard
+                  name={centerName}
+                  barangay={centerBarangay}
+                />
               </div>
             </div>
-          </div>
-          <Card className="md:col-span-1 shadow-sm border border-border">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xl font-bold leading-tight mb-0">
-                Evacuees Statistics
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <EvacueeStatisticsChart data={chartData} />
-            </CardContent>
-          </Card>
+          ) : (
+            <>
+              {/* Disaster Information Card */}
+              <div className="py-3">
+                <div className="space-y-3">
+                  <div className={`inline-block rounded px-3 py-1 text-sm font-semibold ${getTagColor(disaster.type)}`}>{disaster.type}</div>
+                  <h2 className={`text-3xl font-bold ${getTypeColor(disaster.type)}`}>{disaster.name}</h2>
+                  {detail?.disaster?.disaster_start_date && (
+                    <div className="flex items-center gap-2 text-gray-600">
+                      <Calendar className="w-4 h-4" />
+                      <span className="text-sm">{formatDate(detail.disaster.disaster_start_date)}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="md:col-span-1">
+                  <EvacuationCenterNameCard
+                    name={centerName}
+                    barangay={centerBarangay}
+                  />
+
+                {!canViewOnlySpecificDashboardEvacuation && (
+                  <div className="flex flex-col gap-6 mt-5">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <RegisteredFamiliesCard count={familiesCount} />
+                      <RegisteredEvacueesCard count={evacueesCount} />
+                      <ECCapacityCard count={capacityCount} />
+                    </div>
+                  </div>
+                )}
+                </div>
+                {!canViewOnlySpecificDashboardEvacuation && (
+                  <Card className="md:col-span-1 shadow-sm border border-border">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-xl font-bold leading-tight mb-0">
+                        Evacuees Statistics
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <EvacueeStatisticsChart data={chartData} />
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            </>
+          )}
         </div>
       )}
 
