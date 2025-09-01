@@ -178,10 +178,6 @@ const navigateToDetail = async (d: Disaster) => {
           disasterId={selectedDisasterForActivation.id}
           evacuationCenterId={assignedEvacuationCenterId}
           userId={currentUserId}
-          onClose={() => {
-            setShowActivateScreen(false);
-            setSelectedDisasterForActivation(null);
-          }}
         />
     );
   }

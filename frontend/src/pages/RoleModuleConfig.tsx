@@ -66,12 +66,7 @@ interface Role {
     created_at?: string;
 }
 
-interface UserStats {
-    cdrrmo: number;
-    cswdo: number;
-    campManager: number;
-    allUsers: number;
-}
+
 
 interface Permission {
     id: number;
@@ -211,16 +206,10 @@ export default function RoleModuleConfig() {
                 throw new Error('Failed to fetch user statistics');
             }
             const data = await response.json();
-            setUserStats(data.data);
+            // User stats are fetched but not stored in state since they're not used in the UI
+            console.log('User stats fetched:', data.data);
         } catch (err) {
             console.error('Error fetching user stats:', err);
-            // Set default values if stats fail to load
-            setUserStats({
-                cdrrmo: 0,
-                cswdo: 0,
-                campManager: 0,
-                allUsers: 0
-            });
         }
     };
 
