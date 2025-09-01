@@ -1,7 +1,7 @@
 import { usePageTitle } from '../../hooks/usePageTitle';
 import { Card, CardHeader, CardTitle, CardContent } from "../../components/ui/card";
-import { useEffect, useState, useCallback } from 'react';
-import { Calendar, ExternalLink } from "lucide-react";
+import { useState } from 'react';
+import { Calendar } from "lucide-react";
 import EvacueeStatisticsChart from '../../components/EvacueeStatisticsChart';
 import { useCampManagerDashboardData } from '../../hooks/useCampManagerDashboardData';
 import type { DateRange } from "react-day-picker";
@@ -22,7 +22,6 @@ export default function CampManagerDashboard() {
   // Use the actual authenticated user's ID instead of hardcoded value
   const campManagerId = currentUser?.user_id;
 
-  const [isEvacueeInfoModalOpen, setIsEvacueeInfoModalOpen] = useState(false);
   const [selectedDateRange, setSelectedDateRange] = useState<DateRange | undefined>(undefined);
 
 
@@ -61,14 +60,6 @@ export default function CampManagerDashboard() {
     : undefined;
 
   const toDate = new Date(); // today
-
-  const handleCardClick = (disasterName: string) => {
-    const disaster = disasters.find(d => d.disaster_name === disasterName);
-    if (disaster) {
-      setSelectedDisaster(disaster);
-      setIsEvacueeInfoModalOpen(true);
-    }
-  };
 
   return (
     <div className="text-black p-6 space-y-6">

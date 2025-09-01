@@ -38,7 +38,7 @@ export default function Profile() {
     if (!user_id || !token) return;
 
     try {
-        const res = await fetch(`http://localhost:3000/api/v1/profile/${user_id}`, {
+        const res = await fetch(`/api/v1/profile/${user_id}`, {
             headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`,
@@ -105,7 +105,7 @@ export default function Profile() {
             last_name: lastName
             };
 
-            const res = await fetch(`http://localhost:3000/api/v1/profile/${user_id}`, {
+            const res = await fetch(`/api/v1/profile/${user_id}`, {
             method: 'PUT',
             headers: { 
                 'Content-Type': 'application/json',

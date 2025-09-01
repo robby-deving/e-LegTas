@@ -54,7 +54,8 @@ export function EvacuationCenterModal({ isOpen, onClose, mode, center, onSuccess
   const [rooms, setRooms] = useState<EvacuationRoom[]>([]);
   const [errors, setErrors] = useState<FormErrors>({});
 
-  const { createCenter, updateCenter, loading: centerLoading } = useEvacuationCenterMutations();
+  const { createCenter, updateCenter, isCreating, isUpdating } = useEvacuationCenterMutations();
+  const centerLoading = isCreating || isUpdating;
   const { createRoom, updateRoom, deleteRoom } = useRoomMutations();
 
   // Check authentication when modal opens
