@@ -33,13 +33,11 @@ export default function UserManagement(){
     const currentUser = useSelector(selectCurrentUser);
     const token = useSelector(selectToken);
     const { hasPermission, loading: permissionsLoading } = usePermissions();
-    const hasViewUserManagement = hasPermission('view_user_management');
     const hasAddUser = hasPermission('add_user');
     const hasUpdateUser = hasPermission('update_user');
     const hasDeleteUser = hasPermission('delete_user');
     const hasAssignRole = hasPermission('add_user_role');
     // Evac center capabilities are derived from granular permissions (no single 'manage_evacuation_centers' permission exists)
-    const canSeeEvacColumn = hasPermission('view_evacuation_centers');
     const canManageEvacGlobally = hasPermission('create_evacuation_center') || hasPermission('update_evacuation_center') || hasPermission('delete_evacuation_center');
     
     // All useState hooks must be called before any conditional returns
@@ -50,7 +48,7 @@ export default function UserManagement(){
     const [editingUser, setEditingUser] = useState<User | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
     const [rowsPerPage, setRowsPerPage] = useState(10);
-    const [selectedRows, setSelectedRows] = useState(0);
+    const [selectedRows] = useState(0);
     const [users, setUsers] = useState<User[]>([]);
     const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
@@ -58,8 +56,7 @@ export default function UserManagement(){
     const [formLoading, setFormLoading] = useState(false);
     const [barangays, setBarangays] = useState<{id: number; name: string}[]>([]);
     const [evacuationCenters, setEvacuationCenters] = useState<{id: number; name: string}[]>([]);
-    const [dropdownOpen, setDropdownOpen] = useState<number | null>(null);
-    const [dropdownPosition, setDropdownPosition] = useState<{showAbove: boolean; left: number; top: number} | null>(null);
+
     const [deleteConfirmUser, setDeleteConfirmUser] = useState<User | null>(null);
     const [roles, setRoles] = useState<{id: number; name: string}[]>([]);
     const [rolesLoading, setRolesLoading] = useState(true);
@@ -385,17 +382,7 @@ export default function UserManagement(){
         setCurrentPage(1); // Reset to first page when filtering
     }, [searchTerm, selectedRoleFilter, users]);
 
-    // Close dropdown when clicking outside
-    useEffect(() => {
-        const handleClickOutside = () => {
-            setDropdownOpen(null);
-        };
 
-        document.addEventListener('click', handleClickOutside);
-        return () => {
-            document.removeEventListener('click', handleClickOutside);
-        };
-    }, []);
     
     // Permission checks based on role and permission - Now using currentRoleConfig directly
     
@@ -814,18 +801,7 @@ export default function UserManagement(){
         }
     };
 
-    // Function to determine dropdown position
-    const getDropdownPosition = (event: React.MouseEvent) => {
-        const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
-        const viewportHeight = window.innerHeight;
-        const dropdownHeight = 100; // Estimated dropdown height
-        
-        return {
-            showAbove: rect.bottom + dropdownHeight > viewportHeight,
-            left: rect.right - 192, // 192px = w-48 (48 * 4px)
-            top: rect.bottom + dropdownHeight > viewportHeight ? rect.top - dropdownHeight : rect.bottom + 8
-        };
-    };
+
 
     // Handle delete user
     const handleDeleteUser = async (userId: number) => {

@@ -16,7 +16,7 @@ import {
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, MoreHorizontal } from 'lucide-react';
 import activateIcon from '@/assets/protectIcon.svg';
 import { disasterService } from '@/services/disasterService';
-import type { DisasterEventPayload, Disaster } from '@/types/disaster';
+import type { DisasterEventPayload } from '@/types/disaster';
 import LoadingSpinner from '@/components/loadingSpinner';
 import { selectToken, selectIsAuthenticated } from '@/features/auth/authSlice';
 import type { RootState } from '@/store';
@@ -26,14 +26,12 @@ interface ActivateScreenProps {
   disasterId: number;
   evacuationCenterId: number;
   userId: number;
-  onClose?: () => void;
 }
 
 const ActivateScreen: React.FC<ActivateScreenProps> = ({
   disasterId,
   evacuationCenterId,
-  userId,
-  onClose
+  userId
 }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

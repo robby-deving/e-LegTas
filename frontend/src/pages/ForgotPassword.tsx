@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePageTitle } from '../hooks/usePageTitle';
-import { supabase } from '../lib/supabase';
+
 import unionBackground from '../assets/Union.png';
 import legTasLogo from '../assets/LegTas-Logo.png';
 
@@ -13,47 +13,7 @@ export default function ForgotPassword(){
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
 
-    // Generate random 6-digit OTP
-    const generateOTP = () => {
-        return Math.floor(100000 + Math.random() * 900000).toString();
-    };
 
-    // Simple email sending using EmailJS (you can replace with any email service)
-    const sendOTPEmail = async (email: string, otp: string) => {
-        // For now, we'll just console.log the OTP for testing
-        // Replace this with actual email service integration
-        console.log(`OTP for ${email}: ${otp}`);
-        
-        // Example with EmailJS:
-        /*
-        try {
-            const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    service_id: 'your_service_id',
-                    template_id: 'your_template_id', 
-                    user_id: 'your_public_key',
-                    template_params: {
-                        to_email: email,
-                        otp_code: otp,
-                        app_name: 'e-LegTas'
-                    }
-                })
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to send email');
-            }
-        } catch (error) {
-            throw new Error('Failed to send OTP email');
-        }
-        */
-        
-        return true; // Simulate successful email sending for now
-    };
 
     const handleResetPassword = async (e: React.FormEvent) => {
         e.preventDefault();

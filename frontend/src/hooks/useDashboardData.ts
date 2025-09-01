@@ -11,7 +11,6 @@ import {
 } from '../services/dashboardService';
 import type {
   Disaster,
-  DisasterEvacuationEvent,
 } from '../types/dashboard';
 
 export function useDashboardData(selectedDateRange?: DateRange) {

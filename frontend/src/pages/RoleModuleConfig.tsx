@@ -87,27 +87,20 @@ export default function RoleModuleConfig() {
     const token = useSelector(selectToken);
     const { hasPermission } = usePermissions();
     const canCreateRole = hasPermission('create_role');
-    const canUpdateRole = hasPermission('update_role');
-    const canDeleteRole = hasPermission('delete_role');
     const canAddUserPermission = hasPermission('add_user_permission');
     const canEditUserPermission = hasPermission('edit_user_permission');
     
     // State for roles data
     const [roles, setRoles] = useState<Role[]>([]);
     const [permissions, setPermissions] = useState<Permission[]>([]);
-    const [userStats, setUserStats] = useState<UserStats>({
-        cdrrmo: 0,
-        cswdo: 0,
-        campManager: 0,
-        allUsers: 0
-    });
+
     // New: user counts by roleId
     const [userCountsByRole, setUserCountsByRole] = useState<Record<number, number>>({});
     const [rolePermissions, setRolePermissions] = useState<Record<number, number>>({});
     const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
     const [rowsPerPage, setRowsPerPage] = useState(10);
-    const [selectedRows, setSelectedRows] = useState(0);
+    const [selectedRows] = useState(0);
     const [isAddRoleModalOpen, setIsAddRoleModalOpen] = useState(false);
     const [isEditRoleModalOpen, setIsEditRoleModalOpen] = useState(false);
     const [editingRole, setEditingRole] = useState<Role | null>(null);

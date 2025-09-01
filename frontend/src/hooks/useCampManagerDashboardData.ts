@@ -1,17 +1,13 @@
-import { RealtimeChannel } from "@supabase/supabase-js";
+
 import type { DateRange } from "react-day-picker";
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import {
-  listenToEvacuationSummaryChange,
-  listenToEvacuationEndDateChange,
   isEventLinkedToSelectedDisaster
 } from '../services/dashboardService';
 import type {
   Disaster,
-  DisasterEvacuationEvent,
   CenterInfo,
-  EvacuationSummary,
 } from '../types/dashboard';
 import { useSelector } from 'react-redux';
 import { selectToken } from '../features/auth/authSlice';
