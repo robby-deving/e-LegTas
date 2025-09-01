@@ -43,6 +43,7 @@ export default function EvacuationCenterDetail() {
   const canCreateFamilyInformation = hasPermission('create_family_information');
   const canUpdateEvacueeInformation = hasPermission('update_evacuee_information');
   const canUpdateFamilyInformation = hasPermission('update_family_information');
+  const canViewOnlySpecificDashboardEvacuation = hasPermission('view_only_specific_dashboard_evacuation');
   const [detail, setDetail] = useState<EvacuationCenterDetail | null>(null);
   const [statistics, setStatistics] = useState<EvacueeStatistics | null>(null);
   const [evacuees, setEvacuees] = useState<FamilyEvacueeInformation[]>([]);
@@ -659,12 +660,18 @@ const { paginatedEvacuees, totalRows, totalPages } = useMemo(() => {
             Disaster
           </button>
           <ChevronRight className="w-4 h-4 mx-2" />
-          <button
-            onClick={() => navigate(`/evacuation-information/${encodeId(disasterId)}`)}
-            className="hover:text-green-700 transition-colors cursor-pointer"
-          >
-            {disaster?.name}
-          </button>
+          {canViewOnlySpecificDashboardEvacuation ? (
+            <span className="text-gray-600">
+              {disaster?.name}
+            </span>
+          ) : (
+            <button
+              onClick={() => navigate(`/evacuation-information/${encodeId(disasterId)}`)}
+              className="hover:text-green-700 transition-colors cursor-pointer"
+            >
+              {disaster?.name}
+            </button>
+          )}
           <ChevronRight className="w-4 h-4 mx-2" />
           <span className="text-gray-900 font-semibold">{centerName}</span>
         </div>

@@ -380,6 +380,60 @@ exports.getDisasterEventById = async (req, res, next) => {
 
 
 /**
+ * @desc Check if a disaster event exists for a specific evacuation center and disaster combination
+ * @route GET /api/v1/disaster-events/check/:disasterId/:evacuationCenterId
+ * @access Private (requires view_disaster permission)
+ */
+exports.checkDisasterEventByEvacuationCenter = async (req, res, next) => {
+    const { disasterId, evacuationCenterId } = req.params;
+
+    if (!disasterId || isNaN(Number(disasterId))) {
+        return next(new ApiError('Invalid Disaster ID provided.', 400));
+    }
+
+    if (!evacuationCenterId || isNaN(Number(evacuationCenterId))) {
+        return next(new ApiError('Invalid Evacuation Center ID provided.', 400));
+    }
+
+    try {
+        const { data, error } = await supabase
+            .from(TABLE_NAME)
+            .select('id, disaster_id, evacuation_center_id')
+            .eq('disaster_id', disasterId)
+            .eq('evacuation_center_id', evacuationCenterId)
+            .maybeSingle(); // Use maybeSingle to avoid error if no row found
+
+        if (error) {
+            console.error('Supabase Error (checkDisasterEventByEvacuationCenter):', error);
+            return next(new ApiError('Failed to check disaster event.', 500));
+        }
+
+        if (data) {
+            // Disaster event exists
+            res.status(200).json({
+                message: 'Disaster event found.',
+                exists: true,
+                data: {
+                    id: data.id,
+                    disaster_id: data.disaster_id,
+                    evacuation_center_id: data.evacuation_center_id
+                }
+            });
+        } else {
+            // No disaster event found
+            res.status(200).json({
+                message: 'No disaster event found for this evacuation center and disaster combination.',
+                exists: false,
+                data: null
+            });
+        }
+    } catch (err) {
+        console.error('Unexpected error in checkDisasterEventByEvacuationCenter:', err);
+        next(new ApiError('Internal server error during checkDisasterEventByEvacuationCenter.', 500));
+    }
+};
+
+/**
  * @desc Create a new disaster evacuation event entry
  * @route POST /api/v1/disaster-events
  * @access Private (requires authentication/authorization, but public for now)

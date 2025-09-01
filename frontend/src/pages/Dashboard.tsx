@@ -10,7 +10,7 @@ export default function Dashboard(){
 	const user = useSelector(selectCurrentUser);
 	
 	return(
-		<div className='text-black'>
+		<div className='text-black h-full'>
 			{/* System Admin Dashboard */}
 			{user?.role_id === 1 ? <SystemAdminDashboard /> : 
 			 user?.role_id === 5 ? <CampManagerDashboard /> : 

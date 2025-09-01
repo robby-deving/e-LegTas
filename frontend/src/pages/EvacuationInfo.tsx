@@ -7,6 +7,7 @@ import DisasterSection from "../components/Disasters/DisasterSection";
 import DisasterFormDialog from "../components/Disasters/DisasterFormDialog";
 import ErrorBoundary from "../components/Disasters/ErrorBoundary";
 import LoadingSpinner from "../components/loadingSpinner";
+import ActivateScreen from "../components/ActivateScreen";
 import type { Disaster, DisasterPayload } from "@/types/disaster";
 import { encodeId } from "@/utils/secureId";
 import { usePermissions } from "../contexts/PermissionContext";
@@ -42,7 +43,8 @@ export default function EvacuationInfo() {
   const [editingDisaster, setEditingDisaster] = useState<Disaster | undefined>();
   const [deleteConfirmDisaster, setDeleteConfirmDisaster] = useState<Disaster | null>(null);
   const [assignedEvacuationCenterId, setAssignedEvacuationCenterId] = useState<number | null>(null);
-  const [loadingAssignedCenter, setLoadingAssignedCenter] = useState(false);
+  const [showActivateScreen, setShowActivateScreen] = useState(false);
+  const [selectedDisasterForActivation, setSelectedDisasterForActivation] = useState<Disaster | null>(null);
 
   const today = new Date();
   const [filterMonth, setFilterMonth] = useState<number | null>(today.getMonth()); // 0-11
@@ -57,7 +59,6 @@ export default function EvacuationInfo() {
   useEffect(() => {
     const fetchAssignedEvacuationCenter = async () => {
       if (hasPermission("view_only_specific_dashboard_evacuation") && currentUserId) {
-        setLoadingAssignedCenter(true);
         try {
           if (!token) {
             console.warn("No authentication token found in Redux store");
@@ -70,8 +71,6 @@ export default function EvacuationInfo() {
         } catch (error) {
           console.error("Error fetching assigned evacuation center:", error);
           setAssignedEvacuationCenterId(null);
-        } finally {
-          setLoadingAssignedCenter(false);
         }
       }
     };
@@ -135,19 +134,57 @@ const handleDeleteDisaster = async (disaster: Disaster) => {
     (typeFilter === "All" || d.type === typeFilter)
   );
 
-const navigateToDetail = (d: Disaster) => {
+const navigateToDetail = async (d: Disaster) => {
   const encoded = encodeId(d.id);
-  const encodedEvacuationCenterId = assignedEvacuationCenterId ? encodeId(assignedEvacuationCenterId) : null;
   console.log("Encoded Disaster ID:", encoded, d.id);
 
-  if (hasPermission("view_only_specific_dashboard_evacuation") && assignedEvacuationCenterId !== d.id && encodedEvacuationCenterId) {
-    console.log("Navigating to specific evacuation center:", d.id, assignedEvacuationCenterId);
-    navigate(`/evacuation-information/${encoded}/${encodedEvacuationCenterId}`);
+  // For users with specific evacuation center permission, check if disaster event exists
+  if (hasPermission("view_only_specific_dashboard_evacuation") && assignedEvacuationCenterId && token) {
+    try {
+      console.log("Checking disaster event for disaster:", d.id, "and evacuation center:", assignedEvacuationCenterId);
+
+      const disasterEventCheck = await disasterService.checkDisasterEventByEvacuationCenter(
+        d.id,
+        assignedEvacuationCenterId,
+        token
+      );
+
+      if (disasterEventCheck.exists && disasterEventCheck.data) {
+        // Disaster event exists, navigate with disaster event ID
+        const encodedDisasterEventId = encodeId(disasterEventCheck.data.id);
+        console.log("Navigating to existing disaster event:", d.id, assignedEvacuationCenterId, disasterEventCheck.data.id);
+        navigate(`/evacuation-information/${encoded}/${encodedDisasterEventId}`);
+      } else {
+        // No disaster event exists, show activate screen
+        console.log("No disaster event found, showing activate screen for:", d.id, assignedEvacuationCenterId);
+        setSelectedDisasterForActivation(d);
+        setShowActivateScreen(true);
+      }
+    } catch (error) {
+      console.error("Error checking disaster event:", error);
+      // On error, fall back to normal navigation
+      navigate(`/evacuation-information/${encoded}`);
+    }
   } else {
+    // No specific permission or no assigned center, navigate normally
     navigate(`/evacuation-information/${encoded}`);
   }
-
 };
+
+  // Show activate screen if needed
+  if (showActivateScreen && selectedDisasterForActivation && assignedEvacuationCenterId && currentUserId) {
+    return (
+        <ActivateScreen
+          disasterId={selectedDisasterForActivation.id}
+          evacuationCenterId={assignedEvacuationCenterId}
+          userId={currentUserId}
+          onClose={() => {
+            setShowActivateScreen(false);
+            setSelectedDisasterForActivation(null);
+          }}
+        />
+    );
+  }
 
   return (
     <ErrorBoundary>

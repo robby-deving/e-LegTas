@@ -1,5 +1,5 @@
 import axios from "axios";
-import type { Disaster, DisasterPayload, DisasterTypeWithId } from "@/types/disaster";
+import type { Disaster, DisasterPayload, DisasterTypeWithId, DisasterEventPayload } from "@/types/disaster";
 
 interface DisasterApiResponse {
   data: any[];
@@ -15,6 +15,15 @@ interface DisasterTypesApiResponse {
 
 interface EvacuationCenterResponse {
   evacuation_center_id: number;
+}
+
+interface DisasterEventCheckResponse {
+  exists: boolean;
+  data: {
+    id: number;
+    disaster_id: number;
+    evacuation_center_id: number;
+  } | null;
 }
 
 class DisasterService {
@@ -178,6 +187,51 @@ class DisasterService {
       return null;
     } catch (error) {
       console.error("Failed to fetch assigned evacuation center:", error);
+      throw error;
+    }
+  }
+
+  async checkDisasterEventByEvacuationCenter(
+    disasterId: number,
+    evacuationCenterId: number,
+    token: string
+  ): Promise<DisasterEventCheckResponse> {
+    try {
+      const response = await axios.get<{
+        exists: boolean;
+        data: { id: number; disaster_id: number; evacuation_center_id: number } | null;
+        message: string;
+      }>(
+        `${this.baseUrl}/disaster-events/check/${disasterId}/${evacuationCenterId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      return {
+        exists: response.data.exists,
+        data: response.data.data
+      };
+    } catch (error) {
+      console.error("Failed to check disaster event:", error);
+      throw error;
+    }
+  }
+
+  async createDisasterEvent(disasterEventData: DisasterEventPayload, token: string): Promise<any> {
+    try {
+      const response = await axios.post(`${this.baseUrl}/disaster-events`, disasterEventData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Failed to create disaster event:", error);
       throw error;
     }
   }
