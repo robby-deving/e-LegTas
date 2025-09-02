@@ -15,6 +15,9 @@ interface SearchEvacueeModalProps {
   searchResults: Evacuee[];
   onSelectEvacuee: (evacuee: Evacuee) => void;
   onManualRegister: () => void;
+  eventEnded?: boolean;
+onEndedAction?: () => void;
+
   registeredIds?: Set<number>;
   canCreateFamilyInformation?: boolean;
   currentEventId: number | string | null;
@@ -31,19 +34,20 @@ export const SearchEvacueeModal = ({
   onSelectEvacuee,
   onManualRegister,
   registeredIds,
-  canCreateFamilyInformation = true, // Default to true for backward compatibility
+  canCreateFamilyInformation = true, 
   currentEventId,
   currentEcId,
   currentDisasterId,
+  eventEnded,
+onEndedAction,
+
 }: SearchEvacueeModalProps) => {
 
   const [warnOpen, setWarnOpen] = useState(false);
   const [conflictName, setConflictName] = useState<string>("");
-
   const [blockedOpen, setBlockedOpen] = useState(false);
   const [blockedName, setBlockedName] = useState<string>("");
   const [blockedEcName, setBlockedEcName] = useState<string | undefined>(undefined);
-
   const eventIdNum = currentEventId != null && currentEventId !== "" ? Number(currentEventId) : null;
   const disasterIdNum = currentDisasterId != null && currentDisasterId !== "" ? Number(currentDisasterId) : null;
 
@@ -173,8 +177,11 @@ export const SearchEvacueeModal = ({
             {/* Manual Register Button - Only visible with create_family_information permission */}
             {canCreateFamilyInformation && (
               <Button
-                onClick={onManualRegister}
-                className="bg-green-700 hover:bg-green-800 text-white px-6 cursor-pointer"
+                className="bg-green-700 hover:bg-green-800 text-white px-6 cursor-pointer disabled:opacity-60"
+                disabled={!!eventEnded}
+                
+                onClick={() => (eventEnded ? onEndedAction?.() : onManualRegister())}
+                title={eventEnded ? "Evacuation operation already ended" : "Manual Register"}
               >
                 Manual Register
               </Button>

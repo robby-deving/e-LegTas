@@ -1,6 +1,5 @@
+// decamp.controller.js
 const { supabase } = require('../config/supabase');
-
-// add this line if error have const { supabase } = require('../config/supabase');
 
 class ApiError extends Error {
   constructor(message, statusCode = 500) {
@@ -9,6 +8,16 @@ class ApiError extends Error {
     this.statusCode = statusCode;
     Error.captureStackTrace(this, this.constructor);
   }
+}
+
+async function isEventEnded(eventId) {
+  const { data, error } = await supabase
+    .from("disaster_evacuation_event")
+    .select("evacuation_end_date")
+    .eq("id", eventId)
+    .single();
+  if (error || !data) throw new ApiError("Disaster evacuation event not found.", 404);
+  return Boolean(data.evacuation_end_date);
 }
 
 /**
@@ -34,6 +43,10 @@ exports.decampFamily = async (req, res, next) => {
         .status(400)
         .json({ message: "disasterEvacuationEventId and familyHeadId are required path params." });
     }
+      // Block any write when the event is already ended
+  if (await isEventEnded(eventId)) {
+    return next(new ApiError("Evacuation operation already ended.", 409));
+  }
 
     const { data: eventRow, error: eventErr } = await supabase
       .from("disaster_evacuation_event")
@@ -252,5 +265,131 @@ exports.decampFamily = async (req, res, next) => {
   } catch (err) {
     console.error("[decampFamily][ERROR] Unhandled exception", { error: err?.message, stack: err?.stack });
     return next(new ApiError(`Internal error during decampFamily. ${err?.message || ""}`, 500));
+  }
+};
+
+// GET /evacuees/:disasterEvacuationEventId/undecamped-count
+exports.undecampedCountInEvent = async (req, res) => {
+  const eventId = Number(req.params.disasterEvacuationEventId);
+  if (!eventId) return res.status(400).json({ message: "Invalid event id." });
+
+  const { count, error } = await supabase
+    .from('evacuation_registrations')
+    .select('id', { count: 'exact', head: true })
+    .eq('disaster_evacuation_event_id', eventId)
+    .is('decampment_timestamp', null);
+
+  if (error) return res.status(500).json({ message: error.message });
+  return res.json({ count: count ?? 0 });
+};
+
+// POST /evacuees/:disasterEvacuationEventId/decamp-all { decampment_timestamp }
+exports.decampAllFamiliesInEvent = async (req, res) => {
+  const eventId = Number(req.params.disasterEvacuationEventId);
+  const rawTs = req.body?.decampment_timestamp;
+
+  if (!eventId) return res.status(400).json({ message: "Invalid event id." });
+  if (!rawTs || typeof rawTs !== 'string') {
+    return res.status(400).json({ message: "decampment_timestamp (ISO) is required." });
+  }
+
+  const ts = new Date(rawTs);
+  if (isNaN(ts.getTime())) return res.status(400).json({ message: "Invalid decampment_timestamp." });
+
+  // Validate vs event start
+  const { data: eventRow, error: evErr } = await supabase
+    .from('disaster_evacuation_event')
+    .select('id, evacuation_start_date')
+    .eq('id', eventId)
+    .single();
+
+  if (evErr || !eventRow) return res.status(404).json({ message: "Event not found." });
+
+  const start = new Date(eventRow.evacuation_start_date ?? new Date(0));
+  if (ts <= start) {
+    return res.status(400).json({ message: "Decampment must be later than the evacuation_start_date." });
+  }
+
+  // Bulk update undecamped rows whose arrival < chosen timestamp
+  const { data: updated, error: upErr } = await supabase
+    .from('evacuation_registrations')
+    .update({ decampment_timestamp: ts.toISOString(), updated_at: new Date().toISOString() })
+    .eq('disaster_evacuation_event_id', eventId)
+    .is('decampment_timestamp', null)
+    .lt('arrival_timestamp', ts.toISOString())
+    .select('id');
+
+  if (upErr) return res.status(500).json({ message: upErr.message });
+
+  // Count what remains (if user chose a timestamp earlier than some arrivals)
+  const { count: remain, error: remainErr } = await supabase
+    .from('evacuation_registrations')
+    .select('id', { count: 'exact', head: true })
+    .eq('disaster_evacuation_event_id', eventId)
+    .is('decampment_timestamp', null);
+
+  if (remainErr) return res.status(500).json({ message: remainErr.message });
+
+  return res.json({
+    message: "Decamped all eligible families.",
+    updated: updated?.length ?? 0,
+    remaining_undecamped: remain ?? 0,
+  });
+};
+
+// POST /evacuees/:disasterEvacuationEventId/end { evacuation_end_date }
+exports.endEvacuationOperation = async (req, res) => {
+  const eventId = Number(req.params.disasterEvacuationEventId);
+  const rawTs = req.body?.evacuation_end_date;
+
+  if (!eventId) return res.status(400).json({ message: "Invalid event id." });
+
+  const ts = rawTs ? new Date(rawTs) : new Date();
+  if (isNaN(ts.getTime())) return res.status(400).json({ message: "Invalid evacuation_end_date." });
+
+  try {
+    // 1) Make sure the event exists, and not already ended
+    const { data: evt, error: evtErr } = await supabase
+      .from("disaster_evacuation_event")
+      .select("id, evacuation_end_date")
+      .eq("id", eventId)
+      .maybeSingle();
+
+    if (evtErr) return res.status(500).json({ message: evtErr.message });
+    if (!evt) return res.status(404).json({ message: "Event not found." });
+    if (evt.evacuation_end_date) {
+      return res.status(409).json({ message: "Evacuation operation already ended." });
+    }
+
+    // 2) Must have 0 active (undecamped)
+    const { count, error } = await supabase
+      .from("evacuation_registrations")
+      .select("id", { count: "exact", head: true })
+      .eq("disaster_evacuation_event_id", eventId)
+      .is("decampment_timestamp", null);
+
+    if (error) return res.status(500).json({ message: error.message });
+    if ((count ?? 0) > 0) {
+      return res.status(409).json({ message: "Cannot end operation: there are still undecamped families." });
+    }
+
+    // 3) Update end date
+    const { data, error: endErr } = await supabase
+      .from("disaster_evacuation_event")
+      .update({ evacuation_end_date: ts.toISOString() })
+      .eq("id", eventId)
+      .select("id, evacuation_end_date")
+      .maybeSingle();
+
+    if (endErr) {
+      console.error("[endEvacuationOperation] update error:", endErr);
+      return res.status(500).json({ message: endErr.message });
+    }
+    if (!data) return res.status(404).json({ message: "Event not found or not updated." });
+
+    return res.json({ message: "Evacuation operation ended.", event: data });
+  } catch (err) {
+    console.error("[endEvacuationOperation] Unhandled exception", err);
+    return res.status(500).json({ message: "Internal error during endEvacuationOperation." });
   }
 };
