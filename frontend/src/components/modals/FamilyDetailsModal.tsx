@@ -43,6 +43,8 @@ type FamilyDetailsModalProps = {
   canUpdateFamily?: boolean;
   disasterStartDate?: string | null;
    onSaved?: (patch?: { id: number; decampment_timestamp: string | null }) => void | Promise<void>;
+   eventEnded?: boolean;
+   onEndedAction?: () => void; 
 };
 
 export const FamilyDetailsModal: React.FC<FamilyDetailsModalProps> = ({
@@ -55,7 +57,11 @@ export const FamilyDetailsModal: React.FC<FamilyDetailsModalProps> = ({
   canUpdateFamily = true,
   disasterStartDate,
   onSaved,
+  eventEnded = false,
+  onEndedAction,
+  
 }) => {
+
 const [savingDecamp, setSavingDecamp] = useState(false);
 const [decampError, setDecampError] = useState<string | null>(null);
 
@@ -78,25 +84,55 @@ const [decampDate, setDecampDate] = useState<Date | null>(() =>
   evacuee?.decampment_timestamp ? new Date(evacuee.decampment_timestamp) : null
 );
 
-useEffect(() => {
-  const raw = evacuee?.decampment_timestamp
-    ? new Date(evacuee.decampment_timestamp)
-    : null;
-  const d = raw && !Number.isNaN(raw.getTime()) ? raw : null;
-  setDecampDate(d);
-  setTouched({ date: !!d, time: !!d });
-}, [evacuee?.decampment_timestamp]);
-
+const [userEdited, setUserEdited] = useState(false);
 const originalDecamp = evacuee?.decampment_timestamp ? new Date(evacuee.decampment_timestamp) : null;
 const hasChanges = (originalDecamp?.getTime() ?? null) !== (decampDate?.getTime() ?? null);
 
 const toLocalStart = (v: string | Date) => startOfDayLocal(new Date(v));
-const minDate =
-  disasterStartDate ? toLocalStart(disasterStartDate) : undefined;
-
+const minDate = disasterStartDate ? toLocalStart(disasterStartDate) : undefined;
 const maxDate = useMemo(() => new Date(), []);
+const minDateMs = minDate?.getTime();
+
+
+useEffect(() => {
+  if (!isOpen) return;
+
+  // If the family already has a decampment timestamp, prefill with that.
+  const ts = evacuee?.decampment_timestamp;
+  if (ts) {
+    const d = new Date(ts);
+    if (!Number.isNaN(d.getTime())) {
+      // Avoid useless sets
+      if (!decampDate || decampDate.getTime() !== d.getTime()) {
+        setDecampDate(d);
+        setTouched({ date: true, time: true });
+        setDecampError(null);
+      }
+      return;
+    }
+  }
+  // Otherwise prefill with "now", clamped within bounds.
+  const now = new Date();
+  const clamped = new Date(now);
+
+  if (minDate && clamped < minDate) clamped.setTime(minDate.getTime());
+  if (clamped > maxDate) clamped.setTime(maxDate.getTime());
+
+  if (!decampDate || decampDate.getTime() !== clamped.getTime()) {
+    setDecampDate(clamped);
+    setTouched({ date: true, time: true });
+    setDecampError(null);
+  }
+}, [isOpen, evacuee?.decampment_timestamp, minDateMs, maxDate]);
+
+useEffect(() => {
+  if (!isOpen) return;
+  setUserEdited(false);
+}, [isOpen, evacuee?.id]);
+
+
 const missingTimeForNew = !hadExistingDecamp && touched.date && !touched.time;
-const canSaveDecamp = hasChanges && !savingDecamp && !missingTimeForNew;
+const canSaveDecamp = userEdited && hasChanges && !savingDecamp && !missingTimeForNew;
 
 const fmtHHMM = (d: Date) =>
   `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
@@ -109,7 +145,6 @@ const [decampTime, setDecampTime] = useState<string>(() =>
 useEffect(() => {
   setDecampTime(decampDate ? fmtHHMM(decampDate) : "");
 }, [decampDate]);
-
 
 const [transferOpen, setTransferOpen] = useState(false);
 const [newHeadEvacueeId, setNewHeadEvacueeId] = useState<string>("");
@@ -142,7 +177,7 @@ const transferCandidates: any[] = members.filter(
   (m) => m.full_name !== evacuee.family_head_full_name
 );
 
-const isDecamped = Boolean(decampDate);
+const isDecamped = Boolean(evacuee?.decampment_timestamp);
 const canTransfer =
   !isDecamped &&
   transferCandidates.length > 0 &&
@@ -195,6 +230,7 @@ try {
 };
 
 const handleSaveDecampment = async () => {
+  if (eventEnded) return;
   setDecampError(null);
 
   const eventId = Number(evacuee?.disaster_evacuation_event_id);
@@ -397,21 +433,24 @@ function enforceDecampDateTimeBounds(dt: Date | null): boolean {
                     <Button
                       className={`bg-green-700 hover:bg-green-800 text-white px-3 py-1 text-sm cursor-pointer ${
                         !canTransfer ? "opacity-60 cursor-not-allowed" : ""
-                      }`}
+                      } ${eventEnded ? "opacity-60 cursor-not-allowed" : ""}`}
                       onClick={() => {
+                        if (eventEnded) { onEndedAction?.(); return; }
                         setTransferOpen(true);
                         setNewHeadEvacueeId("");
                         setOldHeadNewRel("");
                       }}
-                      disabled={!canTransfer}
+                      disabled={!canTransfer || eventEnded}
                       title={
-                        !canTransfer
-                          ? (isDecamped
-                              ? "Cannot transfer head: this family is already decamped."
-                              : "No other eligible members to transfer to.")
-                          : "Transfer Head"
+                        eventEnded
+                          ? "Evacuation operation already ended"
+                          : (!canTransfer
+                              ? (isDecamped
+                                  ? "Cannot transfer head: this family is already decamped."
+                                  : "No other eligible members to transfer to.")
+                              : "Transfer Head")
                       }
-                      aria-disabled={!canTransfer}
+                      aria-disabled={!canTransfer || eventEnded}
                     >
                       Transfer Head
                     </Button>
@@ -429,14 +468,15 @@ function enforceDecampDateTimeBounds(dt: Date | null): boolean {
                     <DateTimePicker
                       value={decampDate ?? undefined}
                       onChange={(d) => {
+                        if (eventEnded) return;            // <— guard
                         setTouched((t) => ({ ...t, date: true }));
                         if (!d) {
                           setDecampDate(null);
                           setTouched({ date: false, time: false });
                           setDecampError(null);
+                          setUserEdited(true);
                           return;
                         }
-                        // keep the currently-chosen time component
                         const merged = mergeDateAndTime(d, decampDate);
                         if (!merged || !enforceDecampDateTimeBounds(merged)) {
                           setDecampDate(null);
@@ -445,6 +485,7 @@ function enforceDecampDateTimeBounds(dt: Date | null): boolean {
                         }
                         setDecampDate(merged);
                         setDecampError(null);
+                        setUserEdited(true);
                       }}
                       showTime={false}
                       placeholder=" "
@@ -458,17 +499,16 @@ function enforceDecampDateTimeBounds(dt: Date | null): boolean {
 
                   {/* Masked, date-only input (same look/behavior as Birthday) */}
                   <BirthdayMaskedInput
-                    value={decampDate ? toISODateLocal(decampDate) : ""} // expects YYYY-MM-DD
+                    value={decampDate ? toISODateLocal(decampDate) : ""}
                     onChange={(iso) => {
-                      // iso === "" when cleared
+                      // (no eventEnded guard)
                       if (!iso) {
                         setDecampDate(null);
                         setTouched({ date: false, time: false });
                         setDecampError(null);
+                        setUserEdited(true);
                         return;
                       }
-
-                      // Convert to Date (local) and preserve the currently selected time
                       const parsed = new Date(`${iso}T00:00:00`);
                       const merged = mergeDateAndTime(parsed, decampDate);
                       if (!merged || !enforceDecampDateTimeBounds(merged)) {
@@ -476,35 +516,37 @@ function enforceDecampDateTimeBounds(dt: Date | null): boolean {
                         setTouched({ date: false, time: false });
                         return;
                       }
-
                       setDecampDate(merged);
                       setTouched((t) => ({ ...t, date: true }));
                       setDecampError(null);
+                      setUserEdited(true);
                     }}
-                    required={false}               // keep behavior the same; saving already validates
-                    className="w-full pl-10 pr-10 h-10"
+                    required={false}
+                    className={`w-full pl-10 pr-10 h-10 ${eventEnded ? "opacity-60" : ""}`}
                     placeholder="MM/DD/YYYY"
                   />
 
                   {/* Clear × button */}
-                  {decampDate && (
-                    <button
-                      type="button"
-                      aria-label="Clear decampment date"
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setDecampDate(null);
-                        setTouched({ date: false, time: false });
-                        setDecampError(null);
-                      }}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 z-20 inline-flex h-5 w-5 items-center justify-center rounded-full bg-green-700 text-white hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-green-600 cursor-pointer"
-                    >
-                      ×
-                    </button>
-                  )}
+                {decampDate && (
+                  <button
+                    type="button"
+                    aria-label="Clear decampment date"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDecampDate(null);
+                      setTouched({ date: false, time: false });
+                      setDecampError(null);
+                      setUserEdited(true);
+                    }}
+                    className={`absolute right-2 top-1/2 -translate-y-1/2 z-20 inline-flex h-5 w-5 items-center justify-center rounded-full ${
+                      eventEnded ? "bg-gray-300 text-white" : "bg-green-700 text-white hover:bg-green-800"
+                    }`}
+                  >
+                    ×
+                  </button>
+                )}
                 </div>
-
 
                 {/* TIME (match CreateReportModal style) */}
                 <div className="relative w-40 sm:w-44 md:w-48">
@@ -515,25 +557,22 @@ function enforceDecampDateTimeBounds(dt: Date | null): boolean {
                     type="time"
                     value={decampTime}
                     onChange={(e) => {
-                      const val = e.target.value; // "HH:MM"
+                      const val = e.target.value;
                       setDecampTime(val);
                       if (!decampDate) return;
-
                       const [hhStr, mmStr] = val.split(":");
                       const hh = parseInt(hhStr ?? "", 10);
                       const mm = parseInt(mmStr ?? "", 10);
                       if (Number.isNaN(hh) || Number.isNaN(mm)) return;
-
                       const merged = new Date(decampDate);
                       merged.setHours(hh, mm, 0, 0);
-
                       if (!enforceDecampDateTimeBounds(merged)) return;
-
                       setDecampDate(merged);
                       setTouched((t) => ({ ...t, time: true }));
                       setDecampError(null);
+                      setUserEdited(true);
                     }}
-                    className={`pl-9 h-10 ${!decampDate ? "opacity-60 cursor-not-allowed" : ""}`}
+                    className={`pl-9 h-10 ${!decampDate ? "opacity-60 cursor-not-allowed" : ""} ${eventEnded ? "opacity-60" : ""}`}
                     disabled={!decampDate}
                   />
                 </div>
@@ -541,15 +580,16 @@ function enforceDecampDateTimeBounds(dt: Date | null): boolean {
                 {canUpdateEvacuee && (
                   <>
                     <Button
-                      className="h-10 bg-green-700 hover:bg-green-800 text-white px-4 text-sm cursor-pointer disabled:opacity-60"
-                      onClick={handleSaveDecampment}
-                      disabled={!canSaveDecamp}
+                      className={`h-10 bg-green-700 hover:bg-green-800 text-white px-4 text-sm cursor-pointer ${
+                        (eventEnded || !canSaveDecamp) ? "opacity-60" : ""
+                      }`}
+                      onClick={() => (eventEnded ? onEndedAction?.() : handleSaveDecampment())}
+                      disabled={!eventEnded && !canSaveDecamp}     // ← still disabled when NOT ended & nothing to save
+                      aria-disabled={eventEnded || !canSaveDecamp} // ← for screen readers
                       title={
-                        !hasChanges
-                          ? "No changes to save"
-                          : missingTimeForNew
-                          ? "Please choose a time"
-                          : "Save decampment"
+                        eventEnded
+                          ? "Evacuation operation already ended"
+                          : (!hasChanges ? "No changes to save" : (missingTimeForNew ? "Please choose a time" : "Save decampment"))
                       }
                     >
                       {savingDecamp ? "Saving..." : "Save Decampment"}
@@ -692,6 +732,7 @@ function enforceDecampDateTimeBounds(dt: Date | null): boolean {
                               className="w-4 h-4 text-gray-400 group-hover:text-green-700 cursor-pointer"
                               onClick={(e) => {
                                 e.stopPropagation();
+                                if (eventEnded) { onEndedAction?.(); return; } // show AlreadyEndedDialog
                                 if (isDecamped) {
                                   setEditBlockedName(member.full_name);
                                   setEditBlockedOpen(true);

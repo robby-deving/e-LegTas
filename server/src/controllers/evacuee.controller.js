@@ -1291,19 +1291,19 @@ exports.getDisasterEvacuationDetails = async (req, res, next) => {
   }
 
   try {
-    // 1) Event + related disaster + EC (pull capacity here to avoid extra query)
+    // 1) Event + related disaster + EC (also return event start/end dates!)
     const { data: eventData, error: eventError } = await supabase
       .from("disaster_evacuation_event")
       .select(`
         id,
+        evacuation_start_date,
+        evacuation_end_date,
         disasters (
           id,
           disaster_name,
           disaster_start_date,
           disaster_end_date,
-          disaster_types (
-            id, name
-          )
+          disaster_types ( id, name )
         ),
         evacuation_centers (
           id,
@@ -1314,7 +1314,7 @@ exports.getDisasterEvacuationDetails = async (req, res, next) => {
         )
       `)
       .eq("id", disasterEvacuationEventId)
-      .maybeSingle(); // ← no error if not found
+      .maybeSingle();
 
     if (eventError) {
       console.error("[ERROR] fetching event:", eventError);
@@ -1345,8 +1345,14 @@ exports.getDisasterEvacuationDetails = async (req, res, next) => {
       evacuation_center_capacity: ec?.total_capacity ?? 0,
     };
 
-    // 3) Respond with null/“Unknown” fallbacks instead of 500s
+    // 3) Respond (now includes a canonical evacuation_event block)
     return res.status(200).json({
+      evacuation_event: {
+        id: eventData.id,
+        evacuation_start_date: eventData.evacuation_start_date ?? null,
+        evacuation_end_date: eventData.evacuation_end_date ?? null,
+        is_event_ended: Boolean(eventData.evacuation_end_date),
+      },
       disaster: {
         disaster_types_id: disasters?.disaster_types?.id ?? null,
         disaster_type_name: disasters?.disaster_types?.name ?? "Unknown",
@@ -1369,10 +1375,6 @@ exports.getDisasterEvacuationDetails = async (req, res, next) => {
   }
 };
 
-// controllers/evacuees.js
-// controllers/evacuees.js
-
-// controllers/evacuees.js
 exports.getAllRoomsForDisasterEvacuationEventId = async (req, res, next) => {
   const { disasterEvacuationEventId } = req.params;
   const onlyAvailable = String(req.query.only_available || "1") !== "0"; // default: only rooms with space
@@ -1443,9 +1445,6 @@ exports.getAllRoomsForDisasterEvacuationEventId = async (req, res, next) => {
     return next(new ApiError("Internal server error.", 500));
   }
 };
-
-
-
 
 /**
  * @desc Get full evacuee details for editing (event-scoped first).

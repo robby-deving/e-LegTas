@@ -25,6 +25,9 @@ import { RegisterEvacueeModal } from "../components/modals/RegisterEvacueeModal"
 import { SearchEvacueeModal } from "../components/modals/SearchEvacueeModal";
 import { FamilyHeadSearchModal } from "../components/modals/FamilyHeadSearchModal";
 import { RegisterBlockDialog } from "@/components/modals/RegisterBlockDialog";
+import { DecampAllModal } from "../components/modals/DecampAllModal";
+import { AlreadyEndedDialog } from "../components/modals/AlreadyEndedDialog";
+import { startOfDayLocal } from "@/utils/dateInput";
 import { differenceInYears } from "date-fns";
 import { mapEditPayloadToForm, mapSearchPayloadToForm } from "@/utils/mapEvacueePayload";
 import { usePermissions } from "../contexts/PermissionContext";
@@ -61,16 +64,43 @@ export default function EvacuationCenterDetail() {
   const [regBlockName, setRegBlockName] = useState<string | undefined>();
   const [regBlockEcName, setRegBlockEcName] = useState<string | undefined>();
 
-  // --- sorting state & helpers ---
-  const [sort, setSort] = useState<SortState>(null);
-  const toggleSort = (key: SortKey) => {
-    setSort((prev) => {
-      if (!prev || prev.key !== key) return { key, dir: "asc" };
-      if (prev.dir === "asc") return { key, dir: "desc" };
-      return null;
-    });
-    setPage(1);
-  };
+  // permissions (or use a specific permission you already have)
+  const canEndOperation = hasPermission("end_evacuation_operation") || canUpdateFamilyInformation;
+
+  // event ended? (robust check across possible shapes)
+  const isEventEnded = Boolean(detail?.evacuation_event?.evacuation_end_date);
+  const [alreadyEndedOpen, setAlreadyEndedOpen] = useState(false);
+
+  useEffect(() => {
+    console.log("[details.evacuation_event]", detail?.evacuation_event);
+    console.log("[isEventEnded]", isEventEnded);
+  }, [detail, isEventEnded]);
+
+
+  // End Operation flow
+  const [endOpen, setEndOpen] = useState(false);
+  const [undecampedCount, setUndecampedCount] = useState<number>(0);
+  const [ending, setEnding] = useState(false);
+  const [endError, setEndError] = useState<string | null>(null);
+
+  // bounds for the modal (earliest = disaster start)
+  const minDateForEnd =
+    (detail as any)?.disaster_evacuation_event?.evacuation_start_date
+      ? startOfDayLocal(new Date((detail as any).disaster_evacuation_event.evacuation_start_date))
+      : detail?.disaster?.disaster_start_date
+      ? startOfDayLocal(new Date(detail.disaster.disaster_start_date))
+      : undefined;
+      
+    // --- sorting state & helpers ---
+    const [sort, setSort] = useState<SortState>(null);
+    const toggleSort = (key: SortKey) => {
+      setSort((prev) => {
+        if (!prev || prev.key !== key) return { key, dir: "asc" };
+        if (prev.dir === "asc") return { key, dir: "desc" };
+        return null;
+      });
+      setPage(1);
+    };
 
   // Filter Registered Evacuees Table
   const sortRows = (rows: FamilyEvacueeInformation[], s: SortState) => {
@@ -332,9 +362,22 @@ const { paginatedEvacuees, totalRows, totalPages } = useMemo(() => {
       )
     : base;
 
-  const defaultSorted = [...searched].sort(
-    (a, b) => getRegisteredAt(b) - getRegisteredAt(a)
-  );
+// Group: active (no decampment) first, decamped last
+const undecamped = searched.filter((f) => !f.decampment_timestamp);
+const decamped = searched.filter((f) => !!f.decampment_timestamp);
+
+// Active rows: latest registered first
+undecamped.sort((a, b) => getRegisteredAt(b) - getRegisteredAt(a));
+
+// Decamped rows: most recently decamped first (but still below active)
+decamped.sort((a, b) => {
+  const ta = Date.parse(a.decampment_timestamp || "");
+  const tb = Date.parse(b.decampment_timestamp || "");
+  return tb - ta;
+});
+
+const defaultSorted = [...undecamped, ...decamped];
+
 
   const sorted = sort ? sortRows(defaultSorted, sort) : defaultSorted;
 
@@ -393,7 +436,15 @@ const { paginatedEvacuees, totalRows, totalPages } = useMemo(() => {
   const [familyHeadSearchResults, setFamilyHeadSearchResults] = useState<FamilyHeadResult[]>([]);
   const [fhLoading, setFhLoading] = useState(false);
 
+  useEffect(() => {
+  if (isEventEnded && showSearchModal) {
+    setShowSearchModal(false);
+    setAlreadyEndedOpen(true);
+  }
+}, [isEventEnded, showSearchModal]);
+
   const handleEditMember = async (member: FamilyMember) => {
+    if (isEventEnded) { setAlreadyEndedOpen(true); return; }
     // Check if user has permission to update family information
     if (!canUpdateFamilyInformation) {
       console.warn("User does not have permission to update family information");
@@ -552,6 +603,7 @@ const { paginatedEvacuees, totalRows, totalPages } = useMemo(() => {
   };
 
   const handleManualRegister = () => {
+     if (isEventEnded) { setAlreadyEndedOpen(true); return; }
     setFormData({
       firstName: "",
       middleName: "",
@@ -607,11 +659,75 @@ const { paginatedEvacuees, totalRows, totalPages } = useMemo(() => {
   };
 
   const handleRegisterClick = () => {
+    if (isEventEnded) { setAlreadyEndedOpen(true); return; }
     setEvacueeModalMode("register");
     setShowSearchModal(true);
     setSearchName("");
     setSearchResults([]);
   };
+
+// REPLACE this function
+const openEndFlow = async () => {
+  // If the event is already ended, just show the info dialog instead of the action modal
+  if (isEventEnded) {
+    setAlreadyEndedOpen(true);   // <- you added this state earlier
+    return;
+  }
+
+  try {
+    const { data } = await axios.get<{ count: number }>(
+      `http://localhost:3000/api/v1/evacuees/${centerId}/undecamped-count`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    setUndecampedCount(data?.count ?? 0);
+    setEndOpen(true);
+  } catch (e: any) {
+    alert(e?.response?.data?.message || "Failed to check undecamped families.");
+  }
+};
+
+const decampAllThenEnd = async (isoTs: string) => {
+  if (!centerId || !token) return;
+  setEnding(true);
+  setEndError(null);
+
+  try {
+    if ((undecampedCount ?? 0) > 0) {
+      await axios.post(
+        `http://localhost:3000/api/v1/evacuees/${centerId}/decamp-all`,
+        { decampment_timestamp: isoTs },
+        { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } }
+      );
+    }
+
+    await axios.post(
+      `http://localhost:3000/api/v1/evacuees/${centerId}/end`,
+      { evacuation_end_date: isoTs },
+      { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } }
+    );
+
+    setEndOpen(false);
+    await refreshAll();
+  } catch (e: any) {
+    const status = e?.response?.status;
+    const msg = e?.response?.data?.message || "Failed to end evacuation operation.";
+
+    // If backend says it's already ended, close the modal and show the info dialog
+    if (status === 409 && /already ended/i.test(msg)) {
+      setEndOpen(false);
+      setAlreadyEndedOpen(true);
+      await refreshAll({ silent: true });
+      return;
+    }
+
+    setEndError(msg);
+  } finally {
+    setEnding(false);
+  }
+};
+
+
+
 
   const handleRowClick = (evacueeId: number) => {
     const selected = paginatedEvacuees.find((e) => e.id === evacueeId);
@@ -631,6 +747,7 @@ const { paginatedEvacuees, totalRows, totalPages } = useMemo(() => {
   }
 
   const handleRegisterEvacuee = async () => {
+    if (isEventEnded) { setAlreadyEndedOpen(true); return; }
     // Check permission for edit mode
     if (evacueeModalMode === "edit" && !canUpdateEvacueeInformation) {
       console.warn("User does not have permission to update evacuee information");
@@ -887,17 +1004,45 @@ const { paginatedEvacuees, totalRows, totalPages } = useMemo(() => {
                   className="w-full border-border"
                 />
               </div>
-              {/* Register Evacuee Button - Only visible with create_evacuee_information permission */}
+
+            <div className="flex items-center gap-3 self-start sm:self-auto">
+              {/* When ENDED: show a button-style pill BEFORE Register */}
+              {isEventEnded ? (
+                <Button
+                  type="button"
+                  onClick={() => setAlreadyEndedOpen(true)}
+                  className="h-10 px-6 bg-red-100 text-red-700 border border-red-300 hover:bg-red-200 cursor-pointer"
+                  title="Evacuation operation already ended"
+                >
+                  Evacuation operation ended
+                </Button>
+              ) : (
+                /* When NOT ended: show the real “End Evacuation Operation” button */
+                canEndOperation && (
+                  <Button
+                    className="h-10 bg-red-600 hover:bg-red-700 text-white px-6 cursor-pointer"
+                    onClick={openEndFlow}
+                  >
+                    End Evacuation Operation
+                  </Button>
+                )
+              )}
+
+              {/* Register Evacuee — dimmed when ended, but still clickable to show the modal */}
               {canCreateEvacueeInformation && (
                 <Button
-                  className="bg-green-700 hover:bg-green-800 text-white px-6 flex gap-2 items-center cursor-pointer self-start sm:self-auto"
-                  onClick={handleRegisterClick}
+                  className={`bg-green-700 hover:bg-green-800 text-white px-6 flex gap-2 items-center cursor-pointer ${
+                    isEventEnded ? "opacity-60" : ""
+                  }`}
+                  onClick={() => (isEventEnded ? setAlreadyEndedOpen(true) : handleRegisterClick())}
+                  title={isEventEnded ? "Evacuation operation already ended" : "Register a new evacuee"}
+                  aria-disabled={isEventEnded}  // accessibility + keeps hover/focus styles
                 >
                   <span className="text-lg">+</span> Register Evacuee
                 </Button>
               )}
             </div>
-
+            </div>
             <div className="rounded-md border border-input">
               <div className="max-h-[70vh] overflow-x-auto overflow-y-auto pr-2 pb-2 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-corner]:bg-transparent dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500 [scrollbar-width:thin] [scrollbar-color:rgb(209_213_219)_transparent] dark:[scrollbar-color:rgb(115_115_115)_transparent]">
                 <Table className="text-sm">
@@ -1048,10 +1193,12 @@ const { paginatedEvacuees, totalRows, totalPages } = useMemo(() => {
               canUpdateEvacuee={canUpdateEvacueeInformation}
               canUpdateFamily={canUpdateFamilyInformation}
               disasterStartDate={detail?.disaster?.disaster_start_date ?? null}
+              eventEnded={isEventEnded}
+              onEndedAction={() => setAlreadyEndedOpen(true)}
               onSaved={async (_patch) => {
-                // _patch is available if you want to do optimistic updates later
                 await refreshAll({ silent: true });
               }}
+               
             />
             <RegisterEvacueeModal
               isOpen={evacueeModalOpen}
@@ -1079,12 +1226,31 @@ const { paginatedEvacuees, totalRows, totalPages } = useMemo(() => {
               searchResults={searchResults}
               onSelectEvacuee={handleSelectEvacuee}
               onManualRegister={handleManualRegister}
+              eventEnded={isEventEnded}
+              onEndedAction={() => setAlreadyEndedOpen(true)}
               registeredIds={registeredEvacueeIds}
               canCreateFamilyInformation={canCreateFamilyInformation}
               currentEventId={centerId}
               currentEcId={detail?.evacuation_center?.evacuation_center_id ?? null}
               currentDisasterId={detail?.disaster?.disasters_id ?? null}
             />
+
+            <DecampAllModal
+            open={endOpen}
+            onOpenChange={setEndOpen}
+            undecampedCount={undecampedCount}
+            minDate={minDateForEnd}
+            maxDate={new Date()}
+            loading={ending}
+            error={endError}
+            onConfirm={decampAllThenEnd}
+          />
+
+          <AlreadyEndedDialog
+            open={alreadyEndedOpen}
+            onOpenChange={setAlreadyEndedOpen}
+          />
+
             {/* Family Head Search Modal - Only visible with create_family_information permission */}
             {canCreateFamilyInformation && (
               <FamilyHeadSearchModal

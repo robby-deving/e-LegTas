@@ -14,7 +14,13 @@ const {
 } = require('../controllers/evacuee.controller');
 const { searchEvacueeByName, searchFamilyHeads } = require('../controllers/evacueeSearch.controller');
 const { authenticateUser, requirePermission } = require('../middleware');
-const { decampFamily } = require('../controllers/decamp.controller');
+const {
+  decampFamily,
+  undecampedCountInEvent,
+  decampAllFamiliesInEvent,
+  endEvacuationOperation,
+} = require('../controllers/decamp.controller');
+
 
 // Create an Express Router instance
 const router = express.Router();
@@ -55,6 +61,28 @@ router.post('/:disasterEvacuationEventId/transfer-head', authenticateUser, requi
 
 // Decamp a whole family for a specific event
 router.post('/:disasterEvacuationEventId/families/:familyHeadId/decamp', decampFamily);
+
+// Count currently active (undecamped) families in this event
+router.get(
+  '/:disasterEvacuationEventId/undecamped-count',
+  authenticateUser,
+  undecampedCountInEvent
+);
+
+// Decamp all active families using a chosen timestamp
+router.post(
+  '/:disasterEvacuationEventId/decamp-all',
+  authenticateUser,
+  decampAllFamiliesInEvent
+);
+
+// Mark the event as ended (sets evacuation_end_date)
+router.post(
+  '/:disasterEvacuationEventId/end',
+  authenticateUser,
+  endEvacuationOperation
+);
+
 
 // Update an evacuee's details by ID
 // Example: PUT /api/v1/evacuees/123

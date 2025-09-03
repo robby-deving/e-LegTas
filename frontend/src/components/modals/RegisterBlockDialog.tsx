@@ -17,13 +17,8 @@ type Props = {
   onOpenChange: (open: boolean) => void;
   personName?: string;
   ecName?: string;
-
-  /** Existing prop your code already supports */
   description?: React.ReactNode;
-
-  /** 👇 Add this so <RegisterBlockDialog message="..."/> also works */
   message?: React.ReactNode;
-
   onSecondaryAction?: () => void;
   secondaryLabel?: string;
   closeLabel?: string;
@@ -36,7 +31,7 @@ function RegisterBlockDialog({
   personName,
   ecName,
   description,
-  message, // 👈 new prop
+  message, 
   onSecondaryAction,
   secondaryLabel = "OK",
   closeLabel = "Close",
@@ -58,7 +53,6 @@ function RegisterBlockDialog({
     </>
   );
 
-  // Prefer explicit description, then message, then default template
   const body = description ?? message ?? defaultMessage;
 
   return (
