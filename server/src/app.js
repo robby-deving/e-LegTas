@@ -27,7 +27,7 @@ logger.info('SMTP_PASS status', { present: !!process.env.SMTP_PASS });
 
 // Middleware
 app.use(cors({
-  origin: ['http://localhost:5173', 'https://e-legtas-git-optimize-robby-devings-projects.vercel.app'],
+  origin: ['http://localhost:5173', 'https://e-legtas-git-devbranch-robby-devings-projects.vercel.app'],
   credentials: true
 }));
 app.use(cookieParser());
