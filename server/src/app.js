@@ -9,6 +9,8 @@ const morgan = require('morgan');
 const logger = require('./utils/logger');
 const { router, baseAPI } = require('./routes/router');
 const { ensureReportsBucket } = require('./config/storage');
+const { globalRateLimit } = require('./middleware/rateLimiting');
+const { ipAddressMiddleware } = require('./utils/ipAddress');
 
 // Load environment variables
 dotenv.config();
@@ -30,6 +32,12 @@ app.use(cors({
 }));
 app.use(cookieParser());
 app.use(express.json());
+
+// IP address detection middleware - must be before rate limiting
+app.use(ipAddressMiddleware);
+
+// Global rate limiting - applies to all requests
+app.use(globalRateLimit);
 
 // HTTP request logging (Morgan -> Winston)
 app.use(morgan(':method :url :status :res[content-length] - :response-time ms', { stream: logger.stream }));
