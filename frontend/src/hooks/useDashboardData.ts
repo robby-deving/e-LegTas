@@ -1,6 +1,8 @@
 import { RealtimeChannel } from "@supabase/supabase-js";
 import type { DateRange } from "react-day-picker";
 import { useEffect, useState } from "react";
+import { useSelector } from 'react-redux';
+import { selectToken } from '../features/auth/authSlice';
 import { supabase } from "../lib/supabaseClient";
 import {
   listenToEvacuationSummaryChange,
@@ -9,10 +11,39 @@ import {
 } from '../services/dashboardService';
 import type {
   Disaster,
-  DisasterEvacuationEvent,
 } from '../types/dashboard';
 
 export function useDashboardData(selectedDateRange?: DateRange) {
+  const token = useSelector(selectToken);
+  const [effectiveToken, setEffectiveToken] = useState<string>('');
+
+  // Resolve a valid access token from Redux → storage → Supabase session
+  useEffect(() => {
+    let isMounted = true;
+    const resolveToken = async () => {
+      // 1) Redux
+      if (token) {
+        if (isMounted) setEffectiveToken(token);
+        return;
+      }
+      // 2) Storage
+      const stored =
+        (typeof window !== 'undefined' && (localStorage.getItem('authToken') || sessionStorage.getItem('authToken'))) ||
+        '';
+      if (stored) {
+        if (isMounted) setEffectiveToken(stored);
+        return;
+      }
+      // 3) Supabase session
+      try {
+        const { data } = await supabase.auth.getSession();
+        const supaToken = data?.session?.access_token || '';
+        if (supaToken && isMounted) setEffectiveToken(supaToken);
+      } catch {}
+    };
+    resolveToken();
+    return () => { isMounted = false; };
+  }, [token]);
   const [disasters, setDisasters] = useState<Disaster[]>([]);
   const [selectedDisaster, setSelectedDisaster] = useState<Disaster | null>(null);
   const [activeEvacuationCenters, setActiveEvacuationCenters] = useState<number>(0);
@@ -30,10 +61,18 @@ export function useDashboardData(selectedDateRange?: DateRange) {
   >([]);
   const [loading, setLoading] = useState(false);
 
+  const getAuthHeaders = () => ({
+    'Authorization': effectiveToken ? `Bearer ${effectiveToken}` : '',
+    'Content-Type': 'application/json'
+  });
+
   useEffect(() => {
+    if (!effectiveToken) return; // wait for auth token
     const fetchDisasters = async () => {
       try {
-        const res = await fetch('http://localhost:3000/api/v1/dashboard/disasters');
+        const res = await fetch('http://localhost:3000/api/v1/dashboard/disasters', {
+          headers: getAuthHeaders(),
+        });
         const data: Disaster[] = await res.json();
         setDisasters(data);
 
@@ -66,10 +105,11 @@ export function useDashboardData(selectedDateRange?: DateRange) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [selectedDisaster]);
+  }, [selectedDisaster, effectiveToken]);
 
   // Active Evacuation Centers Count
   useEffect(() => {
+    if (!effectiveToken) return; // wait for auth token
     const fetchActiveEvacuationCenters = async () => {
       if (!selectedDisaster?.id) return;
 
@@ -97,7 +137,7 @@ export function useDashboardData(selectedDateRange?: DateRange) {
           url += `?from=${encodeURIComponent(fromIso)}&to=${encodeURIComponent(toIso)}`;
         }
 
-        const response = await fetch(url);
+        const response = await fetch(url, { headers: getAuthHeaders() });
         const result = await response.json();
 
         if (response.ok) {
@@ -139,10 +179,11 @@ export function useDashboardData(selectedDateRange?: DateRange) {
     return () => {
       if (channel) supabase.removeChannel(channel);
     };
-  }, [selectedDisaster, selectedDateRange]); // rerun if selected disaster changes
+  }, [selectedDisaster, selectedDateRange, effectiveToken]); // rerun if selected disaster changes
 
   // Registered Evacuees Count
   useEffect(() => {
+    if (!effectiveToken) return; // wait for auth token
     const fetchRegisteredEvacueesCount = async () => {
       if (!selectedDisaster?.id) return;
 
@@ -171,7 +212,7 @@ export function useDashboardData(selectedDateRange?: DateRange) {
           url += `?from=${encodeURIComponent(fromIso)}&to=${encodeURIComponent(toIso)}`;
         }
 
-        const response = await fetch(url);
+        const response = await fetch(url, { headers: getAuthHeaders() });
         const result = await response.json();
 
         if (response.ok) {
@@ -220,10 +261,11 @@ export function useDashboardData(selectedDateRange?: DateRange) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [selectedDisaster, selectedDateRange]);
+  }, [selectedDisaster, selectedDateRange, effectiveToken]);
 
   // Registered Families Count
   useEffect(() => {
+    if (!effectiveToken) return; // wait for auth token
     const fetchRegisteredFamiliesCount = async () => {
       if (!selectedDisaster?.id) return;
 
@@ -250,7 +292,7 @@ export function useDashboardData(selectedDateRange?: DateRange) {
           url += `?from=${encodeURIComponent(fromIso)}&to=${encodeURIComponent(toIso)}`;
         }
 
-        const response = await fetch(url);
+        const response = await fetch(url, { headers: getAuthHeaders() });
         const result = await response.json();
 
         if (response.ok) {
@@ -300,10 +342,11 @@ export function useDashboardData(selectedDateRange?: DateRange) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [selectedDisaster, selectedDateRange]);
+  }, [selectedDisaster, selectedDateRange, effectiveToken]);
 
   // Evacuee Statistics
   useEffect(() => {
+    if (!effectiveToken) return; // wait for auth token
     const fetchEvacueeStatistics = async () => {
       if (!selectedDisaster?.id) return;
 
@@ -332,7 +375,7 @@ export function useDashboardData(selectedDateRange?: DateRange) {
           url += `?from=${encodeURIComponent(fromIso)}&to=${encodeURIComponent(toIso)}`;
         }
 
-        const response = await fetch(url);
+        const response = await fetch(url, { headers: getAuthHeaders() });
         const result = await response.json();
 
         if (response.ok) {
@@ -406,10 +449,11 @@ export function useDashboardData(selectedDateRange?: DateRange) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [selectedDisaster, selectedDateRange]);
+  }, [selectedDisaster, selectedDateRange, effectiveToken]);
 
   // Evacuation Center Capacity Status
   useEffect(() => {
+    if (!token) return; // wait for auth token
     const fetchEvacuationCapacityStatus = async () => {
       if (!selectedDisaster?.id) return;
 
@@ -438,7 +482,7 @@ export function useDashboardData(selectedDateRange?: DateRange) {
           url += `?from=${encodeURIComponent(fromIso)}&to=${encodeURIComponent(toIso)}`;
         }
 
-        const response = await fetch(url);
+  const response = await fetch(url, { headers: getAuthHeaders() });
         const result = await response.json();
 
         if (response.ok) {
@@ -537,7 +581,7 @@ export function useDashboardData(selectedDateRange?: DateRange) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [selectedDisaster, selectedDateRange]);
+  }, [selectedDisaster, selectedDateRange, token]);
 
   return {
     disasters,

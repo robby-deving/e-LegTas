@@ -23,8 +23,10 @@ import ForgotPassword1 from './pages/ForgotPassword1';
 import ForgotPassword2 from './pages/ForgotPassword2';
 import DisasterDetail from './pages/DisasterDetail';
 import EvacuationCenterDetail from './pages/EvacuationCenterDetail';
-// Temporary testing route
-import CampManagerDashboard from "./components/Dashboard/CampManagerDashboard";
+
+
+import PrintReport from './pages/PrintReport';
+
 
 // Protected Route Component
 interface ProtectedRouteProps {
@@ -131,9 +133,11 @@ function App() {
         
         <Route path="/evacuation-information" element={
           <ProtectedRoute>
-            <AppLayout>
-              <EvacuationInfo />
-            </AppLayout>
+            <PermissionGate permission="view_disaster" fallback={<StatusCodes code={403} />}>
+              <AppLayout>
+                <EvacuationInfo />
+              </AppLayout>
+            </PermissionGate>
           </ProtectedRoute>
         } />
         
@@ -149,9 +153,11 @@ function App() {
         
         <Route path="/reports" element={
           <ProtectedRoute>
-            <AppLayout>
-              <Reports />
-            </AppLayout>
+            <PermissionGate permission="view_reports" fallback={<StatusCodes code={403} /> }>
+              <AppLayout>
+                <Reports />
+              </AppLayout>
+            </PermissionGate>
           </ProtectedRoute>
         } />
         
@@ -187,36 +193,54 @@ function App() {
         
         <Route path="/profile" element={
           <ProtectedRoute>
-            <AppLayout>
-              <Profile />
-            </AppLayout>
+            <PermissionGate permission="view_profile" fallback={<StatusCodes code={403} />}>
+              <AppLayout>
+                <Profile />
+              </AppLayout>
+            </PermissionGate>
           </ProtectedRoute>
         } />
         
-
         <Route path="/evacuation-information/:id" element={
           <ProtectedRoute>
-            <AppLayout>
-              <DisasterDetail />
-            </AppLayout>
+            <PermissionGate permission="view_disaster" fallback={<StatusCodes code={403} />}>
+              <AppLayout>
+                <DisasterDetail />
+              </AppLayout>
+            </PermissionGate>
           </ProtectedRoute>
         } />
         <Route path="/evacuation-information/:id/:disasterEvacuationEventId" element={
           <ProtectedRoute>
-            <AppLayout>
-              <EvacuationCenterDetail />
-            </AppLayout>
+            <PermissionGate permission="view_evacuee_information" fallback={<StatusCodes code={403} />}>
+              <AppLayout>
+                <EvacuationCenterDetail />
+              </AppLayout>
+            </PermissionGate>
           </ProtectedRoute>
         } />
+        
 
-        {/* Temporary testing route */}
-        <Route path="/camp-dashboard" element={
-          <ProtectedRoute>
-            <AppLayout>
-              <CampManagerDashboard />
-            </AppLayout>
-          </ProtectedRoute>
-          } />
+        <Route path="/print" element={<PrintReport />} />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
       </Routes>
     </PermissionProvider>
   );

@@ -33,23 +33,22 @@ export default function UserManagement(){
     const currentUser = useSelector(selectCurrentUser);
     const token = useSelector(selectToken);
     const { hasPermission, loading: permissionsLoading } = usePermissions();
-    const hasViewUserManagement = hasPermission('view_user_management');
     const hasAddUser = hasPermission('add_user');
     const hasUpdateUser = hasPermission('update_user');
     const hasDeleteUser = hasPermission('delete_user');
     const hasAssignRole = hasPermission('add_user_role');
     // Evac center capabilities are derived from granular permissions (no single 'manage_evacuation_centers' permission exists)
-    const canSeeEvacColumn = hasPermission('view_evacuation_centers');
     const canManageEvacGlobally = hasPermission('create_evacuation_center') || hasPermission('update_evacuation_center') || hasPermission('delete_evacuation_center');
     
     // All useState hooks must be called before any conditional returns
     const [searchTerm, setSearchTerm] = useState('');
+    const [selectedRoleFilter, setSelectedRoleFilter] = useState<string>('all'); // Add role filter state
     const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
     const [isEditUserModalOpen, setIsEditUserModalOpen] = useState(false);
     const [editingUser, setEditingUser] = useState<User | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
     const [rowsPerPage, setRowsPerPage] = useState(10);
-    const [selectedRows, setSelectedRows] = useState(0);
+    const [selectedRows] = useState(0);
     const [users, setUsers] = useState<User[]>([]);
     const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
@@ -57,11 +56,11 @@ export default function UserManagement(){
     const [formLoading, setFormLoading] = useState(false);
     const [barangays, setBarangays] = useState<{id: number; name: string}[]>([]);
     const [evacuationCenters, setEvacuationCenters] = useState<{id: number; name: string}[]>([]);
-    const [dropdownOpen, setDropdownOpen] = useState<number | null>(null);
-    const [dropdownPosition, setDropdownPosition] = useState<{showAbove: boolean; left: number; top: number} | null>(null);
+
     const [deleteConfirmUser, setDeleteConfirmUser] = useState<User | null>(null);
     const [roles, setRoles] = useState<{id: number; name: string}[]>([]);
     const [rolesLoading, setRolesLoading] = useState(true);
+    const [successMessage, setSuccessMessage] = useState<string | null>(null);
     
     // Form state
     const [formData, setFormData] = useState({
@@ -128,7 +127,7 @@ export default function UserManagement(){
     };
 
     const currentRoleConfig = getCurrentRoleConfig();
-
+    
     // Helper function to get role color for borders and text
     const getRoleColor = (roleId: number) => {
         const roleColorMap: { [key: number]: string } = {
@@ -168,15 +167,19 @@ export default function UserManagement(){
 
     // Helper function to get assignable roles for current user
     const getAssignableRoles = () => {
-        if (!currentRoleConfig || !currentRoleConfig.assignableRoleIds) return roles;
-        
-        // If "all" is specified, return all roles
-        if (currentRoleConfig.assignableRoleIds === "all") {
-            return roles;
+        if (!currentRoleConfig || !currentRoleConfig.assignableRoleIds) {
+            // Exclude System Admin (role_id 1) from all assignable roles
+            return roles.filter(role => role.id !== 1);
         }
         
-        // Otherwise, filter by the specified role IDs
+        // If "all" is specified, return all roles except System Admin
+        if (currentRoleConfig.assignableRoleIds === "all") {
+            return roles.filter(role => role.id !== 1);
+        }
+        
+        // Otherwise, filter by the specified role IDs and exclude System Admin
         return roles.filter(role => 
+            role.id !== 1 && // Always exclude System Admin
             Array.isArray(currentRoleConfig.assignableRoleIds) && 
             currentRoleConfig.assignableRoleIds.includes(role.id)
         );
@@ -220,13 +223,15 @@ export default function UserManagement(){
 
     // Helper function to get appropriate API endpoint based on user role
     const getUsersApiEndpoint = () => {
-        if (!currentRoleConfig) return 'http://localhost:3000/api/v1/users';
-        return currentRoleConfig.apiEndpoint;
+        if (!currentRoleConfig) return 'http://localhost:3000/api/v1/users?limit=100';
+        return `${currentRoleConfig.apiEndpoint}?limit=100`;
     };
 
     // Helper function to filter users based on current user's role group
     const filterUsersByRoleGroup = (allUsers: any[]) => {
-        if (!currentRoleConfig) return allUsers;
+        if (!currentRoleConfig) {
+            return allUsers;
+        }
         
         // If "all" is specified, return all users
         if (currentRoleConfig.allowedRoleIds === "all") {
@@ -234,10 +239,12 @@ export default function UserManagement(){
         }
         
         // Otherwise, filter by the specified role IDs
-        return allUsers.filter((user: any) => 
+        const filteredUsers = allUsers.filter((user: any) => 
             Array.isArray(currentRoleConfig.allowedRoleIds) && 
             currentRoleConfig.allowedRoleIds.includes(user.role_id)
         );
+        
+        return filteredUsers;
     };
 
     // ALL useEffect hooks must be called before conditional logic
@@ -247,6 +254,7 @@ export default function UserManagement(){
             try {
                 setLoading(true);
                 const endpoint = getUsersApiEndpoint();
+                
                 const response = await fetch(endpoint, {
                     headers: getAuthHeaders(),
                 });
@@ -259,8 +267,10 @@ export default function UserManagement(){
                 
                 // Use backend user shape directly (already matches User interface)
                 const allTransformedUsers = data.users;
+                
                 // Apply role-based filtering
                 const filteredUsersByRole = filterUsersByRoleGroup(allTransformedUsers);
+                
                 setUsers(filteredUsersByRole);
                 setFilteredUsers(filteredUsersByRole);
                 setError(null);
@@ -280,7 +290,9 @@ export default function UserManagement(){
     useEffect(() => {
         const fetchBarangays = async () => {
             try {
-                const response = await fetch('http://localhost:3000/api/v1/users/data/barangays');
+                const response = await fetch('http://localhost:3000/api/v1/users/data/barangays', {
+                    headers: getAuthHeaders(),
+                });
                 
                 if (!response.ok) {
                     throw new Error(`Failed to fetch barangays: ${response.status}`);
@@ -300,14 +312,16 @@ export default function UserManagement(){
         };
 
         fetchBarangays();
-    }, []);
+    }, [token]); // Add token as dependency
 
     // Fetch evacuation centers from backend
     useEffect(() => {
         const fetchEvacuationCenters = async () => {
             try {
                 // Add query parameter to only fetch active evacuation centers (where deleted_at IS NULL)
-                const response = await fetch('http://localhost:3000/api/v1/users/data/evacuation-centers?active=true');
+                const response = await fetch('http://localhost:3000/api/v1/users/data/evacuation-centers?active=true', {
+                    headers: getAuthHeaders(),
+                });
                 
                 if (!response.ok) {
                     throw new Error(`Failed to fetch evacuation centers: ${response.status}`);
@@ -335,14 +349,24 @@ export default function UserManagement(){
         };
 
         fetchEvacuationCenters();
-    }, []);
+    }, [token]); // Add token as dependency
 
-    // Filter users based on search term
+    // Filter users based on search term and role filter
     useEffect(() => {
-        if (!searchTerm.trim()) {
-            setFilteredUsers(users);
-        } else {
-            const filtered = users.filter(user => {
+        let filtered = users;
+        
+        // Always exclude System Admin users (role_id 1) from the table
+        filtered = filtered.filter(user => user.role_id !== 1);
+        
+        // Apply role filter first
+        if (selectedRoleFilter !== 'all') {
+            const roleId = parseInt(selectedRoleFilter);
+            filtered = filtered.filter(user => user.role_id === roleId);
+        }
+        
+        // Then apply search term filter
+        if (searchTerm.trim()) {
+            filtered = filtered.filter(user => {
                 const fullName = `${user.first_name} ${user.middle_name || ''} ${user.last_name}`.toLowerCase();
                 const email = user.email.toLowerCase();
                 const role = (user.role_name || '').toLowerCase();
@@ -352,22 +376,13 @@ export default function UserManagement(){
                        email.includes(searchLower) || 
                        role.includes(searchLower);
             });
-            setFilteredUsers(filtered);
         }
-        setCurrentPage(1); // Reset to first page when searching
-    }, [searchTerm, users]);
+        
+        setFilteredUsers(filtered);
+        setCurrentPage(1); // Reset to first page when filtering
+    }, [searchTerm, selectedRoleFilter, users]);
 
-    // Close dropdown when clicking outside
-    useEffect(() => {
-        const handleClickOutside = () => {
-            setDropdownOpen(null);
-        };
 
-        document.addEventListener('click', handleClickOutside);
-        return () => {
-            document.removeEventListener('click', handleClickOutside);
-        };
-    }, []);
     
     // Permission checks based on role and permission - Now using currentRoleConfig directly
     
@@ -577,6 +592,13 @@ export default function UserManagement(){
     const endIndex = startIndex + rowsPerPage;
     const paginatedUsers = filteredUsers.slice(startIndex, endIndex);
 
+    // Function to clear all filters
+    const clearAllFilters = () => {
+        setSearchTerm('');
+        setSelectedRoleFilter('all');
+        setCurrentPage(1);
+    };
+
     // Handle form input changes
     const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
@@ -590,6 +612,8 @@ export default function UserManagement(){
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setFormLoading(true);
+        setError(null); // Clear any previous errors
+        setSuccessMessage(null); // Clear any previous success messages
         
         try {
             // Set role and evacuation center based on permission and role group
@@ -651,6 +675,10 @@ export default function UserManagement(){
             const filteredUsersByRole = filterUsersByRoleGroup(allTransformedUsers);
             setUsers(filteredUsersByRole);
             setFilteredUsers(filteredUsersByRole);
+            setSuccessMessage('User added successfully!');
+            
+            // Auto-clear success message after 5 seconds
+            setTimeout(() => setSuccessMessage(null), 5000);
             
         } catch (err) {
             console.error('Error creating user:', err);
@@ -679,6 +707,9 @@ export default function UserManagement(){
         setIsAddUserModalOpen(false);
         setIsEditUserModalOpen(false);
         setEditingUser(null);
+        setError(null); // Clear any previous errors
+        setSuccessMessage(null); // Clear any previous success messages
+        setSelectedRoleFilter('all'); // Reset role filter to show all users
     };
 
     // Handle opening edit modal
@@ -707,6 +738,8 @@ export default function UserManagement(){
         if (!editingUser) return;
         
         setFormLoading(true);
+        setError(null); // Clear any previous errors
+        setSuccessMessage(null); // Clear any previous success messages
         
         try {
             // Handle role and evacuation center based on permission and role group
@@ -755,6 +788,10 @@ export default function UserManagement(){
             const filteredUsersByRole = filterUsersByRoleGroup(allTransformedUsers);
             setUsers(filteredUsersByRole);
             setFilteredUsers(filteredUsersByRole);
+            setSuccessMessage('User updated successfully!');
+            
+            // Auto-clear success message after 5 seconds
+            setTimeout(() => setSuccessMessage(null), 5000);
             
         } catch (err) {
             console.error('Error updating user:', err);
@@ -764,18 +801,7 @@ export default function UserManagement(){
         }
     };
 
-    // Function to determine dropdown position
-    const getDropdownPosition = (event: React.MouseEvent) => {
-        const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
-        const viewportHeight = window.innerHeight;
-        const dropdownHeight = 100; // Estimated dropdown height
-        
-        return {
-            showAbove: rect.bottom + dropdownHeight > viewportHeight,
-            left: rect.right - 192, // 192px = w-48 (48 * 4px)
-            top: rect.bottom + dropdownHeight > viewportHeight ? rect.top - dropdownHeight : rect.bottom + 8
-        };
-    };
+
 
     // Handle delete user
     const handleDeleteUser = async (userId: number) => {
@@ -804,6 +830,10 @@ export default function UserManagement(){
             setUsers(filteredUsersByRole);
             setFilteredUsers(filteredUsersByRole);
             setDeleteConfirmUser(null);
+            setSuccessMessage('User deleted successfully!');
+            
+            // Auto-clear success message after 5 seconds
+            setTimeout(() => setSuccessMessage(null), 5000);
             
         } catch (err) {
             console.error('Error deleting user:', err);
@@ -838,23 +868,63 @@ export default function UserManagement(){
                 
                 {/* Search Box and Add User Button */}
                 <div className='mt-4 mb-4 flex justify-between items-center'>
-                    <div className='relative w-72'>
-                        <div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none'>
-                            <Search className='h-5 w-5 text-gray-400' />
+                    <div className='flex items-center gap-4'>
+                        {/* Search Box */}
+                        <div className='relative w-72'>
+                            <div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none'>
+                                <Search className='h-5 w-5 text-gray-400' />
+                            </div>
+                            <input
+                                type='text'
+                                placeholder='Search'
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className='block w-full pl-10 pr-3 py-2 leading-5 placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E] sm:text-sm'
+                                style={{
+                                    borderRadius: '6px',
+                                    border: '1px solid #E4E4E7',
+                                    background: '#FFF',
+                                    boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)'
+                                }}
+                            />
                         </div>
-                        <input
-                            type='text'
-                            placeholder='Search'
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className='block w-full pl-10 pr-3 py-2 leading-5 placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E] sm:text-sm'
-                            style={{
-                                borderRadius: '6px',
-                                border: '1px solid #E4E4E7',
-                                background: '#FFF',
-                                boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)'
-                            }}
-                        />
+                        
+                        {/* Role Filter Dropdown */}
+                        <div className='flex items-center gap-2'>
+                            <label className='text-sm font-medium text-gray-700'>Filter by Role:</label>
+                            <select
+                                value={selectedRoleFilter}
+                                onChange={(e) => setSelectedRoleFilter(e.target.value)}
+                                className='px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E]'
+                                style={{
+                                    background: '#FFF',
+                                    minWidth: '160px'
+                                }}
+                            >
+                                <option value="all">All Roles</option>
+                                {!rolesLoading && roles
+                                    .filter(role => role.id !== 1) // Exclude System Admin (role_id 1)
+                                    .map(role => (
+                                        <option key={role.id} value={role.id}>
+                                            {role.name.toUpperCase()}
+                                        </option>
+                                    ))
+                                }
+                                {rolesLoading && (
+                                    <option disabled>Loading roles...</option>
+                                )}
+                            </select>
+                            
+                            {/* Clear Filters Button */}
+                            {(searchTerm || selectedRoleFilter !== 'all') && (
+                                <button
+                                    onClick={clearAllFilters}
+                                    className='px-3 py-2 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E] transition-colors'
+                                >
+                                    Clear Filters
+                                </button>
+                            )}
+                        </div>
                     </div>
                     
                     {/* Add User Button - Show for users with add_user permission (independent of role group) */}
@@ -884,6 +954,50 @@ export default function UserManagement(){
                 </div>
                 
                 {/* Users Table */}
+                {/* Success Message - Show above table if there's a success message */}
+                {successMessage && (
+                    <div className='mb-4 p-4 bg-green-50 border border-green-200 rounded-md'>
+                        <div className='flex items-center justify-between'>
+                            <div className='flex items-center'>
+                                <svg className='w-5 h-5 text-green-400 mr-2' fill='currentColor' viewBox='0 0 20 20'>
+                                    <path fillRule='evenodd' d='M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z' clipRule='evenodd' />
+                                </svg>
+                                <span className='text-green-800 font-medium'>{successMessage}</span>
+                            </div>
+                            <button
+                                onClick={() => setSuccessMessage(null)}
+                                className='text-green-400 hover:text-green-600 focus:outline-none'
+                            >
+                                <svg className='w-4 h-4' fill='currentColor' viewBox='0 0 20 20'>
+                                    <path fillRule='evenodd' d='M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z' clipRule='evenodd' />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                )}
+                
+                {/* Error Message - Show above table if there's an error */}
+                {error && (
+                    <div className='mb-4 p-4 bg-red-50 border border-red-200 rounded-md'>
+                        <div className='flex items-center justify-between'>
+                            <div className='flex items-center'>
+                                <svg className='w-5 h-5 text-red-400 mr-2' fill='currentColor' viewBox='0 0 20 20'>
+                                    <path fillRule='evenodd' d='M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z' clipRule='evenodd' />
+                                </svg>
+                                <span className='text-red-800 font-medium'>Error: {error}</span>
+                            </div>
+                            <button
+                                onClick={() => setError(null)}
+                                className='text-red-400 hover:text-red-600 focus:outline-none'
+                            >
+                                <svg className='w-4 h-4' fill='currentColor' viewBox='0 0 20 20'>
+                                    <path fillRule='evenodd' d='M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z' clipRule='evenodd' />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                )}
+                
                 <div 
                     className='overflow-x-auto rounded-md'
                     style={{
@@ -901,12 +1015,6 @@ export default function UserManagement(){
                                     <tr>
                                         <td colSpan={getColumnCount()} className='px-6 py-8 text-center text-gray-500'>
                                             Loading users...
-                                        </td>
-                                    </tr>
-                                ) : error ? (
-                                    <tr>
-                                        <td colSpan={getColumnCount()} className='px-6 py-8 text-center text-red-500'>
-                                            Error: {error}
                                         </td>
                                     </tr>
                                 ) : paginatedUsers.length === 0 ? (

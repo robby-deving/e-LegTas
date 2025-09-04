@@ -3,15 +3,18 @@ import { useSelector } from 'react-redux';
 import { selectCurrentUser } from '../features/auth/authSlice';
 import SystemAdminDashboard from '../components/SystemAdminDashboard';
 import MainDashboard from '../components/Dashboard/Dashboard';
+import CampManagerDashboard from '../components/Dashboard/CampManagerDashboard';
 
 export default function Dashboard(){
 	usePageTitle('Dashboard');
 	const user = useSelector(selectCurrentUser);
 	
 	return(
-		<div className='text-black'>
+		<div className='text-black h-full'>
 			{/* System Admin Dashboard */}
-			{user?.role_id === 1 ? <SystemAdminDashboard /> : <MainDashboard />}
+			{user?.role_id === 1 ? <SystemAdminDashboard /> : 
+			 user?.role_id === 5 ? <CampManagerDashboard /> : 
+			 <MainDashboard />}
 			
 			{/* Other role dashboards can be added here */}
 			{/* {user?.role_id === 2 && <CDRRMODashboard />} */}

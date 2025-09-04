@@ -16,18 +16,33 @@ class ApiError extends Error {
 // --- Controller Functions ---
 
 /**
- * @desc Get all disaster entries
+ * @desc Get all disaster entries or filter by month and year
  * @route GET /api/v1/disasters
  * @access Public
+ * @query {month?: number, year: number} - Optional month (0-11) and required year for filtering
  */
 exports.getAllDisasters = async (req, res, next) => {
     try {
-        const { data, error } = await supabase
+        const { month, year } = req.query;
+        let query = supabase
             .from(TABLE_NAME)
             .select(`
                 *,
                 disaster_types(name) // Join to get the name of the disaster type
-            `);
+            `)
+            .is('deleted_at', null); // Only get active disasters (not soft-deleted)
+
+        // If month and year are provided, filter by disaster_start_date
+        if (year !== undefined) {
+            const startDate = new Date(parseInt(year), month !== undefined ? parseInt(month) : 0, 1);
+            const endDate = new Date(parseInt(year), month !== undefined ? parseInt(month) + 1 : 12, 1);
+
+            query = query
+                .gte('disaster_start_date', startDate.toISOString())
+                .lt('disaster_start_date', endDate.toISOString());
+        }
+
+        const { data, error } = await query;
 
         if (error) {
             console.error('Supabase Error (getAllDisasters):', error);
@@ -50,7 +65,9 @@ exports.getAllDisasters = async (req, res, next) => {
         });
 
         res.status(200).json({
-            message: 'Successfully retrieved all disaster entries.',
+            message: year !== undefined
+                ? `Successfully retrieved disaster entries for ${month !== undefined ? `month ${parseInt(month) + 1}/` : ''}${year}.`
+                : 'Successfully retrieved all disaster entries.',
             count: transformedData.length,
             data: transformedData
         });
@@ -79,6 +96,7 @@ exports.getDisasterById = async (req, res, next) => {
                 disaster_types(name) // Join to get the name of the disaster type
             `)
             .eq('id', id)
+            .is('deleted_at', null) // Only get active disasters (not soft-deleted)
             .single();
 
         if (error && error.code === 'PGRST116') {
@@ -212,9 +230,9 @@ exports.updateDisaster = async (req, res, next) => {
 };
 
 /**
- * @desc Delete a disaster entry
+ * @desc Soft delete a disaster entry (sets deleted_at timestamp)
  * @route DELETE /api/v1/disasters/:id
- * @access Private (requires authentication/authorization, but public for now)
+ * @access Private (requires authentication and delete_disaster permission)
  */
 exports.deleteDisaster = async (req, res, next) => {
     const { id } = req.params;
@@ -224,10 +242,12 @@ exports.deleteDisaster = async (req, res, next) => {
     }
 
     try {
+        // Soft delete - update deleted_at instead of actually deleting
         const { data, error } = await supabase
             .from(TABLE_NAME)
-            .delete()
+            .update({ deleted_at: new Date().toISOString() })
             .eq('id', id)
+            .is('deleted_at', null) // Only update if not already deleted
             .select();
 
         if (error) {
@@ -236,7 +256,7 @@ exports.deleteDisaster = async (req, res, next) => {
         }
 
         if (!data || data.length === 0) {
-            return next(new ApiError(`Disaster with ID ${id} not found for deletion.`, 404));
+            return next(new ApiError(`Disaster with ID ${id} not found for deletion or already deleted.`, 404));
         }
 
         res.status(200).json({

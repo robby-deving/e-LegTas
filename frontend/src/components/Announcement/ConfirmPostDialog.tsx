@@ -1,6 +1,7 @@
 // src/components/announcements/ConfirmPostDialog.tsx
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../ui/dialog";
 import { Button } from "../ui/button";
+import LoadingSpinner from "../loadingSpinner";
 
 type ConfirmPostDialogProps = {
   isOpen: boolean;
@@ -8,6 +9,7 @@ type ConfirmPostDialogProps = {
   onConfirm: () => void;
   onBackToEdit: () => void;
   formData: { title: string; body: string };
+  isSaving?: boolean;
 };
 
 export default function ConfirmPostDialog({
@@ -16,6 +18,7 @@ export default function ConfirmPostDialog({
   onConfirm,
   onBackToEdit,
   formData,
+  isSaving = false,
 }: ConfirmPostDialogProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -46,11 +49,19 @@ export default function ConfirmPostDialog({
             Back to Edit
           </Button>
           <Button
-            onClick={onConfirm}
-            className="bg-green-700 hover:bg-green-800 text-white"
-          >
-            Confirm & Post
-          </Button>
+              onClick={onConfirm}
+              disabled={isSaving}
+              className="bg-green-700 hover:bg-green-800 text-white disabled:opacity-50"
+            >
+              {isSaving ? (
+                <>
+                  <LoadingSpinner size="sm" />
+                  Posting...
+                </>
+              ) : (
+                'Confirm & Post'
+              )}
+            </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

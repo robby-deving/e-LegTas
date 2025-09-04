@@ -1,6 +1,7 @@
 // src/components/announcements/DeleteConfirmationDialog.tsx
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../ui/dialog";
 import { Button } from "../ui/button";
+import LoadingSpinner from "../loadingSpinner";
 
 // Type definition for Announcement
 type Announcement = {
@@ -17,6 +18,7 @@ type DeleteConfirmationDialogProps = {
   onClose: () => void;
   onConfirm: () => void;
   announcement: Announcement | null;
+  isDeleting?: boolean;
 };
 
 export default function DeleteConfirmationDialog({
@@ -24,6 +26,7 @@ export default function DeleteConfirmationDialog({
   onClose,
   onConfirm,
   announcement,
+  isDeleting = false,
 }: DeleteConfirmationDialogProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -49,9 +52,17 @@ export default function DeleteConfirmationDialog({
           </Button>
           <Button
             onClick={onConfirm}
-            className="bg-red-700 hover:bg-red-800 text-white"
+            disabled={isDeleting}
+            className="bg-red-700 hover:bg-red-800 text-white disabled:opacity-50"
           >
-            Delete
+            {isDeleting ? (
+              <>
+                <LoadingSpinner size="sm" />
+                Deleting...
+              </>
+            ) : (
+              'Delete'
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

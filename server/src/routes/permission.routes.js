@@ -5,9 +5,7 @@ const {
   updateRolePermissions,
   getUserPermissions
 } = require('../controllers/permission.controller');
-const { authenticateUser } = require('../middleware/auth');
-const { originalRequirePermission } = require('../middleware');
-const requirePermission = originalRequirePermission;
+const { authenticateUser, requirePermission } = require('../middleware');
 
 const router = express.Router();
 

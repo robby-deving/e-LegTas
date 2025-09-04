@@ -1,12 +1,20 @@
 //EvacuationCenterDetails.ts
+export type EvacuationEventMeta = {
+  id: number;
+  evacuation_start_date: string | null;
+  evacuation_end_date: string | null;
+  is_event_ended: boolean;
+};
 
 export type EvacuationCenterDetail = {
+  evacuation_event?: EvacuationEventMeta;
+
   disaster: {
     disaster_types_id: number;
     disaster_type_name: string;
     disasters_id: number;
     disaster_name: string;
-    disaster_start_date: string; 
+    disaster_start_date: string;
     disaster_end_date: string | null;
   };
   evacuation_center: {
@@ -21,7 +29,6 @@ export type EvacuationCenterDetail = {
     evacuation_center_capacity: number;
   };
 };
-
 export type EvacueeStatistics = {
   title: string;
   summary: {
@@ -126,6 +133,8 @@ export type Barangay = {
 export type RoomOption = {
   id: number;
   room_name: string;
+  available?: number;  
+  capacity?: number;   
 };
 
 export type RegisterEvacuee = {

@@ -1,7 +1,7 @@
 import { usePageTitle } from '../../hooks/usePageTitle';
 import { Card, CardHeader, CardTitle, CardContent } from "../../components/ui/card";
-import { useEffect, useState, useCallback } from 'react';
-import { Calendar, ExternalLink } from "lucide-react";
+import { useState } from 'react';
+import { Calendar } from "lucide-react";
 import EvacueeStatisticsChart from '../../components/EvacueeStatisticsChart';
 import { useCampManagerDashboardData } from '../../hooks/useCampManagerDashboardData';
 import type { DateRange } from "react-day-picker";
@@ -12,16 +12,38 @@ import { EvacuationCenterNameCard } from "../../components/cards/EvacuationCente
 import { RegisteredFamiliesCard } from "../../components/cards/RegisteredFamiliesCard";
 import { RegisteredEvacueesCard } from "../../components/cards/RegisteredEvacueesCard";
 import { ECCapacityCard } from "../../components/cards/ECCapacityCard";
+import { useSelector } from 'react-redux';
+import { selectCurrentUser } from '../../features/auth/authSlice';
 
 export default function CampManagerDashboard() {
   usePageTitle('CampManagerDashboard');
+  const currentUser = useSelector(selectCurrentUser);
+  
+  // Use the actual authenticated user's ID instead of hardcoded value
+  const campManagerId = currentUser?.user_id;
 
-  const [isEvacueeInfoModalOpen, setIsEvacueeInfoModalOpen] = useState(false);
   const [selectedDateRange, setSelectedDateRange] = useState<DateRange | undefined>(undefined);
 
-  //  temporary hardcoded camp manager ID (replace later with auth token)
-  const campManagerId = 1;
-  
+
+
+  // Don't fetch data if we don't have a valid camp manager ID
+  if (!campManagerId) {
+    return (
+      <div className="text-black p-6 space-y-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <h2 className="text-2xl font-semibold text-gray-700 mb-2">
+              User ID Not Found
+            </h2>
+            <p className="text-lg text-gray-500">
+              Unable to load dashboard data. Please contact your administrator.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const { 
     disasters, 
     selectedDisaster, 
@@ -38,14 +60,6 @@ export default function CampManagerDashboard() {
     : undefined;
 
   const toDate = new Date(); // today
-
-  const handleCardClick = (disasterName: string) => {
-    const disaster = disasters.find(d => d.disaster_name === disasterName);
-    if (disaster) {
-      setSelectedDisaster(disaster);
-      setIsEvacueeInfoModalOpen(true);
-    }
-  };
 
   return (
     <div className="text-black p-6 space-y-6">

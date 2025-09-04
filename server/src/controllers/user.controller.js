@@ -1,3 +1,32 @@
+// Update a role's name by ID
+const updateRole = async (req, res) => {
+  try {
+    const roleId = req.params.id;
+    const { role_name } = req.body;
+    if (!role_name || !roleId) {
+      return res.status(400).json({ message: 'Role name and ID are required.' });
+    }
+
+    // Update the role name in the roles table
+    const { data, error } = await supabaseAdmin
+      .from('roles')
+      .update({ name: role_name })
+      .eq('id', roleId)
+      .is('deleted_at', null)
+      .select();
+
+    if (error) {
+      return res.status(500).json({ message: 'Failed to update role', error: error.message });
+    }
+    if (!data || data.length === 0) {
+      return res.status(404).json({ message: 'Role not found or already deleted.' });
+    }
+    return res.status(200).json({ message: 'Role updated successfully', role: data[0] });
+  } catch (err) {
+    console.error('Error updating role:', err);
+    return res.status(500).json({ message: 'Internal server error', error: err.message });
+  }
+};
 // Get user counts for all roles (excluding soft-deleted users)
 const getUserCountsByRole = async (req, res) => {
   try {
@@ -204,34 +233,85 @@ const createUser = async (req, res) => {
     const saltRounds = 12;
     const passwordHash = await bcrypt.hash(password, saltRounds);
 
-    // Create resident first
-    const { data: resident, error: residentError } = await supabaseAdmin
+
+    // Check if resident already exists with the same identity
+    let residentId;
+    let existingResident = null;
+    const { data: existingResidentData, error: residentCheckError } = await supabaseAdmin
       .from('residents')
-      .insert({
-        first_name: firstName,
-        middle_name: middleName || null,
-        last_name: lastName,
-        suffix: suffix || null,
-        sex: sex,
-        birthdate: birthdate,
-        barangay_of_origin: barangayOfOrigin ? parseInt(barangayOfOrigin) : null
-      })
-      .select()
+      .select('id, first_name, last_name, birthdate')
+      .eq('first_name', firstName)
+      .eq('last_name', lastName)
+      .eq('birthdate', birthdate)
       .single();
 
-    if (residentError) {
-      console.error('Error creating resident:', residentError);
+    if (residentCheckError && residentCheckError.code !== 'PGRST116') {
+      // Error other than "not found"
+      console.error('Error checking existing resident:', residentCheckError);
       return res.status(500).json({ 
-        message: 'Failed to create resident profile',
-        error: residentError.message
+        message: 'Failed to check existing resident',
+        error: residentCheckError.message
       });
+    }
+
+    if (existingResidentData) {
+      existingResident = existingResidentData;
+      // Resident exists, check if they already have a user profile
+      const { data: existingUserProfile, error: profileCheckError } = await supabaseAdmin
+        .from('users_profile')
+        .select('id, email')
+        .eq('resident_id', existingResident.id)
+        .is('deleted_at', null)
+        .single();
+
+      if (profileCheckError && profileCheckError.code !== 'PGRST116') {
+        console.error('Error checking existing user profile:', profileCheckError);
+        return res.status(500).json({ 
+          message: 'Failed to check existing user profile',
+          error: profileCheckError.message
+        });
+      }
+
+      if (existingUserProfile) {
+        // Resident already has a user profile
+        return res.status(409).json({ 
+          message: `A user already exists for resident ${existingResident.first_name} ${existingResident.last_name} (${existingResident.birthdate}). Each resident can only have one user account.` 
+        });
+      }
+
+      // Resident exists but has no user profile, reuse their ID
+      residentId = existingResident.id;
+    } else {
+      // No existing resident found, create new resident
+      const { data: resident, error: residentError } = await supabaseAdmin
+        .from('residents')
+        .insert({
+          first_name: firstName,
+          middle_name: middleName || null,
+          last_name: lastName,
+          suffix: suffix || null,
+          sex: sex,
+          birthdate: birthdate,
+          barangay_of_origin: barangayOfOrigin ? parseInt(barangayOfOrigin) : null
+        })
+        .select()
+        .single();
+
+      if (residentError) {
+        console.error('Error creating resident:', residentError);
+        return res.status(500).json({ 
+          message: 'Failed to create resident profile',
+          error: residentError.message
+        });
+      }
+      residentId = resident.id;
     }
 
     // Create users_profile
     const { data: userProfile, error: profileError } = await supabaseAdmin
       .from('users_profile')
       .insert({
-        resident_id: resident.id,
+        resident_id: residentId,
         email: email,
         password_hash: passwordHash,
         role_id: parseInt(roleId),
@@ -242,13 +322,13 @@ const createUser = async (req, res) => {
 
     if (profileError) {
       console.error('Error creating user profile:', profileError);
-      
-      // Cleanup: delete the resident record
-      await supabaseAdmin
-        .from('residents')
-        .delete()
-        .eq('id', resident.id);
-
+      // Only delete the resident if we just created it in this request
+      if (!existingResident) {
+        await supabaseAdmin
+          .from('residents')
+          .delete()
+          .eq('id', residentId);
+      }
       return res.status(500).json({ 
         message: 'Failed to create user profile',
         error: profileError.message
@@ -980,24 +1060,6 @@ const createRole = async (req, res) => {
 
     // Add permissions to the role if any are provided
     if (permissions.length > 0) {
-      // Enforce that creator has add_user_permission to assign at creation time (no bypass)
-      const { data: creatorProfile } = await supabaseAdmin
-        .from('users_profile')
-        .select('role_id')
-        .eq('user_id', req.user.id)
-        .single();
-      if (!creatorProfile) {
-        return res.status(401).json({ message: 'Authentication required' });
-      }
-      const { data: creatorPerms } = await supabaseAdmin
-        .from('role_permission')
-        .select('permissions(permission_name)')
-        .eq('role_id', creatorProfile.role_id)
-        .is('deleted_at', null);
-      const hasAddUserPermission = (creatorPerms || []).some(rp => rp.permissions?.permission_name === 'add_user_permission');
-      if (!hasAddUserPermission) {
-        return res.status(403).json({ message: 'Insufficient permissions to assign role permissions at creation' });
-      }
       // Convert permission names to permission IDs
       const { data: permissionData, error: permError } = await supabaseAdmin
         .from('permissions')
@@ -1050,41 +1112,6 @@ const createRole = async (req, res) => {
       message: 'Internal server error',
       error: error.message
     });
-  }
-};
-
-// Update role name
-const updateRole = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { role_name } = req.body;
-
-    if (!id) {
-      return res.status(400).json({ message: 'Role ID is required' });
-    }
-
-    if (!role_name || !role_name.trim()) {
-      return res.status(400).json({ message: 'Role name is required' });
-    }
-
-    const { error: updateError } = await supabaseAdmin
-      .from('roles')
-      .update({ role_name: role_name.trim() })
-      .eq('id', id)
-      .is('deleted_at', null);
-
-    if (updateError) {
-      console.error('Error updating role name:', updateError);
-      return res.status(500).json({ message: 'Failed to update role', error: updateError.message });
-    }
-
-    return res.status(200).json({ 
-      message: 'Role updated successfully',
-      role: { id: parseInt(id, 10), name: role_name.trim() }
-    });
-  } catch (error) {
-    console.error('Update role error:', error);
-    return res.status(500).json({ message: 'Internal server error', error: error.message });
   }
 };
 
@@ -2223,8 +2250,12 @@ const getUserStats = async (req, res) => {
 
 // Get recently added users for dashboard
 const getRecentUsers = async (req, res) => {
+
   try {
     console.log('Getting recently added users...');
+
+    // Get limit from query, default to 7
+    const limit = parseInt(req.query.limit, 10) || 7;
 
     // Get recently added users with their profile and resident data
     const { data: users, error } = await supabaseAdmin
@@ -2260,7 +2291,8 @@ const getRecentUsers = async (req, res) => {
       `)
       .is('deleted_at', null)
       .eq('users_profile.is_active', true)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(limit);
 
     if (error) {
       console.error('Error fetching recent users:', error);
@@ -2321,7 +2353,7 @@ module.exports = {
   getUsersByRole,
   getRoles,
   createRole,
-  updateRole,
+  updateRole, // <-- Export the new controller
   getEvacuationCenters,
   getBarangays,
   getDisasters,

@@ -1,68 +1,21 @@
 /**
- * Middleware index file - exports all middleware functions
- * Based on UserManagement component requirements
+ * Middleware index file - simplified exports
+ * Only exports essential authentication and permission middleware
  */
 
 const { authenticateUser, basicAuth } = require('./auth');
 const { 
-  requirePermission: originalRequirePermission,
-  requireAnyPermission: originalRequireAnyPermission
-} = require('./permissions');
-const {
-  authenticateUser: roleBasedAuth,
-  requireRole,
-  requireRoleGroup,
   requirePermission,
-  filterDataByRole,
-  requireEvacuationCenterAccess,
-  requireUserDataAccess,
-  getRoleConfig,
-  ROLE_CONFIGS
-} = require('./roleBasedAccess');
-const {
-  requireUserManagementAccess,
-  filterUsersByRole,
-  requireEvacuationCenterPermission,
-  requireRoleAssignmentPermission,
   requireAnyPermission
-} = require('./enhancedPermissions');
-const { authenticateMobileApp, generateApiKey } = require('./deviceAuth');
+} = require('./permissions');
 
-// Re-export all middleware functions
+// Export only the essential middleware
 module.exports = {
-  // Authentication
+  // Authentication (from auth.js)
   authenticateUser,
   basicAuth,
-  roleBasedAuth,
   
-  // Role-based access control
-  requireRole,
-  requireRoleGroup,
-  
-  // Permissions (enhanced and original)
+  // Permissions (from permissions.js)
   requirePermission,
-  originalRequirePermission,
-  requireAnyPermission,
-  originalRequireAnyPermission,
-  
-  // User Management specific
-  requireUserManagementAccess,
-  filterUsersByRole,
-  filterDataByRole,
-  requireUserDataAccess,
-  
-  // Evacuation Center specific
-  requireEvacuationCenterAccess,
-  requireEvacuationCenterPermission,
-  
-  // Role assignment
-  requireRoleAssignmentPermission,
-  
-  // Mobile app authentication
-  authenticateMobileApp,
-  generateApiKey,
-  
-  // Utilities
-  getRoleConfig,
-  ROLE_CONFIGS
+  requireAnyPermission
 };

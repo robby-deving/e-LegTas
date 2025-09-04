@@ -20,39 +20,88 @@ class ApiError extends Error {
  * @desc Get all evacuation center entries
  * @route GET /api/v1/evacuation-centers
  * @access Public
+ * @query {number} limit - Number of records to return (default: 10)
+ * @query {number} offset - Number of records to skip (default: 0)
+ * @query {string} search - Search term for name or address
+ * @query {boolean} include_deleted - Include soft-deleted records (default: false)
  */
 exports.getAllEvacuationCenters = async (req, res, next) => {
     try {
-        // Add include_deleted query parameter option
+        // Parse query parameters
+        const limit = parseInt(req.query.limit) || 10;
+        const offset = parseInt(req.query.offset) || 0;
+        const search = req.query.search || '';
         const includeSoftDeleted = req.query.include_deleted === 'true';
-        
+
         let query = supabase
             .from(TABLE_NAME)
-            .select('*');
+            .select('*', { count: 'exact' });
 
         // Only add the filter if we don't want to include soft-deleted records
         if (!includeSoftDeleted) {
             query = query.is('deleted_at', null);
         }
 
-        const { data, error } = await query;
+        // Add search filter if provided
+        if (search) {
+            query = query.or(`name.ilike.%${search}%,address.ilike.%${search}%`);
+        }
+
+        // Add pagination
+        query = query.range(offset, offset + limit - 1);
+
+        const { data, error, count } = await query;
 
         if (error) {
             console.error('Supabase Error (getAllEvacuationCenters):', error);
             return next(new ApiError('Failed to retrieve evacuation center entries.', 500));
         }
 
+        // Get total count for pagination metadata
+        let totalCount = count;
+        if (search || !includeSoftDeleted) {
+            // If we have search or deleted_at filter, we need to get the total count separately
+            let countQuery = supabase
+                .from(TABLE_NAME)
+                .select('*', { count: 'exact', head: true });
+
+            if (!includeSoftDeleted) {
+                countQuery = countQuery.is('deleted_at', null);
+            }
+
+            if (search) {
+                countQuery = countQuery.or(`name.ilike.%${search}%,address.ilike.%${search}%`);
+            }
+
+            const { count: filteredCount } = await countQuery;
+            totalCount = filteredCount;
+        }
+
         if (!data || data.length === 0) {
-            return res.status(200).json({ 
-                message: 'No evacuation center entries found.', 
-                data: [] 
+            return res.status(200).json({
+                message: 'No evacuation center entries found.',
+                data: [],
+                pagination: {
+                    total: totalCount || 0,
+                    limit,
+                    offset,
+                    totalPages: Math.ceil((totalCount || 0) / limit),
+                    currentPage: Math.floor(offset / limit) + 1
+                }
             });
         }
 
         res.status(200).json({
-            message: 'Successfully retrieved all evacuation center entries.',
+            message: 'Successfully retrieved evacuation center entries.',
             count: data.length,
-            data: data
+            data: data,
+            pagination: {
+                total: totalCount || 0,
+                limit,
+                offset,
+                totalPages: Math.ceil((totalCount || 0) / limit),
+                currentPage: Math.floor(offset / limit) + 1
+            }
         });
     } catch (err) {
         next(new ApiError('Internal server error during getAllEvacuationCenters.', 500));
@@ -374,10 +423,10 @@ exports.restoreEvacuationCenter = async (req, res, next) => {
         next(new ApiError('Internal server error during restoreEvacuationCenter.', 500));
     }
 };
-
 exports.getEvacuationCenterMapData = async (req, res, next) => {
     try {
-        const { data, error } = await supabase
+        // First, get all active evacuation centers with their basic data
+        const { data: centers, error: centersError } = await supabase
             .from(TABLE_NAME) // evacuation_centers
             .select(`
                 *,
@@ -393,18 +442,71 @@ exports.getEvacuationCenterMapData = async (req, res, next) => {
                         phone_number
                     )
                 )
-            `);
+            `)
+            .is('deleted_at', null); // Only get active (non-deleted) evacuation centers
 
-        if (error) {
-            console.error('Supabase Error (getEvacuationCenterMapData):', error);
-            return next(new ApiError('Failed to retrieve detailed evacuation center data.', 500));
+        if (centersError) {
+            console.error('Supabase Error (getEvacuationCenterMapData - centers):', centersError);
+            return next(new ApiError('Failed to retrieve evacuation center data.', 500));
+        }
+
+        if (!centers || centers.length === 0) {
+            return res.status(200).json({
+                message: 'No evacuation centers found.',
+                count: 0,
+                data: []
+            });
+        }
+
+        // Get all active disaster evacuation events for these centers
+        const centerIds = centers.map(center => center.id);
+        const { data: activeEvents, error: eventsError } = await supabase
+            .from('disaster_evacuation_event')
+            .select('id, evacuation_center_id')
+            .in('evacuation_center_id', centerIds)
+            .is('evacuation_end_date', null);
+
+        if (eventsError) {
+            console.error('Supabase Error (getEvacuationCenterMapData - active events):', eventsError);
+            return next(new ApiError('Failed to retrieve active disaster events.', 500));
+        }
+
+        // Get the latest evacuation summaries for these events
+        let currentCapacities = {};
+        if (activeEvents && activeEvents.length > 0) {
+            const eventIds = activeEvents.map(event => event.id);
+            const { data: summaries, error: summariesError } = await supabase
+                .from('evacuation_summaries')
+                .select('disaster_evacuation_event_id, total_no_of_individuals, created_at')
+                .in('disaster_evacuation_event_id', eventIds)
+                .order('created_at', { ascending: false });
+
+            if (summariesError) {
+                console.error('Supabase Error (getEvacuationCenterMapData - summaries):', summariesError);
+                return next(new ApiError('Failed to retrieve evacuation summaries.', 500));
+            }
+
+            // Group summaries by evacuation center and get the latest one for each
+            const summariesByEvent = {};
+            summaries?.forEach(summary => {
+                if (!summariesByEvent[summary.disaster_evacuation_event_id]) {
+                    summariesByEvent[summary.disaster_evacuation_event_id] = summary;
+                }
+            });
+
+            // Map summaries to centers
+            activeEvents.forEach(event => {
+                if (summariesByEvent[event.id]) {
+                    currentCapacities[event.evacuation_center_id] = summariesByEvent[event.id].total_no_of_individuals;
+                }
+            });
         }
 
         // Transform the data to flatten the nested objects and combine names
-        const transformedData = data.map(ec => {
+        const transformedData = centers.map(ec => {
             const barangayName = ec.barangays ? ec.barangays.name : null;
             let campManagerName = null;
-            let campManagerPhoneNumber = null; // New variable for phone number
+            let campManagerPhoneNumber = null;
 
             if (ec.users && ec.users.user_profile) {
                 const userProfile = ec.users.user_profile;
@@ -431,7 +533,8 @@ exports.getEvacuationCenterMapData = async (req, res, next) => {
                 ...rest, // Spread all other properties of the evacuation center
                 barangay_name: barangayName,
                 camp_manager_name: campManagerName,
-                camp_manager_phone_number: campManagerPhoneNumber // Include phone number
+                camp_manager_phone_number: campManagerPhoneNumber,
+                current_capacity: currentCapacities[ec.id] || 0 // Add current capacity from summaries
             };
         });
 
@@ -441,6 +544,7 @@ exports.getEvacuationCenterMapData = async (req, res, next) => {
             data: transformedData
         });
     } catch (err) {
+        console.error('Internal server error during getEvacuationCenterMapData:', err);
         next(new ApiError('Internal server error during getEvacuationCenterMapData.', 500));
     }
 };
@@ -499,5 +603,45 @@ exports.getEvacuationCenterWithRooms = async (req, res, next) => {
         });
     } catch (err) {
         next(new ApiError('Internal server error during getEvacuationCenterWithRooms.', 500));
+    }
+};
+
+/**
+ * @desc Get assigned evacuation center ID for a user
+ * @route GET /api/v1/evacuation-centers/user/:userId
+ * @access Private (requires authentication/authorization)
+ * @param {number} userId - User ID to find assigned evacuation center for
+ * @returns {object} Response with evacuation_center_id or null if not assigned
+ */
+exports.getAssignedEvacuationCenter = async (req, res, next) => {
+    const { userId } = req.params;
+
+    if (!userId || isNaN(Number(userId))) {
+        return next(new ApiError('Invalid user ID provided.', 400));
+    }
+
+    try {
+        const { data, error } = await supabase
+            .from(TABLE_NAME)
+            .select('id')
+            .eq('assigned_user_id', userId)
+            .is('deleted_at', null) // Only get active centers
+            .single();
+
+        if (error && error.code !== 'PGRST116') { // PGRST116 is "not found" which is okay
+            console.error('Supabase Error (getAssignedEvacuationCenter):', error);
+            return next(new ApiError('Failed to retrieve assigned evacuation center.', 500));
+        }
+
+        const evacuationCenterId = data ? data.id : null;
+
+        res.status(200).json({
+            message: data 
+                ? `Successfully retrieved assigned evacuation center ID for user ${userId}.`
+                : `No evacuation center assigned to user ${userId}.`,
+            evacuation_center_id: evacuationCenterId
+        });
+    } catch (err) {
+        next(new ApiError('Internal server error during getAssignedEvacuationCenter.', 500));
     }
 };

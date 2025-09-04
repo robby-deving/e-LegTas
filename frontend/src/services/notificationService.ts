@@ -14,7 +14,19 @@ export type ServerAnnouncement = {
 export type CreateAnnouncementPayload = {
   title: string;
   content: string;
-  created_by?: number;
+  created_by: number;
+};
+
+export type AnnouncementsResponse = {
+  data: ServerAnnouncement[];
+  count: number;
+  totalCount?: number;
+};
+
+export type AnnouncementsQueryParams = {
+  limit?: number;
+  offset?: number;
+  search?: string;
 };
 
 class NotificationService {
@@ -26,8 +38,14 @@ class NotificationService {
     return base;
   }
 
-  async getAnnouncements(token?: string): Promise<ServerAnnouncement[]> {
-    const response = await fetch(`${this.baseUrl}/notifications/`, {
+  async getAnnouncements(params?: AnnouncementsQueryParams, token?: string): Promise<AnnouncementsResponse> {
+    const queryParams = new URLSearchParams();
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.offset) queryParams.append('offset', params.offset.toString());
+    if (params?.search) queryParams.append('search', params.search);
+
+    const url = `${this.baseUrl}/notifications/${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+    const response = await fetch(url, {
       method: 'GET',
       headers: this.buildHeaders(token),
     });
@@ -36,7 +54,11 @@ class NotificationService {
       throw new Error(errorData?.message || 'Failed to fetch announcements');
     }
     const result = await response.json();
-    return Array.isArray(result?.data) ? result.data : result;
+    return {
+      data: Array.isArray(result?.data) ? result.data : [],
+      count: result?.count || 0,
+      totalCount: result?.totalCount || result?.count || 0
+    };
   }
 
   async createAnnouncement(payload: CreateAnnouncementPayload, token?: string): Promise<ServerAnnouncement> {

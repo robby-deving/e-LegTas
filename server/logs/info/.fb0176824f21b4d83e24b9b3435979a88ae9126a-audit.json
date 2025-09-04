@@ -1,0 +1,15 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 30
+    },
+    "auditLog": "C:\\projects\\e-LegTas\\server\\logs\\info\\.fb0176824f21b4d83e24b9b3435979a88ae9126a-audit.json",
+    "files": [
+        {
+            "date": 1756951527140,
+            "name": "C:\\projects\\e-LegTas\\server\\logs\\info\\04-09-2025-info.log",
+            "hash": "9e7935ef209be6700715a4a1ad53ba9f96b400ec62162d61e39d9fb7ac0d2f8f"
+        }
+    ],
+    "hashType": "sha256"
+}

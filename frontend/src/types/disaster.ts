@@ -16,6 +16,14 @@ export interface DisasterPayload {
 }
 
 export interface DisasterTypeWithId {
-  id: number | null; 
+  id: number | null;
   name: string;
+}
+
+export interface DisasterEventPayload {
+  disaster_id: number;
+  assigned_user_id: number;
+  evacuation_center_id: number;
+  evacuation_start_date: string;
+  evacuation_end_date?: string | null;
 }

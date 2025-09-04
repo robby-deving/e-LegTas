@@ -19,11 +19,17 @@
     "cors": "^2.8.5",
     "crypto": "^1.0.1",
     "dotenv": "^16.5.0",
+    "exceljs": "^4.4.0",
     "express": "^5.1.0",
+    "express-rate-limit": "^8.0.1",
     "firebase-admin": "^13.4.0",
     "jsonwebtoken": "^9.0.2",
+    "morgan": "^1.10.1",
     "nodemailer": "^7.0.5",
-    "pg": "^8.16.0"
+    "pg": "^8.16.0",
+    "puppeteer": "^24.17.0",
+    "winston": "^3.17.0",
+    "winston-daily-rotate-file": "^5.0.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.10"

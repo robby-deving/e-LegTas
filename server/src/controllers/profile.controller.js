@@ -20,7 +20,6 @@ exports.getUserProfile = async (req, res, next) => {
     try {
         const { userId } = req.params;
 
-        // Query: join users -> users_profile -> residents
         const { data, error } = await supabase
             .from('users')
             .select(`
@@ -29,6 +28,8 @@ exports.getUserProfile = async (req, res, next) => {
                 users_profile (
                     email,
                     phone_number,
+                    role_id,
+                    roles (role_name),
                     residents (
                         first_name,
                         last_name
@@ -47,14 +48,15 @@ exports.getUserProfile = async (req, res, next) => {
             return res.status(404).json({ message: 'User not found.' });
         }
 
-        // Transform: flatten nested objects
+        // Flatten with null safety
         const profileData = {
             user_id: data.id,
-            employee_number: data.employee_number,
+            employee_number: data.employee_number || null,
             email: data.users_profile?.email || null,
             phone_number: data.users_profile?.phone_number || null,
             first_name: data.users_profile?.residents?.first_name || null,
-            last_name: data.users_profile?.residents?.last_name || null
+            last_name: data.users_profile?.residents?.last_name || null,
+            role: data.users_profile?.roles?.role_name || null 
         };
 
         res.status(200).json({

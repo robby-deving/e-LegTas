@@ -1,51 +1,62 @@
 // src/components/modals/RegisterBlockDialog.tsx
 import * as React from "react";
-import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
 import { XIcon } from "lucide-react";
 
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   personName?: string;
-  ecName?: string;                    
-  description?: React.ReactNode;      
-  onSecondaryAction?: () => void;     
+  ecName?: string;
+  description?: React.ReactNode;
+  message?: React.ReactNode;
+  onSecondaryAction?: () => void;
   secondaryLabel?: string;
   closeLabel?: string;
-  title?: string | null;              
+  title?: string | null;
 };
 
-export function RegisterBlockDialog({
+function RegisterBlockDialog({
   open,
   onOpenChange,
   personName,
   ecName,
   description,
+  message, 
   onSecondaryAction,
   secondaryLabel = "OK",
   closeLabel = "Close",
   title = "Cannot register this evacuee",
 }: Props) {
-  const message =
-    description ?? (
-      <>
-        <span className="font-semibold text-gray-700">{personName}</span>{" "}
-        is still actively registered
-        {ecName ? (
-          <>
-            {" "}in{" "}
-            <span className="font-semibold text-gray-700">{ecName}</span>
-          </>
-        ) : (
-          " in another event"
-        )}
-        . Please decamp them there first before registering here.
-      </>
-    );
+  const defaultMessage = (
+    <>
+      <span className="font-semibold text-gray-700">{personName}</span>{" "}
+      is still actively registered
+      {ecName ? (
+        <>
+          {" "}in{" "}
+          <span className="font-semibold text-gray-700">{ecName}</span>
+        </>
+      ) : (
+        " in another event"
+      )}
+      . Please decamp them there first before registering here.
+    </>
+  );
+
+  const body = description ?? message ?? defaultMessage;
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      {/* Let Radix manage aria-labelledby/aria-describedby via Title/Description */}
       <AlertDialogContent className="relative fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transform z-[60]">
         {/* Top-right close “x” */}
         <button
@@ -58,7 +69,6 @@ export function RegisterBlockDialog({
         </button>
 
         <AlertDialogHeader>
-          {/* Always render a Title; if empty, keep it screen-reader-only */}
           {title && title.trim() ? (
             <AlertDialogTitle className="text-red-700 text-xl font-bold">
               {title}
@@ -69,8 +79,7 @@ export function RegisterBlockDialog({
             </AlertDialogTitle>
           )}
 
-          {/* Always render a Description */}
-          <AlertDialogDescription>{message}</AlertDialogDescription>
+          <AlertDialogDescription>{body}</AlertDialogDescription>
         </AlertDialogHeader>
 
         <AlertDialogFooter>
@@ -91,3 +100,6 @@ export function RegisterBlockDialog({
     </AlertDialog>
   );
 }
+
+export { RegisterBlockDialog };
+export default RegisterBlockDialog;

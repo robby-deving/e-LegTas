@@ -16,9 +16,19 @@ const dashboardRoutes = require('./dashboard.routes');
 const profileRoutes = require('./profile.routes');
 const mobileRoutes = require('./mobile.routes');
 
+const reportsRoutes = require('./reports.routes');
 // Middleware and controllers
-const { authenticateUser, requireRoleGroup, requireUserManagementAccess } = require('../middleware');
+const { authenticateUser, requirePermission } = require('../middleware');
 const { createRole, deleteRole, getUserCountsByRole } = require('../controllers/user.controller');
+const { 
+  authRateLimit, 
+  passwordResetRateLimit, 
+  apiRateLimit, 
+  uploadRateLimit, 
+  reportRateLimit, 
+  searchRateLimit, 
+  dashboardRateLimit 
+} = require('../middleware/rateLimiting');
 
 const router = express.Router();
 const baseAPI = '/api/v1';
@@ -27,29 +37,37 @@ const baseAPI = '/api/v1';
 router.get(
   '/users/role-counts',
   authenticateUser,
-  requireRoleGroup('SYSTEM_ADMIN_GROUP'),
+  requirePermission('view_user_management'),
   getUserCountsByRole
 );
 
-// Mount routes
-router.use('/auth', authRoutes);
+// Mount routes with appropriate rate limiting
+router.use('/auth', authRateLimit, authRoutes);
 // Apply auth to all /users routes so permission middleware has req.user
-router.use('/users', authenticateUser, userRoutes);
-router.use('/permissions', permissionRoutes);
-router.use('/roles', roleRoutes);
+router.use('/users', apiRateLimit, authenticateUser, userRoutes);
+router.use('/permissions', apiRateLimit, permissionRoutes);
+router.use('/roles', apiRateLimit, roleRoutes);
 // Protect all notifications endpoints so permission checks have req.user
-router.use('/notifications', authenticateUser, notificationRoutes);
-router.use('/evacuation-centers', evacuationCentersRoutes);
-router.use('/disasters', disasterRoutes);
-router.use('/rooms', roomRoutes);
-router.use('/disaster-events', disasterEventRoutes);
-router.use('/dashboard', dashboardRoutes);
-router.use('/evacuees', evacueesRoutes);
-router.use('/barangays', barangayRoutes);
-router.use('/notifications', notificationRoutes);
-router.use('/profile', profileRoutes);
-router.use('/mobile', mobileRoutes);
+router.use('/notifications', apiRateLimit, authenticateUser, notificationRoutes);
+router.use('/evacuation-centers', apiRateLimit, evacuationCentersRoutes);
+router.use('/disasters', apiRateLimit, disasterRoutes);
+router.use('/rooms', apiRateLimit, roomRoutes);
+router.use('/disaster-events', apiRateLimit, disasterEventRoutes);
+router.use('/dashboard', dashboardRateLimit, dashboardRoutes);
+router.use('/evacuees', apiRateLimit, evacueesRoutes);
+router.use('/barangays', apiRateLimit, barangayRoutes);
 
+router.use('/profile', apiRateLimit, profileRoutes);
+
+router.use('/reports', reportRateLimit, reportsRoutes);
+
+// Role creation route
+router.post(
+  '/roles',
+  authenticateUser,
+  requirePermission('create_role'),
+  createRole
+);
 
 // Role routes are handled in role.routes.js
 
@@ -58,6 +76,15 @@ router.get('/health', (req, res) => {
   res.json({
     message: 'Server is running',
     version: 'v1',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// IP address information endpoint (for debugging and testing)
+router.get('/ip-info', (req, res) => {
+  res.json({
+    clientIP: req.clientIP,
+    ipInfo: req.ipInfo,
     timestamp: new Date().toISOString()
   });
 });

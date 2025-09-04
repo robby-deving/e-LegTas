@@ -2,10 +2,7 @@
 
 const express = require('express');
 const evacuationController = require('../controllers/evacuationCenters.controller');
-const { authenticateUser, originalRequirePermission } = require('../middleware');
-
-// Alias the DB-backed permission checker for clarity
-const requirePermission = originalRequirePermission;
+const { authenticateUser, requirePermission } = require('../middleware');
 
 // Create an Express Router instance
 const router = express.Router();
@@ -89,6 +86,14 @@ router.put(
   authenticateUser,
   requirePermission('update_evacuation_center'),
   evacuationController.restoreEvacuationCenter
+);
+
+// GET assigned evacuation center for a user
+// Example: GET /api/v1/evacuation-centers/user/123
+router.get(
+  '/user/:userId',
+  authenticateUser,
+  evacuationController.getAssignedEvacuationCenter
 );
 
 // Export the router

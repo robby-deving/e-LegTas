@@ -31,6 +31,9 @@ export default function SideNav() {
   const canViewEvacCenters = hasPermission('view_evacuation_centers');
   const canViewUserManagement = hasPermission('view_user_management');
   const canViewAnnouncements = hasPermission('view_announcement_page');
+  const canViewDisaster = hasPermission('view_disaster');
+  const canViewReports = hasPermission('view_reports');
+  const canViewProfile = hasPermission('view_profile');
 
   const handleLogout = async () => {
     try {
@@ -107,11 +110,15 @@ export default function SideNav() {
           {canViewMap && (
             <SideItem collapsed={collapsed} icon={mapIcon} label="Map" to="/map" />
           )}
-          <SideItem collapsed={collapsed} icon={evacueeIcon} label="Evacuee Information" to="/evacuation-information" />
+          {canViewDisaster && (
+            <SideItem collapsed={collapsed} icon={evacueeIcon} label="Evacuee Information" to="/evacuation-information" />
+          )}
           {canViewEvacCenters && (
             <SideItem collapsed={collapsed} icon={evacuationCenterIcon} label="Evacuation Centers" to="/evacuation-centers" />
           )}
-          <SideItem collapsed={collapsed} icon={reportIcon} label="Reports" to="/reports" />
+          {canViewReports && (
+            <SideItem collapsed={collapsed} icon={reportIcon} label="Reports" to="/reports" />
+          )}
           {canViewAnnouncements && (
             <SideItem collapsed={collapsed} icon={announcementIcon} label="Announcements" to="/announcements" />
           )}
@@ -133,23 +140,25 @@ export default function SideNav() {
         {!collapsed && <h2>Logout</h2>}
       </div>
 
-      {/* Profile */}
-      <NavLink to="/profile" className={`flex items-center mt-3 px-5 border-t-2 border-gray-100 pt-3
-        ${collapsed ? 'justify-center' : 'gap-3'}`}>
-        <div className={`bg-green-100 ${collapsed ? ' h-6 w-6' : "h-10 w-10"} rounded-full flex items-center justify-center`}>
-          {!collapsed && (
-            <span className="text-sm font-semibold text-green-700">
-              {getUserInitials()}
-            </span>
-          )}
-        </div>
-        {!collapsed && (
-          <div>
-            <h2 className="text-sm text-black font-bold">{getDisplayName()}</h2>
-            <p className="text-sm text-gray-500 whitespace-nowrap">{getDisplayEmail()}</p>
+      {/* Profile - Only visible with view_profile permission */}
+      {canViewProfile && (
+        <NavLink to="/profile" className={`flex items-center mt-3 px-5 border-t-2 border-gray-100 pt-3
+          ${collapsed ? 'justify-center' : 'gap-3'}`}>
+          <div className={`bg-green-100 ${collapsed ? ' h-6 w-6' : "h-10 w-10"} rounded-full flex items-center justify-center`}>
+            {!collapsed && (
+              <span className="text-sm font-semibold text-green-700">
+                {getUserInitials()}
+              </span>
+            )}
           </div>
-        )}
-      </NavLink>
+          {!collapsed && (
+            <div>
+              <h2 className="text-sm text-black font-bold">{getDisplayName()}</h2>
+              <p className="text-sm text-gray-500 whitespace-nowrap">{getDisplayEmail()}</p>
+            </div>
+          )}
+        </NavLink>
+      )}
     </div>
   );
 }

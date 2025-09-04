@@ -6,6 +6,9 @@ import { RoomForm } from './RoomForm';
 import type { EvacuationCenter, EvacuationRoom, EvacuationCenterCategory, EvacuationCenterStatus } from '../../types/evacuation';
 import { useEvacuationCenterMutations } from '../../hooks/useEvacuationCenterMutations';
 import { useRoomMutations } from '../../hooks/useRoomsMutations';
+import { useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
+import { selectUserId, selectIsAuthenticated } from '../../features/auth/authSlice';
 
 interface FormData {
   name: string;
@@ -21,6 +24,7 @@ interface FormData {
 interface FormErrors {
   center?: Partial<Record<keyof FormData, string>>;
   rooms?: Record<string, Partial<Record<keyof EvacuationRoom, string>>>;
+  submit?: string;
 }
 
 interface EvacuationCenterModalProps {
@@ -32,6 +36,10 @@ interface EvacuationCenterModalProps {
 }
 
 export function EvacuationCenterModal({ isOpen, onClose, mode, center, onSuccess }: EvacuationCenterModalProps) {
+  const navigate = useNavigate();
+  const currentUserId = useSelector(selectUserId);
+  const isAuthenticated = useSelector(selectIsAuthenticated);
+
   const [formData, setFormData] = useState<FormData>({
     name: '',
     category: '',
@@ -46,8 +54,19 @@ export function EvacuationCenterModal({ isOpen, onClose, mode, center, onSuccess
   const [rooms, setRooms] = useState<EvacuationRoom[]>([]);
   const [errors, setErrors] = useState<FormErrors>({});
 
-  const { createCenter, updateCenter, loading: centerLoading } = useEvacuationCenterMutations();
+  const { createCenter, updateCenter, isCreating, isUpdating } = useEvacuationCenterMutations();
+  const centerLoading = isCreating || isUpdating;
   const { createRoom, updateRoom, deleteRoom } = useRoomMutations();
+
+  // Check authentication when modal opens
+  useEffect(() => {
+    if (isOpen && (!isAuthenticated || !currentUserId)) {
+      console.warn('User not authenticated when opening modal, redirecting to login');
+      navigate('/login');
+      onClose();
+      return;
+    }
+  }, [isOpen, isAuthenticated, currentUserId, navigate, onClose]);
 
   // Initialize form data when center changes
   useEffect(() => {
@@ -268,6 +287,16 @@ export function EvacuationCenterModal({ isOpen, onClose, mode, center, onSuccess
   };
 
   const handleSave = async () => {
+    // Clear previous errors
+    setErrors({});
+
+    // Check authentication
+    if (!isAuthenticated || !currentUserId) {
+      console.warn('User not authenticated or missing user ID, redirecting to login');
+      navigate('/login');
+      return;
+    }
+
     if (!validateForm()) {
       return;
     }
@@ -281,8 +310,9 @@ export function EvacuationCenterModal({ isOpen, onClose, mode, center, onSuccess
         longitude: Number(formData.longitude),
         category: formData.category as EvacuationCenterCategory,
         total_capacity: Number(formData.total_capacity) || 0,
-        ec_status: center?.ec_status || 'Available' as EvacuationCenterStatus, // Add this line
-        created_by: center?.created_by || 1 // Add this line
+        ec_status: center?.ec_status || 'Available' as EvacuationCenterStatus,
+        created_by: center?.created_by || currentUserId,
+        users: null // Add users field for backend compatibility
       };
 
       let savedCenter: EvacuationCenter | null = null;
@@ -335,11 +365,24 @@ export function EvacuationCenterModal({ isOpen, onClose, mode, center, onSuccess
       onClose();
     } catch (error) {
       console.error('Error saving evacuation center:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to save evacuation center';
+      setErrors({ submit: errorMessage });
     }
   };
 
   const handleClose = () => {
     setErrors({});
+    setFormData({
+      name: '',
+      category: '',
+      streetName: '',
+      barangay: '',
+      barangayId: 0,
+      latitude: '',
+      longitude: '',
+      total_capacity: ''
+    });
+    setRooms([]);
     onClose();
   };
 
@@ -379,17 +422,24 @@ export function EvacuationCenterModal({ isOpen, onClose, mode, center, onSuccess
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={handleClose} disabled={centerLoading}>
-            Cancel
-          </Button>
-          <Button 
-            onClick={handleSave}
-            className="bg-green-700 hover:bg-green-800 text-white"
-            disabled={centerLoading}
-          >
-            {centerLoading ? 'Saving...' : (mode === 'add' ? 'Add' : 'Save Changes')}
-          </Button>
+        <DialogFooter className="flex-col space-y-2">
+          {errors.submit && (
+            <div className="text-red-600 text-sm text-center w-full">
+              {errors.submit}
+            </div>
+          )}
+          <div className="flex space-x-2">
+            <Button variant="outline" onClick={handleClose} disabled={centerLoading}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSave}
+              className="bg-green-700 hover:bg-green-800 text-white"
+              disabled={centerLoading}
+            >
+              {centerLoading ? 'Saving...' : (mode === 'add' ? 'Add' : 'Save Changes')}
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -1,0 +1,23 @@
+/* src/styles/print.css */
+@media print {
+  html, body, #root,
+  .container, .app, .layout, .content {
+    margin: 0 !important;
+    padding: 0 !important;
+    max-width: none !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* Tables paginate cleanly */
+  table { width: 100%; border-collapse: collapse; page-break-inside: auto; }
+  thead { display: table-header-group; }  /* repeat header on each page */
+  tfoot { display: table-footer-group; }
+  tr    { break-inside: avoid; page-break-inside: avoid; }
+  th, td { page-break-inside: avoid; }
+  img { break-inside: avoid; page-break-inside: avoid; }
+
+  .report-template { margin: 0 !important; padding: 0 !important; }
+}
+
+

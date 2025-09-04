@@ -1,7 +1,5 @@
 // evacuee.controller.js
-
 const { supabase } = require('../config/supabase');
-
 class ApiError extends Error {
   constructor(message, statusCode = 500) {
     super(message);
@@ -967,9 +965,7 @@ exports.getEvacueesInformationbyDisasterEvacuationEventId = async (req, res, nex
   const parseJsonMaybe = (v) => {
     if (v == null) return null;
     if (typeof v === "object") return v;
-    if (typeof v === "string") {
-      try { return JSON.parse(v); } catch { return null; }
-    }
+    if (typeof v === "string") { try { return JSON.parse(v); } catch { return null; } }
     return null;
   };
   const has = (obj, key) => obj != null && Object.prototype.hasOwnProperty.call(obj, key);
@@ -980,17 +976,39 @@ exports.getEvacueesInformationbyDisasterEvacuationEventId = async (req, res, nex
     return suffix ? `${full} ${suffix}` : full;
   };
 
+  // Prefer snapshot barangay_of_origin; if it's a number, map id->name from barangays
+  const resolveBarangayNameFactory = (barangayNameById) => (snapValue, residentJoinName) => {
+    if (snapValue !== undefined && snapValue !== null) {
+      const num = Number(snapValue);
+      if (Number.isFinite(num)) {
+        return barangayNameById.get(num) || residentJoinName || "Unknown";
+      }
+      if (typeof snapValue === "string" && snapValue.trim() !== "") {
+        return snapValue.trim(); // legacy: snapshot stored a free-text barangay label
+      }
+    }
+    return residentJoinName || "Unknown";
+  };
+
   try {
-    // 0) Load vulnerability type names once (id -> name), so we can map ids to labels
+    // 0) vulnerability type names
     const { data: vulnTypes, error: vulnTypesErr } = await supabase
       .from("vulnerability_types")
       .select("id, name");
-    if (vulnTypesErr) {
-      console.warn("[WARN] fetching vulnerability_types:", vulnTypesErr);
-    }
+    if (vulnTypesErr) console.warn("[WARN] fetching vulnerability_types:", vulnTypesErr);
     const vulnNameById = new Map((vulnTypes || []).map((v) => [Number(v.id), v.name]));
 
-    // 1) Pull registrations for this event, including event-scoped fields
+    // 0.1) barangay id -> name map (for snapshot numeric values)
+    const { data: brgyRows, error: brgyErr } = await supabase
+      .from("barangays")
+      .select("id, name");
+    if (brgyErr) {
+      console.warn("[WARN] fetching barangays:", brgyErr);
+    }
+    const barangayNameById = new Map((brgyRows || []).map((b) => [Number(b.id), b.name]));
+    const resolveBarangayName = resolveBarangayNameFactory(barangayNameById);
+
+    // 1) registrations for this event (include resident + barangay join via FK)
     const { data: registrations, error: regError } = await supabase
       .from("evacuation_registrations")
       .select(`
@@ -1021,7 +1039,7 @@ exports.getEvacueesInformationbyDisasterEvacuationEventId = async (req, res, nex
             birthdate,
             sex,
             barangay_of_origin,
-            barangays ( name )
+            barangays:barangay_of_origin ( id, name )
           )
         ),
         ec_rooms:ec_rooms_id (
@@ -1036,12 +1054,11 @@ exports.getEvacueesInformationbyDisasterEvacuationEventId = async (req, res, nex
       console.error("[ERROR] fetching registrations:", regError);
       return next(new ApiError("Failed to fetch registrations", 500));
     }
-
     if (!registrations || registrations.length === 0) {
       return res.status(200).json([]);
     }
 
-    // 2) Group members by family_head_id for this event
+    // 2) group by family_head_id
     const familyGroups = new Map();
     for (const r of registrations) {
       const fhId = r.family_head_id ?? null;
@@ -1072,20 +1089,19 @@ exports.getEvacueesInformationbyDisasterEvacuationEventId = async (req, res, nex
         const resident = er?.residents ?? {};
         const snap = parseJsonMaybe(member?.profile_snapshot) || {};
 
-        // Prefer snapshot, fall back to global resident fields (per-field).
+        // prefer snapshot fields; fallback to resident
         const first_name  = has(snap, "first_name")  ? (snap.first_name  ?? null) : (resident.first_name  ?? null);
         const middle_name = has(snap, "middle_name") ? (snap.middle_name ?? null) : (resident.middle_name ?? null);
         const last_name   = has(snap, "last_name")   ? (snap.last_name   ?? null) : (resident.last_name   ?? null);
-        // IMPORTANT: if snapshot has suffix (even null), honor it; otherwise fallback
         const suffix      = has(snap, "suffix")      ? (snap.suffix      ?? null) : (resident.suffix      ?? null);
-
         const sexVal      = has(snap, "sex")         ? (snap.sex         ?? "Unknown") : (resident.sex ?? "Unknown");
         const birthdate   = has(snap, "birthdate")   ? (snap.birthdate   ?? null)      : (resident.birthdate ?? null);
 
-        // Barangay display: use resident join name; snapshot holds only the id
-        const barangayName = resident?.barangays?.name || "Unknown";
+        // barangay: prefer snapshot.barangay_of_origin (ID or string), fallback to resident join name
+        const barangayFromResident = resident?.barangays?.name || "Unknown";
+        const barangayName = resolveBarangayName(snap.barangay_of_origin, barangayFromResident);
 
-        // Age presentation + buckets
+        // age + buckets
         let ageStr = "—";
         if (birthdate) {
           const birth = new Date(birthdate);
@@ -1117,26 +1133,20 @@ exports.getEvacueesInformationbyDisasterEvacuationEventId = async (req, res, nex
         if (sexVal === "Male") summary.total_no_of_male++;
         else if (sexVal === "Female") summary.total_no_of_female++;
 
-        // Event-scoped vulnerabilities: coerce to numbers
+        // event-scoped vulnerabilities
         let vulnIdsRaw = Array.isArray(member?.vulnerability_type_ids)
           ? member.vulnerability_type_ids
           : parseJsonMaybe(member?.vulnerability_type_ids) || [];
         const vulnIds = (Array.isArray(vulnIdsRaw) ? vulnIdsRaw : [])
           .map((x) => Number(x))
           .filter(Number.isFinite);
+        const vulnNames = vulnIds.map((id) => vulnNameById.get(id)).filter(Boolean);
 
-        const vulnNames = vulnIds
-          .map((id) => vulnNameById.get(id))
-          .filter(Boolean);
-
-        // Count per family using the current event only
         if (vulnIds.includes(4)) summary.total_no_of_pwd++;
         if (vulnIds.includes(5)) summary.total_no_of_pregnant++;
         if (vulnIds.includes(6)) summary.total_no_of_lactating_women++;
 
         const memberFullName = buildFullName({ first_name, middle_name, last_name, suffix });
-
-        // Prefer event relationship when present (older rows may lack it in snapshot)
         const relationship =
           has(snap, "relationship_to_family_head")
             ? (snap.relationship_to_family_head ?? null)
@@ -1147,27 +1157,23 @@ exports.getEvacueesInformationbyDisasterEvacuationEventId = async (req, res, nex
           resident_id: resident.id ?? null,
           full_name: memberFullName || "Unknown",
           age: ageStr,
-          barangay_of_origin: barangayName,
+          barangay_of_origin: barangayName, // <-- now snapshot-first
           sex: sexVal,
-          vulnerability_types: vulnNames, // event-scoped labels
+          vulnerability_types: vulnNames,
           room_name: member?.ec_rooms?.room_name || "Unknown",
           arrival_timestamp: member.arrival_timestamp || null,
           relationship_to_family_head: relationship,
-          // keep raw for head resolution below (not returned)
           _snap: snap,
           _resident: resident,
         };
       });
 
-      // --- Head-of-family display (EVENT-SCOPED) ---
-      // Find the member whose event relationship is "Head" (prefer snapshot->relationship_to_family_head)
-      const headMember = familyMembers.find((m) => m.relationship_to_family_head === "Head")
-        // If none explicitly marked as Head (older data), fall back to first member
-        || familyMembers[0];
+      // Head-of-family display (prefer snapshot barangay; fallback to resident join)
+      const headMember =
+        familyMembers.find((m) => m.relationship_to_family_head === "Head") || familyMembers[0];
 
       let family_head_full_name = "Unknown";
       let family_head_barangay = "Unknown";
-
       if (headMember) {
         const snapH = headMember._snap || {};
         const residentH = headMember._resident || {};
@@ -1178,36 +1184,30 @@ exports.getEvacueesInformationbyDisasterEvacuationEventId = async (req, res, nex
         const suffixH      = has(snapH, "suffix")      ? (snapH.suffix      ?? null) : (residentH.suffix      ?? null);
 
         family_head_full_name = buildFullName({
-          first_name: first_nameH,
-          middle_name: middle_nameH,
-          last_name: last_nameH,
-          suffix: suffixH,
+          first_name: first_nameH, middle_name: middle_nameH, last_name: last_nameH, suffix: suffixH,
         });
 
-        // Barangay label from resident join (snapshot usually holds only the id)
-        family_head_barangay = residentH?.barangays?.name || "Unknown";
+        const residentJoinBrgy = residentH?.barangays?.name || "Unknown";
+        family_head_barangay = resolveBarangayName(snapH.barangay_of_origin, residentJoinBrgy);
       }
 
-      // Choose a stable room/decamp field (first member)
       const first = members[0] || {};
       response.push({
         id: familyHeadId,
         disaster_evacuation_event_id: eventId,
         family_head_full_name,
-        barangay: family_head_barangay,
+        barangay: family_head_barangay, // <-- now snapshot-first
         total_individuals: members.length,
         room_name: first?.ec_rooms?.room_name || "Unknown",
         decampment_timestamp: first?.decampment_timestamp || null,
-
         view_family: {
           evacuation_center_name: first?.ec_rooms?.evacuation_centers?.name || "Unknown",
           head_of_family: family_head_full_name,
           decampment: first?.decampment_timestamp || null,
           summary_per_family: summary,
         },
-
         list_of_family_members: {
-          family_members: familyMembers.map(({ _snap, _resident, ...pub }) => pub), // strip internals
+          family_members: familyMembers.map(({ _snap, _resident, ...pub }) => pub),
         },
       });
     }
@@ -1218,7 +1218,6 @@ exports.getEvacueesInformationbyDisasterEvacuationEventId = async (req, res, nex
     return next(new ApiError("Internal server error", 500));
   }
 };
-
 
 /**
  * @desc Get evacuee demographic statistics by disaster evacuation event ID
@@ -1292,19 +1291,19 @@ exports.getDisasterEvacuationDetails = async (req, res, next) => {
   }
 
   try {
-    // 1) Event + related disaster + EC (pull capacity here to avoid extra query)
+    // 1) Event + related disaster + EC (also return event start/end dates!)
     const { data: eventData, error: eventError } = await supabase
       .from("disaster_evacuation_event")
       .select(`
         id,
+        evacuation_start_date,
+        evacuation_end_date,
         disasters (
           id,
           disaster_name,
           disaster_start_date,
           disaster_end_date,
-          disaster_types (
-            id, name
-          )
+          disaster_types ( id, name )
         ),
         evacuation_centers (
           id,
@@ -1315,7 +1314,7 @@ exports.getDisasterEvacuationDetails = async (req, res, next) => {
         )
       `)
       .eq("id", disasterEvacuationEventId)
-      .maybeSingle(); // ← no error if not found
+      .maybeSingle();
 
     if (eventError) {
       console.error("[ERROR] fetching event:", eventError);
@@ -1346,8 +1345,14 @@ exports.getDisasterEvacuationDetails = async (req, res, next) => {
       evacuation_center_capacity: ec?.total_capacity ?? 0,
     };
 
-    // 3) Respond with null/“Unknown” fallbacks instead of 500s
+    // 3) Respond (now includes a canonical evacuation_event block)
     return res.status(200).json({
+      evacuation_event: {
+        id: eventData.id,
+        evacuation_start_date: eventData.evacuation_start_date ?? null,
+        evacuation_end_date: eventData.evacuation_end_date ?? null,
+        is_event_ended: Boolean(eventData.evacuation_end_date),
+      },
       disaster: {
         disaster_types_id: disasters?.disaster_types?.id ?? null,
         disaster_type_name: disasters?.disaster_types?.name ?? "Unknown",
@@ -1370,44 +1375,70 @@ exports.getDisasterEvacuationDetails = async (req, res, next) => {
   }
 };
 
-
-/**
- * @desc Get all rooms for the evacuation center tied to a disaster evacuation event
- * @route GET /api/v1/evacuees/:disasterEvacuationEventId/rooms
- * @access Public
- */
 exports.getAllRoomsForDisasterEvacuationEventId = async (req, res, next) => {
   const { disasterEvacuationEventId } = req.params;
+  const onlyAvailable = String(req.query.only_available || "1") !== "0"; // default: only rooms with space
 
   try {
-    // 1) Resolve the evacuation_center_id from disaster_evacuation_event
+    // 1) Resolve center id for this event
     const { data: eventRow, error: eventErr } = await supabase
       .from("disaster_evacuation_event")
       .select("evacuation_center_id")
       .eq("id", disasterEvacuationEventId)
       .single();
-
     if (eventErr || !eventRow) {
       return next(new ApiError("Disaster evacuation event not found.", 404));
     }
 
-    // 2) Fetch all rooms for that center (names only for dropdown)
+    // 2) Rooms (include capacity)
     const { data: rooms, error: roomsErr } = await supabase
       .from("evacuation_center_rooms")
-      .select("id, room_name")
+      .select("id, room_name, individual_room_capacity")
       .eq("evacuation_center_id", eventRow.evacuation_center_id)
       .order("room_name", { ascending: true });
-
     if (roomsErr) {
-      return next(
-        new ApiError("Failed to fetch evacuation center rooms.", 500)
-      );
+      return next(new ApiError("Failed to fetch evacuation center rooms.", 500));
     }
+
+    // 3) Occupancy for THIS event (active = decampment_timestamp IS NULL)
+    const { data: occRows, error: occErr } = await supabase
+      .from("evacuation_registrations")
+      .select("ec_rooms_id")
+      .eq("disaster_evacuation_event_id", disasterEvacuationEventId)
+      .is("decampment_timestamp", null);
+    if (occErr) {
+      return next(new ApiError("Failed to fetch room occupancy.", 500));
+    }
+
+    // 4) Count occupants per room
+    const occMap = new Map(); // room_id -> count
+    for (const row of occRows || []) {
+      const rid = row.ec_rooms_id;
+      if (!rid) continue;
+      occMap.set(rid, (occMap.get(rid) || 0) + 1);
+    }
+
+    // 5) Compose rooms with availability
+    const withAvailability = (rooms || []).map((r) => {
+      const capacity = Number(r.individual_room_capacity || 0);
+      const occupants = occMap.get(r.id) || 0;
+      return {
+        id: r.id,
+        room_name: r.room_name,
+        capacity,
+        available: Math.max(capacity - occupants, 0),
+      };
+    });
+
+    const filtered = onlyAvailable
+      ? withAvailability.filter((r) => r.available > 0)
+      : withAvailability;
 
     return res.status(200).json({
       message: "Rooms fetched successfully.",
-      count: rooms?.length || 0,
-      data: rooms || [],
+      count: filtered.length,
+      data: filtered,            // [{ id, room_name, capacity, available }]
+      all_full: onlyAvailable && filtered.length === 0,
     });
   } catch (err) {
     console.error("getAllRoomsForDisasterEvacuationEventId error:", err);

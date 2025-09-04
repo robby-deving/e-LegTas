@@ -7,12 +7,16 @@ import type {
 import { evacuationCenterService } from '../services/evacuationCenterService';
 
 export function useEvacuationCenterMutations() {
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Separate loading states for each operation
+  const [isCreating, setIsCreating] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const createCenter = async (data: CreateEvacuationCenterRequest): Promise<EvacuationCenter | null> => {
     try {
-      setLoading(true);
+      setIsCreating(true);
       setError(null);
       const result = await evacuationCenterService.createEvacuationCenter(data);
       return result;
@@ -20,13 +24,13 @@ export function useEvacuationCenterMutations() {
       setError(err instanceof Error ? err.message : 'Failed to create evacuation center');
       return null;
     } finally {
-      setLoading(false);
+      setIsCreating(false);
     }
   };
 
   const updateCenter = async (id: number, data: UpdateEvacuationCenterRequest): Promise<EvacuationCenter | null> => {
     try {
-      setLoading(true);
+      setIsUpdating(true);
       setError(null);
       const result = await evacuationCenterService.updateEvacuationCenter(id, data);
       return result;
@@ -34,13 +38,13 @@ export function useEvacuationCenterMutations() {
       setError(err instanceof Error ? err.message : 'Failed to update evacuation center');
       return null;
     } finally {
-      setLoading(false);
+      setIsUpdating(false);
     }
   };
 
   const deleteCenter = async (id: number): Promise<boolean> => {
     try {
-      setLoading(true);
+      setIsDeleting(true);
       setError(null);
       await evacuationCenterService.deleteEvacuationCenter(id);
       return true;
@@ -48,7 +52,7 @@ export function useEvacuationCenterMutations() {
       setError(err instanceof Error ? err.message : 'Failed to delete evacuation center');
       return false;
     } finally {
-      setLoading(false);
+      setIsDeleting(false);
     }
   };
 
@@ -56,7 +60,9 @@ export function useEvacuationCenterMutations() {
     createCenter,
     updateCenter,
     deleteCenter,
-    loading,
+    isCreating,
+    isUpdating,
+    isDeleting,
     error,
   };
 }

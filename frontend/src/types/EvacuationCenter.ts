@@ -5,7 +5,7 @@ export type EvacuationCenter = {
   barangay_id: number;
   latitude: number;
   longitude: number;
-  ec_status: 'Available' | 'Not Available'; // Add other possible values if any
+  ec_status: 'Available' | 'Unavailable'; // Add other possible values if any
   category: 'School' | 'Church' | 'Gym' | 'Other'; // Add other possible values if any
   camp_manager_id: number | null;
   created_by: number;

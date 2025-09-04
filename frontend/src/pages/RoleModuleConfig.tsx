@@ -1,3 +1,54 @@
+// Custom CSS for green checkboxes
+const checkboxGreenStyle = `
+.brand-checkbox {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 1.1em;
+    height: 1.1em;
+    border: 2px solid #00824E;
+    border-radius: 0.25em;
+    background: #fff;
+    cursor: pointer;
+    position: relative;
+    margin-right: 0.75rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+.brand-checkbox:checked {
+    background-color: #00824E;
+    border-color: #00824E;
+}
+.brand-checkbox:checked:after {
+    content: '';
+    position: absolute;
+    left: 0.28em;
+    top: 0.05em;
+    width: 0.35em;
+    height: 0.7em;
+    border: solid #fff;
+    border-width: 0 0.18em 0.18em 0;
+    transform: rotate(45deg);
+    pointer-events: none;
+    display: block;
+}
+.brand-checkbox:indeterminate {
+    background-color: #00824E;
+    border-color: #00824E;
+}
+.brand-checkbox:indeterminate:after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 0.6em;
+    height: 0.13em;
+    background: #fff;
+    border-radius: 1px;
+    display: block;
+    transform: translate(-50%, -50%);
+}
+`;
+    // Inject custom CSS for green checkboxes at the top of the component
+    // ...existing code...
 import { usePageTitle } from '../hooks/usePageTitle';
 import { useSelector } from 'react-redux';
 import { selectCurrentUser, selectToken } from '../features/auth/authSlice';
@@ -15,12 +66,7 @@ interface Role {
     created_at?: string;
 }
 
-interface UserStats {
-    cdrrmo: number;
-    cswdo: number;
-    campManager: number;
-    allUsers: number;
-}
+
 
 interface Permission {
     id: number;
@@ -36,27 +82,20 @@ export default function RoleModuleConfig() {
     const token = useSelector(selectToken);
     const { hasPermission } = usePermissions();
     const canCreateRole = hasPermission('create_role');
-    const canUpdateRole = hasPermission('update_role');
-    const canDeleteRole = hasPermission('delete_role');
     const canAddUserPermission = hasPermission('add_user_permission');
     const canEditUserPermission = hasPermission('edit_user_permission');
     
     // State for roles data
     const [roles, setRoles] = useState<Role[]>([]);
     const [permissions, setPermissions] = useState<Permission[]>([]);
-    const [userStats, setUserStats] = useState<UserStats>({
-        cdrrmo: 0,
-        cswdo: 0,
-        campManager: 0,
-        allUsers: 0
-    });
+
     // New: user counts by roleId
     const [userCountsByRole, setUserCountsByRole] = useState<Record<number, number>>({});
     const [rolePermissions, setRolePermissions] = useState<Record<number, number>>({});
     const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
     const [rowsPerPage, setRowsPerPage] = useState(10);
-    const [selectedRows, setSelectedRows] = useState(0);
+    const [selectedRows] = useState(0);
     const [isAddRoleModalOpen, setIsAddRoleModalOpen] = useState(false);
     const [isEditRoleModalOpen, setIsEditRoleModalOpen] = useState(false);
     const [editingRole, setEditingRole] = useState<Role | null>(null);
@@ -89,11 +128,20 @@ export default function RoleModuleConfig() {
         return 'Other';
     };
     
-    // Add group to permissions
-    const permissionsWithGroups = permissions.map(permission => ({
-        ...permission,
-        group: getPermissionGroup(permission.permission_name)
-    }));
+    // Exclude specific permissions from modal
+    const EXCLUDED_PERMISSION_LABELS = new Set<string>([
+        'Delete Evacuee Information',
+        'Delete Family Member Information',
+        'Edit Existing Report',
+    ]);
+
+    // Add group to permissions (after filtering out excluded labels)
+    const permissionsWithGroups = permissions
+        .filter(permission => !EXCLUDED_PERMISSION_LABELS.has(permission.label))
+        .map(permission => ({
+            ...permission,
+            group: getPermissionGroup(permission.permission_name)
+        }));
     
     const permissionGroups = Array.from(new Set(permissionsWithGroups.map(p => p.group))).sort();
     
@@ -158,16 +206,10 @@ export default function RoleModuleConfig() {
                 throw new Error('Failed to fetch user statistics');
             }
             const data = await response.json();
-            setUserStats(data.data);
+            // User stats are fetched but not stored in state since they're not used in the UI
+            console.log('User stats fetched:', data.data);
         } catch (err) {
             console.error('Error fetching user stats:', err);
-            // Set default values if stats fail to load
-            setUserStats({
-                cdrrmo: 0,
-                cswdo: 0,
-                campManager: 0,
-                allUsers: 0
-            });
         }
     };
 
@@ -520,7 +562,9 @@ export default function RoleModuleConfig() {
     }
 
     return (
-        <div className='p-6'>
+        <>
+            <style>{checkboxGreenStyle}</style>
+            <div className='p-6'>
             {/* Title */}
             <h1 
                 className='font-bold mb-6'
@@ -784,7 +828,7 @@ export default function RoleModuleConfig() {
                                                             }
                                                         }}
                                                         onChange={() => handleCategoryToggle(group)}
-                                                        className="mr-3 rounded w-4 h-4 accent-black"
+                                                        className="brand-checkbox"
                                                         disabled={!canModifyRolePermissions}
                                                     />
                                                     <span className="font-bold text-base">{group}</span>
@@ -798,7 +842,7 @@ export default function RoleModuleConfig() {
                                                                     type="checkbox"
                                                                     checked={formData.permissions.includes(permission.permission_name)}
                                                                     onChange={() => handlePermissionChange(permission.permission_name)}
-                                                                    className="mr-3 rounded w-4 h-4 accent-black"
+                                                                    className="brand-checkbox"
                                                                     disabled={!canModifyRolePermissions}
                                                                 />
                                                                 <span className="text-base">{permission.label}</span>
@@ -885,5 +929,6 @@ export default function RoleModuleConfig() {
                 </div>
             )}
         </div>
+        </>
     );
 }

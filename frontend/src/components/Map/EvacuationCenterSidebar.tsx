@@ -11,12 +11,41 @@ type Props = {
   setSelectedEvacuationCenter: (center: EvacuationCenter | null) => void;
 };
 
-interface EvacuationSummary {
-  total_no_of_individuals: number;
-}
+
 
 const EvacuationCenterSidebar: React.FC<Props> = ({ selectedEvacuationCenter, setSelectedEvacuationCenter }) => {
   const [currentCapacity, setCurrentCapacity] = useState<number>(0);
+
+  // Function to determine status badge text and colors based on capacity and status
+  const getStatusDisplay = () => {
+    const totalCapacity = selectedEvacuationCenter.total_capacity || 0;
+
+    // Priority 1: Check if status is Unavailable
+    if (selectedEvacuationCenter.ec_status === 'Unavailable') {
+      return {
+        text: 'Unavailable',
+        style: 'bg-gray-100 text-gray-800'
+      };
+    }
+
+    // Priority 2: Check capacity conditions
+    if (currentCapacity > totalCapacity) {
+      return {
+        text: 'Over Capacity',
+        style: 'bg-red-100 text-red-800'
+      };
+    } else if (currentCapacity === totalCapacity) {
+      return {
+        text: 'Full',
+        style: 'bg-orange-100 text-orange-800'
+      };
+    } else {
+      return {
+        text: selectedEvacuationCenter.ec_status || 'Available',
+        style: 'bg-green-100 text-green-800'
+      };
+    }
+  };
 
   useEffect(() => {
     // First, get the initial data
@@ -143,11 +172,22 @@ const EvacuationCenterSidebar: React.FC<Props> = ({ selectedEvacuationCenter, se
 
       <div className="mt-3 border-t-2 border-gray-200 py-3">
         <h3 className="text-sm text-gray-500">Evacuation Capacity:</h3>
-        <div className="flex items-center gap-3 ps-3">
-          <img src={evacueeCount} alt="" />
-          <h3 className="text-sm font-bold">
-            Capacity: {currentCapacity}/{selectedEvacuationCenter.total_capacity || '0'}
-          </h3>
+        <div className="flex items-center justify-between ps-3">
+          <div className="flex items-center gap-3">
+            <img src={evacueeCount} alt="" />
+            <h3 className="text-sm font-bold">
+              Capacity: {currentCapacity}/{selectedEvacuationCenter.total_capacity || '0'}
+            </h3>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <div className="absolute inset-0 w-2 h-2 bg-green-500 rounded-full animate-ping opacity-75"></div>
+            </div>
+            <span className="text-xs font-semibold text-green-700 bg-green-100 px-2 py-1 rounded-full">
+              LIVE
+            </span>
+          </div>
         </div>
       </div>
 
@@ -166,8 +206,8 @@ const EvacuationCenterSidebar: React.FC<Props> = ({ selectedEvacuationCenter, se
         <h3 className="text-sm text-gray-500">Evacuation Status:</h3>
         <div className="flex items-center gap-3 ps-3 py-1">
           <img src={statusEC} alt="" />
-          <div className="bg-green-100 text-green-800 font-semibold px-2 text-sm rounded">
-            {selectedEvacuationCenter.ec_status}
+          <div className={`font-semibold px-2 text-sm rounded ${getStatusDisplay().style}`}>
+            {getStatusDisplay().text}
           </div>
         </div>
       </div>

@@ -66,7 +66,7 @@ export default function SystemAdminDashboard() {
     // Fetch recent users
     const fetchRecentUsers = async () => {
         try {
-            const response = await fetch('/api/v1/users/recent', {
+            const response = await fetch('/api/v1/users/recent?limit=7', {
                 headers: getAuthHeaders()
             });
             if (!response.ok) {
@@ -90,7 +90,9 @@ export default function SystemAdminDashboard() {
         loadData();
     }, []);
     
-    const totalRows = recentUsers.length;
+    // No need to slice, backend limits the results
+    const displayedUsers = recentUsers;
+    const totalRows = displayedUsers.length;
 
     return (
         <div className='p-6'>
@@ -224,10 +226,10 @@ export default function SystemAdminDashboard() {
                                 </td>
                             </tr>
                         ) : (
-                            recentUsers.map((user: RecentUser, index: number) => (
+                            displayedUsers.map((user: RecentUser, index: number) => (
                                 <tr 
                                     key={user.id || index} 
-                                    className={`hover:bg-gray-50 ${index !== recentUsers.length - 1 ? 'border-b border-gray-200' : ''}`}
+                                    className={`hover:bg-gray-50 ${index !== displayedUsers.length - 1 ? 'border-b border-gray-200' : ''}`}
                                 >
                                     <td className="px-6 py-4 whitespace-nowrap text-gray-900 text-base">
                                         {user.full_name || 'N/A'}
