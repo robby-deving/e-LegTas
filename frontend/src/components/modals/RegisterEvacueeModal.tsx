@@ -16,7 +16,7 @@ import type { RegisterEvacueeModalProps } from "@/types/RegisterEvacueeModal";
 // import { Calendar as DateCalendar } from "../ui/calendar"; 
 // import { formatMMDDYYYY, parseMMDDYYYY, toISODateLocal } from "@/utils/dateInput";
 import { DateTimePicker } from "../ui/date-time-picker";
-import { toISODateLocal } from "@/utils/dateInput";
+import { toISODateLocal } from "@/utils/dateInput.ts";
 import BirthdayMaskedInput from '../EvacuationCenterDetail/BirthdayMaskedInput';
 import { RegisterBlockDialog } from "@/components/modals/RegisterBlockDialog";
 

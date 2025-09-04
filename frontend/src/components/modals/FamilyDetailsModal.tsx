@@ -1,3 +1,4 @@
+//FamilyDetailsModal.tsx
 import { useState, useEffect, useMemo } from "react";
 import axios from "axios";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../ui/dialog";
@@ -63,6 +64,7 @@ export const FamilyDetailsModal: React.FC<FamilyDetailsModalProps> = ({
 
 const [savingDecamp, setSavingDecamp] = useState(false);
 const [decampError, setDecampError] = useState<string | null>(null);
+
 const [regBlockOpen, setRegBlockOpen] = useState(false);
 const [regBlockName, setRegBlockName] = useState<string | undefined>();
 const [regBlockEcName, setRegBlockEcName] = useState<string | undefined>();
@@ -72,17 +74,13 @@ const [regBlockDisasterType, setRegBlockDisasterType] = useState<string | undefi
 
 const [editBlockedOpen, setEditBlockedOpen] = useState(false);
 const [editBlockedName, setEditBlockedName] = useState<string | undefined>();
+
 const [decampInvalidOpen, setDecampInvalidOpen] = useState(false);
 const [decampInvalidMsg, setDecampInvalidMsg] = useState<React.ReactNode>(null);
 
 const hadExistingDecamp = Boolean(evacuee?.decampment_timestamp);
-
-const [touched, setTouched] = useState<{ date: boolean; time: boolean }>(() => ({
-  date: hadExistingDecamp,
-  time: hadExistingDecamp,
-}));
-
-const [decampDate, setDecampDate] = useState<Date | null>(
+const [touched, setTouched] = useState<{date: boolean; time: boolean}>({ date: hadExistingDecamp, time: hadExistingDecamp });
+const [decampDate, setDecampDate] = useState<Date | null>(() =>
   evacuee?.decampment_timestamp ? new Date(evacuee.decampment_timestamp) : null
 );
 
@@ -180,14 +178,13 @@ const transferCandidates: any[] = members.filter(
 );
 
 const isDecamped = Boolean(evacuee?.decampment_timestamp);
-
 const canTransfer =
   !isDecamped &&
   transferCandidates.length > 0 &&
   Boolean(evacuee?.id) &&
   Boolean(evacuee?.disaster_evacuation_event_id);
 
-const handleSelectNewHead = (value: string) => {
+  const handleSelectNewHead = (value: string) => {
   setNewHeadEvacueeId(value);
   const cand = transferCandidates.find((m) => String(m.evacuee_id) === value);
   const relToOldHead: string | undefined = cand?.relationship_to_family_head;
@@ -245,7 +242,6 @@ const handleSaveDecampment = async () => {
 
   const url = `http://localhost:3000/api/v1/evacuees/${eventId}/families/${familyHeadId}/decamp`;
 
-// CLEAR decampment (undecamp)
 if (!decampDate) {
   setSavingDecamp(true);
   try {
@@ -266,7 +262,6 @@ if (!decampDate) {
       message?: string;
     };
 
-    // Conflict? show modal, return early (no red line because probe was 200)
     if (
       probeJson.allowed === false ||
       probeJson.code === "UndecampConflict" ||
@@ -327,7 +322,7 @@ try {
     disaster_type_name?: string;
   };
 
-  // 1) DRY-RUN probe (always 200; never shows a red network line)
+  // 1) DRY-RUN probe 
   const probe = await fetch(`${url}?dry_run=1`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -372,8 +367,39 @@ try {
 } finally {
   setSavingDecamp(false);
 }
-
 };
+
+function enforceDecampDateTimeBounds(dt: Date | null): boolean {
+  if (!dt) return false;
+
+  const res = checkDateBounds(dt, minDate, maxDate);
+  if (res.ok === false) {
+    if (res.kind === DateBound.BeforeMin) {
+      setDecampInvalidMsg(
+        <>
+          Decampment cannot be before the disaster’s start (
+          <b>{formatMMDDYYYY(res.bound)}</b>).
+        </>
+      );
+    } else if (res.kind === DateBound.AfterMax) {
+      setDecampInvalidMsg(
+        <>
+          Decampment cannot be in the future. Latest allowed is{" "}
+          <b>{formatMMDDYYYY(res.bound)}</b>.
+        </>
+      );
+    }
+    setDecampInvalidOpen(true);
+    return false;
+  }
+  const now = new Date();
+  if (startOfDayLocal(dt).getTime() === startOfDayLocal(now).getTime() && dt.getTime() > now.getTime()) {
+    setDecampInvalidMsg(<>Decampment time can’t be in the future.</>);
+    setDecampInvalidOpen(true);
+    return false;
+  }
+  return true;
+}
 
   return (
     <>
@@ -392,7 +418,7 @@ try {
           <div className="max-h-[70vh] overflow-y-auto pr-2 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500">
           <div className="space-y-6">
             {/* Header section */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-semibold mb-2">Evacuation Center:</label>
                 <Input value={centerName} readOnly className="w-full bg-gray-50" />
@@ -432,9 +458,8 @@ try {
                 </div>
               </div>
               
-              <div className="w-full">
+              <div className="w-full md:col-span-2 lg:col-span-1">
                 <label className="block text-sm font-semibold mb-2">Decampment:</label>
-
                 <div className="flex flex-wrap items-center gap-3">
                 {/* DATE (masked input + left calendar icon trigger) */}
                 <div className="relative flex-1 min-w-[12rem]">
@@ -583,7 +608,6 @@ try {
               </div>
             </div>
             
-
             {/* Breakdown table */}
             <div>
               <label className="block text-sm font-semibold mb-3">Individual Breakdown:</label>

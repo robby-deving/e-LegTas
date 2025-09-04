@@ -886,3 +886,9 @@
 {"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T06:27:54.972Z"}
 {"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T06:27:54.973Z"}
 {"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T06:27:54.977Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T06:36:36.281Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T06:36:36.284Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T06:36:36.286Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T06:36:36.287Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T06:36:36.288Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T06:36:36.296Z"}
