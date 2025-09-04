@@ -28,6 +28,15 @@ logger.info('SMTP_PASS status', { present: !!process.env.SMTP_PASS });
 // Middleware
 app.use(cors({
   origin: ['http://localhost:5173', 'https://e-legtas-git-devbranch-robby-devings-projects.vercel.app'],
+  credentials: true,
+  methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
+  allowedHeaders: ['Content-Type','Authorization','X-Requested-With'],
+  exposedHeaders: ['Content-Disposition'],
+  optionsSuccessStatus: 204
+}));
+
+app.options('*', cors({
+  origin: ['http://localhost:5173', 'https://e-legtas-git-devbranch-robby-devings-projects.vercel.app'],
   credentials: true
 }));
 app.use(cookieParser());
