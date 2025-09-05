@@ -35,10 +35,6 @@ app.use(cors({
   optionsSuccessStatus: 204
 }));
 
-app.options('*', cors({
-  origin: ['http://localhost:5173', 'https://e-legtas-git-devbranch-robby-devings-projects.vercel.app'],
-  credentials: true
-}));
 app.use(cookieParser());
 app.use(express.json());
 
