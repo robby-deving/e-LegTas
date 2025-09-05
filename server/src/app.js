@@ -27,7 +27,7 @@ logger.info('SMTP_PASS status', { present: !!process.env.SMTP_PASS });
 
 // Middleware
 app.use(cors({
-  origin: ['http://localhost:5173', 'https://e-legtas-git-devbranch-robby-devings-projects.vercel.app', 'https://beta.e-legtas.tech'],
+  origin: ['http://localhost:5173', 'https://beta.e-legtas.tech'],
   credentials: true,
   methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
   allowedHeaders: ['Content-Type','Authorization','X-Requested-With'],
