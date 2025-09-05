@@ -25,7 +25,9 @@ describe('EvacuationCentersPage', () => {
       ec_status: 'Available',
       barangay_id: 1,
       camp_manager_id: null,
-      created_by: 1
+      created_by: 1,
+      assigned_user_id: null
+
     },
     {
       id: 2,
@@ -38,7 +40,8 @@ describe('EvacuationCentersPage', () => {
       ec_status: 'Unavailable',
       barangay_id: 2,
       camp_manager_id: null,
-      created_by: 1
+      created_by: 1,
+      assigned_user_id: null
     }
   ];
 
