@@ -163,7 +163,6 @@ exports.createEvacuationCenter = async (req, res, next) => {
         longitude,
         ec_status,
         category,
-        users,
         total_capacity,
         created_by
     } = req.body;
@@ -180,7 +179,7 @@ exports.createEvacuationCenter = async (req, res, next) => {
         longitude: Number(longitude),
         ec_status,
         category,
-        assigned_user_id: users ? Number(users) : null,
+        assigned_user_id: null,
         total_capacity: Number(total_capacity),
         created_by: Number(created_by),
         created_at: new Date().toISOString()
@@ -228,6 +227,8 @@ exports.updateEvacuationCenter = async (req, res, next) => {
     if (updates.camp_manager_id !== undefined) updates.camp_manager_id = Number(updates.camp_manager_id);
     if (updates.created_by !== undefined) updates.created_by = Number(updates.created_by);
     if (updates.total_capacity !== undefined) updates.total_capacity = Number(updates.total_capacity);
+
+
 
     updates.updated_at = new Date().toISOString();
 

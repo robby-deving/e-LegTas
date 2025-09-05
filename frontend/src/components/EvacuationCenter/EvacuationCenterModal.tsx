@@ -312,7 +312,7 @@ export function EvacuationCenterModal({ isOpen, onClose, mode, center, onSuccess
         total_capacity: Number(formData.total_capacity) || 0,
         ec_status: center?.ec_status || 'Available' as EvacuationCenterStatus,
         created_by: center?.created_by || currentUserId,
-        users: null // Add users field for backend compatibility
+        assigned_user_id: center?.assigned_user_id || null
       };
 
       let savedCenter: EvacuationCenter | null = null;

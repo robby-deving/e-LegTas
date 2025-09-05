@@ -33,6 +33,7 @@ export interface EvacuationCenter {
   camp_manager_id: number | null;
   total_capacity: number;
   created_by: number;
+  assigned_user_id: number | null;
   rooms?: EvacuationRoom[];
 }
 
