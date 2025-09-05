@@ -10,10 +10,6 @@ const transporter = nodemailer.createTransport({
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
   },
-  // Additional security options for Gmail
-  tls: {
-    rejectUnauthorized: false
-  }
 });
 
 // Verify connection
