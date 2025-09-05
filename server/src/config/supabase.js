@@ -1,4 +1,10 @@
-// src/config/supabase.js
+// config/supabase.js
+
+// Import the 'path' module to help with resolving file paths
+const path = require('path');
+
+require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
+
 const { createClient } = require('@supabase/supabase-js');
 
 const supabaseUrl = process.env.SUPABASE_URL;
