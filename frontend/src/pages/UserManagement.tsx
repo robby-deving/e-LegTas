@@ -87,7 +87,7 @@ export default function UserManagement(){
             canSeeEvacCenter: true,
             canSelectRole: true,
             canManageEvacCenter: true,
-            apiEndpoint: 'http://localhost:3000/api/v1/users',
+            apiEndpoint: 'https://api.e-legtas.tech/api/v1/users',
             allowedRoleIds: "all", // Can see all users - automatically includes new roles
             assignableRoleIds: "all", // Can assign any role - automatically includes new roles
             tableColumns: ['user', 'email', 'role', 'evacuation_center', 'actions']
@@ -97,7 +97,7 @@ export default function UserManagement(){
             canSeeEvacCenter: false,
             canSelectRole: true, // Changed to true - they can assign roles
             canManageEvacCenter: false, // Cannot manage evacuation centers
-            apiEndpoint: 'http://localhost:3000/api/v1/users',
+            apiEndpoint: 'https://api.e-legtas.tech/api/v1/users',
             allowedRoleIds: [2, 3],
             assignableRoleIds: [2, 3], // Can only assign roles 2 & 3
             tableColumns: ['user', 'role', 'actions']
@@ -107,7 +107,7 @@ export default function UserManagement(){
             canSeeEvacCenter: true,
             canSelectRole: true,
             canManageEvacCenter: true,
-            apiEndpoint: 'http://localhost:3000/api/v1/users/cswdo',
+            apiEndpoint: 'https://api.e-legtas.tech/api/v1/users/cswdo',
             allowedRoleIds: [4, 5],
             assignableRoleIds: [4, 5], // Can only assign roles 4 & 5
             tableColumns: ['user', 'role', 'evacuation_center', 'actions']
@@ -202,7 +202,7 @@ export default function UserManagement(){
     const fetchRoles = async () => {
         try {
             setRolesLoading(true);
-            const response = await fetch('http://localhost:3000/api/v1/users/data/roles', {
+            const response = await fetch('https://api.e-legtas.tech/api/v1/users/data/roles', {
                 headers: getAuthHeaders(),
             });
             
@@ -223,7 +223,7 @@ export default function UserManagement(){
 
     // Helper function to get appropriate API endpoint based on user role
     const getUsersApiEndpoint = () => {
-        if (!currentRoleConfig) return 'http://localhost:3000/api/v1/users?limit=100';
+        if (!currentRoleConfig) return 'https://api.e-legtas.tech/api/v1/users?limit=100';
         return `${currentRoleConfig.apiEndpoint}?limit=100`;
     };
 
@@ -290,7 +290,7 @@ export default function UserManagement(){
     useEffect(() => {
         const fetchBarangays = async () => {
             try {
-                const response = await fetch('http://localhost:3000/api/v1/users/data/barangays', {
+                const response = await fetch('https://api.e-legtas.tech/api/v1/users/data/barangays', {
                     headers: getAuthHeaders(),
                 });
                 
@@ -319,7 +319,7 @@ export default function UserManagement(){
         const fetchEvacuationCenters = async () => {
             try {
                 // Add query parameter to only fetch active evacuation centers (where deleted_at IS NULL)
-                const response = await fetch('http://localhost:3000/api/v1/users/data/evacuation-centers?active=true', {
+                const response = await fetch('https://api.e-legtas.tech/api/v1/users/data/evacuation-centers?active=true', {
                     headers: getAuthHeaders(),
                 });
                 
@@ -636,7 +636,7 @@ export default function UserManagement(){
                 assignedEvacuationCenter: canManageEvacuationCenterForUser(targetRoleId) ? formData.assigned_evacuation_center : ''
             };
 
-            const response = await fetch('http://localhost:3000/api/v1/users', {
+            const response = await fetch('https://api.e-legtas.tech/api/v1/users', {
                 method: 'POST',
                 headers: getAuthHeaders(),
                 body: JSON.stringify(submitData)
@@ -763,7 +763,7 @@ export default function UserManagement(){
                 ...(formData.password && { password: formData.password })
             };
 
-            const response = await fetch(`http://localhost:3000/api/v1/users/${editingUser.user_id}`, {
+            const response = await fetch(`https://api.e-legtas.tech/api/v1/users/${editingUser.user_id}`, {
                 method: 'PUT',
                 headers: getAuthHeaders(),
                 body: JSON.stringify(submitData)
@@ -806,7 +806,7 @@ export default function UserManagement(){
     // Handle delete user
     const handleDeleteUser = async (userId: number) => {
         try {
-            const response = await fetch(`http://localhost:3000/api/v1/users/${userId}`, {
+            const response = await fetch(`https://api.e-legtas.tech/api/v1/users/${userId}`, {
                 method: 'DELETE',
                 headers: getAuthHeaders(),
             });

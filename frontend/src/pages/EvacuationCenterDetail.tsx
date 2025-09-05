@@ -173,7 +173,7 @@ export default function EvacuationCenterDetail() {
   const fetchDetails = useCallback(async () => {
     try {
       const res = await axios.get<EvacuationCenterDetail>(
-        `http://localhost:3000/api/v1/evacuees/${centerId}/details`,
+        `https://api.e-legtas.tech/api/v1/evacuees/${centerId}/details`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -189,7 +189,7 @@ export default function EvacuationCenterDetail() {
   const fetchStatistics = useCallback(async () => {
     try {
       const res = await axios.get<EvacueeStatistics>(
-        `http://localhost:3000/api/v1/evacuees/${centerId}/evacuee-statistics`,
+        `https://api.e-legtas.tech/api/v1/evacuees/${centerId}/evacuee-statistics`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -206,7 +206,7 @@ const fetchEvacueesList = useCallback(async (opts?: { silent?: boolean }) => {
   if (!opts?.silent) setEvacueesLoading(true);
   try {
     const res = await axios.get<FamilyEvacueeInformation[]>(
-      `http://localhost:3000/api/v1/evacuees/${centerId}/evacuees-information`,
+      `https://api.e-legtas.tech/api/v1/evacuees/${centerId}/evacuees-information`,
       {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -456,7 +456,7 @@ const defaultSorted = [...undecamped, ...decamped];
       if (!evacueeResidentId) return;
 
       const res = await axios.get<EditEvacueeApi>(
-        `http://localhost:3000/api/v1/evacuees/${centerId}/${evacueeResidentId}/edit`,
+        `https://api.e-legtas.tech/api/v1/evacuees/${centerId}/${evacueeResidentId}/edit`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -496,7 +496,7 @@ const defaultSorted = [...undecamped, ...decamped];
 
     try {
       const { data } = await axios.get<any[]>(
-        "http://localhost:3000/api/v1/evacuees/search",
+        "https://api.e-legtas.tech/api/v1/evacuees/search",
         {
           params: { name: value },
           headers: {
@@ -527,7 +527,7 @@ const defaultSorted = [...undecamped, ...decamped];
       try {
         setFhLoading(true);
         const { data } = await axios.get<{ data: FamilyHeadResult[] }>(
-          `http://localhost:3000/api/v1/evacuees/${centerId}/family-heads`,
+          `https://api.e-legtas.tech/api/v1/evacuees/${centerId}/family-heads`,
           { 
             params: { q },
             headers: {
@@ -676,7 +676,7 @@ const openEndFlow = async () => {
 
   try {
     const { data } = await axios.get<{ count: number }>(
-      `http://localhost:3000/api/v1/evacuees/${centerId}/undecamped-count`,
+      `https://api.e-legtas.tech/api/v1/evacuees/${centerId}/undecamped-count`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
     setUndecampedCount(data?.count ?? 0);
@@ -694,14 +694,14 @@ const decampAllThenEnd = async (isoTs: string) => {
   try {
     if ((undecampedCount ?? 0) > 0) {
       await axios.post(
-        `http://localhost:3000/api/v1/evacuees/${centerId}/decamp-all`,
+        `https://api.e-legtas.tech/api/v1/evacuees/${centerId}/decamp-all`,
         { decampment_timestamp: isoTs },
         { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } }
       );
     }
 
     await axios.post(
-      `http://localhost:3000/api/v1/evacuees/${centerId}/end`,
+      `https://api.e-legtas.tech/api/v1/evacuees/${centerId}/end`,
       { evacuation_end_date: isoTs },
       { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } }
     );
@@ -802,7 +802,7 @@ const decampAllThenEnd = async (isoTs: string) => {
       };
       if (evacueeModalMode === "register") {
         await axios.post(
-          "http://localhost:3000/api/v1/evacuees",
+          "https://api.e-legtas.tech/api/v1/evacuees",
           payload,
           {
             headers: {
@@ -812,7 +812,7 @@ const decampAllThenEnd = async (isoTs: string) => {
           }
         );
       } else if (evacueeModalMode === "edit" && selectedEvacuee?.id) {
-        const url = `http://localhost:3000/api/v1/evacuees/${selectedEvacuee.id}`;
+        const url = `https://api.e-legtas.tech/api/v1/evacuees/${selectedEvacuee.id}`;
         await axios.put(url, payload, {
           headers: {
             Authorization: `Bearer ${token}`,

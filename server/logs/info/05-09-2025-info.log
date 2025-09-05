@@ -1,0 +1,78 @@
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-05T08:43:35.083Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-05T08:43:35.089Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-05T08:43:35.091Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-05T08:43:35.092Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-05T08:43:35.094Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-05T08:43:35.108Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-05T08:57:59.997Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-05T08:57:59.999Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-05T08:58:00.000Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-05T08:58:00.000Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-05T08:58:00.001Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-05T08:58:00.005Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-05T08:58:31.751Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-05T08:58:31.753Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-05T08:58:31.754Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-05T08:58:31.755Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-05T08:58:31.755Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-05T08:58:31.762Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-05T08:58:33.909Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-05T08:58:33.911Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-05T08:58:33.912Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-05T08:58:33.913Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-05T08:58:33.914Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-05T08:58:33.918Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-05T08:58:36.929Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-05T08:58:36.932Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-05T08:58:36.933Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-05T08:58:36.934Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-05T08:58:36.934Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-05T08:58:36.939Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-05T08:59:33.552Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-05T08:59:33.554Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-05T08:59:33.555Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-05T08:59:33.555Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-05T08:59:33.558Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-05T08:59:33.563Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-05T08:59:35.127Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-05T08:59:35.129Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-05T08:59:35.129Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-05T08:59:35.130Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-05T08:59:35.130Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-05T08:59:35.138Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-05T08:59:58.673Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-05T08:59:58.676Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-05T08:59:58.676Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-05T08:59:58.677Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-05T08:59:58.677Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-05T08:59:58.683Z"}
+{"level":"warn","message":"Rate limit exceeded","metadata":{"ip":"::1","method":"GET","path":"/registered-evacuees/21","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-05T09:05:29.191Z"}
+{"level":"warn","message":"Rate limit exceeded","metadata":{"ip":"::1","method":"GET","path":"/registered-families/21","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-05T09:05:29.239Z"}
+{"level":"warn","message":"Rate limit exceeded","metadata":{"ip":"::1","method":"GET","path":"/evacuee-statistics/21","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-05T09:05:29.242Z"}
+{"level":"warn","message":"Rate limit exceeded","metadata":{"ip":"::1","method":"GET","path":"/capacity-status/21","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-05T09:05:29.247Z"}
+{"level":"warn","message":"Rate limit exceeded","metadata":{"ip":"::1","method":"GET","path":"/disasters","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-05T09:06:43.245Z"}
+{"level":"warn","message":"Rate limit exceeded","metadata":{"ip":"::1","method":"GET","path":"/capacity-status/21","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-05T12:04:20.842Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-05T12:14:26.336Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-05T12:14:26.338Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-05T12:14:26.340Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-05T12:14:26.340Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-05T12:14:26.341Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-05T12:14:26.346Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-05T12:14:36.055Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-05T12:14:36.057Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-05T12:14:36.058Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-05T12:14:36.059Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-05T12:14:36.059Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-05T12:14:36.064Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-05T12:15:23.530Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-05T12:15:23.532Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-05T12:15:23.533Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-05T12:15:23.533Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-05T12:15:23.533Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-05T12:15:23.538Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-05T12:16:33.133Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-05T12:16:33.135Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-05T12:16:33.136Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-05T12:16:33.136Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-05T12:16:33.137Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-05T12:16:33.141Z"}

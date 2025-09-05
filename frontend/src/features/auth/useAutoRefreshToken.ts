@@ -5,7 +5,7 @@ import { getTokenExpiry } from './jwtUtils';
 // No need for refreshTokenUtils, we use httpOnly cookie now
 
 // Replace with your actual refresh endpoint
-const REFRESH_ENDPOINT = 'http://localhost:3000/api/v1/auth/refresh';
+const REFRESH_ENDPOINT = 'https://api.e-legtas.tech/api/v1/auth/refresh';
 
 export function useAutoRefreshToken() {
   const dispatch = useDispatch();

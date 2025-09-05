@@ -44,7 +44,7 @@ export function useCampManagerDashboardData(campManagerId: number, selectedDateR
       try {
         const headers = getAuthHeaders();
         const res = await fetch(
-          `http://localhost:3000/api/v1/dashboard/camp-manager/disasters/${campManagerId}`,
+          `https://api.e-legtas.tech/api/v1/dashboard/camp-manager/disasters/${campManagerId}`,
           { headers }
         );
         
@@ -80,7 +80,7 @@ export function useCampManagerDashboardData(campManagerId: number, selectedDateR
       try {
         const headers = getAuthHeaders();
         const res = await fetch(
-          `http://localhost:3000/api/v1/dashboard/camp-manager/center/${selectedDisaster.disaster_evacuation_event_id}`,
+          `https://api.e-legtas.tech/api/v1/dashboard/camp-manager/center/${selectedDisaster.disaster_evacuation_event_id}`,
           { headers }
         );
         
@@ -117,7 +117,7 @@ export function useCampManagerDashboardData(campManagerId: number, selectedDateR
         setLoading(true);
 
         // Build base URL
-        let url = `http://localhost:3000/api/v1/dashboard/camp-manager/summary/${eventId}`;
+        let url = `https://api.e-legtas.tech/api/v1/dashboard/camp-manager/summary/${eventId}`;
 
         // If date filter applied, append from/to (Manila -> UTC ISO conversion)
         if (selectedDateRange?.from) {

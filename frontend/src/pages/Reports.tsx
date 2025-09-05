@@ -105,7 +105,7 @@ async function forceDownload(url: string, fallbackName = 'report') {
   URL.revokeObjectURL(href);
 }
 
-const API_BASE = 'http://localhost:3000/api/v1';
+const API_BASE = 'https://api.e-legtas.tech/api/v1';
 const FILE_FORMATS: FileIcon[] = ['PDF', 'CSV', 'XLSX'];
 const DEFAULT_GENERATOR_USER_ID = 2; // dev user_CDRRMO AND CAMP MANAGER CAN MAKE A REPORT
 

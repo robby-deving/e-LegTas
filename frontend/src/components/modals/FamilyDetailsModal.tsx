@@ -208,7 +208,7 @@ try {
     setOldHeadNewRel(rel);
   }
 
-  const url = `http://localhost:3000/api/v1/evacuees/${Number(
+  const url = `https://api.e-legtas.tech/api/v1/evacuees/${Number(
     evacuee.disaster_evacuation_event_id
   )}/transfer-head`;
 
@@ -240,7 +240,7 @@ const handleSaveDecampment = async () => {
     return;
   }
 
-  const url = `http://localhost:3000/api/v1/evacuees/${eventId}/families/${familyHeadId}/decamp`;
+  const url = `https://api.e-legtas.tech/api/v1/evacuees/${eventId}/families/${familyHeadId}/decamp`;
 
 if (!decampDate) {
   setSavingDecamp(true);

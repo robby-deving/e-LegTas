@@ -23,7 +23,7 @@ const escapeCSV = (v) => {
 };
 const row = (arr) => arr.map(escapeCSV).join(',');
 
-const PRINT_BASE_URL = process.env.PRINT_BASE_URL || 'http://localhost:5173/print';
+const PRINT_BASE_URL = process.env.PRINT_BASE_URL || 'https://api.e-legtas.tech/print';
 
 // Default PDF options from env (format or width/height)
 const DEFAULT_PDF_OPTS = (() => {

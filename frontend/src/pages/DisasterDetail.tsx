@@ -129,7 +129,7 @@ export default function DisasterDetail() {
       }
 
       const res = await axios.get(
-        `http://localhost:3000/api/v1/disaster-events/by-disaster/${disasterId}/details?${params.toString()}`,
+        `https://api.e-legtas.tech/api/v1/disaster-events/by-disaster/${disasterId}/details?${params.toString()}`,
         { headers: getAuthHeaders() }
       );
 

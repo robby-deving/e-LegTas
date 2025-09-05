@@ -23,7 +23,7 @@ export default function Login(){
             setLoading(true);
             
             // Call server API for login
-            const response = await fetch('http://139.59.251.239:3000/api/v1/auth/login', {
+            const response = await fetch('https://api.e-legtas.tech/api/v1/auth/login', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -46,7 +46,6 @@ export default function Login(){
                 user: data.user,
                 token: data.token,
             }));
-            console.log('Login successful', data);
             navigate('/dashboard');
         } catch (error: any) {
             console.error('Login error:', error);
