@@ -1,0 +1,1 @@
+{"level":"error","message":"Supabase Error (updateEvacuationCenter): Could not find the 'users' column of 'evacuation_centers' in the schema cache","metadata":{"code":"PGRST204","details":null,"hint":null},"timestamp":"2025-09-03T14:57:38.741Z"}

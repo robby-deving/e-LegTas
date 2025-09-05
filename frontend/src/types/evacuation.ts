@@ -1,0 +1,63 @@
+export type EvacuationCenterStatus = 'Available' | 'Unavailable';
+
+export type EvacuationCenterCategory = 
+  | 'School'
+  | 'Chapel/Church'
+  | 'Dedicated Evacuation Center'
+  | 'Government Building'
+  | 'Commercial Building';
+
+export type RoomType = 
+  | 'Temporary'
+  | 'Permanent'
+
+
+export interface EvacuationRoom {
+  id: string;
+  roomName: string;
+  type: RoomType;
+  capacity: number;
+  markedForDeletion?: boolean;
+  evacuationCenterId?: number;
+}
+
+export interface EvacuationCenter {
+  id: number;
+  name: string;
+  address: string;
+  barangay_id: number;
+  latitude: number;
+  longitude: number;
+  ec_status: EvacuationCenterStatus;
+  category: EvacuationCenterCategory;
+  camp_manager_id: number | null;
+  total_capacity: number;
+  created_by: number;
+  assigned_user_id: number | null;
+  rooms?: EvacuationRoom[];
+}
+
+export interface CreateEvacuationCenterRequest {
+  name: string;
+  address: string;
+  barangay_id: number;
+  latitude: number;
+  longitude: number;
+  category: EvacuationCenterCategory;
+  ec_status: EvacuationCenterStatus; // Add this
+  created_by: number; // Add this
+  total_capacity: number; // Add this if needed
+}
+
+export interface UpdateEvacuationCenterRequest extends Partial<CreateEvacuationCenterRequest> {
+  ec_status?: EvacuationCenterStatus;
+}
+
+export interface CreateRoomRequest {
+  room_name: string;
+  room_type: RoomType;
+  individual_room_capacity: number;
+  evacuation_center_id: number;
+}
+
+export interface UpdateRoomRequest extends Partial<Omit<CreateRoomRequest, 'evacuation_center_id'>> {}

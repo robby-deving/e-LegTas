@@ -1,0 +1,20 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 30
+    },
+    "auditLog": "C:\\projects\\e-LegTas\\server\\logs\\audit\\.660ec27771ec5b337da9b127256e220414030544-audit.json",
+    "files": [
+        {
+            "date": 1756951527139,
+            "name": "C:\\projects\\e-LegTas\\server\\logs\\audit\\04-09-2025-audit.log",
+            "hash": "b9bc4727a7d0eff6adee9e0105bbde15adf5995cc19bc2f5b787a4f34a352c99"
+        },
+        {
+            "date": 1757061813820,
+            "name": "C:\\projects\\e-LegTas\\server\\logs\\audit\\05-09-2025-audit.log",
+            "hash": "bcd0b782ace1b8d648ad671ff38cf5e3bb40d030233e663adae9eea91b0a7a5e"
+        }
+    ],
+    "hashType": "sha256"
+}

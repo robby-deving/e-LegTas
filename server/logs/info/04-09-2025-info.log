@@ -1,0 +1,900 @@
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:05:28.488Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:05:28.490Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:05:28.491Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:05:28.491Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:05:28.492Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:05:28.500Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:11:47.409Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:11:47.411Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:11:47.412Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:11:47.413Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:11:47.413Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:11:47.418Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:11:57.329Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:11:57.331Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:11:57.332Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:11:57.332Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:11:57.333Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:11:57.338Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:12:00.829Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:12:00.832Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:12:00.832Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:12:00.833Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:12:00.833Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:12:00.837Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:12:56.334Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:12:56.337Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:12:56.337Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:12:56.338Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:12:56.338Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:12:56.342Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:13:12.547Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:13:12.549Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:13:12.550Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:13:12.551Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:13:12.552Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:13:12.556Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:13:16.056Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:13:16.058Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:13:16.059Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:13:16.059Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:13:16.060Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:13:16.064Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:13:17.116Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:13:17.118Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:13:17.118Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:13:17.119Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:13:17.119Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:13:17.123Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:13:18.394Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:13:18.397Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:13:18.397Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:13:18.398Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:13:18.398Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:13:18.403Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:13:19.674Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:13:19.676Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:13:19.677Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:13:19.677Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:13:19.678Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:13:19.682Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:13:26.302Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:13:26.305Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:13:26.306Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:13:26.306Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:13:26.306Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:13:26.311Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:13:36.452Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:13:36.455Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:13:36.455Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:13:36.456Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:13:36.456Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:13:36.461Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:13:43.310Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:13:43.312Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:13:43.312Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:13:43.313Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:13:43.313Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:13:43.317Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:13:54.590Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:13:54.592Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:13:54.593Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:13:54.593Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:13:54.594Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:13:54.597Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:13:59.479Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:13:59.481Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:13:59.482Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:13:59.483Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:13:59.483Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:13:59.488Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:14:07.571Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:14:07.573Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:14:07.574Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:14:07.574Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:14:07.575Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:14:07.579Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:14:36.552Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:14:36.554Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:14:36.554Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:14:36.555Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:14:36.555Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:14:36.559Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:14:39.643Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:14:39.645Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:14:39.646Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:14:39.646Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:14:39.646Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:14:39.652Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:15:04.659Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:15:04.661Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:15:04.662Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:15:04.662Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:15:04.663Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:15:04.668Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:16:06.601Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:16:06.603Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:16:06.604Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:16:06.604Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:16:06.605Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:16:06.609Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:16:53.859Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:16:53.861Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:16:53.862Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:16:53.863Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:16:53.863Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:16:53.868Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:17:14.002Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:17:14.004Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:17:14.005Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:17:14.006Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:17:14.006Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:17:14.010Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:17:34.375Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:17:34.377Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:17:34.378Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:17:34.378Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:17:34.378Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:17:34.382Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:17:47.509Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:17:47.511Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:17:47.512Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:17:47.513Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:17:47.513Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:17:47.518Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:18:08.142Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:18:08.145Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:18:08.145Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:18:08.146Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:18:08.146Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:18:08.150Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:18:59.299Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:18:59.301Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:18:59.302Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:18:59.303Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:18:59.303Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:18:59.308Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:19:01.756Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:19:01.758Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:19:01.759Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:19:01.759Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:19:01.760Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:19:01.764Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:19:04.059Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:19:04.061Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:19:04.062Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:19:04.062Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:19:04.063Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:19:04.067Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:19:10.513Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:19:10.514Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:19:10.515Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:19:10.516Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:19:10.516Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:19:10.522Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:20:11.744Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:20:11.746Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:20:11.747Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:20:11.748Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:20:11.748Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:20:11.753Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:20:50.980Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:20:50.983Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:20:50.984Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:20:50.984Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:20:50.985Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:20:50.989Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:20:59.524Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:20:59.526Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:20:59.527Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:20:59.527Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:20:59.528Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:20:59.532Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:21:08.902Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:21:08.904Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:21:08.905Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:21:08.905Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:21:08.906Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:21:08.910Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:21:20.488Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:21:20.490Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:21:20.491Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:21:20.491Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:21:20.492Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:21:20.496Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:21:27.316Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:21:27.319Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:21:27.320Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:21:27.321Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:21:27.322Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:21:27.328Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:22:00.051Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:22:00.053Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:22:00.054Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:22:00.054Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:22:00.054Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:22:00.058Z"}
+{"level":"audit","message":"OTP send attempt started","metadata":{"email":"johnrobert@gmail.com","ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"},"timestamp":"2025-09-04T02:22:17.752Z"}
+{"level":"audit","message":"OTP send attempt for non-existent user","metadata":{"email":"johnrobert@gmail.com","error":"JSON object requested, multiple (or no) rows returned","ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"},"timestamp":"2025-09-04T02:22:18.837Z"}
+{"level":"audit","message":"OTP send attempt started","metadata":{"email":"johnrobert@gmail.com","ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"},"timestamp":"2025-09-04T02:22:47.687Z"}
+{"level":"audit","message":"OTP send attempt for non-existent user","metadata":{"email":"johnrobert@gmail.com","error":"JSON object requested, multiple (or no) rows returned","ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"},"timestamp":"2025-09-04T02:22:48.422Z"}
+{"level":"audit","message":"Login attempt started","metadata":{"employeeNumber":"2025-8164-56686","ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"},"timestamp":"2025-09-04T02:23:00.464Z"}
+{"level":"audit","message":"Login successful","metadata":{"authUserId":"2be2d15a-1802-434c-b2ff-65ba4b399f57","email":"testuser123@gmail.com","employeeNumber":"2025-8164-56686","firstName":"Test","ip":"::1","lastName":"User","roleId":3,"userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":33},"timestamp":"2025-09-04T02:23:01.748Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:47:17.626Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:47:17.628Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:47:17.629Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:47:17.629Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:47:17.629Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:47:17.634Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:47:22.079Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:47:22.081Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:47:22.082Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:47:22.083Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:47:22.083Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:47:22.089Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:47:45.638Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:47:45.640Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:47:45.641Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:47:45.641Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:47:45.641Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:47:45.646Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:48:05.916Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:48:05.919Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:48:05.919Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:48:05.920Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:48:05.920Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:48:05.924Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:48:28.959Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:48:28.961Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:48:28.962Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:48:28.963Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:48:28.963Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:48:28.970Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:48:49.121Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:48:49.123Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:48:49.124Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:48:49.125Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:48:49.125Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:48:49.130Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:48:54.558Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:48:54.561Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:48:54.561Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:48:54.562Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:48:54.562Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:48:54.566Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:49:13.853Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:49:13.855Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:49:13.855Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:49:13.856Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:49:13.856Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:49:13.860Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:49:18.186Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:49:18.188Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:49:18.189Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:49:18.190Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:49:18.190Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:49:18.198Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:49:22.634Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:49:22.636Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:49:22.637Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:49:22.637Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:49:22.637Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:49:22.642Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:49:32.587Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:49:32.589Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:49:32.590Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:49:32.590Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:49:32.590Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:49:32.595Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:51:02.841Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:02.843Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:02.844Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:02.844Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:02.845Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:51:02.849Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:51:05.213Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:05.215Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:05.216Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:05.217Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:05.218Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:51:05.225Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:51:07.945Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:07.948Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:07.949Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:07.950Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:07.951Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:51:07.957Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:51:10.153Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:10.155Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:10.156Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:10.157Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:10.157Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:51:10.161Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:51:12.503Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:12.505Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:12.506Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:12.507Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:12.507Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:51:12.512Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:51:15.241Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:15.243Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:15.244Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:15.244Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:15.245Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:51:15.249Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:51:18.422Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:18.424Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:18.425Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:18.425Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:18.426Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:51:18.430Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:51:21.332Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:21.335Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:21.336Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:21.338Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:21.339Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:51:21.345Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:51:24.268Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:24.271Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:24.272Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:24.272Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:24.273Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:51:24.278Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:51:27.036Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:27.038Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:27.039Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:27.040Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:27.040Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:51:27.045Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:51:29.840Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:29.843Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:29.843Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:29.844Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:29.844Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:51:29.848Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:51:32.688Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:32.691Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:32.691Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:32.692Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:32.692Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:51:32.696Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:51:35.591Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:35.593Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:35.594Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:35.595Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:35.595Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:51:35.599Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:51:40.628Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:40.630Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:40.631Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:40.631Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:40.631Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:51:40.636Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:51:47.611Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:47.614Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:47.615Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:47.615Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:47.616Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:51:47.621Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:51:50.667Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:50.671Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:50.672Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:50.673Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:50.674Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:51:50.679Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:51:54.975Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:54.978Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:54.979Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:54.979Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:51:54.980Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:51:54.984Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:52:06.034Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:52:06.036Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:52:06.037Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:52:06.037Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:52:06.037Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:52:06.042Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T02:52:10.420Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T02:52:10.422Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T02:52:10.422Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T02:52:10.423Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T02:52:10.423Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T02:52:10.427Z"}
+{"level":"info","message":"Successfully sent notification to devices","metadata":{"announcement_id":53,"failure_count":5,"success_count":2,"title":"hello world","tokens_count":7},"timestamp":"2025-09-04T02:55:12.573Z"}
+{"level":"audit","message":"Announcement created and notifications sent","metadata":{"action":"ANNOUNCEMENT_CREATE","announcement_id":53,"created_by":33,"ip":"::1","title":"hello world","tokens_count":7,"userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"},"timestamp":"2025-09-04T02:55:12.576Z"}
+{"level":"audit","message":"Token refresh attempt started","metadata":{"hasRefreshToken":true,"ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"},"timestamp":"2025-09-04T03:22:01.930Z"}
+{"level":"warn","message":"Token refresh not fully implemented - Supabase limitation","metadata":{"email":"testuser123@gmail.com","ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":33},"timestamp":"2025-09-04T03:22:03.763Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T03:55:12.006Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T03:55:12.008Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T03:55:12.009Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T03:55:12.010Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T03:55:12.010Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T03:55:12.014Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T03:56:44.936Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T03:56:44.940Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T03:56:44.941Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T03:56:44.942Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T03:56:44.942Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T03:56:44.950Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T03:56:51.011Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T03:56:51.013Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T03:56:51.014Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T03:56:51.015Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T03:56:51.015Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T03:56:51.020Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T04:51:55.014Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T04:51:55.017Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T04:51:55.017Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T04:51:55.018Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T04:51:55.019Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T04:51:55.026Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T05:53:08.309Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T05:53:08.316Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T05:53:08.317Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T05:53:08.319Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T05:53:08.320Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T05:53:08.327Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T05:53:16.525Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T05:53:16.527Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T05:53:16.528Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T05:53:16.528Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T05:53:16.529Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T05:53:16.533Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T05:53:45.004Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T05:53:45.007Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T05:53:45.008Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T05:53:45.009Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T05:53:45.009Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T05:53:45.013Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T05:53:49.290Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T05:53:49.292Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T05:53:49.293Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T05:53:49.293Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T05:53:49.293Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T05:53:49.298Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T05:53:52.615Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T05:53:52.617Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T05:53:52.618Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T05:53:52.619Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T05:53:52.620Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T05:53:52.624Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T05:54:00.283Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T05:54:00.285Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T05:54:00.286Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T05:54:00.286Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T05:54:00.287Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T05:54:00.292Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T05:54:11.214Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T05:54:11.216Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T05:54:11.217Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T05:54:11.218Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T05:54:11.218Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T05:54:11.223Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T05:54:16.667Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T05:54:16.669Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T05:54:16.669Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T05:54:16.670Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T05:54:16.670Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T05:54:16.674Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T05:54:51.240Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T05:54:51.242Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T05:54:51.243Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T05:54:51.244Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T05:54:51.244Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T05:54:51.248Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T05:54:55.027Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T05:54:55.029Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T05:54:55.030Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T05:54:55.031Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T05:54:55.031Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T05:54:55.035Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T05:55:02.577Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T05:55:02.579Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T05:55:02.580Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T05:55:02.580Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T05:55:02.580Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T05:55:02.586Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T05:55:08.581Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T05:55:08.583Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T05:55:08.584Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T05:55:08.584Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T05:55:08.584Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T05:55:08.588Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T05:55:14.533Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T05:55:14.534Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T05:55:14.535Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T05:55:14.535Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T05:55:14.536Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T05:55:14.543Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T05:55:21.799Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T05:55:21.801Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T05:55:21.801Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T05:55:21.802Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T05:55:21.802Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T05:55:21.808Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T05:55:34.023Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T05:55:34.026Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T05:55:34.027Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T05:55:34.028Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T05:55:34.028Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T05:55:34.036Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T05:55:41.904Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T05:55:41.906Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T05:55:41.907Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T05:55:41.909Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T05:55:41.909Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T05:55:41.914Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T05:55:49.058Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T05:55:49.060Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T05:55:49.061Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T05:55:49.061Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T05:55:49.062Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T05:55:49.069Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T05:55:57.243Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T05:55:57.246Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T05:55:57.247Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T05:55:57.248Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T05:55:57.248Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T05:55:57.255Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T05:57:06.880Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T05:57:06.885Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T05:57:06.886Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T05:57:06.886Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T05:57:06.887Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T05:57:06.893Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T05:57:11.035Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T05:57:11.037Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T05:57:11.038Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T05:57:11.038Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T05:57:11.039Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T05:57:11.045Z"}
+{"level":"warn","message":"Rate limit exceeded","metadata":{"ip":"::1","method":"GET","path":"/capacity-status/21","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:00:16.151Z"}
+{"level":"warn","message":"Rate limit exceeded","metadata":{"ip":"::1","method":"GET","path":"/disasters","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:00:16.153Z"}
+{"level":"warn","message":"Rate limit exceeded","metadata":{"ip":"::1","method":"GET","path":"/disasters","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:00:17.087Z"}
+{"level":"warn","message":"Rate limit exceeded","metadata":{"ip":"::1","method":"GET","path":"/disasters","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:00:33.274Z"}
+{"level":"warn","message":"Rate limit exceeded","metadata":{"ip":"::1","method":"GET","path":"/disasters","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:00:37.953Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:01:47.698Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:01:57.075Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:01.862Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:12.056Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:12.747Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:13.229Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:13.759Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:14.255Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:14.741Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:15.139Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:17.609Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:17.799Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:17.979Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:18.146Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:18.324Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:18.492Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:18.676Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:18.839Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:19.016Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:19.200Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:19.379Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:19.553Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:19.940Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:20.133Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:20.340Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:20.542Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:20.732Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:20.943Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:21.123Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:21.306Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:21.493Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:21.656Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:21.817Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:22.008Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:22.162Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:22.339Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:22.498Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:22.661Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:22.820Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:22.983Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:23.142Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:23.305Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:23.471Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:23.621Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:23.787Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:23.949Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:24.116Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:24.280Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:24.447Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:24.596Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:25.098Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:25.255Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:25.487Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:25.661Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:25.794Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:26.802Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:26.963Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:27.141Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:27.378Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:27.596Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:27.784Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:27.960Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:28.143Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:28.318Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:29.020Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:29.288Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:29.474Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:29.874Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:30.071Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:30.390Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:30.569Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:30.905Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:31.237Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:31.570Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:31.753Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:31.943Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:32.101Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:32.297Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:32.659Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:32.867Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:33.069Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:33.269Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:33.441Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:33.617Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:33.812Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:34.041Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:34.227Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:34.493Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:34.776Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:34.957Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:35.133Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:35.318Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:35.510Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:36.367Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:36.564Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:36.740Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:36.919Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:37.094Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:37.243Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:37.413Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:37.592Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:37.751Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:37.947Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:38.147Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:38.315Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:38.526Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:38.709Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:38.890Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:39.053Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:39.219Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:39.375Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:39.527Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:39.985Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:45.785Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:47.920Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:48.106Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:48.314Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:48.599Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:48.784Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:48.985Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:49.158Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:49.384Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:49.563Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:49.744Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:49.971Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:50.216Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:50.941Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:51.116Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:51.316Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:51.506Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:51.697Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:51.871Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:52.052Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:52.214Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:52.372Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:52.535Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:52.695Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:52.845Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:53.007Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:53.169Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:53.330Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:53.489Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:53.637Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:53.802Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:53.959Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:02:54.106Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:03:13.351Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:03:15.527Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:03:15.695Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:03:15.869Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:03:16.035Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:03:16.187Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:03:16.351Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:03:16.509Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:03:16.672Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:03:16.825Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:03:16.958Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:03:17.130Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:03:17.276Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:03:17.408Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:03:17.680Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T06:04:07.106Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T06:04:07.108Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T06:04:07.109Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T06:04:07.109Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T06:04:07.109Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T06:04:07.114Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T06:04:09.180Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T06:04:09.183Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T06:04:09.184Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T06:04:09.184Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T06:04:09.185Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T06:04:09.190Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T06:06:10.794Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T06:06:10.796Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T06:06:10.797Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T06:06:10.797Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T06:06:10.798Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T06:06:10.803Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T06:06:18.356Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T06:06:18.358Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T06:06:18.358Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T06:06:18.359Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T06:06:18.359Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T06:06:18.363Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T06:06:24.237Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T06:06:24.240Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T06:06:24.241Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T06:06:24.242Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T06:06:24.243Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T06:06:24.247Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:06:54.416Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T06:07:17.039Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T06:07:17.041Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T06:07:17.042Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T06:07:17.042Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T06:07:17.043Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T06:07:17.047Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T06:07:34.328Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T06:07:34.330Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T06:07:34.331Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T06:07:34.331Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T06:07:34.332Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T06:07:34.336Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T06:08:01.422Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T06:08:01.425Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T06:08:01.426Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T06:08:01.427Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T06:08:01.427Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T06:08:01.435Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T06:08:05.629Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T06:08:05.631Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T06:08:05.632Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T06:08:05.632Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T06:08:05.633Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T06:08:05.640Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T06:08:17.951Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T06:08:17.953Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T06:08:17.954Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T06:08:17.954Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T06:08:17.955Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T06:08:17.959Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T06:08:30.266Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T06:08:30.268Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T06:08:30.268Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T06:08:30.269Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T06:08:30.269Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T06:08:30.275Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T06:08:36.588Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T06:08:36.590Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T06:08:36.591Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T06:08:36.592Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T06:08:36.592Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T06:08:36.600Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T06:08:39.915Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T06:08:39.917Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T06:08:39.918Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T06:08:39.918Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T06:08:39.919Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T06:08:39.924Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T06:08:45.481Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T06:08:45.484Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T06:08:45.484Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T06:08:45.485Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T06:08:45.485Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T06:08:45.490Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T06:08:50.348Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T06:08:50.350Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T06:08:50.351Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T06:08:50.351Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T06:08:50.352Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T06:08:50.359Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T06:09:05.611Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T06:09:05.616Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T06:09:05.618Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T06:09:05.622Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T06:09:05.623Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T06:09:05.638Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T06:09:41.990Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T06:09:41.992Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T06:09:41.993Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T06:09:41.994Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T06:09:41.994Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T06:09:41.998Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:13:46.463Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T06:14:07.112Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T06:14:07.114Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T06:14:07.115Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T06:14:07.115Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T06:14:07.115Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T06:14:07.120Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T06:14:22.995Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T06:14:22.997Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T06:14:22.998Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T06:14:22.998Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T06:14:22.999Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T06:14:23.003Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T06:16:35.256Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T06:16:35.258Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T06:16:35.259Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T06:16:35.259Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T06:16:35.260Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T06:16:35.264Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T06:16:36.593Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T06:16:36.595Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T06:16:36.596Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T06:16:36.596Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T06:16:36.597Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T06:16:36.601Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:18:54.277Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:19:22.069Z"}
+{"level":"error","message":"Strict rate limit exceeded","metadata":{"ip":"::1","method":"POST","path":"/send-otp","severity":"high","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:19:22.699Z"}
+{"level":"warn","message":"Rate limit exceeded","metadata":{"ip":"::1","method":"GET","path":"/active-evacuation-centers/16","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:20:04.610Z"}
+{"level":"warn","message":"Rate limit exceeded","metadata":{"ip":"::1","method":"GET","path":"/registered-evacuees/16","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:20:04.611Z"}
+{"level":"warn","message":"Rate limit exceeded","metadata":{"ip":"::1","method":"GET","path":"/registered-families/16","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:20:04.613Z"}
+{"level":"warn","message":"Rate limit exceeded","metadata":{"ip":"::1","method":"GET","path":"/evacuee-statistics/16","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:20:04.614Z"}
+{"level":"warn","message":"Rate limit exceeded","metadata":{"ip":"::1","method":"GET","path":"/capacity-status/16","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:20:04.616Z"}
+{"level":"warn","message":"Rate limit exceeded","metadata":{"ip":"::1","method":"GET","path":"/active-evacuation-centers/12","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:20:07.893Z"}
+{"level":"warn","message":"Rate limit exceeded","metadata":{"ip":"::1","method":"GET","path":"/registered-evacuees/12","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:20:07.894Z"}
+{"level":"warn","message":"Rate limit exceeded","metadata":{"ip":"::1","method":"GET","path":"/registered-families/12","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:20:07.896Z"}
+{"level":"warn","message":"Rate limit exceeded","metadata":{"ip":"::1","method":"GET","path":"/disasters","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:20:07.897Z"}
+{"level":"warn","message":"Rate limit exceeded","metadata":{"ip":"::1","method":"GET","path":"/evacuee-statistics/12","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:20:07.899Z"}
+{"level":"warn","message":"Rate limit exceeded","metadata":{"ip":"::1","method":"GET","path":"/capacity-status/12","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:20:07.900Z"}
+{"level":"warn","message":"Rate limit exceeded","metadata":{"ip":"::1","method":"GET","path":"/disasters","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:20:28.522Z"}
+{"level":"warn","message":"Rate limit exceeded","metadata":{"ip":"::1","method":"GET","path":"/disasters","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:21:04.845Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T06:22:12.351Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T06:22:12.353Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T06:22:12.354Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T06:22:12.355Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T06:22:12.355Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T06:22:12.362Z"}
+{"level":"warn","message":"Rate limit exceeded","metadata":{"ip":"::1","method":"GET","path":"/disasters","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:22:23.366Z"}
+{"level":"warn","message":"Rate limit exceeded","metadata":{"ip":"::1","method":"GET","path":"/evacuee-statistics/18","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:22:23.368Z"}
+{"level":"warn","message":"Rate limit exceeded","metadata":{"ip":"::1","method":"GET","path":"/capacity-status/18","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:22:23.370Z"}
+{"level":"warn","message":"Rate limit exceeded","metadata":{"ip":"::1","method":"GET","path":"/options","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:23:26.235Z"}
+{"level":"warn","message":"Rate limit exceeded","metadata":{"ip":"::1","method":"GET","path":"/getAllReports","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:23:28.790Z"}
+{"level":"warn","message":"Rate limit exceeded","metadata":{"ip":"::1","method":"GET","path":"/disasters","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:24:16.800Z"}
+{"level":"warn","message":"Rate limit exceeded","metadata":{"ip":"::1","method":"GET","path":"/getAllReports","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:24:18.640Z"}
+{"level":"warn","message":"Rate limit exceeded","metadata":{"ip":"::1","method":"GET","path":"/options","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:24:18.645Z"}
+{"level":"warn","message":"Rate limit exceeded","metadata":{"ip":"::1","method":"GET","path":"/getAllReports","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:24:18.648Z"}
+{"level":"warn","message":"Rate limit exceeded","metadata":{"ip":"::1","method":"GET","path":"/options","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","userId":"anonymous"},"timestamp":"2025-09-04T06:24:18.651Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T06:27:49.462Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T06:27:49.465Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T06:27:49.465Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T06:27:49.466Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T06:27:49.466Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T06:27:49.472Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T06:27:54.969Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T06:27:54.971Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T06:27:54.972Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T06:27:54.972Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T06:27:54.973Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T06:27:54.977Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T06:36:36.281Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T06:36:36.284Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T06:36:36.286Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T06:36:36.287Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T06:36:36.288Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T06:36:36.296Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-04T06:54:11.434Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-04T06:54:11.437Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-04T06:54:11.438Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-04T06:54:11.439Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-04T06:54:11.439Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-04T06:54:11.444Z"}

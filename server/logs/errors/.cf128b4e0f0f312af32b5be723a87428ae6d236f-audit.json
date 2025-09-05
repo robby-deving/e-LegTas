@@ -1,0 +1,25 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 30
+    },
+    "auditLog": "C:\\projects\\e-LegTas\\server\\logs\\errors\\.cf128b4e0f0f312af32b5be723a87428ae6d236f-audit.json",
+    "files": [
+        {
+            "date": 1756908353524,
+            "name": "C:\\projects\\e-LegTas\\server\\logs\\errors\\03-09-2025-error.log",
+            "hash": "329bfc170377506b8d064f9ab6824d742d00e131107d80da3fd94671eb43c5ba"
+        },
+        {
+            "date": 1756951527136,
+            "name": "C:\\projects\\e-LegTas\\server\\logs\\errors\\04-09-2025-error.log",
+            "hash": "bb8f75d0e32af8247ce6d70e6317625d951b360600394d3a920e5c13ca94a46e"
+        },
+        {
+            "date": 1757061813817,
+            "name": "C:\\projects\\e-LegTas\\server\\logs\\errors\\05-09-2025-error.log",
+            "hash": "c4c72657eaeba8459fc70cb581c67e011cf25f74913c9ccb45620b0bc922fa8a"
+        }
+    ],
+    "hashType": "sha256"
+}
