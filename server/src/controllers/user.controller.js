@@ -10,7 +10,7 @@ const updateRole = async (req, res) => {
     // Update the role name in the roles table
     const { data, error } = await supabaseAdmin
       .from('roles')
-      .update({ name: role_name })
+      .update({ role_name })
       .eq('id', roleId)
       .is('deleted_at', null)
       .select();
@@ -578,7 +578,7 @@ const getUsers = async (req, res) => {
         // Continue without evacuation center data
       } else {
         // Merge evacuation center data with users
-        usersWithEvacuationCenters = users.map(user => {
+        usersWithEvacuationCenters = users.map((user) => {
           const assignment = evacuationAssignments?.find(assignment => assignment.assigned_user_id === user.id);
           return {
             ...user,
@@ -1772,7 +1772,7 @@ const getUsersByRole = async (req, res) => {
         // Continue without evacuation center data
       } else {
         // Merge evacuation center data with users
-        usersWithEvacuationCenters = users.map(user => {
+        usersWithEvacuationCenters = users.map((user) => {
           const assignment = evacuationAssignments?.find(assignment => assignment.assigned_user_id === user.id);
           return {
             ...user,
@@ -1898,7 +1898,7 @@ const getUsersWithRoleFourAndFive = async (req, res) => {
         // Continue without evacuation center data
       } else {
         // Merge evacuation center data with users
-        usersWithEvacuationCenters = users.map(user => {
+        usersWithEvacuationCenters = users.map((user) => {
           const assignment = evacuationAssignments?.find(assignment => assignment.assigned_user_id === user.id);
           return {
             ...user,
