@@ -291,7 +291,6 @@ const fetchReports = async (force = false) => {
 
 
 useEffect(() => { fetchReports(); }, []);
-useEffect(() => { loadOptions('', ''); }, []);
 
   const loadOptions = async (barangaySearch = '', disasterSearch = '') => {
     try {
