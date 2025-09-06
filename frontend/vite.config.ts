@@ -15,11 +15,11 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:3000',
+        target: 'https://api.e-legtas.tech',
         changeOrigin: true,
         secure: false,
         configure: (proxy) => {
-          proxy.on('proxyReq', (proxyReq, req) => { // <-- Add 'req' here
+          proxy.on('proxyReq', (proxyReq, req) => {
             const clientIp = req.socket.remoteAddress;
             if (clientIp) {
               proxyReq.setHeader('X-Forwarded-For', clientIp);
