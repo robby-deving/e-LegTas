@@ -23,7 +23,6 @@ const router = express.Router();
 // Example: GET /api/v1/dashboard/active-evacuation-centers/:disasterId
 router.get(
   '/active-evacuation-centers/:disasterId',
-  authenticateUser,
   requirePermission('view_dashboard'),
   getActiveEvacuationCentersByDisaster
 );
@@ -31,7 +30,6 @@ router.get(
 // Example: GET /api/v1/dashboard/registered-evacuees/:disasterId
 router.get(
   '/registered-evacuees/:disasterId',
-  authenticateUser,
   requirePermission('view_dashboard'),
   getTotalRegisteredEvacueesByDisaster
 );
@@ -39,7 +37,6 @@ router.get(
 // Example: GET /api/v1/dashboard/registered-families/:disasterId
 router.get(
   '/registered-families/:disasterId',
-  authenticateUser,
   requirePermission('view_dashboard'),
   getTotalRegisteredFamiliesByDisaster
 );
@@ -47,7 +44,6 @@ router.get(
 // Example: GET /api/v1/dashboard/evacuee-statistics/:disasterId
 router.get(
   '/evacuee-statistics/:disasterId',
-  authenticateUser,
   requirePermission('view_dashboard'),
   getEvacueeStatisticsByDisaster
 );
@@ -55,7 +51,6 @@ router.get(
 // Example: GET /api/v1/dashboard/capacity-status/:disasterId
 router.get(
   '/capacity-status/:disasterId',
-  authenticateUser,
   requirePermission('view_dashboard'),
   getEvacuationCenterCapacityStatus
 );
@@ -63,7 +58,6 @@ router.get(
 // Example: GET - /api/v1/dashboard/disasters
 router.get(
   '/disasters',
-  authenticateUser,
   requirePermission('view_dashboard'),
   getActiveDisasters
 );
@@ -71,19 +65,16 @@ router.get(
 // For Camp Manager Dashboard - Protected with view_dashboard_specific permission
 
 router.get('/camp-manager/disasters/:userId', 
-  authenticateUser, 
   requirePermission('view_dashboard_specific'), 
   getCampManagerDisasters
 );
 
 router.get("/camp-manager/center/:eventId", 
-  authenticateUser, 
   requirePermission('view_dashboard_specific'), 
   getCampManagerCenterInfo
 );
 
 router.get("/camp-manager/summary/:eventId", 
-  authenticateUser, 
   requirePermission('view_dashboard_specific'), 
   getCampManagerDashboardSummary
 );

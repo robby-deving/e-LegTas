@@ -53,13 +53,13 @@ router.use('/evacuation-centers', apiRateLimit, evacuationCentersRoutes);
 router.use('/disasters', apiRateLimit, disasterRoutes);
 router.use('/rooms', apiRateLimit, roomRoutes);
 router.use('/disaster-events', apiRateLimit, disasterEventRoutes);
-router.use('/dashboard', dashboardRateLimit, dashboardRoutes);
+router.use('/dashboard', authenticateUser, dashboardRateLimit, dashboardRoutes);
 router.use('/evacuees', apiRateLimit, evacueesRoutes);
 router.use('/barangays', apiRateLimit, barangayRoutes);
 
 router.use('/profile', apiRateLimit, profileRoutes);
 
-router.use('/reports', reportRateLimit, reportsRoutes);
+router.use('/reports', authenticateUser, reportRateLimit, reportsRoutes);
 
 // Role creation route
 router.post(
