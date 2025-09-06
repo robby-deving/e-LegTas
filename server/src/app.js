@@ -15,7 +15,7 @@ dotenv.config();
 
 // Initialize the Express application
 const app = express();
-
+app.set('trust proxy', true)
 // Environment variables check
 logger.info('Environment variables check');
 logger.info('SUPABASE_URL status', { present: !!process.env.SUPABASE_URL });
