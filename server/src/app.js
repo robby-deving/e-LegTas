@@ -28,7 +28,7 @@ app.use(cors({
   origin: ['http://localhost:5173', 'https://beta.e-legtas.tech'],
   credentials: true,
   methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
-  allowedHeaders: ['Content-Type','Authorization','X-Requested-With'],
+  allowedHeaders: ['Content-Type','Authorization','X-Requested-With', 'x-api-key'],
   exposedHeaders: ['Content-Disposition'],
   optionsSuccessStatus: 204
 }));
