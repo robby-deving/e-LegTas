@@ -60,6 +60,7 @@ router.use('/barangays', apiRateLimit, barangayRoutes);
 router.use('/profile', apiRateLimit, profileRoutes);
 
 router.use('/reports', authenticateUser, reportRateLimit, reportsRoutes);
+router.use('/mobile', apiRateLimit, mobileRoutes);
 
 // Role creation route
 router.post(
