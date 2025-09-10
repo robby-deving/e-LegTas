@@ -18,6 +18,8 @@ import { DateTimePicker } from "../ui/date-time-picker";
 import { startOfDayLocal, DateBound, formatMMDDYYYY, mergeDateAndTime, checkDateBounds } from "@/utils/dateInput";
 import BirthdayMaskedInput from "../EvacuationCenterDetail/BirthdayMaskedInput";
 import { toISODateLocal } from "@/utils/dateInput";
+import { useSelector } from 'react-redux';
+import { selectToken } from '@/features/auth/authSlice';
 
 const INVERSE_REL: Record<string, string> = {
   Spouse: "Spouse",
@@ -61,6 +63,8 @@ export const FamilyDetailsModal: React.FC<FamilyDetailsModalProps> = ({
   onEndedAction,
   
 }) => {
+
+const token = useSelector(selectToken);
 
 const [savingDecamp, setSavingDecamp] = useState(false);
 const [decampError, setDecampError] = useState<string | null>(null);
@@ -194,31 +198,36 @@ const canTransfer =
 };
 
 const handleConfirmTransfer = async () => {
-try {
-  if (!newHeadEvacueeId) return;
-  setTransferring(true);
+  try {
+    if (!newHeadEvacueeId) return;
+    setTransferring(true);
 
-  let rel = oldHeadNewRel;
-  if (!rel) {
-    const cand = transferCandidates.find(
-      (m: any) => String(m.evacuee_id) === String(newHeadEvacueeId)
-    );
-    const toRel = cand?.relationship_to_family_head;
-    rel = toRel && INVERSE_REL[toRel] ? INVERSE_REL[toRel] : "Relative";
-    setOldHeadNewRel(rel);
-  }
+    let rel = oldHeadNewRel;
+    if (!rel) {
+      const cand = transferCandidates.find(
+        (m: any) => String(m.evacuee_id) === String(newHeadEvacueeId)
+      );
+      const toRel = cand?.relationship_to_family_head;
+      rel = toRel && INVERSE_REL[toRel] ? INVERSE_REL[toRel] : "Relative";
+      setOldHeadNewRel(rel);
+    }
 
-  const url = `https://api.e-legtas.tech/api/v1/evacuees/${Number(
-    evacuee.disaster_evacuation_event_id
-  )}/transfer-head`;
+    const url = `https://api.e-legtas.tech/api/v1/evacuees/${Number(
+      evacuee.disaster_evacuation_event_id
+    )}/transfer-head`;
 
-  const body = {
-    from_family_head_id: Number(evacuee.id),
-    to_evacuee_resident_id: Number(newHeadEvacueeId),
-    old_head_new_relationship: rel,
-  };
+    const body = {
+      from_family_head_id: Number(evacuee.id),
+      to_evacuee_resident_id: Number(newHeadEvacueeId),
+      old_head_new_relationship: rel,
+    };
 
-    await axios.post(url, body);
+    await axios.post(url, body, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
     setTransferOpen(false);
     onClose();
     await onSaved?.(); 

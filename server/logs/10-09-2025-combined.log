@@ -1,0 +1,12 @@
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-10T13:24:07.190Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-10T13:24:07.192Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-10T13:24:07.193Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-10T13:24:07.193Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-10T13:24:07.193Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-10T13:24:07.196Z"}
+{"level":"info","message":"Environment variables check","metadata":{},"timestamp":"2025-09-10T13:39:12.019Z"}
+{"level":"info","message":"SUPABASE_URL status","metadata":{"present":true},"timestamp":"2025-09-10T13:39:12.022Z"}
+{"level":"info","message":"SUPABASE_SERVICE_ROLE_KEY status","metadata":{"present":true},"timestamp":"2025-09-10T13:39:12.022Z"}
+{"level":"info","message":"SMTP_USER status","metadata":{"present":true},"timestamp":"2025-09-10T13:39:12.023Z"}
+{"level":"info","message":"SMTP_PASS status","metadata":{"present":true},"timestamp":"2025-09-10T13:39:12.023Z"}
+{"level":"info","message":"Server running on port 3000","metadata":{},"timestamp":"2025-09-10T13:39:12.025Z"}

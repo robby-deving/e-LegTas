@@ -1,0 +1,15 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 14
+    },
+    "auditLog": "/Users/shakiraregalado/Desktop/e-LegTas/server/logs/.ab0b2409fd629d2ebbfe8b1b20baf69ef115250f-audit.json",
+    "files": [
+        {
+            "date": 1757511551406,
+            "name": "/Users/shakiraregalado/Desktop/e-LegTas/server/logs/10-09-2025-combined.log",
+            "hash": "38de59ae125a4bea703261bb88c5ad46ea14af21d6a3e246da488899a8086d50"
+        }
+    ],
+    "hashType": "sha256"
+}
