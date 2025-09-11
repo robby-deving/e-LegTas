@@ -4,10 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { ChevronRight, Calendar } from "lucide-react";
 import { useSelector } from "react-redux";
 
-// import { supabase } from "@/lib/supabaseClient";
-// import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-
 import { RegisteredFamiliesCard } from "@/components/cards/RegisteredFamiliesCard";
 import { RegisteredEvacueesCard } from "@/components/cards/RegisteredEvacueesCard";
 import { ECCapacityCard } from "@/components/cards/ECCapacityCard";
@@ -16,6 +13,7 @@ import EvacueeStatisticsChart from "@/components/EvacueeStatisticsChart";
 
 import { getTypeColor, getTagColor } from "@/constants/disasterTypeColors";
 import { decodeId, encodeId } from "@/utils/secureId";
+import { mapSearchPayloadToForm } from "@/utils/mapEvacueePayload";
 import { formatDate } from "@/utils/dateFormatter";
 import { startOfDayLocal } from "@/utils/dateInput";
 import { differenceInYears } from "date-fns";
@@ -44,7 +42,6 @@ import type {
   RegisterEvacuee,
   FamilyMember,
   FamilyHeadResult,
-  // EditEvacueeApi,
   SelectedEvacuee,
   Evacuee,
 } from "@/types/EvacuationCenterDetails";
@@ -60,13 +57,11 @@ export default function EvacuationCenterDetail() {
 
   const canViewDashboardSpecific = hasPermission("view_dashboard_specific");
   const canViewFamilyInformation = hasPermission("view_family_information");
-  // const canCreateEvacueeInformation = hasPermission("create_evacuee_information");
+  const canCreateEvacueeInformation = hasPermission("create_evacuee_information");
   const canCreateFamilyInformation = hasPermission("create_family_information");
   const canUpdateEvacueeInformation = hasPermission("update_evacuee_information");
   const canUpdateFamilyInformation = hasPermission("update_family_information");
   const canViewOnlySpecificDashboardEvacuation = hasPermission("view_only_specific_dashboard_evacuation");
-
-  // computed permission
   const canEndOperation = hasPermission("end_evacuation_operation") || canUpdateFamilyInformation;
 
   // core state
@@ -74,7 +69,6 @@ export default function EvacuationCenterDetail() {
   const [statistics, setStatistics] = useState<EvacueeStatistics | null>(null);
   const [evacuees, setEvacuees] = useState<FamilyEvacueeInformation[]>([]);
   const [evacueesLoading, setEvacueesLoading] = useState(false);
-
   const [selectedFamily, setSelectedFamily] = useState<FamilyEvacueeInformation | null>(null);
 
   // table & search
@@ -407,7 +401,6 @@ export default function EvacuationCenterDetail() {
       return;
     }
 
-    const { mapSearchPayloadToForm } = require("@/utils/mapEvacueePayload");
     const mapped = mapSearchPayloadToForm(evacuee);
 
     setFormData((prev) => ({
@@ -754,6 +747,7 @@ export default function EvacuationCenterDetail() {
           onToggleSort={toggleSort}
           onRowClick={handleRowClick}
           canEndOperation={canEndOperation}
+          canCreateEvacueeInformation={canCreateEvacueeInformation}
           isEventEnded={isEventEnded}
           onOpenEndFlow={openEndFlow}
           onRegisterClick={handleRegisterClick}

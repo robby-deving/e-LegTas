@@ -11,7 +11,6 @@ type Props = {
   loading: boolean;
   search: string;
   onSearchChange: (v: string) => void;
-
   paginatedEvacuees: FamilyEvacueeInformation[];
   totalRows: number;
   totalPages: number;
@@ -19,14 +18,11 @@ type Props = {
   rowsPerPage: number;
   onPageChange: (p: number) => void;
   onRowsPerPageChange: (v: number) => void;
-
   sort: SortState;
   onToggleSort: (key: SortKey) => void;
-
   onRowClick: (id: number) => void;
-
-  // top-right actions
   canEndOperation: boolean;
+  canCreateEvacueeInformation?: boolean;
   isEventEnded: boolean;
   onOpenEndFlow: () => void;
   onRegisterClick: () => void;
@@ -48,6 +44,7 @@ export default function RegisteredEvacueesTable({
   onToggleSort,
   onRowClick,
   canEndOperation,
+  canCreateEvacueeInformation,
   isEventEnded,
   onOpenEndFlow,
   onRegisterClick,
@@ -58,8 +55,7 @@ export default function RegisteredEvacueesTable({
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-2xl font-bold">
-            Registered Evacuees
-            <span className="ml-2 text-md text-muted-foreground">(per Family)</span>
+            Registered Evacuees <span className="ml-2 text-md text-muted-foreground">(per Family)</span>
           </h3>
         </div>
 
@@ -74,6 +70,7 @@ export default function RegisteredEvacueesTable({
           </div>
 
           <div className="flex items-center gap-3 self-start sm:self-auto">
+            {/* End operation button / ended pill */}
             {isEventEnded ? (
               <Button
                 type="button"
@@ -94,16 +91,19 @@ export default function RegisteredEvacueesTable({
               )
             )}
 
-            <Button
-              className={`bg-green-700 hover:bg-green-800 text-white px-6 flex gap-2 items-center cursor-pointer ${
-                isEventEnded ? "opacity-60" : ""
-              }`}
-              onClick={() => (isEventEnded ? onShowEndedInfo() : onRegisterClick())}
-              title={isEventEnded ? "Evacuation operation already ended" : "Register a new evacuee"}
-              aria-disabled={isEventEnded}
-            >
-              <span className="text-lg">+</span> Register Evacuee
-            </Button>
+            {/* Register evacuee (gated by permission) */}
+            {canCreateEvacueeInformation && (
+              <Button
+                className={`bg-green-700 hover:bg-green-800 text-white px-6 flex gap-2 items-center cursor-pointer ${
+                  isEventEnded ? "opacity-60" : ""
+                }`}
+                onClick={() => (isEventEnded ? onShowEndedInfo() : onRegisterClick())}
+                title={isEventEnded ? "Evacuation operation already ended" : "Register a new evacuee"}
+                aria-disabled={isEventEnded}
+              >
+                <span className="text-lg">+</span> Register Evacuee
+              </Button>
+            )}
           </div>
         </div>
 
