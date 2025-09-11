@@ -13,7 +13,7 @@ import EvacueeStatisticsChart from "@/components/EvacueeStatisticsChart";
 
 import { getTypeColor, getTagColor } from "@/constants/disasterTypeColors";
 import { decodeId, encodeId } from "@/utils/secureId";
-import { mapSearchPayloadToForm } from "@/utils/mapEvacueePayload";
+import { mapEditPayloadToForm, mapSearchPayloadToForm } from "@/utils/mapEvacueePayload";
 import { formatDate } from "@/utils/dateFormatter";
 import { startOfDayLocal } from "@/utils/dateInput";
 import { differenceInYears } from "date-fns";
@@ -34,17 +34,7 @@ import RegisteredEvacueesTable from "../components/EvacuationCenterDetail/Regist
 import { useFamilySort } from "@/hooks/useFamilySort";
 import { useEcSubscriptions } from "@/hooks/useEcSubscriptions";
 import { evacueesApi } from "@/services/evacuees";
-
-import type {
-  EvacuationCenterDetail,
-  EvacueeStatistics,
-  FamilyEvacueeInformation,
-  RegisterEvacuee,
-  FamilyMember,
-  FamilyHeadResult,
-  SelectedEvacuee,
-  Evacuee,
-} from "@/types/EvacuationCenterDetails";
+import type { EvacuationCenterDetail, EvacueeStatistics, FamilyEvacueeInformation, RegisterEvacuee, FamilyMember, FamilyHeadResult, SelectedEvacuee, Evacuee } from "@/types/EvacuationCenterDetails";
 
 export default function EvacuationCenterDetail() {
   const navigate = useNavigate();
@@ -94,7 +84,7 @@ export default function EvacuationCenterDetail() {
   const [endError, setEndError] = useState<string | null>(null);
 
   // sorting
-  const { sort, toggleSort, sortRows, /*setSort*/ } = useFamilySort();
+  const { sort, toggleSort, sortRows } = useFamilySort();
 
   // page title
   usePageTitle(detail?.evacuation_center?.evacuation_center_name ?? "Evacuation Center Detail");
@@ -306,8 +296,6 @@ export default function EvacuationCenterDetail() {
       const res = await evacueesApi.getEditEvacuee(Number(centerId), Number(evacueeResidentId), token!);
       const data = res.data;
 
-      // you already have util mappers:
-      const { mapEditPayloadToForm } = await import("@/utils/mapEvacueePayload");
       const mapped = mapEditPayloadToForm(data);
 
       setFormData((prev) => ({
@@ -341,7 +329,7 @@ export default function EvacuationCenterDetail() {
     }
   };
 
-  // const handleFamilyHeadSearchChange = (v: string) => setFamilyHeadSearchTerm(v);
+  const handleFamilyHeadSearchChange = (v: string) => setFamilyHeadSearchTerm(v);
 
   useEffect(() => {
     const q = familyHeadSearchTerm.trim();
@@ -814,7 +802,7 @@ export default function EvacuationCenterDetail() {
         isOpen={showFamilyHeadSearchModal}
         onClose={() => setShowFamilyHeadSearchModal(false)}
         searchTerm={familyHeadSearchTerm}
-        onSearchChange={(e: any) => setFamilyHeadSearchTerm(e?.target ? e.target.value : e)}
+        onSearchChange={handleFamilyHeadSearchChange}
         searchResults={familyHeadSearchResults}
         onSelectFamilyHead={handleFamilyHeadSelect}
         loading={fhLoading}

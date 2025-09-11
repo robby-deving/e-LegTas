@@ -60,11 +60,8 @@ export function useEcSubscriptions(
 
     channel.subscribe();
 
-    // IMPORTANT: cleanup must return void, not a Promise
     return () => {
-      void supabase.removeChannel(channel); // swallow the Promise
-      // alternatively:
-      // channel.unsubscribe().catch(() => {});
+      void supabase.removeChannel(channel);
     };
   }, [centerId, refreshAllDebounced]);
 
@@ -104,10 +101,8 @@ export function useEcSubscriptions(
 
     channel.subscribe();
 
-    // IMPORTANT: cleanup must return void, not a Promise
     return () => {
       void supabase.removeChannel(channel);
-      // or: channel.unsubscribe().catch(() => {});
     };
   }, [
     centerId,
