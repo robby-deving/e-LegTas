@@ -26,6 +26,10 @@ import { Button } from "../ui/button";
 import { CalendarIcon } from "lucide-react";
 import type { Disaster, DisasterPayload, DisasterTypeWithId } from "@/types/disaster";
 
+/**
+ * Note: While the UI displays "Incident", we use "Disaster" in our
+ * codebase for consistency with our data models and APIs.
+ */
 interface Props {
   mode: "create" | "edit";
   disaster?: Disaster;
@@ -90,19 +94,19 @@ export default function DisasterFormDialog({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="text-green-700 text-xl font-bold mb-2">
-            {mode === "create" ? "Record New Disaster" : "Update Disaster"}
+            {mode === "create" ? "Record New Incident" : "Update Incident"}
           </DialogTitle>
         </DialogHeader>
         <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
           {/* Name */}
           <div>
             <label className="block text-sm font-semibold mb-1">
-              Disaster Name:
+              Incident Name:
             </label>
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Disaster Name"
+              placeholder="Incident Name"
               className="w-full"
             />
           </div>
@@ -110,7 +114,7 @@ export default function DisasterFormDialog({
           {/* Type */}
           <div>
             <label className="block text-sm font-semibold mb-1">
-              Disaster Type:
+              Incident Type:
             </label>
             <Select
               // The value of Select should correspond to the 'value' of SelectItem
@@ -219,7 +223,7 @@ export default function DisasterFormDialog({
           >
             {loading
               ? (mode === "create" ? "Adding..." : "Saving...")
-              : (mode === "create" ? "Add Disaster" : "Save Changes")
+              : (mode === "create" ? "Add Incident" : "Save Changes")
             }
           </Button>
         </DialogFooter>

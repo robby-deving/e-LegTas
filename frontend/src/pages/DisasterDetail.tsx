@@ -36,6 +36,10 @@ export default function DisasterDetail() {
   const [hasError, setHasError] = useState(false);
   const [tableLoading, setTableLoading] = useState(false);
 
+  /**
+   * Note: While the UI displays "Incident", we use "Disaster" in our
+   * codebase for consistency with our data models and APIs.
+   */
   // Get auth headers for API calls
   const getAuthHeaders = () => {
     const headers: Record<string, string> = {
@@ -246,7 +250,7 @@ export default function DisasterDetail() {
             onClick={() => navigate("/evacuation-information")}
             className="hover:text-green-700 font-bold transition-colors cursor-pointer"
           >
-            Disaster
+            Incident
           </button>
           <ChevronRight className="w-4 h-4 mx-2" />
           <span className="text-gray-900 font-semibold">{disaster!.name}</span>

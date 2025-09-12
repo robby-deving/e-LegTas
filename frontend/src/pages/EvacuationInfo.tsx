@@ -15,6 +15,11 @@ import { useSelector } from "react-redux";
 import { selectUserId, selectToken } from "../features/auth/authSlice";
 import { disasterService } from "../services/disasterService";
 
+/**
+ * Note: While the UI displays "Incident", we use "Disaster" in our
+ * codebase for consistency with our data models and APIs.
+ */
+
 export default function EvacuationInfo() {
   usePageTitle("Evacuation Information");
   const navigate = useNavigate();
@@ -214,7 +219,7 @@ const navigateToDetail = async (d: Disaster) => {
 
         <div className="mt-2 space-y-10">
           <DisasterSection
-            title="Active Disasters"
+            title="Active Incidents"
             disasters={activeDisasters}
             onEdit={(d) => {
               setEditingDisaster(d);
@@ -222,12 +227,12 @@ const navigateToDetail = async (d: Disaster) => {
             }}
             onNavigate={navigateToDetail}
             onDelete={(d) => setDeleteConfirmDisaster(d)}
-            emptyMessage="No active disasters."
+            emptyMessage="No active Incidents."
             loading={loading}
           />
 
           <DisasterSection
-            title="Ended Disasters"
+            title="Ended Incidents"
             disasters={endedDisasters}
             collapsible
             collapsed={!showEnded}
@@ -324,7 +329,7 @@ const navigateToDetail = async (d: Disaster) => {
                   className='px-4 py-2 text-white bg-red-600 rounded-md hover:bg-red-700 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2'
                 >
                   {deleting && <LoadingSpinner size="sm" />}
-                  {deleting ? "Deleting..." : "Delete Disaster"}
+                  {deleting ? "Deleting..." : "Delete Incident"}
                 </button>
               </div>
             </div>
