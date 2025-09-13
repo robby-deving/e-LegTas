@@ -5,6 +5,16 @@ import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import type { FamilyHeadResult } from "@/types/EvacuationCenterDetails";
 
+type Props = {
+  isOpen: boolean;
+  onClose: () => void;
+  searchTerm: string;
+  onSearchChange: (value: string) => void;
+  searchResults: FamilyHeadResult[];
+  onSelectFamilyHead: (fh: FamilyHeadResult) => void;
+  loading?: boolean;
+};
+
 export const FamilyHeadSearchModal = ({
   isOpen,
   onClose,
@@ -13,15 +23,7 @@ export const FamilyHeadSearchModal = ({
   searchResults,
   onSelectFamilyHead,
   loading,
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  searchTerm: string;
-  onSearchChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  searchResults: FamilyHeadResult[];
-  onSelectFamilyHead: (fh: FamilyHeadResult) => void;
-  loading?: boolean;
-}) => {
+}: Props) => {
   if (!isOpen) return null;
 
   return (
@@ -46,10 +48,11 @@ export const FamilyHeadSearchModal = ({
           <Input
             placeholder="Search Family Head"
             value={searchTerm}
-            onChange={onSearchChange}
+            onChange={(e) => onSearchChange(e.target.value)} 
             className="w-full"
             autoFocus
           />
+
 
           {loading && <p className="text-sm text-gray-500">Searching…</p>}
 
