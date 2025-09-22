@@ -132,7 +132,8 @@ export default function DisasterDetail() {
       // Build query parameters
       const params = new URLSearchParams({
         page: page.toString(),
-        limit: limit.toString()
+        limit: limit.toString(),
+        ec_type: activeTab === 'Inside EC' ? 'inside' : 'outside'
       });
 
       // Add search parameter if provided
@@ -141,7 +142,7 @@ export default function DisasterDetail() {
       }
 
       const res = await axios.get(
-        `https://api.e-legtas.tech/api/v1/disaster-events/by-disaster/${disasterId}/details?${params.toString()}`,
+        `/api/v1/disaster-events/by-disaster/${disasterId}/details?${params.toString()}`,
         { headers: getAuthHeaders() }
       );
 
@@ -179,7 +180,7 @@ export default function DisasterDetail() {
     if (disasterId && !disasterLoading) {
       fetchEvacuationCenters(currentPage, rowsPerPage, debouncedSearchTerm);
     }
-  }, [currentPage, rowsPerPage, debouncedSearchTerm]);
+  }, [currentPage, rowsPerPage, debouncedSearchTerm, activeTab]);
 
   const handleRowsPerPageChange = (value: string) => {
     setRowsPerPage(Number(value));
@@ -312,7 +313,10 @@ export default function DisasterDetail() {
                   {tabs.map((tab) => (
                     <button
                       key={tab.name}
-                      onClick={() => setActiveTab(tab.name)}
+                      onClick={() => {
+                        setActiveTab(tab.name);
+                        setCurrentPage(1); // Reset to first page when changing tabs
+                      }}
                       className={`flex items-center px-4 py-2  rounded-full transition-colors duration-200
                         ${activeTab === tab.name
                           ? 'bg-green-700 text-white'

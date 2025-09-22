@@ -25,7 +25,7 @@ class ApiError extends Error {
  */
 exports.getDisasterEventDetailsByDisasterId = async (req, res, next) => {
     const { disasterId } = req.params;
-    const { page = 1, limit = 10, search } = req.query;
+    const { page = 1, limit = 10, search, ec_type } = req.query;
 
     if (!disasterId || isNaN(Number(disasterId))) {
         return next(new ApiError('Invalid Disaster ID provided.', 400));
@@ -42,11 +42,18 @@ exports.getDisasterEventDetailsByDisasterId = async (req, res, next) => {
     const offset = (pageNum - 1) * limitNum;
 
     try {
-        // Build the base query for counting
+        // Build the base query for counting with EC type filter
         let countQuery = supabase
             .from(TABLE_NAME)
-            .select('*', { count: 'exact', head: true })
+            .select('*, evacuation_centers!inner(category)', { count: 'exact', head: true })
             .eq('disaster_id', disasterId);
+            
+        // Add EC type filter if provided
+        if (ec_type === 'inside') {
+            countQuery = countQuery.in('evacuation_centers.category', ['School', 'Chapel/Church', 'Dedicated Evacuation Center', 'Government Building', 'Commercial Building']);
+        } else if (ec_type === 'outside') {
+            countQuery = countQuery.in('evacuation_centers.category', ['Private House']);
+        }
 
         const { count, error: countError } = await countQuery;
 
@@ -67,9 +74,11 @@ exports.getDisasterEventDetailsByDisasterId = async (req, res, next) => {
                     total_no_of_family,
                     total_no_of_individuals
                 ),
-                evacuation_centers(
+                evacuation_centers!inner(
                     name,
                     total_capacity,
+                    category,
+                    barangay_id,
                     barangays(name)
                 ),
                 users(
@@ -84,6 +93,13 @@ exports.getDisasterEventDetailsByDisasterId = async (req, res, next) => {
                 )
             `)
             .eq('disaster_id', disasterId); // Filter by disaster_id
+            
+        // Add EC type filter if provided
+        if (ec_type === 'inside') {
+            dataQuery = dataQuery.in('evacuation_centers.category', ['School', 'Chapel/Church', 'Dedicated Evacuation Center', 'Government Building']);
+        } else if (ec_type === 'outside') {
+            dataQuery = dataQuery.in('evacuation_centers.category', ['Commercial Building', 'Private House']);
+        }
 
         // Apply search filter if provided
         // For now, we'll implement a simpler search that works with the current Supabase setup
