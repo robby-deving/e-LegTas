@@ -29,6 +29,7 @@ class EvacuationCenterService {
     limit?: number;
     offset?: number;
     search?: string;
+    ec_type?: 'inside' | 'outside';
   }): Promise<{
     data: EvacuationCenter[];
     pagination: {
@@ -43,6 +44,7 @@ class EvacuationCenterService {
     if (params?.limit) queryParams.append('limit', params.limit.toString());
     if (params?.offset) queryParams.append('offset', params.offset.toString());
     if (params?.search) queryParams.append('search', params.search);
+    if (params?.ec_type) queryParams.append('ec_type', params.ec_type);
 
     const url = `${this.baseUrl}/evacuation-centers${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
 

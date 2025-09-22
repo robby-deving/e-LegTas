@@ -175,44 +175,59 @@ export function EvacuationCenterModal({ isOpen, onClose, mode, center, onSuccess
       hasErrors = true;
     }
 
-    if (!formData.latitude || isNaN(Number(formData.latitude))) {
-      newErrors.center!.latitude = 'Valid latitude is required';
-      hasErrors = true;
-    }
-
-    if (!formData.longitude || isNaN(Number(formData.longitude))) {
-      newErrors.center!.longitude = 'Valid longitude is required';
-      hasErrors = true;
-    }
-
-    if (formData.total_capacity && isNaN(Number(formData.total_capacity))) {
-      newErrors.center!.total_capacity = 'Capacity must be a number';
-      hasErrors = true;
-    }
-
-    // Validate rooms
-    rooms.forEach(room => {
-      const roomErrors: Partial<Record<keyof EvacuationRoom, string>> = {};
-      
-      if (!room.roomName.trim()) {
-        roomErrors.roomName = 'Room name is required';
+    // Only validate lat/long if not Private House
+    if (formData.category !== 'Private House') {
+      if (!formData.latitude || isNaN(Number(formData.latitude))) {
+        newErrors.center!.latitude = 'Valid latitude is required';
         hasErrors = true;
       }
 
-      if (!room.type) {
-        roomErrors.type = 'Room type is required';
+      if (!formData.longitude || isNaN(Number(formData.longitude))) {
+        newErrors.center!.longitude = 'Valid longitude is required';
         hasErrors = true;
       }
 
-      if (!room.capacity || room.capacity <= 0) {
-        roomErrors.capacity = 'Valid capacity is required';
+      if (formData.total_capacity && isNaN(Number(formData.total_capacity))) {
+        newErrors.center!.total_capacity = 'Capacity must be a number';
+        hasErrors = true;
+      }
+    }
+
+    // Validate rooms only for non-Private House categories
+    if (formData.category !== 'Private House') {
+      // Check if there are any non-deleted rooms
+      const activeRooms = rooms.filter(room => !room.markedForDeletion);
+      if (activeRooms.length === 0) {
+        newErrors.center!.total_capacity = 'At least one room is required';
         hasErrors = true;
       }
 
-      if (Object.keys(roomErrors).length > 0) {
-        newErrors.rooms![room.id] = roomErrors;
-      }
-    });
+      rooms.forEach(room => {
+        // Skip validation for rooms marked for deletion
+        if (room.markedForDeletion) return;
+
+        const roomErrors: Partial<Record<keyof EvacuationRoom, string>> = {};
+        
+        if (!room.roomName.trim()) {
+          roomErrors.roomName = 'Room name is required';
+          hasErrors = true;
+        }
+
+        if (!room.type) {
+          roomErrors.type = 'Room type is required';
+          hasErrors = true;
+        }
+
+        if (!room.capacity || room.capacity <= 0) {
+          roomErrors.capacity = 'Valid capacity is required';
+          hasErrors = true;
+        }
+
+        if (Object.keys(roomErrors).length > 0) {
+          newErrors.rooms![room.id] = roomErrors;
+        }
+      });
+    }
 
     setErrors(newErrors);
     return !hasErrors;
@@ -306,10 +321,10 @@ export function EvacuationCenterModal({ isOpen, onClose, mode, center, onSuccess
         name: formData.name.trim(),
         address: `${formData.streetName.trim()}, ${formData.barangay.trim()}`,
         barangay_id: formData.barangayId,
-        latitude: Number(formData.latitude),
-        longitude: Number(formData.longitude),
+        latitude: formData.category === 'Private House' ? 0 : Number(formData.latitude),
+        longitude: formData.category === 'Private House' ? 0 : Number(formData.longitude),
         category: formData.category as EvacuationCenterCategory,
-        total_capacity: Number(formData.total_capacity) || 0,
+        total_capacity: formData.category === 'Private House' ? 1 : (Number(formData.total_capacity) || 0),
         ec_status: center?.ec_status || 'Available' as EvacuationCenterStatus,
         created_by: center?.created_by || currentUserId,
         assigned_user_id: center?.assigned_user_id || null
@@ -388,7 +403,7 @@ export function EvacuationCenterModal({ isOpen, onClose, mode, center, onSuccess
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent size="xl" className="max-w-4xl max-h-[90vh] overflow-hidden">
+      <DialogContent size="xl" className={`${formData.category === 'Private House' ? 'max-w-2xl' : 'max-w-4xl'} max-h-[90vh] overflow-hidden`}>
         <DialogHeader>
           <DialogTitle className="text-green-700 text-xl font-bold">
             {mode === 'add' ? 'Add Evacuation Center' : 'Edit Evacuation Center'}
@@ -400,9 +415,9 @@ export function EvacuationCenterModal({ isOpen, onClose, mode, center, onSuccess
           </DialogDescription>
         </DialogHeader>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-2 overflow-y-auto max-h-[calc(90vh-200px)]">
+        <div className={`grid grid-cols-1 ${formData.category !== 'Private House' ? 'md:grid-cols-2' : ''} gap-6 py-2 overflow-y-auto max-h-[calc(90vh-200px)]`}>
           {/* Left Column - Basic Information */}
-          <div>
+          <div className={formData.category === 'Private House' ? 'max-w-2xl mx-auto w-full' : ''}>
             <EvacuationCenterForm
               formData={formData}
               onFormChange={handleFormInputChange}
@@ -411,15 +426,17 @@ export function EvacuationCenterModal({ isOpen, onClose, mode, center, onSuccess
           </div>
 
           {/* Right Column - Evacuation Rooms */}
-          <div>
-            <RoomForm
-              rooms={rooms}
-              onAddRoom={handleAddRoom}
-              onRoomChange={handleRoomChange}
-              onDeleteRoom={handleDeleteRoom}
-              errors={errors.rooms}
-            />
-          </div>
+          {formData.category !== 'Private House' && (
+            <div>
+              <RoomForm
+                rooms={rooms}
+                onAddRoom={handleAddRoom}
+                onRoomChange={handleRoomChange}
+                onDeleteRoom={handleDeleteRoom}
+                errors={errors.rooms}
+              />
+            </div>
+          )}
         </div>
 
         <DialogFooter className="flex-col space-y-2">

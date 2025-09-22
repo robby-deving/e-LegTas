@@ -16,6 +16,7 @@ import { encodeId } from "@/utils/secureId";
 import { selectToken } from "../features/auth/authSlice";
 import { disasterService } from "@/services/disasterService";
 import LoadingSpinner from "@/components/loadingSpinner";
+import { Button } from "@/components/ui/button";
 
 export default function DisasterDetail() {
   const { id } = useParams<{ id: string }>();
@@ -56,6 +57,13 @@ export default function DisasterDetail() {
   const rawDisasterId = id?.split("-")[0] || "";
   const disasterId = decodeId(rawDisasterId);
 
+
+  const [activeTab, setActiveTab] = useState('Inside EC');
+
+  const tabs = [
+    { name: 'Inside EC' }, // Replace with your actual icon component or image
+    { name: 'Outside EC' },
+  ];
   useEffect(() => {
     
     const loadDisaster = async () => {
@@ -184,6 +192,7 @@ export default function DisasterDetail() {
     fetchEvacuationCenters(page, rowsPerPage, debouncedSearchTerm);
   };
 
+
   // Reset to page 1 when search term changes
   useEffect(() => {
     if (debouncedSearchTerm !== '') {
@@ -277,12 +286,12 @@ export default function DisasterDetail() {
       </div>
 
       <div className="py-1 flex flex-col flex-1">
-        <div className="flex flex-col space-y-4 flex-1">
+        <div className="w-full flex flex-col space-y-4 flex-1">
           <div className="flex items-center justify-between">
             <h3 className="text-2xl font-bold">List of Evacuation Centers</h3>
           </div>
 
-          <div className="w-full max-w-xs">
+          <div className="w-full flex justify-between items-center">
             <div className="relative">
               <Input
                 placeholder="Search evacuation centers or barangays"
@@ -295,6 +304,29 @@ export default function DisasterDetail() {
                   <div className="w-4 h-4 border-2 border-gray-300 border-t-green-600 rounded-full animate-spin"></div>
                 </div>
               )}
+            </div>
+
+            <div className="flex gap-8 text-sm text-gray-600 items-center">
+              <div className="flex gap-2 items-center">
+                <div className=" border border-gray-300 rounded-full inline-flex space-x-2">
+                  {tabs.map((tab) => (
+                    <button
+                      key={tab.name}
+                      onClick={() => setActiveTab(tab.name)}
+                      className={`flex items-center px-4 py-2  rounded-full transition-colors duration-200
+                        ${activeTab === tab.name
+                          ? 'bg-green-700 text-white'
+                          : 'text-gray-400 hover:text-black'
+                        }`}
+                    >
+                      <span className="font-semibold">{tab.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <Button className="bg-green-700 hover:bg-green-800 text-white px-6 flex gap-2 items-center cursor-pointer">
+                Register Evacuee
+              </Button>
             </div>
           </div>
 

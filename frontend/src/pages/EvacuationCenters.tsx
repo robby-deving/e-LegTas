@@ -26,6 +26,9 @@ const STATUS_COLORS = {
   'Unavailable': 'text-gray-600 bg-gray-100'
 };
 
+const INSIDE_EC_CATEGORIES = ['School', 'Chapel/Church', 'Dedicated Evacuation Center', 'Government Building'];
+const OUTSIDE_EC_CATEGORIES = ['Commercial Building', 'Private House'];
+
 export default function EvacuationCentersPage() {
   usePageTitle('Evacuation Centers');
 
@@ -54,6 +57,22 @@ export default function EvacuationCentersPage() {
   // Debounce search term
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
 
+  
+  const [activeTab, setActiveTab] = useState<'Inside EC' | 'Outside EC'>('Inside EC');
+
+  // Handle tab change
+  const handleTabChange = (tabName: 'Inside EC' | 'Outside EC') => {
+    setActiveTab(tabName);
+    setCurrentPage(1); // Reset to first page when changing tabs
+    setRowsPerPage(10); // Reset rows per page to default
+    setSearchTerm(''); // Clear search when changing tabs
+  };
+
+  const tabs = [
+    { name: 'Inside EC' }, // Replace with your actual icon component or image
+    { name: 'Outside EC' },
+  ];
+
   // Hooks
   const {
     centers,
@@ -72,32 +91,42 @@ export default function EvacuationCentersPage() {
   } = useEvacuationCenterMutations();
 
   // Stable refetch function
-  const stableRefetch = useCallback((params: { limit: number; offset: number; search: string }) => {
+  const stableRefetch = useCallback((params: { limit: number; offset: number; search: string, ec_type: 'inside' | 'outside' }) => {
     refetchWithParams(params);
   }, [refetchWithParams]);
 
   // Handle search and pagination changes
   useEffect(() => {
-    setCurrentPage(1); // Reset to first page when search changes
+    setCurrentPage(1); // Reset to first page when search changes or tab changes
     stableRefetch({
       limit: rowsPerPage,
       offset: 0,
-      search: debouncedSearchTerm
+      search: debouncedSearchTerm,
+      ec_type: activeTab === 'Inside EC' ? 'inside' : 'outside'
     });
-  }, [debouncedSearchTerm, rowsPerPage, stableRefetch]);
+  }, [debouncedSearchTerm, rowsPerPage, activeTab, stableRefetch]);
 
   useEffect(() => {
     stableRefetch({
       limit: rowsPerPage,
       offset: (currentPage - 1) * rowsPerPage,
-      search: debouncedSearchTerm
+      search: debouncedSearchTerm,
+      ec_type: activeTab === 'Inside EC' ? 'inside' : 'outside'
     });
-  }, [currentPage, rowsPerPage, debouncedSearchTerm, stableRefetch]);
+  }, [currentPage, rowsPerPage, debouncedSearchTerm, activeTab, stableRefetch]);
 
   // Handle rows per page change
   const handleRowsPerPageChange = (value: string) => {
-    setRowsPerPage(Number(value));
-    setCurrentPage(1);
+    const newRowsPerPage = Number(value);
+    setRowsPerPage(newRowsPerPage);
+    
+    // Calculate the first item index of current page
+    const currentFirstItem = (currentPage - 1) * rowsPerPage;
+    
+    // Calculate what page this item should be on with new rows per page
+    const newPage = Math.floor(currentFirstItem / newRowsPerPage) + 1;
+    
+    setCurrentPage(newPage);
   };
 
   // Use pagination data from server
@@ -212,6 +241,24 @@ export default function EvacuationCentersPage() {
             onChange={(e) => setSearchTerm(e.target.value)}
             className="max-w-sm"
           />
+          <div className="flex gap-4">
+            <div className="flex gap-2 items-center">
+              <div className=" border border-gray-300 rounded-full inline-flex space-x-2">
+                  {tabs.map((tab) => (
+                    <button
+                      key={tab.name}
+                      onClick={() => handleTabChange(tab.name as 'Inside EC' | 'Outside EC')}
+                      className={`flex items-center px-4 py-2  rounded-full transition-colors duration-200
+                        ${activeTab === tab.name
+                          ? 'bg-green-700 text-white'
+                          : 'text-gray-400 hover:text-black'
+                        }`}
+                    >
+                      <span className="font-semibold">{tab.name}</span>
+                    </button>
+                  ))}
+              </div>
+            </div>
           {canCreateCenter && (
             <Button
               onClick={handleAddCenter}
@@ -231,6 +278,8 @@ export default function EvacuationCentersPage() {
               )}
             </Button>
           )}
+          </div>
+          
         </div>
       </div>
 
@@ -245,9 +294,13 @@ export default function EvacuationCentersPage() {
                   <TableHead className="text-left">Evacuation Center</TableHead>
                   <TableHead className="text-left">Address</TableHead>
                   <TableHead className="text-left">Category</TableHead>
-                  <TableHead className="text-left">Total Individual</TableHead>
-                  <TableHead className="text-left">Longitude</TableHead>
-                  <TableHead className="text-left">Latitude</TableHead>
+                  {activeTab === 'Inside EC' && (
+                    <>
+                      <TableHead className="text-left">Total Individual</TableHead>
+                      <TableHead className="text-left">Longitude</TableHead>
+                      <TableHead className="text-left">Latitude</TableHead>
+                    </>
+                  )}
                   <TableHead className="text-left">Status</TableHead>
                   <TableHead className="text-center w-12">Actions</TableHead>
                 </TableRow>
@@ -267,15 +320,19 @@ export default function EvacuationCentersPage() {
                     <TableCell>
                       <div className="h-4 bg-gray-200 rounded animate-pulse w-20"></div>
                     </TableCell>
-                    <TableCell>
-                      <div className="h-4 bg-gray-200 rounded animate-pulse w-16"></div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="h-4 bg-gray-200 rounded animate-pulse w-20"></div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="h-4 bg-gray-200 rounded animate-pulse w-20"></div>
-                    </TableCell>
+                    {activeTab === 'Inside EC' && (
+                      <>
+                        <TableCell>
+                          <div className="h-4 bg-gray-200 rounded animate-pulse w-16"></div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="h-4 bg-gray-200 rounded animate-pulse w-20"></div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="h-4 bg-gray-200 rounded animate-pulse w-20"></div>
+                        </TableCell>
+                      </>
+                    )}
                     <TableCell>
                       <div className="h-6 bg-gray-200 rounded-full animate-pulse w-16"></div>
                     </TableCell>
@@ -302,9 +359,13 @@ export default function EvacuationCentersPage() {
                   <TableHead className="text-left">Evacuation Center</TableHead>
                   <TableHead className="text-left">Address</TableHead>
                   <TableHead className="text-left">Category</TableHead>
-                  <TableHead className="text-left">Total Individual</TableHead>
-                  <TableHead className="text-left">Longitude</TableHead>
-                  <TableHead className="text-left">Latitude</TableHead>
+                  {activeTab === 'Inside EC' && (
+                    <>
+                      <TableHead className="text-left">Total Individual</TableHead>
+                      <TableHead className="text-left">Longitude</TableHead>
+                      <TableHead className="text-left">Latitude</TableHead>
+                    </>
+                  )}
                   <TableHead className="text-left">Status</TableHead>
                   <TableHead className="text-center w-12">Actions</TableHead>
                 </TableRow>
@@ -321,15 +382,19 @@ export default function EvacuationCentersPage() {
                     <TableCell className="text-foreground">
                       {center.category}
                     </TableCell>
-                    <TableCell className="text-foreground">
-                      {center.total_capacity}
-                    </TableCell>
-                    <TableCell className="text-foreground">
-                      {center.longitude.toFixed(4)}
-                    </TableCell>
-                    <TableCell className="text-foreground">
-                      {center.latitude.toFixed(4)}
-                    </TableCell>
+                    {activeTab === 'Inside EC' && (
+                      <>
+                        <TableCell className="text-foreground">
+                          {center.total_capacity}
+                        </TableCell>
+                        <TableCell className="text-foreground">
+                          {center.longitude.toFixed(4)}
+                        </TableCell>
+                        <TableCell className="text-foreground">
+                          {center.latitude.toFixed(4)}
+                        </TableCell>
+                      </>
+                    )}
                     <TableCell>
                       <div className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_COLORS[center.ec_status]}`}>
                         {center.ec_status}

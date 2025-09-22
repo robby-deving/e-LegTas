@@ -5,7 +5,8 @@ export type EvacuationCenterCategory =
   | 'Chapel/Church'
   | 'Dedicated Evacuation Center'
   | 'Government Building'
-  | 'Commercial Building';
+  | 'Commercial Building'
+  | 'Private House';
 
 export type RoomType = 
   | 'Temporary'
