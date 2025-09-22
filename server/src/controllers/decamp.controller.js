@@ -1,5 +1,6 @@
-// decamp.controller.js
+// server/src/controllers/decamp.controller.js
 const { supabase } = require('../config/supabase');
+const { invalidateEvacueeSearchCache } = require('./evacuees.search.controller'); // NEW
 
 class ApiError extends Error {
   constructor(message, statusCode = 500) {
@@ -43,10 +44,11 @@ exports.decampFamily = async (req, res, next) => {
         .status(400)
         .json({ message: "disasterEvacuationEventId and familyHeadId are required path params." });
     }
-      // Block any write when the event is already ended
-  if (await isEventEnded(eventId)) {
-    return next(new ApiError("Evacuation operation already ended.", 409));
-  }
+
+    // Block any write when the event is already ended
+    if (await isEventEnded(eventId)) {
+      return next(new ApiError("Evacuation operation already ended.", 409));
+    }
 
     const { data: eventRow, error: eventErr } = await supabase
       .from("disaster_evacuation_event")
@@ -58,6 +60,7 @@ exports.decampFamily = async (req, res, next) => {
       return res.status(404).json({ message: "Disaster evacuation event not found." });
     }
 
+    // --- CLEAR decampment branch ---
     if (rawTs === null || (typeof rawTs === "string" && rawTs.trim() === "")) {
       const { data: othersActive, error: othersErr } = await supabase
         .from("evacuation_registrations")
@@ -120,7 +123,7 @@ exports.decampFamily = async (req, res, next) => {
         }
 
         const payload = {
-          allowed: false, 
+          allowed: false,
           code: "UndecampConflict",
           ec_name: ecName || undefined,
           disaster_id: disasterId || undefined,
@@ -130,7 +133,6 @@ exports.decampFamily = async (req, res, next) => {
         };
 
         if (dryRun) return res.status(200).json(payload);
-
         return res.status(409).json(payload);
       }
 
@@ -151,6 +153,9 @@ exports.decampFamily = async (req, res, next) => {
         return res.status(500).json({ message: `Failed to clear decampment: ${clearErr.message}` });
       }
 
+      // NEW: clear cached search so decampment shows correctly
+      try { invalidateEvacueeSearchCache(); } catch {}
+
       return res.json({
         message: "Decampment cleared for the family.",
         updated: clearedRows?.length ?? 0,
@@ -158,6 +163,7 @@ exports.decampFamily = async (req, res, next) => {
       });
     }
 
+    // --- SET/UPDATE decampment branch ---
     if (typeof rawTs !== "string") {
       return res.status(400).json({ message: "decampment_timestamp must be ISO string or null." });
     }
@@ -257,6 +263,9 @@ exports.decampFamily = async (req, res, next) => {
       });
     }
 
+    // NEW: invalidate after successful update
+    try { invalidateEvacueeSearchCache(); } catch {}
+
     return res.json({
       message: "Decampment saved for the family.",
       updated: updatedRows?.length ?? 0,
@@ -320,6 +329,9 @@ exports.decampAllFamiliesInEvent = async (req, res) => {
     .select('id');
 
   if (upErr) return res.status(500).json({ message: upErr.message });
+
+  // NEW: invalidate after bulk change (even if 0 rows, harmless)
+  try { invalidateEvacueeSearchCache(); } catch {}
 
   // Count what remains (if user chose a timestamp earlier than some arrivals)
   const { count: remain, error: remainErr } = await supabase
@@ -386,6 +398,9 @@ exports.endEvacuationOperation = async (req, res) => {
       return res.status(500).json({ message: endErr.message });
     }
     if (!data) return res.status(404).json({ message: "Event not found or not updated." });
+
+    // NEW: optional invalidate (keeps UI consistent around event state)
+    try { invalidateEvacueeSearchCache(); } catch {}
 
     return res.json({ message: "Evacuation operation ended.", event: data });
   } catch (err) {

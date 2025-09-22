@@ -1,13 +1,8 @@
 // server/src/controllers/reports.controller.js
 const { supabase } = require('../config/supabase');
 const { uploadReportFile } = require('../services/storage.service');
-const {
-  NotImplementedError,
-  generateReportFile,
-  buildStoragePath,
-} = require('../services/report-file.service');
+const { NotImplementedError, generateReportFile, buildStoragePath, } = require('../services/report-file.service');
 
-// --- Helper for Custom API Errors ---
 class ApiError extends Error {
   constructor(message, statusCode = 500) {
     super(message);
@@ -26,9 +21,7 @@ function humanFileSize(bytes) {
 
 const isoNow = () => new Date().toISOString();
 
-/* ---------------------------------- *
- * Scope helpers
- * ---------------------------------- */
+// Scope helpers
 async function resolveEventIds({ disaster_evacuation_event_id, disaster_id }) {
   if (disaster_evacuation_event_id) return [Number(disaster_evacuation_event_id)];
 
@@ -172,18 +165,10 @@ function filterActiveAsOf(rows, asOf) {
 }
 
 /**
- * @desc Generate a report, upload to Storage, and record in generated_reports
- * @route POST /api/v1/reports/generate
- * @body {
- *   report_name,
- *   report_type_id,
- *   disaster_id?,                    // XOR with disaster_evacuation_event_id
- *   disaster_evacuation_event_id?,   // XOR with disaster_id
- *   as_of,                           // ISO timestamp boundary
- *   file_format,                     // 'CSV' | 'PDF' | 'XLSX'
- *   generated_by_user_id?            // OPTIONAL fallback (legacy/dev). Prefer req.user.id.
- *   barangay_id?                     // required only for Per Barangay
- * }
+ *   @desc Generate a report for either a whole disaster or a specific event,
+ *       upload the file to Supabase Storage, and record a row in `generated_reports`.
+ *   @route POST /api/v1/reports/generate
+ *   @access Private (requires authenticated user; permission depends on your middleware)
  */
 exports.generateReport = async (req, res, next) => {
   try {
@@ -461,8 +446,8 @@ async function resolveSizesForPaths(paths = []) {
 /**
  * @desc Get all generated reports (pretty fields)
  * @route GET /api/v1/reports/getAllReports
- * @query (optional) disaster_id, disaster_evacuation_event_id, report_type_id, file_format, search, sort_by, sort_dir
- */
+ * @access Private (requires 'view_reports' permission)
+*/
 exports.getAllReports = async (req, res, next) => {
   try {
     const {
@@ -567,6 +552,7 @@ exports.getAllReports = async (req, res, next) => {
 /**
  * @desc Soft delete a generated report by id (sets deleted_at)
  * @route DELETE /api/v1/reports/:id
+ * @access Private
  */
 exports.deleteReport = async (req, res, next) => {
   try {
@@ -623,6 +609,11 @@ function uiReportType(label = '') {
   return label || '';
 }
 
+/**
+ * @desc Return available report types with human-friendly labels for the UI.
+ * @route GET /api/v1/reports/types
+ * @access Private
+ */
 exports.getReportTypes = async (req, res, next) => {
   try {
     const { data, error } = await supabase
@@ -650,13 +641,10 @@ exports.getReportTypes = async (req, res, next) => {
 };
 
 /**
- * GET /api/v1/reports/options
- * Query:
- *  - search: string (barangay name contains)
- *  - disaster_search: string (disaster name contains)  <-- NEW
- *  - barangay_limit: number (default 70)
- *  - disaster_limit: number (default 100)
- *  - status: 'all' | 'active' | 'ended'   (default 'all')
+ * @desc Provide dropdown options for the Report Generator UI:
+ *       report types, barangay list (optionally filtered), and disasters (by status).
+ * @route GET /api/v1/reports/options
+ * @access Private 
  */
 exports.getReportOptions = async (req, res, next) => {
   try {

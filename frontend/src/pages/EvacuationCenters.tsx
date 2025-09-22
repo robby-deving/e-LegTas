@@ -26,8 +26,6 @@ const STATUS_COLORS = {
   'Unavailable': 'text-gray-600 bg-gray-100'
 };
 
-const INSIDE_EC_CATEGORIES = ['School', 'Chapel/Church', 'Dedicated Evacuation Center', 'Government Building'];
-const OUTSIDE_EC_CATEGORIES = ['Commercial Building', 'Private House'];
 
 export default function EvacuationCentersPage() {
   usePageTitle('Evacuation Centers');
