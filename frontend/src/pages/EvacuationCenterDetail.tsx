@@ -456,7 +456,7 @@ const defaultSorted = [...undecamped, ...decamped];
       if (!evacueeResidentId) return;
 
       const res = await axios.get<EditEvacueeApi>(
-        `https://api.e-legtas.tech/api/v1/evacuees/${centerId}/${evacueeResidentId}/edit`,
+        `/api/v1/evacuees/${centerId}/${evacueeResidentId}/edit`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -496,7 +496,7 @@ const defaultSorted = [...undecamped, ...decamped];
 
     try {
       const { data } = await axios.get<any[]>(
-        "https://api.e-legtas.tech/api/v1/evacuees/search",
+        "/api/v1/evacuees/search",
         {
           params: { name: value },
           headers: {
@@ -527,7 +527,7 @@ const defaultSorted = [...undecamped, ...decamped];
       try {
         setFhLoading(true);
         const { data } = await axios.get<{ data: FamilyHeadResult[] }>(
-          `https://api.e-legtas.tech/api/v1/evacuees/${centerId}/family-heads`,
+          `/api/v1/evacuees/${centerId}/family-heads`,
           { 
             params: { q },
             headers: {
@@ -676,7 +676,7 @@ const openEndFlow = async () => {
 
   try {
     const { data } = await axios.get<{ count: number }>(
-      `https://api.e-legtas.tech/api/v1/evacuees/${centerId}/undecamped-count`,
+      `/api/v1/evacuees/${centerId}/undecamped-count`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
     setUndecampedCount(data?.count ?? 0);
@@ -694,14 +694,14 @@ const decampAllThenEnd = async (isoTs: string) => {
   try {
     if ((undecampedCount ?? 0) > 0) {
       await axios.post(
-        `https://api.e-legtas.tech/api/v1/evacuees/${centerId}/decamp-all`,
+        `/api/v1/evacuees/${centerId}/decamp-all`,
         { decampment_timestamp: isoTs },
         { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } }
       );
     }
 
     await axios.post(
-      `https://api.e-legtas.tech/api/v1/evacuees/${centerId}/end`,
+      `/api/v1/evacuees/${centerId}/end`,
       { evacuation_end_date: isoTs },
       { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } }
     );
@@ -802,7 +802,7 @@ const decampAllThenEnd = async (isoTs: string) => {
       };
       if (evacueeModalMode === "register") {
         await axios.post(
-          "https://api.e-legtas.tech/api/v1/evacuees",
+          "/api/v1/evacuees",
           payload,
           {
             headers: {
@@ -812,7 +812,7 @@ const decampAllThenEnd = async (isoTs: string) => {
           }
         );
       } else if (evacueeModalMode === "edit" && selectedEvacuee?.id) {
-        const url = `https://api.e-legtas.tech/api/v1/evacuees/${selectedEvacuee.id}`;
+        const url = `/api/v1/evacuees/${selectedEvacuee.id}`;
         await axios.put(url, payload, {
           headers: {
             Authorization: `Bearer ${token}`,
