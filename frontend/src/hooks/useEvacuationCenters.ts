@@ -14,6 +14,7 @@ export interface UseEvacuationCentersParams {
   limit?: number;
   offset?: number;
   search?: string;
+  ec_type?: 'inside' | 'outside';
 }
 
 export function useEvacuationCenters(initialParams?: UseEvacuationCentersParams) {

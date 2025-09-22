@@ -72,7 +72,7 @@ export const RegisterEvacueeModal = ({
     const fetchBarangays = async () => {
       try {
         const { data } = await axios.get<{ data: Barangay[] }>(
-          "https://api.e-legtas.tech/api/v1/evacuees/barangays"
+          "/api/v1/evacuees/barangays"
         );
         setBarangays(data.data || []);
       } catch (e) {
@@ -92,7 +92,7 @@ export const RegisterEvacueeModal = ({
         const res = await axios.get<{
           data: RoomOption[];
           all_full?: boolean;
-        }>(`https://api.e-legtas.tech/api/v1/evacuees/${centerId}/rooms?only_available=1`);
+        }>(`/api/v1/evacuees/${centerId}/rooms?only_available=1`);
 
         const rows = res.data?.data ?? [];
         setRooms(rows);
