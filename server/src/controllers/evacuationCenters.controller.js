@@ -32,6 +32,7 @@ exports.getAllEvacuationCenters = async (req, res, next) => {
         const offset = parseInt(req.query.offset) || 0;
         const search = req.query.search || '';
         const includeSoftDeleted = req.query.include_deleted === 'true';
+        const ecType = req.query.ec_type; // Add this line
 
         let query = supabase
             .from(TABLE_NAME)
@@ -45,6 +46,13 @@ exports.getAllEvacuationCenters = async (req, res, next) => {
         // Add search filter if provided
         if (search) {
             query = query.or(`name.ilike.%${search}%,address.ilike.%${search}%`);
+        }
+
+        // Add ec_type filter if provided
+        if (ecType === 'inside') {
+            query = query.in('category', ['School', 'Chapel/Church', 'Dedicated Evacuation Center', 'Government Building']);
+        } else if (ecType === 'outside') {
+            query = query.in('category', ['Commercial Building', 'Private House']);
         }
 
         // Add pagination
