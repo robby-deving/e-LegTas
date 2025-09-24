@@ -17,13 +17,68 @@ import { selectToken } from "../features/auth/authSlice";
 import { disasterService } from "@/services/disasterService";
 import LoadingSpinner from "@/components/loadingSpinner";
 import { Button } from "@/components/ui/button";
+import { SearchEvacueeModal } from "@/components/modals/SearchEvacueeModal";
+import { RegisterEvacueeModal } from "@/components/modals/RegisterEvacueeModal";
+import { FamilyHeadSearchModal } from "@/components/modals/FamilyHeadSearchModal";
+import { RegisterBlockDialog } from "@/components/modals/RegisterBlockDialog";
+import { usePermissions } from "@/contexts/PermissionContext";
+import { evacueesApi } from "@/services/evacuees";
+import type { Evacuee, FamilyHeadResult } from "@/types/EvacuationCenterDetails";
+import { differenceInYears } from "date-fns";
 
 export default function DisasterDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
   const token = useSelector(selectToken);
+  const { hasPermission } = usePermissions();
+  const canCreateEvacueeInformation = hasPermission("create_evacuee_information");
+  const canCreateFamilyInformation = hasPermission("create_family_information");
 
+  // Registration state
+  const [showSearchModal, setShowSearchModal] = useState(false);
+  const [showRegisterModal, setShowRegisterModal] = useState(false);
+  const [showFamilyHeadSearchModal, setShowFamilyHeadSearchModal] = useState(false);
+  const [regBlockOpen, setRegBlockOpen] = useState(false);
+  const [regBlockName, setRegBlockName] = useState<string | undefined>();
+  const [regBlockEcName, setRegBlockEcName] = useState<string | undefined>();
+
+  // Search state
+  const [searchEvacueeName, setSearchEvacueeName] = useState("");
+  const [searchResults, setSearchResults] = useState<Evacuee[]>([]);
+  const [familyHeadSearchTerm, setFamilyHeadSearchTerm] = useState("");
+  const [familyHeadSearchResults, setFamilyHeadSearchResults] = useState<FamilyHeadResult[]>([]);
+  const [fhLoading, setFhLoading] = useState(false);
+
+  // Form state
+  const [formData, setFormData] = useState({
+    firstName: "",
+    middleName: "",
+    lastName: "",
+    suffix: "",
+    sex: "",
+    maritalStatus: "",
+    birthday: "",
+    educationalAttainment: "",
+    schoolOfOrigin: "",
+    occupation: "",
+    purok: "",
+    barangayOfOrigin: "",
+    isFamilyHead: "Yes",
+    familyHead: "",
+    familyHeadId: null as number | null,
+    relationshipToFamilyHead: "",
+    searchEvacuationRoom: "",
+    evacuationRoomName: "",
+    vulnerabilities: {
+      pwd: false,
+      pregnant: false,
+      lactatingMother: false,
+    },
+    existingEvacueeResidentId: null as number | null,
+  });
+
+  // Table search state
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [evacuationCenters, setCenters] = useState<ActiveEvacuation[]>([]);
@@ -193,6 +248,219 @@ export default function DisasterDetail() {
     fetchEvacuationCenters(page, rowsPerPage, debouncedSearchTerm);
   };
 
+  // Registration handlers
+  const handleSearchChange = async (value: string) => {
+    setSearchEvacueeName(value);
+    if (value.trim() === "") {
+      setSearchResults([]);
+      return;
+    }
+    try {
+      const { data } = await evacueesApi.searchEvacuees(value, token!);
+      setSearchResults(Array.isArray(data) ? data : []);
+    } catch {
+      setSearchResults([]);
+    }
+  };
+
+  const handleFamilyHeadSearchChange = (v: string) => setFamilyHeadSearchTerm(v);
+
+  const handleFamilyHeadSearchClick = () => {
+    if (!canCreateFamilyInformation) return;
+    setFamilyHeadSearchTerm("");
+    setFamilyHeadSearchResults([]);
+    setShowFamilyHeadSearchModal(true);
+  };
+
+  const handleFamilyHeadSelect = (fh: FamilyHeadResult) => {
+    if (!canCreateFamilyInformation) return;
+
+    setFormData((prev) => ({
+      ...prev,
+      familyHead: fh.family_head_full_name,
+      familyHeadId: fh.family_head_id,
+      barangayOfOrigin: fh.barangay_id != null ? String(fh.barangay_id) : prev.barangayOfOrigin,
+      purok: fh.purok ?? prev.purok,
+      evacuationRoomName: fh.evacuation_room ?? "",
+    }));
+    setShowFamilyHeadSearchModal(false);
+  };
+
+  const handleSelectEvacuee = (evacuee: any) => {
+    if (evacuee?.is_active) {
+      const fullName = [evacuee?.first_name, evacuee?.middle_name, evacuee?.last_name, evacuee?.suffix]
+        .filter(Boolean)
+        .join(" ")
+        .replace(/\s+/g, " ")
+        .trim();
+
+      setRegBlockName(fullName || undefined);
+      setRegBlockEcName(evacuee?.active_ec_name || undefined);
+      setRegBlockOpen(true);
+      return;
+    }
+
+    // Map the search result to form data
+    setFormData((prev) => ({
+      ...prev,
+      firstName: evacuee.first_name || "",
+      middleName: evacuee.middle_name || "",
+      lastName: evacuee.last_name || "",
+      suffix: evacuee.suffix || "",
+      sex: evacuee.sex || "",
+      maritalStatus: evacuee.marital_status || "",
+      birthday: evacuee.birthdate || "",
+      educationalAttainment: evacuee.educational_attainment || "",
+      schoolOfOrigin: evacuee.school_of_origin || "",
+      occupation: evacuee.occupation || "",
+      purok: evacuee.purok || "",
+      barangayOfOrigin: String(evacuee.barangay_of_origin || ""),
+      existingEvacueeResidentId: Number(evacuee?.evacuee_resident_id) || null,
+    }));
+
+    setShowSearchModal(false);
+    setShowRegisterModal(true);
+  };
+
+  const handleManualRegister = () => {
+    setFormData({
+      firstName: "",
+      middleName: "",
+      lastName: "",
+      suffix: "",
+      sex: "",
+      maritalStatus: "",
+      birthday: "",
+      educationalAttainment: "",
+      schoolOfOrigin: "",
+      occupation: "",
+      purok: "",
+      barangayOfOrigin: "",
+      isFamilyHead: "Yes",
+      familyHead: "",
+      familyHeadId: null,
+      relationshipToFamilyHead: "",
+      searchEvacuationRoom: "",
+      evacuationRoomName: "",
+      vulnerabilities: {
+        pwd: false,
+        pregnant: false,
+        lactatingMother: false,
+      },
+      existingEvacueeResidentId: null,
+    });
+
+    setShowSearchModal(false);
+    setShowRegisterModal(true);
+  };
+
+  const handleFormInputChange = (field: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleVulnerabilityChange = (vulnerability: string, checked: boolean) => {
+    setFormData((prev) => ({
+      ...prev,
+      vulnerabilities: { ...prev.vulnerabilities, [vulnerability]: checked },
+    }));
+  };
+
+  function getVulnerabilityFlags(age: number) {
+    return {
+      is_infant: age < 1,
+      is_children: age >= 1 && age <= 12,
+      is_youth: age >= 13 && age <= 17,
+      is_adult: age >= 18 && age <= 59,
+      is_senior: age >= 60,
+    };
+  }
+
+  const handleRegisterEvacuee = async () => {
+    try {
+      const birthdate = new Date(formData.birthday);
+      const age = differenceInYears(new Date(), birthdate);
+      const vulnerabilityFlags = getVulnerabilityFlags(age);
+      const relationship = formData.isFamilyHead === "Yes" ? "Head" : formData.relationshipToFamilyHead;
+
+      if (formData.isFamilyHead === "No" && !formData.familyHeadId) return;
+
+      const roomId = Number.parseInt(formData.searchEvacuationRoom);
+      if (!Number.isFinite(roomId)) return;
+
+      const payload = {
+        first_name: formData.firstName,
+        middle_name: formData.middleName,
+        last_name: formData.lastName,
+        suffix: formData.suffix && formData.suffix.trim() !== "" ? formData.suffix.trim() : null,
+        birthdate: formData.birthday,
+        sex: formData.sex,
+        barangay_of_origin: Number(formData.barangayOfOrigin),
+        marital_status: formData.maritalStatus,
+        educational_attainment: formData.educationalAttainment,
+        school_of_origin: formData.schoolOfOrigin || "",
+        occupation: formData.occupation || "",
+        purok: formData.purok || "",
+        relationship_to_family_head: relationship,
+        family_head_id: formData.isFamilyHead === "No" ? formData.familyHeadId! : undefined,
+        date_registered: new Date().toISOString(),
+        ...vulnerabilityFlags,
+        is_pwd: formData.vulnerabilities.pwd,
+        is_pregnant: formData.vulnerabilities.pregnant,
+        is_lactating: formData.vulnerabilities.lactatingMother,
+        ec_rooms_id: roomId,
+        disaster_evacuation_event_id: centerId,
+        ...(formData.existingEvacueeResidentId
+          ? { existing_evacuee_resident_id: formData.existingEvacueeResidentId }
+          : {}),
+      };
+
+      await evacueesApi.postEvacuee(payload, token!);
+      setShowRegisterModal(false);
+      fetchEvacuationCenters(); // Refresh the list
+    } catch (error: any) {
+      const status = error?.response?.status;
+      const server = error?.response?.data;
+      const msg = server?.message || "Failed to register evacuee.";
+
+      const fullName = [formData.firstName, formData.middleName, formData.lastName, formData.suffix]
+        .filter(Boolean)
+        .join(" ")
+        .replace(/\s+/g, " ")
+        .trim();
+
+      if (status === 409) {
+        setRegBlockName(fullName || undefined);
+        setRegBlockEcName(server?.active_ec_name || server?.active_ec || undefined);
+        setRegBlockOpen(true);
+      } else if (status === 400) {
+        alert(msg);
+      }
+    }
+  };
+
+  // Family head search effect
+  useEffect(() => {
+    const q = familyHeadSearchTerm.trim();
+    if (!showFamilyHeadSearchModal) return;
+    if (!q) {
+      setFamilyHeadSearchResults([]);
+      return;
+    }
+
+    const t = setTimeout(async () => {
+      try {
+        setFhLoading(true);
+        const { data } = await evacueesApi.getFamilyHeads(disasterId, q, token!);
+        setFamilyHeadSearchResults(data?.data || []);
+      } catch {
+        setFamilyHeadSearchResults([]);
+      } finally {
+        setFhLoading(false);
+      }
+    }, 250);
+
+    return () => clearTimeout(t);
+  }, [familyHeadSearchTerm, showFamilyHeadSearchModal, token]);
 
   // Reset to page 1 when search term changes
   useEffect(() => {
@@ -328,7 +596,10 @@ export default function DisasterDetail() {
                   ))}
                 </div>
               </div>
-              <Button className="bg-green-700 hover:bg-green-800 text-white px-6 flex gap-2 items-center cursor-pointer">
+              <Button 
+                className="bg-green-700 hover:bg-green-800 text-white px-6 flex gap-2 items-center cursor-pointer"
+                onClick={() => setShowSearchModal(true)}
+              >
                 Register Evacuee
               </Button>
             </div>
@@ -438,6 +709,53 @@ export default function DisasterDetail() {
           </div>
         </div>
       </div>
+
+      {/* Registration Modals */}
+      <SearchEvacueeModal
+        isOpen={showSearchModal}
+        onClose={() => setShowSearchModal(false)}
+        searchName={searchEvacueeName}
+        onSearchChange={(e: any) => handleSearchChange(e.target ? e.target.value : e)}
+        searchResults={searchResults}
+        onSelectEvacuee={handleSelectEvacuee}
+        onManualRegister={handleManualRegister}
+        canCreateFamilyInformation={canCreateFamilyInformation}
+        currentEventId={disasterId}
+        currentEcId={null}
+        currentDisasterId={disasterId}
+      />
+
+      <RegisterEvacueeModal
+        isOpen={showRegisterModal}
+        onClose={() => setShowRegisterModal(false)}
+        mode="register"
+        formData={formData}
+        onFormChange={handleFormInputChange}
+        onVulnerabilityChange={handleVulnerabilityChange}
+        onSave={handleRegisterEvacuee}
+        onFamilyHeadSearch={handleFamilyHeadSearchClick}
+        centerId={0}
+        canCreateFamilyInformation={canCreateFamilyInformation}
+      />
+
+      {canCreateFamilyInformation && (
+        <FamilyHeadSearchModal
+          isOpen={showFamilyHeadSearchModal}
+          onClose={() => setShowFamilyHeadSearchModal(false)}
+          searchTerm={familyHeadSearchTerm}
+          onSearchChange={handleFamilyHeadSearchChange}
+          searchResults={familyHeadSearchResults}
+          onSelectFamilyHead={handleFamilyHeadSelect}
+          loading={fhLoading}
+        />
+      )}
+
+      <RegisterBlockDialog
+        open={regBlockOpen}
+        onOpenChange={setRegBlockOpen}
+        personName={regBlockName}
+        ecName={regBlockEcName}
+      />
     </div>
   );
 }

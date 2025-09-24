@@ -1,6 +1,7 @@
 // RegisterEvacueeModal.tsx
 import { useState, useEffect, useRef } from "react";
 import axios from "axios";
+import { SearchEvacuation } from "./SearchEvacuation";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "../ui/dialog";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
@@ -19,7 +20,7 @@ import { DateTimePicker } from "../ui/date-time-picker";
 import { toISODateLocal } from "@/utils/dateInput.ts";
 import BirthdayMaskedInput from '../EvacuationCenterDetail/BirthdayMaskedInput';
 import { RegisterBlockDialog } from "@/components/modals/RegisterBlockDialog";
-
+import searchIcon from "@/assets/search.svg";
 
 export const RegisterEvacueeModal = ({
   isOpen,
@@ -41,6 +42,9 @@ export const RegisterEvacueeModal = ({
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showBlockDialog, setShowBlockDialog] = useState(false);
+  const [showSearchEvacuationModal, setShowSearchEvacuationModal] = useState(false);
+  const [searchEvacuationName, setSearchEvacuationName] = useState("");
+  const [searchEvacuationResults, setSearchEvacuationResults] = useState([]);
 
   const handleClickSave = async () => {
     if (formRef.current && !formRef.current.reportValidity()) return;
@@ -676,84 +680,94 @@ export const RegisterEvacueeModal = ({
                     </>
                   )}
                 </div>
+                <div>
+                  {centerId ? (
+                    <>
+                      {/* Evacuation Room * */}
+                      <div className="relative">
+                        <label className="block text-sm font-medium mb-2">
+                          Evacuation Room:<span className="text-red-500">*</span>
+                        </label>
 
-                {/* Evacuation Room * */}
-                <div className="relative">
-                  <label className="block text-sm font-medium mb-2">
-                    Evacuation Room:<span className="text-red-500">*</span>
-                  </label>
+                        <Select
+                          value={formData.searchEvacuationRoom}
+                          onValueChange={(v) => onFormChange("searchEvacuationRoom", v)}
+                          disabled={roomsLoading || !!roomsError || allRoomsFull}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue
+                              placeholder={
+                                roomsLoading
+                                  ? "Loading rooms..."
+                                  : roomsError
+                                  ? roomsError
+                                  : allRoomsFull
+                                  ? "All rooms are full"
+                                  : "Select a room"
+                              }
+                            />
+                          </SelectTrigger>
 
-                  <Select
-                    value={formData.searchEvacuationRoom}
-                    onValueChange={(v) => onFormChange("searchEvacuationRoom", v)}
-                    disabled={roomsLoading || !!roomsError || allRoomsFull}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue
-                        placeholder={
-                          roomsLoading
-                            ? "Loading rooms..."
-                            : roomsError
-                            ? roomsError
-                            : allRoomsFull
-                            ? "All rooms are full"
-                            : "Select a room"
-                        }
-                      />
-                    </SelectTrigger>
+                          <SelectContent>
+                            {rooms.map((r) => (
+                              <SelectItem key={r.id} value={String(r.id)}>
+                                {r.room_name}
+                                {typeof r.available === "number" && typeof r.capacity === "number"
+                                  ? ` (${r.available}/${r.capacity} left)`
+                                  : typeof r.available === "number"
+                                  ? ` (${r.available} left)`
+                                  : ""}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
 
-                    <SelectContent>
-                      {rooms.map((r) => (
-                        <SelectItem key={r.id} value={String(r.id)}>
-                          {r.room_name}
-                          {typeof r.available === "number" && typeof r.capacity === "number"
-                            ? ` (${r.available}/${r.capacity} left)`
-                            : typeof r.available === "number"
-                            ? ` (${r.available} left)`
-                            : ""}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                        {/* Hidden native select to keep HTML5 required validation */}
+                        <select
+                          value={formData.searchEvacuationRoom || ""}
+                          onChange={() => {}}
+                          required={!roomsLoading && !roomsError && !allRoomsFull}
+                          disabled={roomsLoading || !!roomsError || allRoomsFull}
+                          className="absolute inset-0 w-full h-10 opacity-0"
+                          style={{ pointerEvents: "none" }}
+                          aria-hidden="true"
+                          tabIndex={-1}
+                        >
+                          <option value="">
+                            {roomsLoading
+                              ? "Loading rooms..."
+                              : roomsError
+                              ? roomsError
+                              : allRoomsFull
+                              ? "All rooms are full"
+                              : "Select a room"}
+                          </option>
+                          {rooms.map((r) => (
+                            <option key={r.id} value={String(r.id)}>
+                              {r.room_name}
+                              {typeof r.available === "number" && typeof r.capacity === "number"
+                                ? ` (${r.available}/${r.capacity} left)`
+                                : typeof r.available === "number"
+                                ? ` (${r.available} left)`
+                                : ""}
+                            </option>
+                          ))}
+                        </select>
 
-                  {/* Hidden native select to keep HTML5 required validation */}
-                  <select
-                    value={formData.searchEvacuationRoom || ""}
-                    onChange={() => {}}
-                    required={!roomsLoading && !roomsError && !allRoomsFull}
-                    disabled={roomsLoading || !!roomsError || allRoomsFull}
-                    className="absolute inset-0 w-full h-10 opacity-0"
-                    style={{ pointerEvents: "none" }}
-                    aria-hidden="true"
-                    tabIndex={-1}
-                  >
-                    <option value="">
-                      {roomsLoading
-                        ? "Loading rooms..."
-                        : roomsError
-                        ? roomsError
-                        : allRoomsFull
-                        ? "All rooms are full"
-                        : "Select a room"}
-                    </option>
-                    {rooms.map((r) => (
-                      <option key={r.id} value={String(r.id)}>
-                        {r.room_name}
-                        {typeof r.available === "number" && typeof r.capacity === "number"
-                          ? ` (${r.available}/${r.capacity} left)`
-                          : typeof r.available === "number"
-                          ? ` (${r.available} left)`
-                          : ""}
-                      </option>
-                    ))}
-                  </select>
-
-                  {/* Optional helper when full */}
-                  {!roomsLoading && !roomsError && allRoomsFull && (
-                    <p className="mt-1 text-xs text-red-600">All rooms are full.</p>
+                        {/* Optional helper when full */}
+                        {!roomsLoading && !roomsError && allRoomsFull && (
+                          <p className="mt-1 text-xs text-red-600">All rooms are full.</p>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="relative">
+                      <label className="block text-sm font-medium mb-2">Assign Evacuation</label>
+                      <button onClick={() => setShowSearchEvacuationModal(true)} className="border border-gray-300 rounded-md px-2 py-2 text-gray-500 text-sm cursor-pointer flex items-center gap-2"> <img src={searchIcon} alt="Search" className="w-4 h-4" /> Search Evacuation</button>
+                    </div>
                   )}
                 </div>
-                </div>
+              </div>
 
               {/* --- Vulnerability Classification (all optional) --- */}
               <div className="space-y-4">
@@ -840,6 +854,19 @@ export const RegisterEvacueeModal = ({
           message={errorMsg || "This evacuee is already registered."}
         />
       )}
+
+      <SearchEvacuation
+        isOpen={showSearchEvacuationModal}
+        onClose={() => setShowSearchEvacuationModal(false)}
+        searchName={searchEvacuationName}
+        onSearchChange={(e) => setSearchEvacuationName(e.target.value)}
+        searchResults={searchEvacuationResults}
+        onSelectEvacuation={(evacuation) => {
+          // TODO: Handle evacuation selection
+          console.log('Selected evacuation:', evacuation);
+          setShowSearchEvacuationModal(false);
+        }}
+      />
     </>
   );
 };
