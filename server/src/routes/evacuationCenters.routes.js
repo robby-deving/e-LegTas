@@ -3,6 +3,7 @@
 const express = require('express');
 const evacuationController = require('../controllers/evacuationCenters.controller');
 const { authenticateUser, requirePermission } = require('../middleware');
+const { searchEvacuations } = require('../controllers/evacuation.search.controller');
 
 // Create an Express Router instance
 const router = express.Router();
@@ -17,6 +18,9 @@ router.get(
   requirePermission('view_evacuation_centers'),
   evacuationController.getAllEvacuationCenters
 );
+
+
+router.get('/search', searchEvacuations);
 
 router.get(
   '/detailed-map-data',

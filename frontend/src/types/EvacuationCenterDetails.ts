@@ -163,7 +163,7 @@ export type RegisterEvacuee = {
   is_pregnant?: boolean;
   is_lactating?: boolean;
 
-  ec_rooms_id: number;
+  ec_rooms_id: number | null;
   disaster_evacuation_event_id: number;
    existing_evacuee_resident_id?: number;
 };

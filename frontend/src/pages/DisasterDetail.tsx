@@ -24,6 +24,35 @@ import { RegisterBlockDialog } from "@/components/modals/RegisterBlockDialog";
 import { usePermissions } from "@/contexts/PermissionContext";
 import { evacueesApi } from "@/services/evacuees";
 import type { Evacuee, FamilyHeadResult } from "@/types/EvacuationCenterDetails";
+
+interface EvacueeFormData {
+  firstName: string;
+  middleName: string;
+  lastName: string;
+  suffix: string;
+  sex: string;
+  maritalStatus: string;
+  birthday: string;
+  educationalAttainment: string;
+  schoolOfOrigin: string;
+  occupation: string;
+  purok: string;
+  barangayOfOrigin: string;
+  isFamilyHead: "Yes" | "No";
+  familyHead: string;
+  familyHeadId: number | null;
+  relationshipToFamilyHead: string;
+  searchEvacuationRoom: string;
+  evacuationRoomName: string;
+  vulnerabilities: {
+    pwd: boolean;
+    pregnant: boolean;
+    lactatingMother: boolean;
+  };
+  existingEvacueeResidentId: number | null;
+  disasterId: number;
+  centerId: string;
+}
 import { differenceInYears } from "date-fns";
 
 export default function DisasterDetail() {
@@ -32,7 +61,6 @@ export default function DisasterDetail() {
   const location = useLocation();
   const token = useSelector(selectToken);
   const { hasPermission } = usePermissions();
-  const canCreateEvacueeInformation = hasPermission("create_evacuee_information");
   const canCreateFamilyInformation = hasPermission("create_family_information");
 
   // Registration state
@@ -50,8 +78,11 @@ export default function DisasterDetail() {
   const [familyHeadSearchResults, setFamilyHeadSearchResults] = useState<FamilyHeadResult[]>([]);
   const [fhLoading, setFhLoading] = useState(false);
 
+  const rawDisasterId = id?.split("-")[0] || "";
+  const disasterId = decodeId(rawDisasterId);
+
   // Form state
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<EvacueeFormData>({
     firstName: "",
     middleName: "",
     lastName: "",
@@ -76,6 +107,8 @@ export default function DisasterDetail() {
       lactatingMother: false,
     },
     existingEvacueeResidentId: null as number | null,
+    disasterId: disasterId,
+    centerId: "",
   });
 
   // Table search state
@@ -109,8 +142,7 @@ export default function DisasterDetail() {
     return headers;
   };
 
-  const rawDisasterId = id?.split("-")[0] || "";
-  const disasterId = decodeId(rawDisasterId);
+
 
 
   const [activeTab, setActiveTab] = useState('Inside EC');
@@ -316,6 +348,7 @@ export default function DisasterDetail() {
       purok: evacuee.purok || "",
       barangayOfOrigin: String(evacuee.barangay_of_origin || ""),
       existingEvacueeResidentId: Number(evacuee?.evacuee_resident_id) || null,
+      disasterId: disasterId,
     }));
 
     setShowSearchModal(false);
@@ -348,6 +381,8 @@ export default function DisasterDetail() {
         lactatingMother: false,
       },
       existingEvacueeResidentId: null,
+      disasterId: disasterId,
+      centerId: "",
     });
 
     setShowSearchModal(false);
@@ -377,6 +412,7 @@ export default function DisasterDetail() {
 
   const handleRegisterEvacuee = async () => {
     try {
+      console.log('registering');
       const birthdate = new Date(formData.birthday);
       const age = differenceInYears(new Date(), birthdate);
       const vulnerabilityFlags = getVulnerabilityFlags(age);
@@ -384,8 +420,6 @@ export default function DisasterDetail() {
 
       if (formData.isFamilyHead === "No" && !formData.familyHeadId) return;
 
-      const roomId = Number.parseInt(formData.searchEvacuationRoom);
-      if (!Number.isFinite(roomId)) return;
 
       const payload = {
         first_name: formData.firstName,
@@ -407,13 +441,13 @@ export default function DisasterDetail() {
         is_pwd: formData.vulnerabilities.pwd,
         is_pregnant: formData.vulnerabilities.pregnant,
         is_lactating: formData.vulnerabilities.lactatingMother,
-        ec_rooms_id: roomId,
-        disaster_evacuation_event_id: centerId,
+        disaster_evacuation_event_id: Number(formData.centerId),
+        ec_rooms_id: null,
         ...(formData.existingEvacueeResidentId
           ? { existing_evacuee_resident_id: formData.existingEvacueeResidentId }
           : {}),
       };
-
+      console.log('payload', payload);
       await evacueesApi.postEvacuee(payload, token!);
       setShowRegisterModal(false);
       fetchEvacuationCenters(); // Refresh the list

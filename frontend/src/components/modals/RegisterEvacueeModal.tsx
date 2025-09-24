@@ -43,17 +43,19 @@ export const RegisterEvacueeModal = ({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showBlockDialog, setShowBlockDialog] = useState(false);
   const [showSearchEvacuationModal, setShowSearchEvacuationModal] = useState(false);
-  const [searchEvacuationName, setSearchEvacuationName] = useState("");
-  const [searchEvacuationResults, setSearchEvacuationResults] = useState([]);
+  const [selectedEvacuation, setSelectedEvacuation] = useState<{ id: number; name: string; event_id: number | null; } | null>(null);
+
 
   const handleClickSave = async () => {
     if (formRef.current && !formRef.current.reportValidity()) return;
     try {
+      console.log('saving');
       setErrorMsg(null);
       setShowBlockDialog(false);
       setSaving(true);
       await Promise.resolve(onSave());
     } catch (err) {
+      console.log('error');
       setErrorMsg(mapRegisterError(err));
       setShowBlockDialog(true); // 👈 open the popup
     } finally {
@@ -763,7 +765,28 @@ export const RegisterEvacueeModal = ({
                   ) : (
                     <div className="relative">
                       <label className="block text-sm font-medium mb-2">Assign Evacuation</label>
-                      <button onClick={() => setShowSearchEvacuationModal(true)} className="border border-gray-300 rounded-md px-2 py-2 text-gray-500 text-sm cursor-pointer flex items-center gap-2"> <img src={searchIcon} alt="Search" className="w-4 h-4" /> Search Evacuation</button>
+                      <div className="relative">
+                        <button 
+                          onClick={() => setShowSearchEvacuationModal(true)} 
+                          className="border border-gray-300 rounded-md px-2 py-2 text-gray-500 text-sm cursor-pointer flex items-center gap-2 w-full"
+                        > 
+                          <img src={searchIcon} alt="Search" className="w-4 h-4" /> 
+                          {selectedEvacuation ? selectedEvacuation.name : "Search Evacuation"}
+                        </button>
+                        {selectedEvacuation && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedEvacuation(null);
+                              onFormChange("disasterId", "");
+                            }}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                          >
+                            <XIcon className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -820,7 +843,11 @@ export const RegisterEvacueeModal = ({
 
                 <Button
                   type="button"                 
-                  onClick={handleClickSave}
+                  onClick={() => {
+                    handleClickSave();
+                    console.log('clicked');
+                  }}
+                  
                   disabled={saving}
                   className="bg-green-700 hover:bg-green-800 text-white px-6 cursor-pointer disabled:opacity-90"
                   aria-busy={saving}
@@ -858,12 +885,14 @@ export const RegisterEvacueeModal = ({
       <SearchEvacuation
         isOpen={showSearchEvacuationModal}
         onClose={() => setShowSearchEvacuationModal(false)}
-        searchName={searchEvacuationName}
-        onSearchChange={(e) => setSearchEvacuationName(e.target.value)}
-        searchResults={searchEvacuationResults}
+        disasterId={formData.disasterId}
         onSelectEvacuation={(evacuation) => {
-          // TODO: Handle evacuation selection
-          console.log('Selected evacuation:', evacuation);
+          setSelectedEvacuation({ 
+            id: evacuation.id, 
+            name: evacuation.name,
+            event_id: evacuation.event_id
+          });
+          onFormChange("centerId", evacuation.event_id?.toString() || "");
           setShowSearchEvacuationModal(false);
         }}
       />

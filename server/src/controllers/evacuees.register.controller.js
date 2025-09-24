@@ -147,14 +147,19 @@ exports.registerEvacuee = async (req, res, next) => {
       }
 
       // 2) Fetch the target room to get EC id
-      const { data: targetRoom, error: roomErr } = await supabase
-        .from("evacuation_center_rooms")
-        .select(`id, evacuation_center_id`)
-        .eq("id", ec_rooms_id)
-        .single();
+      let targetRoom = null;
+      
+      if (ec_rooms_id) {
+        const { data: room, error: roomErr } = await supabase
+          .from("evacuation_center_rooms")
+          .select(`id, evacuation_center_id`)
+          .eq("id", ec_rooms_id)
+          .single();
 
-      if (roomErr || !targetRoom) {
-        return next(new ApiError("Target EC room not found.", 404));
+        if (roomErr || !room) {
+          return next(new ApiError("Target EC room not found.", 404));
+        }
+        targetRoom = room;
       }
 
       // 3) Check ANY ACTIVE registrations for this evacuee (decampment IS NULL)
