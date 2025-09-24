@@ -125,6 +125,8 @@ export default function RoleModuleConfig() {
         if (permissionName.includes('announcement')) return 'Announcements';
         if (permissionName.includes('user') || permissionName.includes('role')) return 'User Management';
         if (permissionName.includes('profile') || permissionName.includes('password')) return 'Profile';
+        // Add a new category for Outside Evacuation Centers
+        if (permissionName.includes('outside_ec')) return 'Outside Evacuation Centers';
         return 'Other';
     };
     

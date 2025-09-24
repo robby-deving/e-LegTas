@@ -130,12 +130,14 @@ export default function UserManagement(){
     
     // Helper function to get role color for borders and text
     const getRoleColor = (roleId: number) => {
+        // Update the role color for Barangay Official (role_id: 7)
         const roleColorMap: { [key: number]: string } = {
             1: '#FBB040', // System Admin
             2: '#038B53', // CDRRMO/Barangay Official
             3: '#038B53', // CDRRMO/Regional Coordinator  
             4: '#0192D4', // CSWDO
-            5: '#F15A29'  // Camp Manager
+            5: '#F15A29', // Camp Manager
+            7: '#9747FF'  // Barangay Official
         };
         
         return roleColorMap[roleId] || '#6B7280'; // Default gray color
