@@ -38,6 +38,8 @@ export default function EvacuationCentersPage() {
   const canCreateCenter = hasPermission('create_evacuation_center');
   const canUpdateCenter = hasPermission('update_evacuation_center');
   const canDeleteCenter = hasPermission('delete_evacuation_center');
+  const canAddOutsideEC = hasPermission('add_outside_ec');
+  const canEditOutsideEC = hasPermission('edit_outside_ec');
 
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -198,6 +200,10 @@ export default function EvacuationCentersPage() {
     setEditingCenter(undefined);
   };
 
+  // Debug logs to verify permission and tab state
+  console.log('canEditOutsideEC:', canEditOutsideEC);
+  console.log('activeTab:', activeTab);
+
   if (loading && !centers.length) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -257,7 +263,27 @@ export default function EvacuationCentersPage() {
                   ))}
               </div>
             </div>
-          {canCreateCenter && (
+          {activeTab === 'Inside EC' && (
+            <Button
+              onClick={handleAddCenter}
+              disabled={isCreating}
+              className="bg-green-700 hover:bg-green-800 text-white px-6 flex gap-2 items-center disabled:opacity-50"
+            >
+              {isCreating ? (
+                <>
+                  <LoadingSpinner size="sm" />
+                  <span>Adding...</span>
+                </>
+              ) : (
+                <>
+                  <Plus className="w-4 h-4" />
+                  Add Evacuation Center
+                </>
+              )}
+            </Button>
+          )}
+
+          {activeTab === 'Outside EC' && canAddOutsideEC && (
             <Button
               onClick={handleAddCenter}
               disabled={isCreating}
@@ -411,7 +437,17 @@ export default function EvacuationCentersPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          {canUpdateCenter && (
+                          {activeTab !== 'Outside EC' && canUpdateCenter && (
+                            <DropdownMenuItem
+                              onClick={() => handleEditCenter(center)}
+                              className="cursor-pointer"
+                              disabled={isUpdating}
+                            >
+                              <Edit className="w-4 h-4 mr-2" />
+                              Edit
+                            </DropdownMenuItem>
+                          )}
+                          {activeTab === 'Outside EC' && canEditOutsideEC && (
                             <DropdownMenuItem
                               onClick={() => handleEditCenter(center)}
                               className="cursor-pointer"

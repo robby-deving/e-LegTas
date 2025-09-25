@@ -62,6 +62,7 @@ export default function DisasterDetail() {
   const token = useSelector(selectToken);
   const { hasPermission } = usePermissions();
   const canCreateFamilyInformation = hasPermission("create_family_information");
+  const canRegisterOutsideEC = hasPermission('register_outside_ec');
 
   // Registration state
   const [showSearchModal, setShowSearchModal] = useState(false);
@@ -630,12 +631,14 @@ export default function DisasterDetail() {
                   ))}
                 </div>
               </div>
-              <Button 
-                className="bg-green-700 hover:bg-green-800 text-white px-6 flex gap-2 items-center cursor-pointer"
-                onClick={() => setShowSearchModal(true)}
-              >
-                Register Evacuee
-              </Button>
+              {!(activeTab === 'Outside EC' && !canRegisterOutsideEC) && (
+                <Button 
+                  className="bg-green-700 hover:bg-green-800 text-white px-6 flex gap-2 items-center cursor-pointer"
+                  onClick={() => setShowSearchModal(true)}
+                >
+                  Register Evacuee
+                </Button>
+              )}
             </div>
           </div>
 

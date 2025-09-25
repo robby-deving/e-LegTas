@@ -13,7 +13,7 @@ export default function Dashboard(){
 		<div className='text-black h-full'>
 			{/* System Admin Dashboard */}
 			{user?.role_id === 1 ? <SystemAdminDashboard /> : 
-			 user?.role_id === 5 ? <CampManagerDashboard /> : 
+			 user?.role_id === 5 || user?.role_id === 7 ? <CampManagerDashboard /> : 
 			 <MainDashboard />}
 			
 			{/* Other role dashboards can be added here */}
