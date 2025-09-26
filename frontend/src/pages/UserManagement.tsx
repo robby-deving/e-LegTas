@@ -905,7 +905,7 @@ export default function UserManagement(){
                             >
                                 <option value="all">All Roles</option>
                                 {!rolesLoading && roles
-                                    .filter(role => role.id !== 1) // Exclude System Admin (role_id 1)
+                                    .filter(role => currentRoleConfig?.allowedRoleIds === "all" || (Array.isArray(currentRoleConfig?.allowedRoleIds) && currentRoleConfig.allowedRoleIds.includes(role.id)))
                                     .map(role => (
                                         <option key={role.id} value={role.id}>
                                             {role.name.toUpperCase()}
