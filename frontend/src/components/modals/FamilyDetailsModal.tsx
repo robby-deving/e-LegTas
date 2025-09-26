@@ -19,7 +19,8 @@ import { startOfDayLocal, DateBound, formatMMDDYYYY, mergeDateAndTime, checkDate
 import BirthdayMaskedInput from "../EvacuationCenterDetail/BirthdayMaskedInput";
 import { toISODateLocal } from "@/utils/dateInput";
 import { useSelector } from 'react-redux';
-import { selectToken } from '@/features/auth/authSlice';
+import { selectToken , selectUserId } from '@/features/auth/authSlice';
+import AddService from "../EvacuationCenterDetail/AddService";
 
 const INVERSE_REL: Record<string, string> = {
   Spouse: "Spouse",
@@ -65,7 +66,7 @@ export const FamilyDetailsModal: React.FC<FamilyDetailsModalProps> = ({
 }) => {
 
 const token = useSelector(selectToken);
-
+const userId = useSelector(selectUserId);
 const [savingDecamp, setSavingDecamp] = useState(false);
 const [decampError, setDecampError] = useState<string | null>(null);
 
@@ -427,7 +428,7 @@ function enforceDecampDateTimeBounds(dt: Date | null): boolean {
           <div className="max-h-[70vh] overflow-y-auto pr-2 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500">
           <div className="space-y-6">
             {/* Header section */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
                 <label className="block text-sm font-semibold mb-2">Evacuation Center:</label>
                 <Input value={centerName} readOnly className="w-full bg-gray-50" />
@@ -615,6 +616,26 @@ function enforceDecampDateTimeBounds(dt: Date | null): boolean {
                   To clear the decampment, clear the date and click "Save Decampment".
                 </p>
               </div>
+
+              <div className="w-full md:col-span-2 lg:col-span-1">
+                {/* services input */}
+                <AddService 
+                  onValueChange={(value) => {
+                    // Handle value changes (optional)
+                    console.log(value);
+                  }}
+                  familyId={Number(evacuee?.id)}
+                  eventId={Number(evacuee?.disaster_evacuation_event_id)}
+                  token={token!}
+                  addedBy={Number(userId)}
+                  onSuccess={() => {
+                    console.log('Service added successfully');
+                  }}
+                  placeholder="Enter service provided"
+                  className="w-full"
+                />
+              </div>
+              
             </div>
             
             {/* Breakdown table */}

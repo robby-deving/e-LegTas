@@ -13,6 +13,7 @@ const { getEvacueesInformationbyDisasterEvacuationEventId } = require('../contro
 const { updateEvacuee } = require('../controllers/evacuees.update-registration.controller');
 const { authenticateUser, requirePermission } = require('../middleware');
 const { decampFamily, undecampedCountInEvent, decampAllFamiliesInEvent, endEvacuationOperation, } = require('../controllers/decamp.controller');
+const { addService } = require('../controllers/evacuees.services.controller');
 
 // Create an Express Router instance
 const router = express.Router();
@@ -27,6 +28,9 @@ router.get('/:disasterEvacuationEventId/family-heads', authenticateUser, require
 
 // Register a new evacuee with vulnerability data
 router.post('/', authenticateUser, requirePermission('create_family_information'), registerEvacuee);
+
+// Add a new service for a family
+router.post('/services', authenticateUser, /*requirePermission('create_family_information'),*/ addService);
 
 // Route to get all barangays
 router.get('/barangays', getAllBarangays);

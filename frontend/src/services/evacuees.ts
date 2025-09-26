@@ -64,4 +64,14 @@ export const evacueesApi = {
 
   putEvacuee: (id: number, payload: RegisterEvacuee, token: string) =>
     axios.put(`${API}/evacuees/${id}`, payload, auth(token)),
+
+  // Services
+  addService: (payload: { 
+    disaster_evacuation_event_id: number;
+    family_id: number;
+    service_received: string;
+    added_by: number;
+  }, token: string) =>
+    axios.post(`${API}/evacuees/services`, payload, auth(token)),
+
 };

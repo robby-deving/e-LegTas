@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { selectIsAuthenticated } from './features/auth/authSlice';
+import { Toaster } from 'react-hot-toast';
 import { PermissionProvider } from './contexts/PermissionContext';
 import { useAutoLogoutOnTokenExpiry } from './features/auth/useAutoLogoutOnTokenExpiry';
 import { useAutoRefreshToken } from './features/auth/useAutoRefreshToken';
@@ -65,6 +66,7 @@ function App() {
 
   return (
     <PermissionProvider>
+      <Toaster position="top-center" />
       <Routes>
         {/* Redirect root to appropriate page based on auth status */}
         <Route 
