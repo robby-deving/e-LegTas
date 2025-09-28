@@ -24,6 +24,8 @@ interface User {
     role_id: number;
     role_name?: string;
     assigned_evacuation_center?: string;
+    assigned_barangay?: string;
+    assigned_barangay_id?: number;
 }
 
 export default function UserManagement(){
@@ -75,7 +77,8 @@ export default function UserManagement(){
         email: '',
         password: '',
         role_id: '',
-        assigned_evacuation_center: ''
+        assigned_evacuation_center: '',
+        assigned_barangay: ''
     });
     
     // Role configuration - Easy to extend for new roles
@@ -87,7 +90,7 @@ export default function UserManagement(){
             canSeeEvacCenter: true,
             canSelectRole: true,
             canManageEvacCenter: true,
-            apiEndpoint: 'https://api.e-legtas.tech/api/v1/users',
+            apiEndpoint: 'http://localhost:3000/api/v1/users',
             allowedRoleIds: "all", // Can see all users - automatically includes new roles
             assignableRoleIds: "all", // Can assign any role - automatically includes new roles
             tableColumns: ['user', 'email', 'role', 'evacuation_center', 'actions']
@@ -97,7 +100,7 @@ export default function UserManagement(){
             canSeeEvacCenter: false,
             canSelectRole: true, // Changed to true - they can assign roles
             canManageEvacCenter: false, // Cannot manage evacuation centers
-            apiEndpoint: 'https://api.e-legtas.tech/api/v1/users',
+            apiEndpoint: 'http://localhost:3000/api/v1/users',
             allowedRoleIds: [2, 3],
             assignableRoleIds: [2, 3], // Can only assign roles 2 & 3
             tableColumns: ['user', 'role', 'actions']
@@ -107,7 +110,7 @@ export default function UserManagement(){
             canSeeEvacCenter: true,
             canSelectRole: true,
             canManageEvacCenter: true,
-            apiEndpoint: 'https://api.e-legtas.tech/api/v1/users/cswdo',
+            apiEndpoint: 'http://localhost:3000/api/v1/users/cswdo',
             allowedRoleIds: [4, 5],
             assignableRoleIds: [4, 5], // Can only assign roles 4 & 5
             tableColumns: ['user', 'role', 'evacuation_center', 'actions']
@@ -204,7 +207,7 @@ export default function UserManagement(){
     const fetchRoles = async () => {
         try {
             setRolesLoading(true);
-            const response = await fetch('https://api.e-legtas.tech/api/v1/users/data/roles', {
+            const response = await fetch('http://localhost:3000/api/v1/users/data/roles', {
                 headers: getAuthHeaders(),
             });
             
@@ -225,7 +228,7 @@ export default function UserManagement(){
 
     // Helper function to get appropriate API endpoint based on user role
     const getUsersApiEndpoint = () => {
-        if (!currentRoleConfig) return 'https://api.e-legtas.tech/api/v1/users?limit=100';
+        if (!currentRoleConfig) return 'http://localhost:3000/api/v1/users?limit=100';
         return `${currentRoleConfig.apiEndpoint}?limit=100`;
     };
 
@@ -292,7 +295,7 @@ export default function UserManagement(){
     useEffect(() => {
         const fetchBarangays = async () => {
             try {
-                const response = await fetch('https://api.e-legtas.tech/api/v1/users/data/barangays', {
+                const response = await fetch('http://localhost:3000/api/v1/users/data/barangays', {
                     headers: getAuthHeaders(),
                 });
                 
@@ -304,12 +307,8 @@ export default function UserManagement(){
                 setBarangays(data.barangays || []);
             } catch (err) {
                 console.error('Error fetching barangays:', err);
-                // Set some default barangays if fetch fails
-                setBarangays([
-                    { id: 1, name: 'Barangay 1' },
-                    { id: 2, name: 'Barangay 2' },
-                    { id: 3, name: 'Barangay 3' }
-                ]);
+                // Set empty array if fetch fails - user will see "Select barangay" option only
+                setBarangays([]);
             }
         };
 
@@ -321,7 +320,7 @@ export default function UserManagement(){
         const fetchEvacuationCenters = async () => {
             try {
                 // Add query parameter to only fetch active evacuation centers (where deleted_at IS NULL)
-                const response = await fetch('https://api.e-legtas.tech/api/v1/users/data/evacuation-centers?active=true', {
+                const response = await fetch('http://localhost:3000/api/v1/users/data/evacuation-centers?active=true', {
                     headers: getAuthHeaders(),
                 });
                 
@@ -474,7 +473,7 @@ export default function UserManagement(){
         if (columns.includes('evacuation_center')) {
             headers.push(
                 <th key="evacuation_center" className='px-6 py-3 text-left text-base font-medium text-gray-500'>
-                    Assigned Evacuation Center
+                    Assigned Evacuation Center/Barangay
                 </th>
             );
         }
@@ -537,7 +536,7 @@ export default function UserManagement(){
         if (columns.includes('evacuation_center')) {
             cells.push(
                 <td key="evacuation_center" className='px-6 py-4 whitespace-nowrap text-base text-gray-900'>
-                    {user.assigned_evacuation_center || 'N/A'}
+                    {user.role_id === 7 ? (user.assigned_barangay || 'N/A') : (user.assigned_evacuation_center || 'N/A')}
                 </td>
             );
         }
@@ -635,10 +634,11 @@ export default function UserManagement(){
                 email: formData.email,
                 password: formData.password,
                 roleId: targetRoleId,
-                assignedEvacuationCenter: canManageEvacuationCenterForUser(targetRoleId) ? formData.assigned_evacuation_center : ''
+                assignedEvacuationCenter: canManageEvacuationCenterForUser(targetRoleId) ? formData.assigned_evacuation_center : '',
+                assignedBarangay: targetRoleId === 7 ? formData.assigned_barangay : ''
             };
 
-            const response = await fetch('https://api.e-legtas.tech/api/v1/users', {
+            const response = await fetch('http://localhost:3000/api/v1/users', {
                 method: 'POST',
                 headers: getAuthHeaders(),
                 body: JSON.stringify(submitData)
@@ -662,7 +662,8 @@ export default function UserManagement(){
                 email: '',
                 password: '',
                 role_id: '',
-                assigned_evacuation_center: ''
+                assigned_evacuation_center: '',
+                assigned_barangay: ''
             });
             setIsAddUserModalOpen(false);
 
@@ -704,7 +705,8 @@ export default function UserManagement(){
             email: '',
             password: '',
             role_id: '',
-            assigned_evacuation_center: ''
+            assigned_evacuation_center: '',
+            assigned_barangay: ''
         });
         setIsAddUserModalOpen(false);
         setIsEditUserModalOpen(false);
@@ -729,7 +731,8 @@ export default function UserManagement(){
             email: user.email,
             password: '', // Leave password empty for security
             role_id: user.role_id.toString(),
-            assigned_evacuation_center: user.assigned_evacuation_center || ''
+            assigned_evacuation_center: user.assigned_evacuation_center || '',
+            assigned_barangay: user.assigned_barangay_id ? user.assigned_barangay_id.toString() : ''
         });
         setIsEditUserModalOpen(true);
     };
@@ -761,11 +764,12 @@ export default function UserManagement(){
                 email: formData.email,
                 roleId: targetRoleId,
                 assignedEvacuationCenter: canManageEvacuationCenterForUser(targetRoleId) ? formData.assigned_evacuation_center : editingUser.assigned_evacuation_center,
+                assignedBarangay: targetRoleId === 7 ? formData.assigned_barangay : (editingUser.assigned_barangay || ''),
                 // Only include password if it's provided
                 ...(formData.password && { password: formData.password })
             };
 
-            const response = await fetch(`https://api.e-legtas.tech/api/v1/users/${editingUser.user_id}`, {
+            const response = await fetch(`http://localhost:3000/api/v1/users/${editingUser.user_id}`, {
                 method: 'PUT',
                 headers: getAuthHeaders(),
                 body: JSON.stringify(submitData)
@@ -808,7 +812,7 @@ export default function UserManagement(){
     // Handle delete user
     const handleDeleteUser = async (userId: number) => {
         try {
-            const response = await fetch(`https://api.e-legtas.tech/api/v1/users/${userId}`, {
+            const response = await fetch(`http://localhost:3000/api/v1/users/${userId}`, {
                 method: 'DELETE',
                 headers: getAuthHeaders(),
             });
@@ -840,6 +844,87 @@ export default function UserManagement(){
         } catch (err) {
             console.error('Error deleting user:', err);
             setError(err instanceof Error ? err.message : 'Failed to delete user');
+        }
+    };
+
+    // Update the role filter dropdown to exclude System Administrator (role_id: 1)
+    const renderRoleFilterDropdown = () => {
+        return (
+            <select
+                value={selectedRoleFilter}
+                onChange={(e) => setSelectedRoleFilter(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E]"
+                style={{
+                    background: '#FFF',
+                    minWidth: '160px'
+                }}
+            >
+                <option value="all">All Roles</option>
+                {!rolesLoading && roles
+                    .filter(role => currentRoleConfig?.allowedRoleIds === "all" || (Array.isArray(currentRoleConfig?.allowedRoleIds) && currentRoleConfig.allowedRoleIds.includes(role.id)))
+                    .filter(role => role.id !== 1) // Exclude System Administrator
+                    .map(role => (
+                        <option key={role.id} value={role.id}>
+                            {role.name.toUpperCase()}
+                        </option>
+                    ))
+                }
+                {rolesLoading && (
+                    <option disabled>Loading roles...</option>
+                )}
+            </select>
+        );
+    };
+
+    const renderAssignedField = () => {
+        // Determine target role ID for the user being added/edited
+        const targetRoleId = isEditUserModalOpen 
+            ? (currentRoleConfig?.canSelectRole ? parseInt(formData.role_id) || editingUser?.role_id : editingUser?.role_id)
+            : (currentRoleConfig?.canSelectRole ? parseInt(formData.role_id) : currentUser?.role_id);
+        
+        // Show barangay field if target role is 7 (Barangay Official)
+        if (targetRoleId === 7) {
+            return (
+                <>
+                    <label className='block text-sm font-medium text-black mb-1'>
+                        Assigned Barangay
+                    </label>
+                    <select
+                        name="assigned_barangay"
+                        value={formData.assigned_barangay}
+                        onChange={handleFormChange}
+                        className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E]'
+                    >
+                        <option value="">Select barangay (optional)</option>
+                        {barangays.map(barangay => (
+                            <option key={barangay.id} value={barangay.id}>{barangay.name}</option>
+                        ))}
+                    </select>
+                </>
+            );
+        } else {
+            // Only show evacuation center field if user can manage it
+            if (canManageEvacuationCenterForUser(targetRoleId)) {
+                return (
+                    <>
+                        <label className='block text-sm font-medium text-black mb-1'>
+                            Assigned Evacuation Center
+                        </label>
+                        <select
+                            name="assigned_evacuation_center"
+                            value={formData.assigned_evacuation_center}
+                            onChange={handleFormChange}
+                            className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E]'
+                        >
+                            <option value="">Select evacuation center (optional)</option>
+                            {evacuationCenters.map(center => (
+                                <option key={center.id} value={center.name}>{center.name}</option>
+                            ))}
+                        </select>
+                    </>
+                );
+            }
+            return null;
         }
     };
 
@@ -894,28 +979,7 @@ export default function UserManagement(){
                         {/* Role Filter Dropdown */}
                         <div className='flex items-center gap-2'>
                             <label className='text-sm font-medium text-gray-700'>Filter by Role:</label>
-                            <select
-                                value={selectedRoleFilter}
-                                onChange={(e) => setSelectedRoleFilter(e.target.value)}
-                                className='px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E]'
-                                style={{
-                                    background: '#FFF',
-                                    minWidth: '160px'
-                                }}
-                            >
-                                <option value="all">All Roles</option>
-                                {!rolesLoading && roles
-                                    .filter(role => currentRoleConfig?.allowedRoleIds === "all" || (Array.isArray(currentRoleConfig?.allowedRoleIds) && currentRoleConfig.allowedRoleIds.includes(role.id)))
-                                    .map(role => (
-                                        <option key={role.id} value={role.id}>
-                                            {role.name.toUpperCase()}
-                                        </option>
-                                    ))
-                                }
-                                {rolesLoading && (
-                                    <option disabled>Loading roles...</option>
-                                )}
-                            </select>
+                            {renderRoleFilterDropdown()}
                             
                             {/* Clear Filters Button */}
                             {(searchTerm || selectedRoleFilter !== 'all') && (
@@ -1339,34 +1403,10 @@ export default function UserManagement(){
                                     <p className='text-xs text-gray-500'>You don't have permission to assign roles.</p>
                                 )}
 
-                                {/* Assigned Evacuation Center - Show based on role configuration and target user */}
-                                {(() => {
-                                    // Determine target role ID for the user being added/edited
-                                    const targetRoleId = isEditUserModalOpen 
-                                        ? (currentRoleConfig?.canSelectRole ? parseInt(formData.role_id) || editingUser?.role_id : editingUser?.role_id)
-                                        : (currentRoleConfig?.canSelectRole ? parseInt(formData.role_id) : currentUser?.role_id);
-                                    
-                                    return canManageEvacuationCenterForUser(targetRoleId);
-                                })() && (
-                                    <div>
-                                        <label className='block text-sm font-medium text-black mb-1'>
-                                            Assigned Evacuation Center
-                                        </label>
-                                        <select
-                                            name='assigned_evacuation_center'
-                                            value={formData.assigned_evacuation_center}
-                                            onChange={handleFormChange}
-                                            className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E]'
-                                        >
-                                            <option value=''>Select evacuation center (optional)</option>
-                                            {evacuationCenters.map((center) => (
-                                                <option key={center.id} value={center.name}>
-                                                    {center.name}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                )}
+                                {/* Use the renderAssignedField function to dynamically show the appropriate field */}
+                                <div>
+                                    {renderAssignedField()}
+                                </div>
 
                                 {/* Modal Footer - Inside Form */}
                                 <div className='flex justify-end gap-3 mt-6 pt-4'>

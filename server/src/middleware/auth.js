@@ -28,27 +28,7 @@ const authenticateUser = async (req, res, next) => {
       });
     }
 
-    // Query the users table for the authenticated user
-    const { data: userRecord, error: userError } = await supabaseAdmin
-      .from('users')
-      .select(`
-        id,
-        users_profile_id,
-        employee_number,
-        created_at,
-        updated_at
-      `)
-      .eq('id', user.id)
-      .single();
-
-    if (userError || !userRecord) {
-      return res.status(404).json({
-        message: 'User not found in users table',
-        error: userError?.message || 'User does not exist',
-      });
-    }
-
-    // Optionally, fetch additional profile information
+    // First, find the users_profile using the UUID from Supabase Auth
     const { data: userProfile, error: profileError } = await supabaseAdmin
       .from('users_profile')
       .select(`
@@ -58,13 +38,33 @@ const authenticateUser = async (req, res, next) => {
         email,
         resident_id
       `)
-      .eq('id', userRecord.users_profile_id)
+      .eq('user_id', user.id)
       .single();
 
     if (profileError || !userProfile) {
       return res.status(404).json({
         message: 'User profile not found',
         error: profileError?.message || 'Profile does not exist',
+      });
+    }
+
+    // Then, find the users record using the user_profile_id
+    const { data: userRecord, error: userError } = await supabaseAdmin
+      .from('users')
+      .select(`
+        id,
+        user_profile_id,
+        employee_number,
+        created_at,
+        updated_at
+      `)
+      .eq('user_profile_id', userProfile.id)
+      .single();
+
+    if (userError || !userRecord) {
+      return res.status(404).json({
+        message: 'User not found in users table',
+        error: userError?.message || 'User does not exist',
       });
     }
 
@@ -78,7 +78,8 @@ const authenticateUser = async (req, res, next) => {
 
     // Set user information in the request object
     req.user = {
-      id: userRecord.id,
+      id: userRecord.id,              // bigint ID from users table
+      uuid: user.id,                  // UUID from Supabase Auth
       employee_number: userRecord.employee_number,
       role_id: userProfile.role_id,
       email: userProfile.email,
