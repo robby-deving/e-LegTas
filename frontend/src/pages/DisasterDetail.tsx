@@ -212,7 +212,7 @@ export default function DisasterDetail() {
 
   usePageTitle(disaster?.name ?? "");
 
-  const fetchEvacuationCenters = async (page = currentPage, limit = rowsPerPage, searchTerm = debouncedSearchTerm) => {
+  const fetchEvacuationCenters = async (page = currentPage, limit = rowsPerPage, searchTerm = debouncedSearchTerm, barangayId?: number) => {
     if (!disasterId || isNaN(disasterId)) return;
 
     setTableLoading(true);
@@ -227,6 +227,11 @@ export default function DisasterDetail() {
       // Add search parameter if provided
       if (searchTerm && searchTerm.trim()) {
         params.append('search', searchTerm.trim());
+      }
+
+      // Add barangay filter if provided
+      if (barangayId) {
+        params.append('barangay_id', barangayId.toString());
       }
 
       const res = await axios.get(

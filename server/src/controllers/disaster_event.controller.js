@@ -25,10 +25,15 @@ class ApiError extends Error {
  */
 exports.getDisasterEventDetailsByDisasterId = async (req, res, next) => {
     const { disasterId } = req.params;
-    const { page = 1, limit = 10, search, ec_type } = req.query;
+    const { page = 1, limit = 10, search, ec_type, barangay_id } = req.query;
 
     if (!disasterId || isNaN(Number(disasterId))) {
         return next(new ApiError('Invalid Disaster ID provided.', 400));
+    }
+
+    // Validate barangay_id if provided
+    if (barangay_id && isNaN(Number(barangay_id))) {
+        return next(new ApiError('Invalid Barangay ID provided.', 400));
     }
 
     // Validate pagination parameters
@@ -45,7 +50,7 @@ exports.getDisasterEventDetailsByDisasterId = async (req, res, next) => {
         // Build the base query for counting with EC type filter
         let countQuery = supabase
             .from(TABLE_NAME)
-            .select('*, evacuation_centers!inner(category)', { count: 'exact', head: true })
+            .select('*, evacuation_centers!inner(category, barangay_id)', { count: 'exact', head: true })
             .eq('disaster_id', disasterId);
             
         // Add EC type filter if provided
@@ -53,6 +58,11 @@ exports.getDisasterEventDetailsByDisasterId = async (req, res, next) => {
             countQuery = countQuery.in('evacuation_centers.category', ['School', 'Chapel/Church', 'Dedicated Evacuation Center', 'Government Building', 'Commercial Building']);
         } else if (ec_type === 'outside') {
             countQuery = countQuery.in('evacuation_centers.category', ['Private House']);
+        }
+
+        // Add barangay filter if provided
+        if (barangay_id) {
+            countQuery = countQuery.eq('evacuation_centers.barangay_id', barangay_id);
         }
 
         const { count, error: countError } = await countQuery;
@@ -99,6 +109,11 @@ exports.getDisasterEventDetailsByDisasterId = async (req, res, next) => {
             dataQuery = dataQuery.in('evacuation_centers.category', ['School', 'Chapel/Church', 'Dedicated Evacuation Center', 'Government Building']);
         } else if (ec_type === 'outside') {
             dataQuery = dataQuery.in('evacuation_centers.category', ['Commercial Building', 'Private House']);
+        }
+
+        // Add barangay filter if provided
+        if (barangay_id) {
+            dataQuery = dataQuery.eq('evacuation_centers.barangay_id', barangay_id);
         }
 
         // Apply search filter if provided
