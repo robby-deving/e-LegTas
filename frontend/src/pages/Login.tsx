@@ -60,13 +60,13 @@ export default function Login(){
         navigate('/forgot-password');
     };
 
-    return(
-        <div className='flex items-center justify-center h-screen bg-[#1CA567]'>
+    return (
+        <div className='flex items-center justify-center h-screen bg-[#1CA567]' style={{ minHeight: '120vh' }}> {/* Added minHeight to extend the green background */}
             <div className='relative mx-auto' style={{ width: '700px', height: '800px' }}>
                 <img 
                     src={unionBackground} 
                     alt="Login background" 
-                    className='w-full h-full object-contain'
+                    className='w-full h-full object-contain' /* Ensured background fits the container */
                 />
                 <div className='absolute top-0 left-0 w-full h-full flex flex-col justify-center items-center p-8 pt-40'>
                     {/* Logo added at the top */}

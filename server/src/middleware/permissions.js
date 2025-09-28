@@ -8,20 +8,20 @@ const requirePermission = (permissionName) => {
   return async (req, res, next) => {
     try {
       // Get user from auth middleware (assuming it sets req.user)
-      const userId = req.user?.id || req.headers['x-user-id'];
+      const userUuid = req.user?.uuid || req.headers['x-user-id'];
       
-      if (!userId) {
+      if (!userUuid) {
         return res.status(401).json({ 
           message: 'Authentication required',
           error: 'No user ID found in request'
         });
       }
 
-      // Get user's role from users_profile
+      // Get user's role from users_profile using UUID
       const { data: userProfile, error: profileError } = await supabaseAdmin
         .from('users_profile')
         .select('role_id')
-        .eq('user_id', userId)
+        .eq('user_id', userUuid)
         .single();
 
       if (profileError || !userProfile) {
@@ -97,20 +97,20 @@ const requirePermission = (permissionName) => {
 const requireAnyPermission = (permissionNames) => {
   return async (req, res, next) => {
     try {
-      const userId = req.user?.id || req.headers['x-user-id'];
+      const userUuid = req.user?.uuid || req.headers['x-user-id'];
       
-      if (!userId) {
+      if (!userUuid) {
         return res.status(401).json({ 
           message: 'Authentication required',
           error: 'No user ID found in request'
         });
       }
 
-      // Get user's role from users_profile
+      // Get user's role from users_profile using UUID
       const { data: userProfile, error: profileError } = await supabaseAdmin
         .from('users_profile')
         .select('role_id')
-        .eq('user_id', userId)
+        .eq('user_id', userUuid)
         .single();
 
       if (profileError || !userProfile) {
@@ -172,20 +172,20 @@ const requireAnyPermission = (permissionNames) => {
 const requireAllPermissions = (permissionNames) => {
   return async (req, res, next) => {
     try {
-      const userId = req.user?.id || req.headers['x-user-id'];
+      const userUuid = req.user?.uuid || req.headers['x-user-id'];
       
-      if (!userId) {
+      if (!userUuid) {
         return res.status(401).json({ 
           message: 'Authentication required',
           error: 'No user ID found in request'
         });
       }
 
-      // Get user's role from users_profile
+      // Get user's role from users_profile using UUID
       const { data: userProfile, error: profileError } = await supabaseAdmin
         .from('users_profile')
         .select('role_id')
-        .eq('user_id', userId)
+        .eq('user_id', userUuid)
         .single();
 
       if (profileError || !userProfile) {
@@ -246,17 +246,17 @@ const requireAllPermissions = (permissionNames) => {
  */
 const attachPermissions = async (req, res, next) => {
   try {
-    const userId = req.user?.id || req.headers['x-user-id'];
+    const userUuid = req.user?.uuid || req.headers['x-user-id'];
     
-    if (!userId) {
+    if (!userUuid) {
       return next();
     }
 
-    // Get user's role from users_profile
+    // Get user's role from users_profile using UUID
     const { data: userProfile, error: profileError } = await supabaseAdmin
       .from('users_profile')
       .select('role_id')
-      .eq('user_id', userId)
+      .eq('user_id', userUuid)
       .single();
 
     if (profileError || !userProfile) {
@@ -288,14 +288,15 @@ const attachPermissions = async (req, res, next) => {
 
 /**
  * Get user permissions (for use in controllers)
+ * @param {string} userId - User UUID from Supabase Auth (not bigint ID)
  */
-const getUserPermissions = async (userId) => {
+const getUserPermissions = async (userUuid) => {
   try {
-    // Get user's role from users_profile
+    // Get user's role from users_profile using UUID
     const { data: userProfile, error: profileError } = await supabaseAdmin
       .from('users_profile')
       .select('role_id')
-      .eq('user_id', userId)
+      .eq('user_id', userUuid)
       .single();
 
     if (profileError || !userProfile) {

@@ -304,7 +304,36 @@ const login = async (req, res) => {
       return res.status(500).json({ message: 'Failed to issue refresh token' });
     }
     setRefreshTokenCookie(res, refreshToken, expiresAt);
-    // Step 5: Return user data and Supabase access token
+    
+    // Step 5: Fetch barangay assignment for role 7 users (Barangay Officials)
+    let barangayAssignment = null;
+    if (userData.users_profile.role_id === 7) {
+      try {
+        const { data: barangayData, error: barangayError } = await supabaseAdmin
+          .from('barangay_officials')
+          .select(`
+            barangay_id,
+            barangays (
+              id,
+              name
+            )
+          `)
+          .eq('user_profile_id', userData.users_profile.id)
+          .single();
+
+        if (!barangayError && barangayData) {
+          barangayAssignment = {
+            assigned_barangay: barangayData.barangays?.name || null,
+            assigned_barangay_id: barangayData.barangays?.id || null
+          };
+        }
+      } catch (barangayError) {
+        console.error('Error fetching barangay assignment during login:', barangayError);
+        // Don't fail login if barangay fetch fails
+      }
+    }
+
+    // Step 6: Return user data and Supabase access token
     const responseData = {
       user: {
         user_id: userData.id,
@@ -315,6 +344,7 @@ const login = async (req, res) => {
         resident_id: userData.users_profile.resident_id,
         first_name: userData.users_profile.residents?.first_name,
         last_name: userData.users_profile.residents?.last_name,
+        ...(barangayAssignment || {})
       },
       token: authData.session?.access_token || '' // Always use Supabase access token
     };

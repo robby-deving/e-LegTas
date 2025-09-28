@@ -139,7 +139,8 @@ const createUser = async (req, res) => {
       email,
       password,
       roleId,
-      assignedEvacuationCenter
+      assignedEvacuationCenter,
+      assignedBarangay
     } = req.body;
 
     // Validate required fields
@@ -477,6 +478,42 @@ const createUser = async (req, res) => {
       }
     }
 
+    // Handle barangay assignment for role 7 (Barangay Official)
+    if (parseInt(roleId) === 7 && assignedBarangay) {
+      try {
+        // TRUE TRANSFER: First, remove this barangay from any other user
+        const { error: removeFromOthersError } = await supabaseAdmin
+          .from('barangay_officials')
+          .delete()
+          .eq('barangay_id', parseInt(assignedBarangay));
+
+        if (removeFromOthersError) {
+          console.error('Error removing barangay from other users:', removeFromOthersError);
+        } else {
+          console.log('Removed barangay', assignedBarangay, 'from any previously assigned users');
+        }
+
+        // Then, create new assignment for this user
+        const { error: barangayAssignmentError } = await supabaseAdmin
+          .from('barangay_officials')
+          .insert({
+            user_profile_id: userProfile.id,
+            barangay_id: parseInt(assignedBarangay),
+            updated_at: new Date().toISOString()
+          });
+
+        if (barangayAssignmentError) {
+          console.error('Error creating barangay assignment:', barangayAssignmentError);
+          // Don't fail the entire user creation if barangay assignment fails
+        } else {
+          console.log('Barangay assignment created successfully for user:', userProfile.id, 'barangay:', assignedBarangay, 'at:', new Date().toISOString());
+        }
+      } catch (barangayError) {
+        console.error('Error handling barangay assignment:', barangayError);
+        // Don't fail the entire user creation if barangay assignment fails
+      }
+    }
+
     // Return success response
     const responseData = {
       message: 'User created successfully with login capability',
@@ -563,11 +600,13 @@ const getUsers = async (req, res) => {
       return res.status(500).json({ message: 'Failed to fetch users' });
     }
 
-    // Get evacuation center assignments for these users
-    let usersWithEvacuationCenters = users;
+    // Get evacuation center assignments and barangay assignments for these users
+    let usersWithAssignments = users;
     if (users && users.length > 0) {
       const userIds = users.map(user => user.id);
+      const userProfileIds = users.map(user => user.users_profile?.id).filter(Boolean);
       
+      // Get evacuation center assignments
       const { data: evacuationAssignments, error: evacuationError } = await supabaseAdmin
         .from('evacuation_centers')
         .select('id, name, assigned_user_id')
@@ -575,17 +614,37 @@ const getUsers = async (req, res) => {
 
       if (evacuationError) {
         console.error('Error fetching evacuation assignments:', evacuationError);
-        // Continue without evacuation center data
-      } else {
-        // Merge evacuation center data with users
-        usersWithEvacuationCenters = users.map((user) => {
-          const assignment = evacuationAssignments?.find(assignment => assignment.assigned_user_id === user.id);
-          return {
-            ...user,
-            assigned_evacuation_center: assignment?.name || null
-          };
-        });
       }
+
+      // Get barangay assignments for users with role 7 (Barangay Official)
+      const { data: barangayAssignments, error: barangayError } = await supabaseAdmin
+        .from('barangay_officials')
+        .select(`
+          user_profile_id,
+          barangay_id,
+          barangays!barangay_id (
+            id,
+            name
+          )
+        `)
+        .in('user_profile_id', userProfileIds);
+
+      if (barangayError) {
+        console.error('Error fetching barangay assignments:', barangayError);
+      }
+
+      // Merge evacuation center and barangay data with users
+      usersWithAssignments = users.map((user) => {
+        const evacuationAssignment = evacuationAssignments?.find(assignment => assignment.assigned_user_id === user.id);
+        const barangayAssignment = barangayAssignments?.find(assignment => assignment.user_profile_id === user.users_profile?.id);
+        
+        return {
+          ...user,
+          assigned_evacuation_center: evacuationAssignment?.name || null,
+          assigned_barangay: barangayAssignment?.barangays?.name || null,
+          assigned_barangay_id: barangayAssignment?.barangays?.id || null
+        };
+      });
     }
 
     // Get total count for pagination
@@ -600,7 +659,7 @@ const getUsers = async (req, res) => {
     }
 
     // Map users to include user_id and auth_id fields
-    const mappedUsers = usersWithEvacuationCenters.map(user => ({
+    const mappedUsers = usersWithAssignments.map(user => ({
       user_id: user.id,
       auth_id: user.users_profile?.user_id || null,
       first_name: user.users_profile?.residents?.first_name,
@@ -616,6 +675,8 @@ const getUsers = async (req, res) => {
       role_id: user.users_profile?.role_id,
       role_name: user.users_profile?.roles?.role_name,
       assigned_evacuation_center: user.assigned_evacuation_center,
+      assigned_barangay: user.assigned_barangay,
+      assigned_barangay_id: user.assigned_barangay_id,
       is_active: user.users_profile?.is_active
     }));
     res.status(200).json({
@@ -680,6 +741,28 @@ const getUserById = async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
+    // Get barangay assignment if user has role 7 (Barangay Official)
+    let assignedBarangay = null;
+    let assignedBarangayId = null;
+    if (user.users_profile?.role_id === 7) {
+      const { data: barangayAssignment } = await supabaseAdmin
+        .from('barangay_officials')
+        .select(`
+          barangay_id,
+          barangays!barangay_id (
+            id,
+            name
+          )
+        `)
+        .eq('user_profile_id', user.users_profile.id)
+        .single();
+
+      if (barangayAssignment) {
+        assignedBarangay = barangayAssignment.barangays?.name;
+        assignedBarangayId = barangayAssignment.barangays?.id;
+      }
+    }
+
     // Map user to include user_id and auth_id fields
     const mappedUser = {
       user_id: user.id,
@@ -697,6 +780,8 @@ const getUserById = async (req, res) => {
       role_id: user.users_profile?.role_id,
       role_name: user.users_profile?.roles?.role_name,
       assigned_evacuation_center: user.assigned_evacuation_center,
+      assigned_barangay: assignedBarangay,
+      assigned_barangay_id: assignedBarangayId,
       is_active: user.users_profile?.is_active
     };
     res.status(200).json({ user: mappedUser });
@@ -727,7 +812,8 @@ const updateUser = async (req, res) => {
       email,
       password,
       roleId,
-      assignedEvacuationCenter
+      assignedEvacuationCenter,
+      assignedBarangay
     } = req.body;
 
     // Validate required fields
@@ -960,6 +1046,70 @@ const updateUser = async (req, res) => {
         }
       } catch (evacuationError) {
         console.error('Error removing evacuation center assignment:', evacuationError);
+      }
+    }
+
+    // Handle barangay assignment for role 7 (Barangay Official)
+    if (parseInt(roleId) === 7) {
+      try {
+        // First, remove any existing barangay assignment for this user
+        const { error: removeError } = await supabaseAdmin
+          .from('barangay_officials')
+          .delete()
+          .eq('user_profile_id', existingUser.users_profile.id);
+
+        if (removeError) {
+          console.error('Error removing existing barangay assignment:', removeError);
+        }
+
+        // If assignedBarangay is provided, implement true transfer
+        if (assignedBarangay) {
+          // TRUE TRANSFER: Remove this barangay from any other user first
+          const { error: removeFromOthersError } = await supabaseAdmin
+            .from('barangay_officials')
+            .delete()
+            .eq('barangay_id', parseInt(assignedBarangay));
+
+          if (removeFromOthersError) {
+            console.error('Error removing barangay from other users:', removeFromOthersError);
+          } else {
+            console.log('Removed barangay', assignedBarangay, 'from any previously assigned users');
+          }
+
+          // Then create new assignment for this user
+          const { error: barangayAssignmentError } = await supabaseAdmin
+            .from('barangay_officials')
+            .insert({
+              user_profile_id: existingUser.users_profile.id,
+              barangay_id: parseInt(assignedBarangay),
+              updated_at: new Date().toISOString()
+            });
+
+          if (barangayAssignmentError) {
+            console.error('Error creating barangay assignment:', barangayAssignmentError);
+          } else {
+            console.log('Barangay assignment updated successfully for user:', existingUser.users_profile.id, 'barangay:', assignedBarangay, 'at:', new Date().toISOString());
+          }
+        }
+      } catch (barangayError) {
+        console.error('Error handling barangay assignment:', barangayError);
+        // Don't fail the entire user update if barangay assignment fails
+      }
+    } else {
+      // If role is not 7, remove any existing barangay assignment
+      try {
+        const { error: removeError } = await supabaseAdmin
+          .from('barangay_officials')
+          .delete()
+          .eq('user_profile_id', existingUser.users_profile.id);
+
+        if (removeError) {
+          console.error('Error removing barangay assignment for non-barangay role:', removeError);
+        } else {
+          console.log('Removed barangay assignment for role change from user:', existingUser.users_profile.id);
+        }
+      } catch (barangayError) {
+        console.error('Error removing barangay assignment:', barangayError);
       }
     }
 

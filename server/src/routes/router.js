@@ -43,8 +43,9 @@ router.get(
 
 // Mount routes with appropriate rate limiting
 router.use('/auth', /*authRateLimit,*/ authRoutes);
-// Apply auth to all /users routes so permission middleware has req.user
+// Enable authentication with UUID fix
 router.use('/users', /*apiRateLimit,*/ authenticateUser, userRoutes);
+// router.use('/users', /*apiRateLimit,*/ userRoutes);
 router.use('/permissions', /*apiRateLimit,*/ permissionRoutes);
 router.use('/roles', /*apiRateLimit,*/ roleRoutes);
 // Protect all notifications endpoints so permission checks have req.user
