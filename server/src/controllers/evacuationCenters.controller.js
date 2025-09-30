@@ -32,7 +32,8 @@ exports.getAllEvacuationCenters = async (req, res, next) => {
         const offset = parseInt(req.query.offset) || 0;
         const search = req.query.search || '';
         const includeSoftDeleted = req.query.include_deleted === 'true';
-        const ecType = req.query.ec_type; // Add this line
+        const ecType = req.query.ec_type;
+        const barangayId = req.query.barangay_id ? parseInt(req.query.barangay_id) : null;
 
         let query = supabase
             .from(TABLE_NAME)
@@ -55,6 +56,11 @@ exports.getAllEvacuationCenters = async (req, res, next) => {
             query = query.in('category', ['Commercial Building', 'Private House']);
         }
 
+        // Add barangay filter if provided
+        if (barangayId && !isNaN(barangayId)) {
+            query = query.eq('barangay_id', barangayId);
+        }
+
         // Add pagination
         query = query.range(offset, offset + limit - 1);
 
@@ -67,8 +73,8 @@ exports.getAllEvacuationCenters = async (req, res, next) => {
 
         // Get total count for pagination metadata
         let totalCount = count;
-        if (search || !includeSoftDeleted) {
-            // If we have search or deleted_at filter, we need to get the total count separately
+        if (search || !includeSoftDeleted || barangayId) {
+            // If we have search, deleted_at, or barangay filter, we need to get the total count separately
             let countQuery = supabase
                 .from(TABLE_NAME)
                 .select('*', { count: 'exact', head: true });
@@ -79,6 +85,10 @@ exports.getAllEvacuationCenters = async (req, res, next) => {
 
             if (search) {
                 countQuery = countQuery.or(`name.ilike.%${search}%,address.ilike.%${search}%`);
+            }
+
+            if (barangayId && !isNaN(barangayId)) {
+                countQuery = countQuery.eq('barangay_id', barangayId);
             }
 
             const { count: filteredCount } = await countQuery;

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import type { EvacuationCenter } from '../types/evacuation';
 import { evacuationCenterService } from '../services/evacuationCenterService';
 
@@ -15,6 +15,7 @@ export interface UseEvacuationCentersParams {
   offset?: number;
   search?: string;
   ec_type?: 'inside' | 'outside';
+  barangay_id?: number;
 }
 
 export function useEvacuationCenters(initialParams?: UseEvacuationCentersParams) {
@@ -35,11 +36,7 @@ export function useEvacuationCenters(initialParams?: UseEvacuationCentersParams)
     } finally {
       setLoading(false);
     }
-  }, []); // Remove params dependency
-
-  useEffect(() => {
-    fetchCenters(initialParams);
-  }, []); // Empty dependency array - only run on mount
+  }, []); // Empty dependency array is correct here
 
   const refreshCenters = useCallback(() => {
     fetchCenters(initialParams);

@@ -2,6 +2,7 @@
 const { createClient } = require('@supabase/supabase-js');
 const { sendOTPEmail } = require('../services/emailService');
 const dotenv = require('dotenv');
+const logger = require('../utils/logger');
 
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
@@ -309,23 +310,27 @@ const login = async (req, res) => {
     let barangayAssignment = null;
     if (userData.users_profile.role_id === 7) {
       try {
+        logger.debug('Fetching barangay data for user profile:', userData.users_profile.id);
+        // Get barangay official record
         const { data: barangayData, error: barangayError } = await supabaseAdmin
           .from('barangay_officials')
-          .select(`
-            barangay_id,
-            barangays (
-              id,
-              name
-            )
-          `)
+          .select('id, barangay_id')
           .eq('user_profile_id', userData.users_profile.id)
           .single();
 
+        console.log('Raw barangay official data:', barangayData);
+        
+        if (barangayError) {
+          console.error('Error fetching barangay data:', barangayError);
+        }
+
+        console.log('Barangay Data:', barangayData);
         if (!barangayError && barangayData) {
+          console.log('Raw barangay_id:', barangayData.barangay_id);
           barangayAssignment = {
-            assigned_barangay: barangayData.barangays?.name || null,
-            assigned_barangay_id: barangayData.barangays?.id || null
+            assigned_barangay_id: barangayData.barangay_id || null
           };
+          console.log('Final barangayAssignment:', barangayAssignment);
         }
       } catch (barangayError) {
         console.error('Error fetching barangay assignment during login:', barangayError);
@@ -348,6 +353,7 @@ const login = async (req, res) => {
       },
       token: authData.session?.access_token || '' // Always use Supabase access token
     };
+    console.log('Final response data:', responseData);
     console.log('Login successful for employee:', employeeNumber);
     res.status(200).json(responseData);
   } catch (error) {

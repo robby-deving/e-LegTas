@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "../components/ui/table";
 import { Pagination } from "../components/ui/pagination";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../components/ui/dropdown-menu";
+import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Plus, MoreHorizontal, Trash2, Edit } from "lucide-react";
 import { usePageTitle } from '../hooks/usePageTitle';
 import { EvacuationCenterModal } from '../components/EvacuationCenter/EvacuationCenterModal';
@@ -16,8 +17,9 @@ import { evacuationCenterService } from '../services/evacuationCenterService';
 import { usePermissions } from '../contexts/PermissionContext';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { selectIsAuthenticated, selectUserId } from '../features/auth/authSlice';
+import { selectIsAuthenticated, selectUserId, selectAssignedBarangayId } from '../features/auth/authSlice';
 import LoadingSpinner from '../components/loadingSpinner';
+import { toast } from 'react-hot-toast';
 
 const STATUS_COLORS = {
   'Available': 'text-green-600 bg-green-100',
@@ -33,9 +35,8 @@ export default function EvacuationCentersPage() {
   const navigate = useNavigate();
   const isAuthenticated = useSelector(selectIsAuthenticated);
   const currentUserId = useSelector(selectUserId);
-
-  const { hasPermission } = usePermissions();
-  const canCreateCenter = hasPermission('create_evacuation_center');
+    const assignedBarangayId = useSelector(selectAssignedBarangayId);
+    const { hasPermission } = usePermissions();
   const canUpdateCenter = hasPermission('update_evacuation_center');
   const canDeleteCenter = hasPermission('delete_evacuation_center');
   const canAddOutsideEC = hasPermission('add_outside_ec');
@@ -68,10 +69,6 @@ export default function EvacuationCentersPage() {
     setSearchTerm(''); // Clear search when changing tabs
   };
 
-  const tabs = [
-    { name: 'Inside EC' }, // Replace with your actual icon component or image
-    { name: 'Outside EC' },
-  ];
 
   // Hooks
   const {
@@ -90,30 +87,24 @@ export default function EvacuationCentersPage() {
     isDeleting
   } = useEvacuationCenterMutations();
 
-  // Stable refetch function
-  const stableRefetch = useCallback((params: { limit: number; offset: number; search: string, ec_type: 'inside' | 'outside' }) => {
-    refetchWithParams(params);
-  }, [refetchWithParams]);
-
-  // Handle search and pagination changes
+  // Handle search changes
   useEffect(() => {
-    setCurrentPage(1); // Reset to first page when search changes or tab changes
-    stableRefetch({
-      limit: rowsPerPage,
-      offset: 0,
-      search: debouncedSearchTerm,
-      ec_type: activeTab === 'Inside EC' ? 'inside' : 'outside'
-    });
-  }, [debouncedSearchTerm, rowsPerPage, activeTab, stableRefetch]);
+    if (debouncedSearchTerm !== searchTerm) {
+      setCurrentPage(1); // Reset to first page when search changes
+    }
+  }, [debouncedSearchTerm]);
 
+  // Handle data fetching
   useEffect(() => {
-    stableRefetch({
+    const params = {
       limit: rowsPerPage,
       offset: (currentPage - 1) * rowsPerPage,
       search: debouncedSearchTerm,
-      ec_type: activeTab === 'Inside EC' ? 'inside' : 'outside'
-    });
-  }, [currentPage, rowsPerPage, debouncedSearchTerm, activeTab, stableRefetch]);
+      ec_type: (activeTab === 'Inside EC' ? 'inside' : 'outside') as 'inside' | 'outside',
+      barangay_id: assignedBarangayId || undefined
+    };
+    refetchWithParams(params);
+  }, [currentPage, rowsPerPage, debouncedSearchTerm, activeTab, assignedBarangayId, refetchWithParams]);
 
   // Handle rows per page change
   const handleRowsPerPageChange = (value: string) => {
@@ -180,6 +171,7 @@ export default function EvacuationCentersPage() {
 
     const success = await deleteCenter(centerToDelete.id);
     if (success) {
+      toast.success('Evacuation center deleted successfully');
       refreshCenters();
       setIsDeleteModalOpen(false);
       setCenterToDelete(null);
@@ -200,11 +192,9 @@ export default function EvacuationCentersPage() {
     setEditingCenter(undefined);
   };
 
-  // Debug logs to verify permission and tab state
-  console.log('canEditOutsideEC:', canEditOutsideEC);
-  console.log('activeTab:', activeTab);
 
-  if (loading && !centers.length) {
+  // Show full page loading only on initial load
+  if (loading && !centers.length && currentPage === 1 && !debouncedSearchTerm) {
     return (
       <div className="flex items-center justify-center p-8">
         <LoadingSpinner text="Loading evacuation centers..." size="lg" />
@@ -245,24 +235,22 @@ export default function EvacuationCentersPage() {
             onChange={(e) => setSearchTerm(e.target.value)}
             className="max-w-sm"
           />
-          <div className="flex gap-4">
-            <div className="flex gap-2 items-center">
-              <div className=" border border-gray-300 rounded-full inline-flex space-x-2">
-                  {tabs.map((tab) => (
-                    <button
-                      key={tab.name}
-                      onClick={() => handleTabChange(tab.name as 'Inside EC' | 'Outside EC')}
-                      className={`flex items-center px-4 py-2  rounded-full transition-colors duration-200
-                        ${activeTab === tab.name
-                          ? 'bg-green-700 text-white'
-                          : 'text-gray-400 hover:text-black'
-                        }`}
-                    >
-                      <span className="font-semibold">{tab.name}</span>
-                    </button>
-                  ))}
-              </div>
-            </div>
+          <div className="flex gap-1">
+             <Tabs
+               defaultValue="Inside EC"
+               value={activeTab}
+               onValueChange={(value) => handleTabChange(value as 'Inside EC' | 'Outside EC')}
+               className="w-[400px]"
+             >
+               <TabsList>
+                 <TabsTrigger value="Inside EC">
+                   Inside EC
+                 </TabsTrigger>
+                 <TabsTrigger value="Outside EC">
+                   Outside EC
+                 </TabsTrigger>
+               </TabsList>
+             </Tabs>
           {activeTab === 'Inside EC' && (
             <Button
               onClick={handleAddCenter}
@@ -412,10 +400,10 @@ export default function EvacuationCentersPage() {
                           {center.total_capacity}
                         </TableCell>
                         <TableCell className="text-foreground">
-                          {center.longitude.toFixed(4)}
+                          {center.longitude ? center.longitude.toFixed(4) : 'N/A'}
                         </TableCell>
                         <TableCell className="text-foreground">
-                          {center.latitude.toFixed(4)}
+                          {center.latitude ? center.latitude.toFixed(4) : 'N/A'}
                         </TableCell>
                       </>
                     )}
