@@ -13,7 +13,7 @@ import { usePageTitle } from "../hooks/usePageTitle";
 import { formatDate } from "@/utils/dateFormatter";
 import { getTypeColor, getTagColor } from "@/constants/disasterTypeColors";
 import { encodeId } from "@/utils/secureId";
-import { selectToken } from "../features/auth/authSlice";
+import { selectToken, selectAssignedBarangayId } from "../features/auth/authSlice";
 import { disasterService } from "@/services/disasterService";
 import LoadingSpinner from "@/components/loadingSpinner";
 import { Button } from "@/components/ui/button";
@@ -60,6 +60,7 @@ export default function DisasterDetail() {
   const navigate = useNavigate();
   const location = useLocation();
   const token = useSelector(selectToken);
+  const assignedBarangayId = useSelector(selectAssignedBarangayId);
   const { hasPermission } = usePermissions();
   const canCreateFamilyInformation = hasPermission("create_family_information");
   const canRegisterOutsideEC = hasPermission('register_outside_ec');
@@ -217,6 +218,7 @@ export default function DisasterDetail() {
 
     setTableLoading(true);
     try {
+      console.log('Fetching with barangayId:', barangayId);
       // Build query parameters
       const params = new URLSearchParams({
         page: page.toString(),
@@ -229,15 +231,19 @@ export default function DisasterDetail() {
         params.append('search', searchTerm.trim());
       }
 
+      console.log(assignedBarangayId);
+      
+
       // Add barangay filter if provided
-      if (barangayId) {
-        params.append('barangay_id', barangayId.toString());
+      if (barangayId !== undefined && barangayId !== null && !isNaN(Number(barangayId))) {
+        const numBarangayId = Number(barangayId);
+        if (numBarangayId > 0) {
+          params.append('barangay_id', numBarangayId.toString());
+        }
       }
 
-      const res = await axios.get(
-        `/api/v1/disaster-events/by-disaster/${disasterId}/details?${params.toString()}`,
-        { headers: getAuthHeaders() }
-      );
+      const url = `/api/v1/disaster-events/by-disaster/${disasterId}/details?${params.toString()}`;
+      const res = await axios.get(url, { headers: getAuthHeaders() });
 
       // Type-safe data extraction with pagination
       const responseData = res.data as {
@@ -266,24 +272,24 @@ export default function DisasterDetail() {
   };
 
   useEffect(() => {
-    fetchEvacuationCenters();
-  }, [disasterId, token]);
+    fetchEvacuationCenters(currentPage, rowsPerPage, debouncedSearchTerm, assignedBarangayId);
+  }, [disasterId, token, assignedBarangayId]);
 
   useEffect(() => {
     if (disasterId && !disasterLoading) {
-      fetchEvacuationCenters(currentPage, rowsPerPage, debouncedSearchTerm);
+      fetchEvacuationCenters(currentPage, rowsPerPage, debouncedSearchTerm, assignedBarangayId);
     }
-  }, [currentPage, rowsPerPage, debouncedSearchTerm, activeTab]);
+  }, [currentPage, rowsPerPage, debouncedSearchTerm, activeTab, assignedBarangayId]);
 
   const handleRowsPerPageChange = (value: string) => {
     setRowsPerPage(Number(value));
     setCurrentPage(1);
-    fetchEvacuationCenters(1, Number(value), debouncedSearchTerm);
+    fetchEvacuationCenters(1, Number(value), debouncedSearchTerm, assignedBarangayId);
   };
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
-    fetchEvacuationCenters(page, rowsPerPage, debouncedSearchTerm);
+    fetchEvacuationCenters(page, rowsPerPage, debouncedSearchTerm, assignedBarangayId);
   };
 
   // Registration handlers

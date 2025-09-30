@@ -23,7 +23,7 @@ export default function Login(){
             setLoading(true);
             
             // Call server API for login
-            const response = await fetch('https://api.e-legtas.tech/api/v1/auth/login', {
+            const response = await fetch('/api/v1/auth/login', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
