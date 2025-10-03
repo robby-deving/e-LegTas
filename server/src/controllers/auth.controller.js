@@ -4,15 +4,13 @@ const { sendOTPEmail } = require('../services/emailService');
 const dotenv = require('dotenv');
 const logger = require('../utils/logger');
 
-const crypto = require('crypto');
-const jwt = require('jsonwebtoken');
-const JWT_SECRET = process.env.JWT_SECRET || 'changeme';
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '1h'; // 1 hour default
+// Removed unused JWT and crypto utilities
 
 dotenv.config();
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseServiceKey) {
   throw new Error('Missing Supabase environment variables. Check your .env file.');
@@ -25,30 +23,41 @@ const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
   }
 });
 
+// Public client for auth refresh exchanges
+const supabasePublic = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false
+  }
+});
+
 const generateOTP = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
 // Helper to generate a secure random refresh token
-const generateRefreshToken = () => {
-  return crypto.randomBytes(64).toString('hex');
-};
-
-// Helper to set httpOnly cookie
-const setRefreshTokenCookie = (res, token, expiresAt) => {
-  const isProd = process.env.NODE_ENV === 'production';
-  res.cookie('refresh_token', token, {
-    httpOnly: true,
-    secure: isProd ? true : false,
-    sameSite: isProd ? 'strict' : 'lax',
-    expires: expiresAt,
-    path: '/'
-  });
-};
+// Removed legacy custom refresh token generator and setter
 
 // Helper to clear refresh token cookie
 const clearRefreshTokenCookie = (res) => {
   res.clearCookie('refresh_token', { path: '/' });
+};
+
+// Helper to set Supabase refresh token cookie
+const setSbRefreshTokenCookie = (res, token, maxAgeDays = 30) => {
+  const isProd = process.env.NODE_ENV === 'production';
+  const expires = new Date(Date.now() + maxAgeDays * 24 * 60 * 60 * 1000);
+  res.cookie('sb_refresh_token', token, {
+    httpOnly: true,
+    secure: isProd ? true : false,
+    sameSite: isProd ? 'strict' : 'lax',
+    expires,
+    path: '/'
+  });
+};
+
+const clearSbRefreshTokenCookie = (res) => {
+  res.clearCookie('sb_refresh_token', { path: '/' });
 };
 
 const resetPassword = async (req, res) => {
@@ -289,22 +298,15 @@ const login = async (req, res) => {
       console.error('Authentication error:', authError);
       return res.status(401).json({ message: 'Invalid employee number or password' });
     }
-    // Step 4: Issue refresh token
-    const refreshToken = generateRefreshToken();
-    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
-    // Store refresh token in DB
-    const { error: refreshError } = await supabaseAdmin
-      .from('refresh_tokens')
-      .insert({
-        user_id: userData.id,
-        token: refreshToken,
-        expires_at: expiresAt.toISOString(),
-      });
-    if (refreshError) {
-      console.error('Error storing refresh token:', refreshError);
-      return res.status(500).json({ message: 'Failed to issue refresh token' });
+    // Step 4: Persist Supabase refresh token
+    const sbRefreshToken = authData.session?.refresh_token;
+    if (!sbRefreshToken) {
+      console.error('No Supabase refresh token found on login response');
+      return res.status(500).json({ message: 'Login session missing refresh token' });
     }
-    setRefreshTokenCookie(res, refreshToken, expiresAt);
+    // Ensure any legacy cookie is removed so only sb_refresh_token remains
+    clearRefreshTokenCookie(res);
+    setSbRefreshTokenCookie(res, sbRefreshToken);
     
     // Step 5: Fetch barangay assignment for role 7 users (Barangay Officials)
     let barangayAssignment = null;
@@ -361,57 +363,26 @@ const login = async (req, res) => {
     res.status(500).json({ message: 'Internal server error', error: error.message });
   }
 };
-// Refresh endpoint with Supabase access token issuing logic
+// Refresh endpoint using Supabase refresh token
 const refresh = async (req, res) => {
   try {
-    console.log('--- REFRESH ENDPOINT DEBUG ---');
-    console.log('Cookies:', req.cookies);
-    console.log('Body:', req.body);
-    const refreshToken = req.cookies?.refresh_token || req.body.refresh_token;
-    console.log('Refresh token received:', refreshToken);
-    if (!refreshToken) {
-      console.log('No refresh token provided');
+    const sbRefreshToken = req.cookies?.sb_refresh_token || req.body?.sb_refresh_token;
+    if (!sbRefreshToken) {
       return res.status(401).json({ message: 'No refresh token provided' });
     }
-    // Find token in DB
-    const { data: tokenRow, error } = await supabaseAdmin
-      .from('refresh_tokens')
-      .select('id, user_id, expires_at, revoked')
-      .eq('token', refreshToken)
-      .single();
-    console.log('Token row from DB:', tokenRow, 'Error:', error);
-    if (error || !tokenRow) {
-      console.log('Invalid refresh token');
-      return res.status(401).json({ message: 'Invalid refresh token' });
+
+    const { data, error } = await supabasePublic.auth.refreshSession({ refresh_token: sbRefreshToken });
+    if (error || !data?.session) {
+      return res.status(401).json({ message: 'Invalid or expired refresh token', error: error?.message });
     }
-    if (tokenRow.revoked || new Date(tokenRow.expires_at) < new Date()) {
-      console.log('Refresh token expired or revoked');
-      return res.status(401).json({ message: 'Refresh token expired or revoked' });
+
+    // If Supabase rotated the refresh token, update cookie
+    const rotated = data.session.refresh_token;
+    if (rotated && rotated !== sbRefreshToken) {
+      setSbRefreshTokenCookie(res, rotated);
     }
-    // Get user profile and auth id
-    const { data: userData, error: userError } = await supabaseAdmin
-      .from('users')
-      .select('id, users_profile!inner(id, email, user_id, role_id)')
-      .eq('id', tokenRow.user_id)
-      .single();
-    console.log('User data from DB:', userData, 'Error:', userError);
-    if (userError || !userData) {
-      console.log('User not found');
-      return res.status(401).json({ message: 'User not found' });
-    }
-    // Get a new Supabase access token for the user
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.generateLink({
-      type: 'magiclink',
-      email: userData.users_profile.email
-    });
-    if (authError || !authData) {
-      console.log('Failed to generate new Supabase access token');
-      return res.status(500).json({ message: 'Failed to generate new access token', error: authError?.message });
-    }
-    // Note: Supabase admin API does not provide a direct way to issue a new access token for a user.
-    // You may need to use a custom refresh flow or re-authenticate the user.
-    // For now, return an error to indicate this limitation.
-    return res.status(501).json({ message: 'Refresh with Supabase access token is not fully implemented. See backend code for details.' });
+
+    return res.status(200).json({ token: data.session.access_token });
   } catch (error) {
     console.error('Refresh error:', error);
     return res.status(500).json({ message: 'Internal server error', error: error.message });
@@ -421,15 +392,9 @@ const refresh = async (req, res) => {
 // Logout endpoint
 const logout = async (req, res) => {
   try {
-    const refreshToken = req.cookies?.refresh_token || req.body.refresh_token;
-    if (refreshToken) {
-      // Revoke the token in DB
-      await supabaseAdmin
-        .from('refresh_tokens')
-        .update({ revoked: true })
-        .eq('token', refreshToken);
-    }
+    // Clear both legacy and Supabase refresh cookies
     clearRefreshTokenCookie(res);
+    clearSbRefreshTokenCookie(res);
     res.status(200).json({ message: 'Logged out successfully' });
   } catch (error) {
     console.error('Logout error:', error);
