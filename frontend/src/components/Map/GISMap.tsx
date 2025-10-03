@@ -194,38 +194,42 @@ export default function GISMap({ onMarkerClick, onLastUpdatedChange, height = '1
   }, [refreshData, lastUpdated]);
 
   return (
-    <MapContainer
-      center={[13.1391, 123.7438]}
-      zoom={15}
-      scrollWheelZoom={true}
-      style={{ height: height, width: '100%' }} // Use the height prop
-      ref={mapRef}
-      className="z-0"
-    >
-      <TileLayer
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
-      {evacuationCenters.map((center) => (
-        <Marker
-          key={center.id}
-          position={[center.latitude, center.longitude]}
-          icon={getMarkerIcon(center)}
-          eventHandlers={{
-            click: () => handleMarkerClick(center),
-          }}
+<MapContainer
+  center={[13.1391, 123.7438]}
+  zoom={15}
+  scrollWheelZoom={true}
+  style={{ height: height, width: '100%' }} // Use the height prop
+  ref={mapRef}
+  className="z-0"
+>
+  <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+  {evacuationCenters.map((center) => {
+    // Fallback to default coordinates if latitude/longitude is missing or invalid
+    const lat = center.latitude || 0;  // Default latitude value
+    const lon = center.longitude || 0; // Default longitude value
+    return (
+      <Marker
+        key={center.id}
+        position={[lat, lon]} 
+        icon={getMarkerIcon(center)}
+        eventHandlers={{
+          click: () => handleMarkerClick(center),
+        }}
+      >
+        <Tooltip
+          direction="top"
+          offset={[5, -30]}
+          opacity={1}
+          permanent={false}
         >
-          <Tooltip
-            direction="top"
-            offset={[5, -30]}
-            opacity={1}
-            permanent={false}
-          >
-            <div className="px-3 py-1 rounded font-semibold text-sm">
-              {center.name}
-            </div>
-          </Tooltip>
-        </Marker>
-      ))}
-    </MapContainer>
+          <div className="px-3 py-1 rounded font-semibold text-sm">
+            {center.name}
+          </div>
+        </Tooltip>
+      </Marker>
+    );
+  })}
+</MapContainer>
+
   );
 }

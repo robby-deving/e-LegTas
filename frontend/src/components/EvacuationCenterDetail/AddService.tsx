@@ -1,3 +1,4 @@
+//AddService.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,7 @@ interface AddServiceProps {
   onSuccess?: () => void;
   placeholder?: string;
   className?: string;
+  showLabel?: boolean;
 }
 
 const STORAGE_KEY = 'service-suggestions';
@@ -29,7 +31,8 @@ export const AddService: React.FC<AddServiceProps> = ({
   addedBy,
   onSuccess,
   placeholder = "Enter service name",
-  className
+  className,
+  showLabel = true,
 }) => {
   const [inputValue, setInputValue] = useState('');
   const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -201,11 +204,13 @@ export const AddService: React.FC<AddServiceProps> = ({
   };
 
   return (
-    <div className={cn("space-y-1.5", className)}>
+  <div className={cn("space-y-1.5", className)}>
+    {showLabel && (                              
       <Label htmlFor="service-input" className="text-sm font-medium">
         Services
       </Label>
-      <div className="relative">
+    )}                                          
+    <div className="relative">
         <div ref={wrapperRef} className="mt-1.5 flex flex-col sm:flex-row gap-2">
           <div className="relative flex-1">
             <Input

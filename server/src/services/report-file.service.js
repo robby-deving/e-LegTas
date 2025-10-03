@@ -301,25 +301,85 @@ function buildAggregatedStatusCSV({ regs = [], disasterName = '', asOf, barangay
 
 /* ------------------ Aggregated (XLSX via template) ------------------ */
 /* Template: templates/Aggregated.xlsx
-   Banners: A4 = "STATUS REPORT FOR DISASTER", A5 = "as of ..."
-   Headers at row 7–9; first data row = row 10 (A..E). F/G (Outside EC’s) remain blank. */
-async function buildAggregatedStatusXLSX({ regs = [], disasterName = '', asOf, barangayMap }) {
+   Header group layout (by column):
+   A: Name of Evacuation Center
+   B: Address
+   C: Origin of IDP's / Barangay Name
+   D: Inside ECs - Families
+   E: Inside ECs - Persons (Male)
+   F: Inside ECs - Persons (Female)
+   G: Inside ECs - Persons (Total)
+   H: Outside ECs - Families
+   I: Outside ECs - Persons (Male)
+   J: Outside ECs - Persons (Female)
+   K: Outside ECs - Persons (Total)
+   First data row starts at row 11.
+*/
+async function buildAggregatedStatusXLSX({
+  regs = [],
+  disasterName = "",
+  asOf,
+  barangayMap,
+  /** Checkbox selections from the modal. */
+  fields,
+}) {
+  // ---- derive which columns to show from checkbox selections ----
+  const want = {
+    nameOfCenter: fields?.nameOfCenter ?? true,
+    address: fields?.address ?? true,
+    origin: fields?.origin ?? true,
+
+    // Inside ECs
+    insideFamilies: fields?.displaced?.inside?.families ?? true,
+    insideMale: fields?.displaced?.inside?.persons?.male ?? false,
+    insideFemale: fields?.displaced?.inside?.persons?.female ?? false,
+    // default to showing TOTAL if no specific inside persons boxes were provided
+    insideTotal: (fields?.displaced?.inside?.persons?.total ?? null)
+      ?? (!fields?.displaced?.inside?.persons ? true : false),
+
+    // Outside ECs
+    outsideFamilies: fields?.displaced?.outside?.families ?? false,
+    outsideMale: fields?.displaced?.outside?.persons?.male ?? false,
+    outsideFemale: fields?.displaced?.outside?.persons?.female ?? false,
+    outsideTotal: fields?.displaced?.outside?.persons?.total ?? false,
+  };
+
+  const anyInside = want.insideFamilies || want.insideMale || want.insideFemale || want.insideTotal;
+  const anyOutside = want.outsideFamilies || want.outsideMale || want.outsideFemale || want.outsideTotal;
+
+  // Column map (1-indexed)
+  const COL = {
+    nameOfCenter: 1,
+    address: 2,
+    origin: 3,
+    insideFamilies: 4,
+    insideMale: 5,
+    insideFemale: 6,
+    insideTotal: 7,
+    outsideFamilies: 8,
+    outsideMale: 9,
+    outsideFemale: 10,
+    outsideTotal: 11,
+  };
+
+  // ---- aggregate (compute families + sex breakdown) ----
   const byBgy = new Map();
 
   for (const r of regs) {
     const ec = r?.evacuation_center_rooms?.evacuation_centers || {};
-    const ecName = ec?.name ?? '';
-    const bgyRaw = ec?.barangays?.name || asBarangayName(ec?.address || '');
+    const ecName = ec?.name ?? "";
+    const bgyRaw = ec?.barangays?.name || asBarangayName(ec?.address || "");
     const barangay = normalizeBarangayLabel(bgyRaw);
 
     if (!byBgy.has(barangay)) {
       byBgy.set(barangay, {
         barangay,
         ecNames: new Set(),
-        address: barangay || '',
+        address: barangay || "",
         originNames: new Set(),
-        persons: 0,
         familiesKeys: new Set(),
+        male: 0,
+        female: 0,
       });
     }
     const bucket = byBgy.get(barangay);
@@ -328,71 +388,142 @@ async function buildAggregatedStatusXLSX({ regs = [], disasterName = '', asOf, b
 
     const famKey = r.family_head_id ?? `solo:${r.evacuee_resident_id}`;
     bucket.familiesKeys.add(famKey);
-    bucket.persons += 1;
 
+    const resident = r?.evacuee_residents?.residents || {};
     const snap = parseMaybeJSON(r?.profile_snapshot, {}) || {};
-    const residentJoinName = r?.evacuee_residents?.residents?.barangays?.name || '';
-    const originFinal = resolveBarangayLabel(snap.barangay_of_origin, residentJoinName, barangayMap);
+    const residentJoinName = resident?.barangays?.name || "";
+    const originFinal = resolveBarangayLabel(
+      snap.barangay_of_origin,
+      residentJoinName,
+      barangayMap
+    );
     if (originFinal) bucket.originNames.add(originFinal);
+
+    const sexVal = (snap.sex ?? resident.sex ?? '').toString().toLowerCase();
+    if (sexVal === 'male') bucket.male += 1;
+    else if (sexVal === 'female') bucket.female += 1;
   }
 
   const rows = Array.from(byBgy.values()).sort((a, b) => {
     const ra = barangayRankOf(a.barangay);
     const rb = barangayRankOf(b.barangay);
     if (ra !== rb) return ra - rb;
-    const aFirst = Array.from(a.ecNames).sort()[0] || '';
-    const bFirst = Array.from(b.ecNames).sort()[0] || '';
+    const aFirst = Array.from(a.ecNames).sort()[0] || "";
+    const bFirst = Array.from(b.ecNames).sort()[0] || "";
     return aFirst.localeCompare(bFirst);
   });
 
-  const templatePath = path.resolve(__dirname, '../../templates/Aggregated.xlsx');
+  const templatePath = path.resolve(__dirname, "../../templates/Aggregated.xlsx");
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.readFile(templatePath);
-  const ws = wb.getWorksheet('Sheet1') || wb.worksheets[0];
+  const ws = wb.getWorksheet("Sheet1") || wb.worksheets[0];
 
-  ws.getCell('A4').value = `STATUS REPORT FOR ${(disasterName || '').toUpperCase()}`;
-  ws.getCell('A5').value = `as of ${formatAsOf(asOf)}`;
+  // Titles
+  ws.getCell("A4").value = `STATUS REPORT FOR ${(disasterName || "").toUpperCase()}`;
+  ws.getCell("A5").value = `as of ${formatAsOf(asOf)}`;
 
-  const START = 10;
+  // Clear data area (A11:K2009) per template
+  const START = 11;
   for (let r = START; r < START + 2000; r++) {
-    for (let c = 1; c <= 7; c++) ws.getCell(r, c).value = null;
+    for (let c = 1; c <= 11; c++) ws.getCell(r, c).value = null;
   }
 
-  let totalFamilies = 0, totalPersons = 0;
+  // Write rows based on selected columns
+  let totalFamilies = 0,
+      totalMale = 0,
+      totalFemale = 0;
 
   rows.forEach((g, i) => {
     const r = START + i;
-    const nameJoined = Array.from(g.ecNames).sort((a,b)=>a.localeCompare(b)).join(', ');
-    ws.getCell(r, 1).value = nameJoined || '';
-    ws.getCell(r, 2).value = g.address || '';
-    ws.getCell(r, 3).value = Array.from(g.originNames).sort((a,b)=>a.localeCompare(b)).join(' / ');
+    const nameJoined = Array.from(g.ecNames)
+      .sort((a, b) => a.localeCompare(b))
+      .join(", ");
+
+    if (want.nameOfCenter) ws.getCell(r, COL.nameOfCenter).value = nameJoined || "";
+    if (want.address) ws.getCell(r, COL.address).value = g.address || "";
+    if (want.origin)
+      ws.getCell(r, COL.origin).value = Array.from(g.originNames)
+        .sort((a, b) => a.localeCompare(b))
+        .join(" / ");
+
     const fam = Number(g.familiesKeys.size) || 0;
-    const per = Number(g.persons) || 0;
-    ws.getCell(r, 4).value = fam;
-    ws.getCell(r, 5).value = per;
+    const male = Number(g.male) || 0;
+    const female = Number(g.female) || 0;
+    const total = male + female;
+
+    if (want.insideFamilies) ws.getCell(r, COL.insideFamilies).value = fam;
+    if (want.insideMale) ws.getCell(r, COL.insideMale).value = male;
+    if (want.insideFemale) ws.getCell(r, COL.insideFemale).value = female;
+    if (want.insideTotal) ws.getCell(r, COL.insideTotal).value = total;
+
+    // Outside columns are currently not computed in regs; leave blank if requested
+    if (want.outsideFamilies) ws.getCell(r, COL.outsideFamilies).value = null;
+    if (want.outsideMale) ws.getCell(r, COL.outsideMale).value = null;
+    if (want.outsideFemale) ws.getCell(r, COL.outsideFemale).value = null;
+    if (want.outsideTotal) ws.getCell(r, COL.outsideTotal).value = null;
+
     totalFamilies += fam;
-    totalPersons  += per;
+    totalMale += male;
+    totalFemale += female;
   });
 
+  // Totals row (only where shown)
   const totalRow = START + rows.length;
-  ws.getCell(totalRow, 1).value = 'TOTAL';
-  ws.getCell(totalRow, 2).value = '-----';
-  ws.getCell(totalRow, 3).value = '-----';
-  ws.getCell(totalRow, 4).value = totalFamilies;
-  ws.getCell(totalRow, 5).value = totalPersons;
-  ws.getCell(totalRow, 6).value = '-----';
-  ws.getCell(totalRow, 7).value = '-----';
+  ws.getCell(totalRow, 1).value = "TOTAL";
+  if (want.address) ws.getCell(totalRow, 2).value = "-----";
+  if (want.origin) ws.getCell(totalRow, 3).value = "-----";
+  if (want.insideFamilies) ws.getCell(totalRow, COL.insideFamilies).value = totalFamilies;
+  if (want.insideMale) ws.getCell(totalRow, COL.insideMale).value = totalMale;
+  if (want.insideFemale) ws.getCell(totalRow, COL.insideFemale).value = totalFemale;
+  if (want.insideTotal) ws.getCell(totalRow, COL.insideTotal).value = totalMale + totalFemale;
+  if (want.outsideFamilies) ws.getCell(totalRow, COL.outsideFamilies).value = "-----";
+  if (want.outsideMale) ws.getCell(totalRow, COL.outsideMale).value = "-----";
+  if (want.outsideFemale) ws.getCell(totalRow, COL.outsideFemale).value = "-----";
+  if (want.outsideTotal) ws.getCell(totalRow, COL.outsideTotal).value = "-----";
+
+  // Hide unselected columns so the template looks clean
+  const showByCol = {
+    1: want.nameOfCenter,
+    2: want.address,
+    3: want.origin,
+    4: want.insideFamilies,
+    5: want.insideMale,
+    6: want.insideFemale,
+    7: want.insideTotal,
+    8: want.outsideFamilies,
+    9: want.outsideMale,
+    10: want.outsideFemale,
+    11: want.outsideTotal,
+  };
+  for (let c = 1; c <= 11; c++) {
+    ws.getColumn(c).hidden = !showByCol[c];
+  }
+
+  // Optional: if entire groups are off, clear their header captions (keeps template neat)
+  // These cells are from the template; if row numbers shift, adjust here.
+  try {
+    if (!anyInside) {
+      // Clear Inside EC's headers across D..G in rows 8-9 if present
+      ['D8','E8','F8','G8','D9','E9','F9','G9'].forEach(addr => { const cell = ws.getCell(addr); if (cell) cell.value = ''; });
+    }
+    if (!anyOutside) {
+      // Clear Outside EC's headers across H..K in rows 8-9 if present
+      ['H8','I8','J8','K8','H9','I9','J9','K9'].forEach(addr => { const cell = ws.getCell(addr); if (cell) cell.value = ''; });
+    }
+  } catch (_) { /* non-fatal if headers differ */ }
 
   autoFitWorksheet(ws, { min: 10, max: 60 });
 
   const buffer = await wb.xlsx.writeBuffer();
   return {
     buffer,
-    contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    ext: 'xlsx',
-    filenameBase: `${SLUG('aggregated-status')}`,
+    contentType:
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ext: "xlsx",
+    filenameBase: `${SLUG("aggregated-status")}`,
   };
 }
+
 
 /* ------------------ Disaggregated (XLSX via template) ------------------ */
 async function buildDisaggregatedXLSX({ regs = [], disasterName = '', asOf, vulnMap, barangayMap }) {
@@ -1495,7 +1626,7 @@ async function generateReportFile({
 
   if (fileFormat === 'XLSX') {
     if (/^aggregated/.test(type)) {
-      return await buildAggregatedStatusXLSX({ regs, disasterName, asOf, barangayMap });
+      return await buildAggregatedStatusXLSX({ regs, disasterName, asOf, barangayMap, fields, });
     }
     if (/^disaggregated/.test(type)) {
       return await buildDisaggregatedXLSX({ regs, disasterName, asOf, vulnMap, barangayMap });

@@ -99,10 +99,8 @@ async function fetchRegistrationsForEvents(eventIds = []) {
         id,
         room_name,
         evacuation_centers:evacuation_center_id (
-          id,
-          name,
-          address,
-          barangay_id,
+        id, name, address, category, barangay_id,
+
           barangays:barangay_id ( id, name )
         )
       )
@@ -181,6 +179,7 @@ exports.generateReport = async (req, res, next) => {
       file_format,
       generated_by_user_id, // optional fallback from client
       barangay_id,          // required for Per Barangay
+      fields,
     } = req.body || {};
 
     // --- required fields ---
@@ -316,6 +315,7 @@ exports.generateReport = async (req, res, next) => {
         barangayMap,  
         barangayId,    
         barangayName,  
+        fields,
       });
       ({ buffer, contentType, ext, filenameBase } = gen);
     } catch (e) {
