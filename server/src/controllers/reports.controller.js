@@ -179,7 +179,7 @@ exports.generateReport = async (req, res, next) => {
       file_format,
       generated_by_user_id, // optional fallback from client
       barangay_id,          // required for Per Barangay
-      fields,
+        fields = null, 
     } = req.body || {};
 
     // --- required fields ---
@@ -315,7 +315,7 @@ exports.generateReport = async (req, res, next) => {
         barangayMap,  
         barangayId,    
         barangayName,  
-        fields,
+         fields: (fields && typeof fields === 'object') ? fields : undefined,
       });
       ({ buffer, contentType, ext, filenameBase } = gen);
     } catch (e) {

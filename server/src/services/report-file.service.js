@@ -1,15 +1,6 @@
 // server/src/services/report-file.service.js
 const ExcelJS = require('exceljs');
 const path = require('path');
-const puppeteer = require('puppeteer');
-
-const LAUNCH_OPTS = {
-  headless: 'new',
-  args: ['--no-sandbox', '--disable-setuid-sandbox'],
-  ...(process.env.PUPPETEER_EXECUTABLE_PATH
-    ? { executablePath: process.env.PUPPETEER_EXECUTABLE_PATH }
-    : {})
-};
 
 class NotImplementedError extends Error {}
 
@@ -23,26 +14,6 @@ const escapeCSV = (v) => {
 };
 const row = (arr) => arr.map(escapeCSV).join(',');
 
-const PRINT_BASE_URL = process.env.PRINT_BASE_URL || 'https://api.e-legtas.tech/print';
-
-// Default PDF options from env (format or width/height)
-const DEFAULT_PDF_OPTS = (() => {
-  const base = {
-    printBackground: true,
-    landscape: String(process.env.PDF_LANDSCAPE).toLowerCase() === 'true',
-    margin: {
-      top:    process.env.PDF_MARGIN_TOP    || process.env.PDF_MARGIN || '5mm',
-      right:  process.env.PDF_MARGIN_RIGHT  || process.env.PDF_MARGIN || '5mm',
-      bottom: process.env.PDF_MARGIN_BOTTOM || process.env.PDF_MARGIN || '5mm',
-      left:   process.env.PDF_MARGIN_LEFT   || process.env.PDF_MARGIN || '5mm',
-    },
-  };
-  const w = process.env.PDF_WIDTH;
-  const h = process.env.PDF_HEIGHT;
-  if (w && h) return { ...base, width: w, height: h };
-  return { ...base, format: process.env.PDF_FORMAT || 'A4' };
-})();
-
 function formatAsOf(asOfISO) {
   const d = new Date(asOfISO);
   const day = d.getDate();
@@ -53,18 +24,6 @@ function formatAsOf(asOfISO) {
   h = h % 12 || 12;
   const time = m === 0 ? `${h}${ampm}` : `${h}:${String(m).padStart(2, '0')} ${ampm}`;
   return `${day} ${month} ${year}, ${time}`;
-}
-
-function splitAsOf(asOfISO) {
-  const d = new Date(asOfISO);
-  const day = d.getDate();
-  const month = d.toLocaleString('en-US', { month: 'long' });
-  const year = d.getFullYear();
-  let h = d.getHours(), m = d.getMinutes();
-  const ampm = h >= 12 ? 'PM' : 'AM';
-  h = h % 12 || 12;
-  const time = m === 0 ? `${h}${ampm}` : `${h}:${String(m).padStart(2, '0')} ${ampm}`;
-  return { reportDate: `${day} ${month} ${year}`, reportTime: time };
 }
 
 const normalizeBarangayLabel = (s) => String(s || '').replace(/\s+/g, ' ').trim();
@@ -334,8 +293,9 @@ async function buildAggregatedStatusXLSX({
     insideMale: fields?.displaced?.inside?.persons?.male ?? false,
     insideFemale: fields?.displaced?.inside?.persons?.female ?? false,
     // default to showing TOTAL if no specific inside persons boxes were provided
-    insideTotal: (fields?.displaced?.inside?.persons?.total ?? null)
-      ?? (!fields?.displaced?.inside?.persons ? true : false),
+    insideTotal:
+      (fields?.displaced?.inside?.persons?.total ?? null) ??
+      (!fields?.displaced?.inside?.persons ? true : false),
 
     // Outside ECs
     outsideFamilies: fields?.displaced?.outside?.families ?? false,
@@ -344,8 +304,10 @@ async function buildAggregatedStatusXLSX({
     outsideTotal: fields?.displaced?.outside?.persons?.total ?? false,
   };
 
-  const anyInside = want.insideFamilies || want.insideMale || want.insideFemale || want.insideTotal;
-  const anyOutside = want.outsideFamilies || want.outsideMale || want.outsideFemale || want.outsideTotal;
+  const anyInside =
+    want.insideFamilies || want.insideMale || want.insideFemale || want.insideTotal;
+  const anyOutside =
+    want.outsideFamilies || want.outsideMale || want.outsideFemale || want.outsideTotal;
 
   // Column map (1-indexed)
   const COL = {
@@ -363,47 +325,74 @@ async function buildAggregatedStatusXLSX({
   };
 
   // ---- aggregate (compute families + sex breakdown) ----
+  // Bucket keyed by barangay label (chronological order applied later)
   const byBgy = new Map();
 
   for (const r of regs) {
-    const ec = r?.evacuation_center_rooms?.evacuation_centers || {};
+    const ecRoom = r?.evacuation_center_rooms || null;
+    const ec = ecRoom?.evacuation_centers || null;
     const ecName = ec?.name ?? "";
     const bgyRaw = ec?.barangays?.name || asBarangayName(ec?.address || "");
-    const barangay = normalizeBarangayLabel(bgyRaw);
+    const ecBarangay = normalizeBarangayLabel(bgyRaw);
 
-    if (!byBgy.has(barangay)) {
-      byBgy.set(barangay, {
-        barangay,
-        ecNames: new Set(),
-        address: barangay || "",
-        originNames: new Set(),
-        familiesKeys: new Set(),
-        male: 0,
-        female: 0,
-      });
-    }
-    const bucket = byBgy.get(barangay);
-
-    if (ecName) bucket.ecNames.add(ecName);
-
-    const famKey = r.family_head_id ?? `solo:${r.evacuee_resident_id}`;
-    bucket.familiesKeys.add(famKey);
-
-    const resident = r?.evacuee_residents?.residents || {};
     const snap = parseMaybeJSON(r?.profile_snapshot, {}) || {};
+    const resident = r?.evacuee_residents?.residents || {};
     const residentJoinName = resident?.barangays?.name || "";
     const originFinal = resolveBarangayLabel(
       snap.barangay_of_origin,
       residentJoinName,
       barangayMap
     );
-    if (originFinal) bucket.originNames.add(originFinal);
 
-    const sexVal = (snap.sex ?? resident.sex ?? '').toString().toLowerCase();
-    if (sexVal === 'male') bucket.male += 1;
-    else if (sexVal === 'female') bucket.female += 1;
+    // Heuristic: if no EC assigned, treat as "outside"
+    const isOutside = !r?.ec_rooms_id || !ec?.id;
+
+    // Choose which barangay row to place this person under:
+    // - For inside evacuees, use the EC's barangay (ecBarangay).
+    // - For outside evacuees, use the person's barangay of origin (originFinal).
+    const rowBarangay = normalizeBarangayLabel(isOutside ? originFinal : ecBarangay);
+
+    if (!byBgy.has(rowBarangay)) {
+      byBgy.set(rowBarangay, {
+        barangay: rowBarangay,                 // row key
+        ecNames: new Set(),                    // list ECs in this barangay (may be empty for "outside-only" rows)
+        address: rowBarangay || "",            // show barangay label in Address column
+        originNames: new Set(),                // union of recorded origins
+        // INSIDE buckets
+        insideFamiliesKeys: new Set(),
+        insideMale: 0,
+        insideFemale: 0,
+        // OUTSIDE buckets
+        outsideFamiliesKeys: new Set(),
+        outsideMale: 0,
+        outsideFemale: 0,
+      });
+    }
+
+    const bucket = byBgy.get(rowBarangay);
+
+    // Track EC names only if this record has an EC
+    if (!isOutside && ecName) bucket.ecNames.add(ecName);
+
+    // Count family via a stable key
+    const famKey = r.family_head_id ?? `solo:${r.evacuee_resident_id}`;
+    const sexVal = (snap.sex ?? resident.sex ?? "").toString().toLowerCase();
+
+    if (isOutside) {
+      bucket.outsideFamiliesKeys.add(famKey);
+      if (sexVal === "male") bucket.outsideMale += 1;
+      else if (sexVal === "female") bucket.outsideFemale += 1;
+    } else {
+      bucket.insideFamiliesKeys.add(famKey);
+      if (sexVal === "male") bucket.insideMale += 1;
+      else if (sexVal === "female") bucket.insideFemale += 1;
+    }
+
+    // Always collect origin label when available (for column C)
+    if (originFinal) bucket.originNames.add(originFinal);
   }
 
+  // Sort rows by chronological barangay order; tie-break by first EC name
   const rows = Array.from(byBgy.values()).sort((a, b) => {
     const ra = barangayRankOf(a.barangay);
     const rb = barangayRankOf(b.barangay);
@@ -429,57 +418,85 @@ async function buildAggregatedStatusXLSX({
   }
 
   // Write rows based on selected columns
-  let totalFamilies = 0,
-      totalMale = 0,
-      totalFemale = 0;
+  let totalInsideFamilies = 0,
+      totalInsideMale = 0,
+      totalInsideFemale = 0,
+      totalOutsideFamilies = 0,
+      totalOutsideMale = 0,
+      totalOutsideFemale = 0;
 
-  rows.forEach((g, i) => {
-    const r = START + i;
-    const nameJoined = Array.from(g.ecNames)
-      .sort((a, b) => a.localeCompare(b))
-      .join(", ");
+  if (rows.length === 0) {
+    // If no records, write a single "0s" line
+    const r = START;
+    if (want.nameOfCenter)   ws.getCell(r, COL.nameOfCenter).value = "";
+    if (want.address)        ws.getCell(r, COL.address).value = "";
+    if (want.origin)         ws.getCell(r, COL.origin).value = "";
+    if (want.insideFamilies) ws.getCell(r, COL.insideFamilies).value = 0;
+    if (want.insideMale)     ws.getCell(r, COL.insideMale).value = 0;
+    if (want.insideFemale)   ws.getCell(r, COL.insideFemale).value = 0;
+    if (want.insideTotal)    ws.getCell(r, COL.insideTotal).value = 0;
+    if (want.outsideFamilies) ws.getCell(r, COL.outsideFamilies).value = 0;
+    if (want.outsideMale)     ws.getCell(r, COL.outsideMale).value = 0;
+    if (want.outsideFemale)   ws.getCell(r, COL.outsideFemale).value = 0;
+    if (want.outsideTotal)    ws.getCell(r, COL.outsideTotal).value = 0;
+  } else {
+    rows.forEach((g, i) => {
+      const r = START + i;
 
-    if (want.nameOfCenter) ws.getCell(r, COL.nameOfCenter).value = nameJoined || "";
-    if (want.address) ws.getCell(r, COL.address).value = g.address || "";
-    if (want.origin)
-      ws.getCell(r, COL.origin).value = Array.from(g.originNames)
-        .sort((a, b) => a.localeCompare(b))
-        .join(" / ");
+      const nameJoined = Array.from(g.ecNames).sort((a, b) => a.localeCompare(b)).join(", ");
+      const originJoined = Array.from(g.originNames).sort((a, b) => a.localeCompare(b)).join(" / ");
 
-    const fam = Number(g.familiesKeys.size) || 0;
-    const male = Number(g.male) || 0;
-    const female = Number(g.female) || 0;
-    const total = male + female;
+      const inFam = Number(g.insideFamiliesKeys.size) || 0;
+      const inMale = Number(g.insideMale) || 0;
+      const inFemale = Number(g.insideFemale) || 0;
+      const inTotal = inMale + inFemale;
 
-    if (want.insideFamilies) ws.getCell(r, COL.insideFamilies).value = fam;
-    if (want.insideMale) ws.getCell(r, COL.insideMale).value = male;
-    if (want.insideFemale) ws.getCell(r, COL.insideFemale).value = female;
-    if (want.insideTotal) ws.getCell(r, COL.insideTotal).value = total;
+      const outFam = Number(g.outsideFamiliesKeys.size) || 0;
+      const outMale = Number(g.outsideMale) || 0;
+      const outFemale = Number(g.outsideFemale) || 0;
+      const outTotal = outMale + outFemale;
 
-    // Outside columns are currently not computed in regs; leave blank if requested
-    if (want.outsideFamilies) ws.getCell(r, COL.outsideFamilies).value = null;
-    if (want.outsideMale) ws.getCell(r, COL.outsideMale).value = null;
-    if (want.outsideFemale) ws.getCell(r, COL.outsideFemale).value = null;
-    if (want.outsideTotal) ws.getCell(r, COL.outsideTotal).value = null;
+      if (want.nameOfCenter) ws.getCell(r, COL.nameOfCenter).value = nameJoined || "";
+      if (want.address)      ws.getCell(r, COL.address).value = g.address || "";
+      if (want.origin)       ws.getCell(r, COL.origin).value = originJoined || "";
 
-    totalFamilies += fam;
-    totalMale += male;
-    totalFemale += female;
-  });
+      // Inside block
+      if (want.insideFamilies) ws.getCell(r, COL.insideFamilies).value = inFam;
+      if (want.insideMale)     ws.getCell(r, COL.insideMale).value = inMale;
+      if (want.insideFemale)   ws.getCell(r, COL.insideFemale).value = inFemale;
+      if (want.insideTotal)    ws.getCell(r, COL.insideTotal).value = inTotal;
+
+      // Outside block
+      if (want.outsideFamilies) ws.getCell(r, COL.outsideFamilies).value = outFam;
+      if (want.outsideMale)     ws.getCell(r, COL.outsideMale).value = outMale;
+      if (want.outsideFemale)   ws.getCell(r, COL.outsideFemale).value = outFemale;
+      if (want.outsideTotal)    ws.getCell(r, COL.outsideTotal).value = outTotal;
+
+      // Totals
+      totalInsideFamilies += inFam;
+      totalInsideMale     += inMale;
+      totalInsideFemale   += inFemale;
+      totalOutsideFamilies += outFam;
+      totalOutsideMale     += outMale;
+      totalOutsideFemale   += outFemale;
+    });
+  }
 
   // Totals row (only where shown)
-  const totalRow = START + rows.length;
-  ws.getCell(totalRow, 1).value = "TOTAL";
-  if (want.address) ws.getCell(totalRow, 2).value = "-----";
-  if (want.origin) ws.getCell(totalRow, 3).value = "-----";
-  if (want.insideFamilies) ws.getCell(totalRow, COL.insideFamilies).value = totalFamilies;
-  if (want.insideMale) ws.getCell(totalRow, COL.insideMale).value = totalMale;
-  if (want.insideFemale) ws.getCell(totalRow, COL.insideFemale).value = totalFemale;
-  if (want.insideTotal) ws.getCell(totalRow, COL.insideTotal).value = totalMale + totalFemale;
-  if (want.outsideFamilies) ws.getCell(totalRow, COL.outsideFamilies).value = "-----";
-  if (want.outsideMale) ws.getCell(totalRow, COL.outsideMale).value = "-----";
-  if (want.outsideFemale) ws.getCell(totalRow, COL.outsideFemale).value = "-----";
-  if (want.outsideTotal) ws.getCell(totalRow, COL.outsideTotal).value = "-----";
+  const tRow = START + Math.max(rows.length, 1);
+  ws.getCell(tRow, 1).value = "TOTAL";
+  if (want.address) ws.getCell(tRow, 2).value = "-----";
+  if (want.origin)  ws.getCell(tRow, 3).value = "-----";
+
+  if (want.insideFamilies) ws.getCell(tRow, COL.insideFamilies).value = totalInsideFamilies;
+  if (want.insideMale)     ws.getCell(tRow, COL.insideMale).value     = totalInsideMale;
+  if (want.insideFemale)   ws.getCell(tRow, COL.insideFemale).value   = totalInsideFemale;
+  if (want.insideTotal)    ws.getCell(tRow, COL.insideTotal).value    = totalInsideMale + totalInsideFemale;
+
+  if (want.outsideFamilies) ws.getCell(tRow, COL.outsideFamilies).value = totalOutsideFamilies;
+  if (want.outsideMale)     ws.getCell(tRow, COL.outsideMale).value     = totalOutsideMale;
+  if (want.outsideFemale)   ws.getCell(tRow, COL.outsideFemale).value   = totalOutsideFemale;
+  if (want.outsideTotal)    ws.getCell(tRow, COL.outsideTotal).value    = totalOutsideMale + totalOutsideFemale;
 
   // Hide unselected columns so the template looks clean
   const showByCol = {
@@ -495,35 +512,24 @@ async function buildAggregatedStatusXLSX({
     10: want.outsideFemale,
     11: want.outsideTotal,
   };
-  for (let c = 1; c <= 11; c++) {
-    ws.getColumn(c).hidden = !showByCol[c];
-  }
+  for (let c = 1; c <= 11; c++) ws.getColumn(c).hidden = !showByCol[c];
 
   // Optional: if entire groups are off, clear their header captions (keeps template neat)
-  // These cells are from the template; if row numbers shift, adjust here.
   try {
-    if (!anyInside) {
-      // Clear Inside EC's headers across D..G in rows 8-9 if present
-      ['D8','E8','F8','G8','D9','E9','F9','G9'].forEach(addr => { const cell = ws.getCell(addr); if (cell) cell.value = ''; });
-    }
-    if (!anyOutside) {
-      // Clear Outside EC's headers across H..K in rows 8-9 if present
-      ['H8','I8','J8','K8','H9','I9','J9','K9'].forEach(addr => { const cell = ws.getCell(addr); if (cell) cell.value = ''; });
-    }
-  } catch (_) { /* non-fatal if headers differ */ }
+    if (!anyInside)  ['D8','E8','F8','G8','D9','E9','F9','G9'].forEach(a => { const cell = ws.getCell(a); if (cell) cell.value = ''; });
+    if (!anyOutside) ['H8','I8','J8','K8','H9','I9','J9','K9'].forEach(a => { const cell = ws.getCell(a); if (cell) cell.value = ''; });
+  } catch (_) { /* non-fatal */ }
 
   autoFitWorksheet(ws, { min: 10, max: 60 });
 
   const buffer = await wb.xlsx.writeBuffer();
   return {
     buffer,
-    contentType:
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     ext: "xlsx",
     filenameBase: `${SLUG("aggregated-status")}`,
   };
 }
-
 
 /* ------------------ Disaggregated (XLSX via template) ------------------ */
 async function buildDisaggregatedXLSX({ regs = [], disasterName = '', asOf, vulnMap, barangayMap }) {
@@ -1187,400 +1193,6 @@ function buildPerBarangayCSV({ regs = [], disasterName = '', asOf, vulnMap, bara
   return Buffer.from(csv, 'utf8');
 }
 
-
-/* ================== NEW: PDF helpers (via Puppeteer) ================== */
-function encodeProps(props) {
-  return Buffer.from(JSON.stringify(props || {}), 'utf8').toString('base64');
-}
-
-
-// keep your LAUNCH_OPTS and DEFAULT_PDF_OPTS as you have them
-
-async function renderTemplatePDF({ templateKey, props, pdfOptions = {} }) {
-  if (!PRINT_BASE_URL) throw new Error('PRINT_BASE_URL is not configured.');
-  const url = `${PRINT_BASE_URL}?t=${encodeURIComponent(templateKey)}`;
-
-  const browser = await puppeteer.launch(LAUNCH_OPTS);
-  try {
-    const page = await browser.newPage();
-
-    page.setDefaultNavigationTimeout(120000);
-    page.setDefaultTimeout(120000);
-    page.on('console', m => console.log('[print console]', m.type(), m.text()));
-    page.on('pageerror', e => console.error('[print pageerror]', e));
-    page.on('requestfailed', r => console.warn('[print req failed]', r.url(), r.failure()?.errorText));
-
-    // inject props for the SPA
-    await page.evaluateOnNewDocument((p) => {
-      // @ts-ignore
-      window.__PRINT_PROPS = p;
-      try { sessionStorage.setItem('print:props', JSON.stringify(p)); } catch {}
-    }, props);
-
-    await page.goto(url, { waitUntil: 'domcontentloaded' });
-    await page.waitForSelector('#print-ready', { timeout: 120000 });
-
-    const buffer = await page.pdf({
-      ...DEFAULT_PDF_OPTS,      
-      preferCSSPageSize: false, 
-      ...pdfOptions,            
-    });
-
-    return buffer;
-  } finally {
-    await browser.close();
-  }
-}
-
-// Build props for Aggregated template and print to PDF
-async function buildAggregatedStatusPDF({ regs = [], disasterName = '', asOf, barangayMap }) {
-  const byBgy = new Map();
-
-  for (const r of regs) {
-    const ec = r?.evacuation_center_rooms?.evacuation_centers || {};
-    const ecName = ec?.name ?? '';
-    const bgyRaw = ec?.barangays?.name || asBarangayName(ec?.address || '');
-    const barangay = normalizeBarangayLabel(bgyRaw);
-
-    if (!byBgy.has(barangay)) {
-      byBgy.set(barangay, {
-        barangay,
-        ecNames: new Set(),
-        address: barangay || '',
-        originNames: new Set(),
-        persons: 0,
-        familiesKeys: new Set(),
-      });
-    }
-    const bucket = byBgy.get(barangay);
-
-    if (ecName) bucket.ecNames.add(ecName);
-
-    const famKey = r.family_head_id ?? `solo:${r.evacuee_resident_id}`;
-    bucket.familiesKeys.add(famKey);
-    bucket.persons += 1;
-
-    const snap = parseMaybeJSON(r?.profile_snapshot, {}) || {};
-    const residentJoinName = r?.evacuee_residents?.residents?.barangays?.name || '';
-    const originFinal = resolveBarangayLabel(snap.barangay_of_origin, residentJoinName, barangayMap);
-    if (originFinal) bucket.originNames.add(originFinal);
-  }
-
-  const rows = Array.from(byBgy.values()).sort((a, b) => {
-    const ra = barangayRankOf(a.barangay);
-    const rb = barangayRankOf(b.barangay);
-    if (ra !== rb) return ra - rb;
-    const aFirst = Array.from(a.ecNames).sort()[0] || '';
-    const bFirst = Array.from(b.ecNames).sort()[0] || '';
-    return aFirst.localeCompare(bFirst);
-  });
-
-  // Map to template shape (join EC names by comma)
-  const evacuationCenters = rows.map(v => ({
-    name: Array.from(v.ecNames).sort((a,b)=>a.localeCompare(b)).join(', ') || '',
-    address: v.address || '',
-    originBarangay: Array.from(v.originNames).sort((a,b)=>a.localeCompare(b)).join(' / '),
-    insideFamilies: v.familiesKeys.size || 0,
-    insidePersons: v.persons || 0,
-    outsideFamilies: null,     // keep null unless your template expects 0
-    outsidePersons: null,
-  }));
-
-  const { reportDate, reportTime } = splitAsOf(asOf);
-  const props = { disasterEvent: disasterName || '', reportDate, reportTime, evacuationCenters };
-  const buffer = await renderTemplatePDF({ templateKey: 'aggregated', props });
-  return {
-    buffer,
-    contentType: 'application/pdf',
-    ext: 'pdf',
-    filenameBase: `${SLUG('aggregated-status')}`,
-  };
-}
-
-
-// Build props for Disaggregated template and print to PDF
-async function buildDisaggregatedPDF({ regs = [], disasterName = '', asOf, vulnMap, barangayMap }) {
-  const byBgy = new Map(); // key: barangay
-
-  for (const r of regs) {
-    const resident = r?.evacuee_residents?.residents || {};
-    const snap = parseMaybeJSON(r?.profile_snapshot, {}) || {};
-
-    const sexVal = (snap.sex ?? resident.sex ?? '').toString().toLowerCase();
-    const birthdate = snap.birthdate ?? resident.birthdate ?? null;
-    const residentJoinName = resident?.barangays?.name || '';
-    const barangay = resolveBarangayLabel(snap.barangay_of_origin, residentJoinName, barangayMap);
-    const ecName = r?.evacuation_center_rooms?.evacuation_centers?.name || '';
-
-    if (!byBgy.has(barangay)) {
-      byBgy.set(barangay, {
-        barangay,
-        ecNames: new Set(),
-        familyKeys: new Set(),
-        male: 0, female: 0, total: 0,
-        infants: 0, children: 0, youth: 0, adults: 0, seniors: 0,
-        pwd: 0, pregnant: 0, lactating: 0,
-      });
-    }
-    const g = byBgy.get(barangay);
-
-    if (ecName) g.ecNames.add(ecName);
-
-    const famKey = r.family_head_id ?? `solo:${r.evacuee_resident_id}`;
-    g.familyKeys.add(famKey);
-
-    if (sexVal === 'male') g.male += 1;
-    else if (sexVal === 'female') g.female += 1;
-
-    const age = ageInYears(birthdate, asOf);
-    if (age != null) {
-      if (age <= 1) g.infants += 1;
-      else if (age <= 12) g.children += 1;
-      else if (age <= 17) g.youth += 1;
-      else if (age <= 59) g.adults += 1;
-      else g.seniors += 1;
-    }
-    g.total += 1;
-
-    let ids = r.vulnerability_type_ids;
-    if (!Array.isArray(ids)) ids = parseMaybeJSON(ids, []);
-    if (vulnMap?.pwd != null && ids.includes(vulnMap.pwd)) g.pwd += 1;
-    if (vulnMap?.pregnant != null && ids.includes(vulnMap.pregnant)) g.pregnant += 1;
-    if (vulnMap?.lactating != null && ids.includes(vulnMap.lactating)) g.lactating += 1;
-  }
-
-  const rows = Array.from(byBgy.values()).sort((a, b) => {
-    const ra = barangayRankOf(a.barangay);
-    const rb = barangayRankOf(b.barangay);
-    if (ra !== rb) return ra - rb;
-    const aFirst = Array.from(a.ecNames).sort()[0] || '';
-    const bFirst = Array.from(b.ecNames).sort()[0] || '';
-    return aFirst.localeCompare(bFirst);
-  });
-
-  const evacuationSites = rows.map(g => ({
-    barangay: g.barangay || '',
-    evacuationCenter: Array.from(g.ecNames).sort((a,b)=>a.localeCompare(b)).join(', ') || '',
-    families: g.familyKeys.size || 0,
-    male: g.male || 0,
-    female: g.female || 0,
-    total: g.total || 0,
-    infant: g.infants || 0,
-    children: g.children || 0,
-    youth: g.youth || 0,
-    adult: g.adults || 0,
-    seniorCitizens: g.seniors || 0,
-    pwd: g.pwd || 0,
-    pregnant: g.pregnant || 0,
-    lactating: g.lactating || 0,
-  }));
-
-  const { reportDate, reportTime } = splitAsOf(asOf);
-  const props = {
-    disasterEvent: disasterName || '',
-    reportDate,
-    reportTime,
-    evacuationSites,
-    showTotals: true,
-  };
-  const buffer = await renderTemplatePDF({ templateKey: 'disaggregated', props });
-  return {
-    buffer,
-    contentType: 'application/pdf',
-    ext: 'pdf',
-    filenameBase: `${SLUG('disaggregated-status')}`,
-  };
-}
-
-
-// Build props for Barangay template and print to PDF
-async function buildPerBarangayPDF({ regs = [], disasterName = '', asOf, vulnMap, barangayMap, barangayName }) {
-  const TARGET_LABEL = normalizeBarangayLabel(barangayName || '');
-  const families = new Map();
-
-  // -------- collect family rows (same as before) --------
-  for (const r of regs) {
-    const resident = r?.evacuee_residents?.residents || {};
-    const snap = parseMaybeJSON(r?.profile_snapshot, {}) || {};
-    const residentJoinName = resident?.barangays?.name || '';
-    const originLabel = resolveBarangayLabel(snap.barangay_of_origin, residentJoinName, barangayMap);
-    if (originLabel !== TARGET_LABEL) continue;
-
-    const famKey = r.family_head_id ?? `solo:${r.evacuee_resident_id}`;
-    if (!families.has(famKey)) {
-      families.set(famKey, {
-        ecName: r?.evacuation_center_rooms?.evacuation_centers?.name || '',
-        headName: null,
-        purok: null,
-        male: 0, female: 0, total: 0,
-        infant: 0, children: 0, youth: 0, adult: 0, seniorCitizens: 0,
-        pwd: 0, pregnant: 0, lactating: 0,
-      });
-    }
-    const f = families.get(famKey);
-
-    if (!f.ecName && r?.evacuation_center_rooms?.evacuation_centers?.name) {
-      f.ecName = r.evacuation_center_rooms.evacuation_centers.name;
-    }
-
-    const rel = snap.relationship_to_family_head ?? r?.evacuee_residents?.relationship_to_family_head ?? null;
-    const name = buildFullName({
-      first_name: snap.first_name ?? resident.first_name ?? null,
-      middle_name: snap.middle_name ?? resident.middle_name ?? null,
-      last_name:  snap.last_name  ?? resident.last_name  ?? null,
-      suffix: (Object.prototype.hasOwnProperty.call(snap, 'suffix') ? snap.suffix : resident.suffix) ?? null,
-    });
-    if (rel === 'Head' && !f.headName) f.headName = name;
-
-    if (!f.purok) {
-      const purokLabel = snap.purok ?? null;
-      if (purokLabel != null && String(purokLabel).trim() !== '') f.purok = String(purokLabel);
-    }
-
-    const sex = (snap.sex ?? resident.sex ?? '').toString().toLowerCase();
-    if (sex === 'male') f.male += 1;
-    else if (sex === 'female') f.female += 1;
-
-    const age = ageInYears(snap.birthdate ?? resident.birthdate ?? null, asOf);
-    if (age != null) {
-      if (age <= 1) f.infant += 1;
-      else if (age <= 12) f.children += 1;
-      else if (age <= 17) f.youth += 1;
-      else if (age <= 59) f.adult += 1;
-      else f.seniorCitizens += 1;
-    }
-
-    f.total += 1;
-
-    let ids = r.vulnerability_type_ids;
-    if (!Array.isArray(ids)) ids = parseMaybeJSON(ids, []);
-    if (vulnMap?.pwd != null && ids.includes(vulnMap.pwd)) f.pwd += 1;
-    if (vulnMap?.pregnant != null && ids.includes(vulnMap.pregnant)) f.pregnant += 1;
-    if (vulnMap?.lactating != null && ids.includes(vulnMap.lactating)) f.lactating += 1;
-  }
-
-  // -------- shape evacuees per EC (detail rows) --------
-  const evacByCenter = new Map();
-  for (const f of families.values()) {
-    if (!evacByCenter.has(f.ecName)) evacByCenter.set(f.ecName, []);
-    evacByCenter.get(f.ecName).push({
-      familyHead: f.headName || '',
-      purok: f.purok || '',
-      male: Number(f.male) || 0,
-      female: Number(f.female) || 0,
-      total: Number(f.total) || 0,
-      infant: Number(f.infant) || 0,
-      children: Number(f.children) || 0,
-      youth: Number(f.youth) || 0,
-      adult: Number(f.adult) || 0,
-      seniorCitizens: Number(f.seniorCitizens) || 0,
-      pwd: Number(f.pwd) || 0,
-      pregnant: Number(f.pregnant) || 0,
-      lactating: Number(f.lactating) || 0,
-    });
-  }
-
-  // -------- compute per-EC subtotals (ALWAYS numbers, 0 if none) --------
-  const centerAgg = new Map(); // ecName -> { familyKeys:Set, sums... }
-  for (const [famKey, f] of families.entries()) {
-    const ec = f.ecName || '';
-    if (!centerAgg.has(ec)) {
-      centerAgg.set(ec, {
-        familyKeys: new Set(),
-        male: 0, female: 0, total: 0,
-        infant: 0, children: 0, youth: 0, adult: 0, seniorCitizens: 0,
-        pwd: 0, pregnant: 0, lactating: 0,
-      });
-    }
-    const a = centerAgg.get(ec);
-    a.familyKeys.add(famKey);
-    a.male           += Number(f.male) || 0;
-    a.female         += Number(f.female) || 0;
-    a.total          += Number(f.total) || 0;
-    a.infant         += Number(f.infant) || 0;
-    a.children       += Number(f.children) || 0;
-    a.youth          += Number(f.youth) || 0;
-    a.adult          += Number(f.adult) || 0;
-    a.seniorCitizens += Number(f.seniorCitizens) || 0;
-    a.pwd            += Number(f.pwd) || 0;
-    a.pregnant       += Number(f.pregnant) || 0;
-    a.lactating      += Number(f.lactating) || 0;
-  }
-
-  const evacuationCenters = Array
-    .from(evacByCenter.entries())
-    .sort((a, b) => (a[0] || '').localeCompare(b[0] || ''))
-    .map(([name, evacuees]) => {
-      const sub = centerAgg.get(name) || {
-        familyKeys: new Set(),
-        male: 0, female: 0, total: 0,
-        infant: 0, children: 0, youth: 0, adult: 0, seniorCitizens: 0,
-        pwd: 0, pregnant: 0, lactating: 0,
-      };
-      return {
-        name,
-        evacuees,
-        subtotal: {
-          families: sub.familyKeys.size || 0,
-          male: sub.male || 0,
-          female: sub.female || 0,
-          total: sub.total || 0,
-          infant: sub.infant || 0,
-          children: sub.children || 0,
-          youth: sub.youth || 0,
-          adult: sub.adult || 0,
-          seniorCitizens: sub.seniorCitizens || 0,
-          pwd: sub.pwd || 0,
-          pregnant: sub.pregnant || 0,
-          lactating: sub.lactating || 0,
-        },
-      };
-    });
-
-  // -------- compute GRAND TOTALS (ALWAYS numbers, 0 if none) --------
-  const grandTotals = {
-    families: families.size || 0,
-    male: 0, female: 0, total: 0,
-    infant: 0, children: 0, youth: 0, adult: 0, seniorCitizens: 0,
-    pwd: 0, pregnant: 0, lactating: 0,
-  };
-  for (const f of families.values()) {
-    grandTotals.male           += Number(f.male) || 0;
-    grandTotals.female         += Number(f.female) || 0;
-    grandTotals.total          += Number(f.total) || 0;
-    grandTotals.infant         += Number(f.infant) || 0;
-    grandTotals.children       += Number(f.children) || 0;
-    grandTotals.youth          += Number(f.youth) || 0;
-    grandTotals.adult          += Number(f.adult) || 0;
-    grandTotals.seniorCitizens += Number(f.seniorCitizens) || 0;
-    grandTotals.pwd            += Number(f.pwd) || 0;
-    grandTotals.pregnant       += Number(f.pregnant) || 0;
-    grandTotals.lactating      += Number(f.lactating) || 0;
-  }
-
-  const { reportDate, reportTime } = splitAsOf(asOf);
-  const props = {
-    barangayName: TARGET_LABEL,
-    disasterEvent: disasterName || '',
-    reportDate,
-    reportTime,
-    evacuationCenters,
-    totals: grandTotals,       // <- include totals with zeros when empty
-    grandTotals,               // <- duplicate key for template flexibility
-    showTotals: true,
-    showSubtotals: true,
-  };
-
-  const buffer = await renderTemplatePDF({ templateKey: 'barangay', props });
-  return {
-    buffer,
-    contentType: 'application/pdf',
-    ext: 'pdf',
-    filenameBase: `${SLUG('per-barangay')}-${SLUG(TARGET_LABEL || 'report')}`,
-  };
-}
-
-
 /* ------------------ Dispatcher ------------------ */
 async function generateReportFile({
   reportTypeName,
@@ -1593,6 +1205,7 @@ async function generateReportFile({
   barangayMap,
   barangayId,
   barangayName,
+  fields,
 }) {
   const type = String(reportTypeName || '').toLowerCase();
 
@@ -1605,6 +1218,7 @@ async function generateReportFile({
         filenameBase: `${SLUG('aggregated-status')}-${SLUG(reportName || 'report')}`,
       };
     }
+
     if (/^disaggregated/.test(type)) {
       return {
         buffer: buildDisaggregatedCSV({ regs, disasterName, asOf, vulnMap, barangayMap }),
@@ -1626,7 +1240,14 @@ async function generateReportFile({
 
   if (fileFormat === 'XLSX') {
     if (/^aggregated/.test(type)) {
-      return await buildAggregatedStatusXLSX({ regs, disasterName, asOf, barangayMap, fields, });
+    }
+            return await buildAggregatedStatusXLSX({
+        regs,
+        disasterName,
+        asOf,
+        barangayMap,
+        fields,
+      });
     }
     if (/^disaggregated/.test(type)) {
       return await buildDisaggregatedXLSX({ regs, disasterName, asOf, vulnMap, barangayMap });
@@ -1638,21 +1259,6 @@ async function generateReportFile({
     }
     throw new NotImplementedError('XLSX generation for this report type is not implemented yet.');
   }
-
-if (fileFormat === 'PDF') {
-  if (/^aggregated/.test(type)) {
-    return await buildAggregatedStatusPDF({ regs, disasterName, asOf, barangayMap });
-  }
-  if (/^disaggregated/.test(type)) {
-    return await buildDisaggregatedPDF({ regs, disasterName, asOf, vulnMap, barangayMap });
-  }
-  if (/^per\s*barangay/.test(type)) {
-    return await buildPerBarangayPDF({ regs, disasterName, asOf, vulnMap, barangayMap, barangayName });
-  }
-  throw new NotImplementedError('PDF generation for this report type is not implemented yet.');
-}
-throw new Error('Unsupported file format.');
-}
 
 /* ------------------ Storage path ------------------ */
 function buildStoragePath({ asOf, disaster_evacuation_event_id, disaster_id, filenameBase, ext }) {

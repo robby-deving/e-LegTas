@@ -58,10 +58,10 @@ export type CreateReportModalProps = {
 
   formErrors: { [key: string]: string };
   isCreating: boolean;
-  onCreate: () => void; // parent builds payload
+  onCreate: (opts?: { fields?: any }) => void; // parent builds payload
 
-  reportTypes: string[]; // ["Aggregated","Disaggregated","Barangay Report"]
-  fileFormats: string[]; // ["CSV","XLSX","PDF"]
+  reportTypes: string[]; 
+  fileFormats: string[]; 
 
   clearFormError?: (key: string) => void;
 
@@ -776,9 +776,21 @@ const setAllBgy = (v: boolean) => {
             className="space-y-4"
             onSubmit={(e) => {
               e.preventDefault();
-              if (canDownload) onCreate();
-            }}
-          >
+              if (canDownload) {
+                onCreate({
+                  // send only the fields relevant to the chosen type
+                  fields:
+                    selectedType === "Aggregated"
+                      ? agg
+                      : selectedType === "Disaggregated"
+                      ? disagg
+                      : selectedType === "Barangay Report"
+                      ? bgy
+                      : undefined,
+                });
+             }
+             }}
+           >
             {/* Report Name */}
             <div>
               <label className="block text-sm font-semibold mb-2">Report Name:</label>

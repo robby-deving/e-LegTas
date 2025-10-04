@@ -16,7 +16,7 @@ import { Input } from "../components/ui/input";
 import { usePermissions } from '../contexts/PermissionContext';
 
 // Types 
-type FileIcon = 'PDF' | 'CSV' | 'XLSX';
+type FileIcon = 'CSV' | 'XLSX';
 
 type CardReport = {
   id: string;
@@ -35,7 +35,7 @@ type ApiReport = {
   id: number | string;
   report_name: string;
   report_type: string; 
-  file_format: FileIcon;
+  file_format: string;
   disaster_name: string | null;
   as_of?: string | null;
   file_size_human?: string | null;
@@ -105,8 +105,8 @@ async function forceDownload(url: string, fallbackName = 'report') {
   URL.revokeObjectURL(href);
 }
 
-const API_BASE = 'https://api.e-legtas.tech/api/v1';
-const FILE_FORMATS: FileIcon[] = ['PDF', 'CSV', 'XLSX'];
+const API_BASE = 'http://localhost:3000/api/v1';
+const FILE_FORMATS: FileIcon[] = ['CSV', 'XLSX'];
 const DEFAULT_GENERATOR_USER_ID = 2; // dev user_CDRRMO AND CAMP MANAGER CAN MAKE A REPORT
 
 // Persistent filter storage keys
@@ -123,7 +123,7 @@ const toLocalDateTime = (iso?: string | null) => {
 };
 
 const coerceIcon = (fmt: string): FileIcon =>
-  fmt === 'PDF' ? 'PDF' : fmt === 'XLSX' ? 'XLSX' : 'CSV';
+  fmt === 'XLSX' ? 'XLSX' : 'CSV';
 
 const monthName = (m: number) => new Date(2000, m, 1).toLocaleString(undefined, { month: 'long' });
 const monthLabel = (m: number | null) => {
@@ -138,10 +138,9 @@ const asUIType = (label: string): 'Aggregated' | 'Disaggregated' | 'Barangay Rep
 
 const toISOFromDateAndTime = (date?: Date, time?: string) => {
   const base = date ? new Date(date) : new Date();
-  const [hh, mm] = (time || '00:00').split(':').map((n) => Number(n));
-  if (!Number.isFinite(hh) || !Number.isFinite(mm)) return base.toISOString();
+  const [hh, mm] = (time || '00:00').split(':').map(Number);
   base.setHours(hh, mm, 0, 0);
-  return base.toISOString();
+  return base.toISOString(); // <-- converts local wall time to UTC
 };
 
 // Component
@@ -396,7 +395,7 @@ setPendingDelete(null);
   };
 
   // Create via backend
-  const handleCreateReport = async () => {
+ const handleCreateReport = async (opts?: { fields?: any }) => {
     if (!validateForm()) return;
     try {
       setIsCreating(true);
@@ -414,6 +413,10 @@ setPendingDelete(null);
         file_format: fileFormat,
         generated_by_user_id: generatorId,
       };
+           if (reportType === 'Aggregated' && opts?.fields) {
+        payload.fields = opts.fields;
+      }
+
       if (reportType === 'Barangay Report') {
         const bId = selectedBarangay?.id ? Number(selectedBarangay.id) : NaN;
         if (!Number.isInteger(bId)) throw new Error('Please select a barangay.');
