@@ -764,7 +764,9 @@ export const RegisterEvacueeModal = ({
                     </>
                   ) : (
                     <div className="relative">
-                      <label className="block text-sm font-medium mb-2">Assign Evacuation</label>
+                      <label className="block text-sm font-medium mb-2">
+                        Assign Evacuation<span className="text-red-500">*</span>
+                      </label>
                       <div className="relative">
                         <button 
                           onClick={() => setShowSearchEvacuationModal(true)} 
@@ -787,6 +789,15 @@ export const RegisterEvacueeModal = ({
                           </button>
                         )}
                       </div>
+                      {/* Hidden input for HTML5 validation */}
+                      <input
+                        type="text"
+                        value={selectedEvacuation ? selectedEvacuation.id.toString() : ""}
+                        onChange={() => {}}
+                        required
+                        className="absolute inset-0 w-full h-10 opacity-0 pointer-events-none"
+                        tabIndex={-1}
+                      />
                     </div>
                   )}
                 </div>
