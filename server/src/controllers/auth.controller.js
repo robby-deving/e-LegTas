@@ -371,7 +371,7 @@ const refresh = async (req, res) => {
       return res.status(401).json({ message: 'No refresh token provided' });
     }
 
-    const { data, error } = await supabasePublic.auth.refreshSession({ refresh_token: sbRefreshToken });
+    const { data, error } = await supabaseAdmin.auth.refreshSession({ refresh_token: sbRefreshToken });
     if (error || !data?.session) {
       return res.status(401).json({ message: 'Invalid or expired refresh token', error: error?.message });
     }
@@ -382,7 +382,71 @@ const refresh = async (req, res) => {
       setSbRefreshTokenCookie(res, rotated);
     }
 
-    return res.status(200).json({ token: data.session.access_token });
+    // Get user data from the session
+    const { data: userData, error: userError } = await supabaseAdmin
+      .from('users')
+      .select(`
+        id,
+        employee_number,
+        users_profile!inner (
+          id,
+          email,
+          role_id,
+          resident_id,
+          user_id,
+          is_active,
+          deleted_at,
+          residents (
+            first_name,
+            last_name
+          )
+        )
+      `)
+      .eq('users_profile.user_id', data.session.user.id)
+      .is('deleted_at', null)
+      .single();
+
+    if (userError || !userData) {
+      console.error('User not found during refresh:', userError);
+      return res.status(401).json({ message: 'User not found' });
+    }
+
+    // Fetch barangay assignment for role 7 users
+    let barangayAssignment = null;
+    if (userData.users_profile.role_id === 7) {
+      try {
+        const { data: barangayData, error: barangayError } = await supabaseAdmin
+          .from('barangay_officials')
+          .select('id, barangay_id')
+          .eq('user_profile_id', userData.users_profile.id)
+          .single();
+
+        if (!barangayError && barangayData) {
+          barangayAssignment = {
+            assigned_barangay_id: barangayData.barangay_id || null
+          };
+        }
+      } catch (barangayError) {
+        console.error('Error fetching barangay assignment during refresh:', barangayError);
+      }
+    }
+
+    const responseData = {
+      user: {
+        user_id: userData.id,
+        auth_id: data.session.user.id,
+        email: userData.users_profile.email,
+        employee_number: userData.employee_number,
+        role_id: userData.users_profile.role_id,
+        resident_id: userData.users_profile.resident_id,
+        first_name: userData.users_profile.residents?.first_name,
+        last_name: userData.users_profile.residents?.last_name,
+        ...(barangayAssignment || {})
+      },
+      token: data.session.access_token
+    };
+
+    return res.status(200).json(responseData);
   } catch (error) {
     console.error('Refresh error:', error);
     return res.status(500).json({ message: 'Internal server error', error: error.message });
