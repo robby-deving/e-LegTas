@@ -40,7 +40,7 @@ export default function DashboardHeader({
               <Button variant="outline" className="text-green-700 border-green-300 cursor-pointer">
                 {selectedDisaster
                   ? `${selectedDisaster.disaster_types?.name ?? ''} ${selectedDisaster.disaster_name}`
-                  : 'No Active Disaster'}
+                  : 'No Active Incident'}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
@@ -64,7 +64,7 @@ export default function DashboardHeader({
             className="text-green-700 border-green-300 cursor-default"
             disabled
           >
-            No Active Disaster
+            No Active Incident
           </Button>
         ) : null}
         {canFilterByDate && selectedDisaster && (

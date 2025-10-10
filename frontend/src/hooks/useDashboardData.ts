@@ -49,6 +49,7 @@ export function useDashboardData(selectedDateRange?: DateRange) {
   const [activeEvacuationCenters, setActiveEvacuationCenters] = useState<number>(0);
   const [registeredEvacueesCount, setRegisteredEvacueesCount] = useState<number>(0);
   const [registeredFamiliesCount, setRegisteredFamiliesCount] = useState<number>(0);
+  const [familiesWithReliefGoodsCount, setFamiliesWithReliefGoodsCount] = useState<number>(0);
   const [evacueeStatistics, setEvacueeStatistics] = useState<{ label: string; value: number }[]>([]);
   const [evacuationCapacityStatus, setEvacuationCapacityStatus] = useState<
     {
@@ -344,6 +345,111 @@ export function useDashboardData(selectedDateRange?: DateRange) {
     };
   }, [selectedDisaster, selectedDateRange, effectiveToken]);
 
+// Families with Relief Goods Count (live + filtered)
+useEffect(() => {
+  if (!effectiveToken) return; // wait for auth token
+
+  const fetchFamiliesWithReliefGoodsCount = async () => {
+    if (!selectedDisaster?.id) return;
+
+    try {
+      setLoading(true);
+      let url = `/api/v1/dashboard/families-with-relief-goods/${selectedDisaster.id}`;
+
+      // If date filter applied, add query params with Manila -> UTC conversion
+      if (selectedDateRange?.from) {
+        const timeZone = "Asia/Manila";
+
+        const fromUtc = new Date(
+          selectedDateRange.from.toLocaleString("en-US", { timeZone })
+        );
+        fromUtc.setHours(0, 0, 0, 0);
+        const fromIso = fromUtc.toISOString();
+
+        const toDate = selectedDateRange?.to
+          ? new Date(selectedDateRange.to.toLocaleString("en-US", { timeZone }))
+          : new Date(selectedDateRange.from.toLocaleString("en-US", { timeZone }));
+        toDate.setHours(23, 59, 59, 999);
+        const toIso = toDate.toISOString();
+
+        url += `?from=${encodeURIComponent(fromIso)}&to=${encodeURIComponent(toIso)}`;
+      }
+
+      const response = await fetch(url, { headers: getAuthHeaders() });
+      const result = await response.json();
+
+      if (response.ok) {
+        setFamiliesWithReliefGoodsCount(result.count || 0);
+      } else {
+        console.error(result.message || 'Failed to fetch families with relief goods.');
+        setFamiliesWithReliefGoodsCount(0);
+      }
+    } catch (error) {
+      console.error('Error fetching families with relief goods:', error);
+      setFamiliesWithReliefGoodsCount(0);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // If filter active → no realtime
+  if (selectedDateRange?.from) {
+    fetchFamiliesWithReliefGoodsCount();
+    return;
+  }
+
+  // Live mode
+  fetchFamiliesWithReliefGoodsCount();
+
+  const channel = supabase.channel('realtime-families-with-relief-goods');
+
+  // ---- listen to services table changes ----
+  channel.on(
+    'postgres_changes',
+    { event: '*', schema: 'public', table: 'services' },
+    async (payload: any) => {
+      // row that changed
+      const row = payload.new || payload.old;
+      const eventId = row?.disaster_evacuation_event_id || row?.disaster_evacuation_event?.id;
+
+        // if helper accepts (eventId, disasterId) or (row, disasterId) we attempt both safely
+        if (selectedDisaster?.id && eventId) {
+          const linked = await isEventLinkedToSelectedDisaster(eventId, 'event', selectedDisaster.id);
+          if (linked) fetchFamiliesWithReliefGoodsCount();
+        }
+    }
+  );
+
+  // ---- listen to evacuation_registrations changes (decampment changes) ----
+  channel.on(
+    'postgres_changes',
+    { event: '*', schema: 'public', table: 'evacuation_registrations' },
+    async (payload: any) => {
+      const row = payload.new || payload.old;
+      const eventId = row?.disaster_evacuation_event_id || row?.disaster_evacuation_event?.id;
+
+      if (selectedDisaster?.id && eventId) {
+        const linked = await isEventLinkedToSelectedDisaster(eventId, 'event', selectedDisaster.id);
+        if (linked) fetchFamiliesWithReliefGoodsCount();
+      }
+    }
+  );
+
+  // ---- also listen for evacuation_end_date changes on disaster_evacuation_event ----
+  listenToEvacuationEndDateChange(
+    channel,
+    selectedDisaster?.id,
+    fetchFamiliesWithReliefGoodsCount,
+    'ReliefGoods'
+  );
+
+  channel.subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}, [selectedDisaster, selectedDateRange, effectiveToken]);
+
   // Evacuee Statistics
   useEffect(() => {
     if (!effectiveToken) return; // wait for auth token
@@ -590,6 +696,7 @@ export function useDashboardData(selectedDateRange?: DateRange) {
     activeEvacuationCenters,
     registeredEvacueesCount,
     registeredFamiliesCount,
+    familiesWithReliefGoodsCount, 
     evacueeStatistics,
     evacuationCapacityStatus,
     loading,

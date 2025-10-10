@@ -12,6 +12,7 @@ import { EvacuationCenterNameCard } from "../../components/cards/EvacuationCente
 import { RegisteredFamiliesCard } from "../../components/cards/RegisteredFamiliesCard";
 import { RegisteredEvacueesCard } from "../../components/cards/RegisteredEvacueesCard";
 import { ECCapacityCard } from "../../components/cards/ECCapacityCard";
+import { ReliefGoodsCard } from "../../components/cards/ReliefGoodsCard";
 import { useSelector } from 'react-redux';
 import { selectCurrentUser } from '../../features/auth/authSlice';
 
@@ -52,6 +53,7 @@ export default function CampManagerDashboard() {
     familiesCount,
     evacueesCount,
     capacityCount,
+    familiesWithReliefGoodsCount,
     chartData,
     loading,  } = useCampManagerDashboardData(campManagerId, selectedDateRange);
 
@@ -120,6 +122,7 @@ export default function CampManagerDashboard() {
               <RegisteredFamiliesCard count={familiesCount} />
               <RegisteredEvacueesCard count={evacueesCount} />
               <ECCapacityCard count={capacityCount} />
+              <ReliefGoodsCard count={familiesWithReliefGoodsCount} />
             </div>
           </div>
         </div>
@@ -140,7 +143,7 @@ export default function CampManagerDashboard() {
         <div className="flex items-center justify-center h-64">
           <div className="flex flex-col items-center justify-center h-[400px] text-center">
             <h2 className="text-2xl font-semibold text-gray-700 mb-2">
-              No Ongoing Disaster
+              No Ongoing Incident
             </h2>
             <p className="text-lg text-gray-500 max-w-2xl">
               Please activate an Evacuation Center to view dashboard data.
