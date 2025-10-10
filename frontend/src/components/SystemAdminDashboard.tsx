@@ -7,6 +7,7 @@ interface UserStats {
     cdrrmo: number;
     cswdo: number;
     campManager: number;
+    barangayOfficial: number;
     allUsers: number;
 }
 
@@ -27,6 +28,7 @@ export default function SystemAdminDashboard() {
         cdrrmo: 0,
         cswdo: 0,
         campManager: 0,
+        barangayOfficial: 0,
         allUsers: 0
     });
     
@@ -47,17 +49,28 @@ export default function SystemAdminDashboard() {
         return headers;
     };
     
-    // Fetch user statistics
+    // Fetch user statistics using role-counts endpoint
     const fetchUserStats = async () => {
         try {
-            const response = await fetch('/api/v1/users/stats', {
+            const response = await fetch('/api/v1/users/role-counts', {
                 headers: getAuthHeaders()
             });
             if (!response.ok) {
                 throw new Error('Failed to fetch user statistics');
             }
             const data = await response.json();
-            setUserStats(data.data);
+            const roleCounts = data.roleCounts || {};
+            
+            // Map the role counts to our UserStats interface
+            setUserStats({
+                cdrrmo: (roleCounts['2'] || 0) + (roleCounts['3'] || 0), // CDRRMO (2) + Regional Coordinator (3)
+                cswdo: roleCounts['4'] || 0,
+                campManager: roleCounts['5'] || 0,
+                barangayOfficial: roleCounts['7'] || 0,
+                allUsers: Object.values(roleCounts)
+                    .filter((count): count is number => typeof count === 'number')
+                    .reduce((sum, count) => sum + count, 0)
+            });
         } catch (err) {
             console.error('Error fetching user stats:', err);
         }
@@ -145,7 +158,7 @@ export default function SystemAdminDashboard() {
                 <div className="flex w-[370px] flex-col items-start rounded-xl border border-gray-200 shadow-sm p-5 px-6 h-32">
                     <div className="flex justify-between items-center w-full mb-3">
                         <div className="text-gray-900 text-lg font-semibold leading-5">
-                            Camp Manager/Bgy. Official
+                            Camp Manager
                         </div>
                         
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 20 20" fill="none">
@@ -157,7 +170,23 @@ export default function SystemAdminDashboard() {
                     </div>
                 </div>
 
-                {/* Box 4 - App Users */}
+                {/* Box 4 - Barangay Official */}
+                <div className="flex w-[370px] flex-col items-start rounded-xl border border-gray-200 shadow-sm p-5 px-6 h-32">
+                    <div className="flex justify-between items-center w-full mb-3">
+                        <div className="text-gray-900 text-lg font-semibold leading-5">
+                            Barangay Official
+                        </div>
+                        
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 20 20" fill="none">
+                            <path fillRule="evenodd" clipRule="evenodd" d="M6.875 7.5C7.37228 7.5 7.84919 7.30246 8.20083 6.95083C8.55246 6.59919 8.75 6.12228 8.75 5.625C8.75 5.12772 8.55246 4.65081 8.20083 4.29917C7.84919 3.94754 7.37228 3.75 6.875 3.75C6.37772 3.75 5.90081 3.94754 5.54917 4.29917C5.19754 4.65081 5 5.12772 5 5.625C5 6.12228 5.19754 6.59919 5.54917 6.95083C5.90081 7.30246 6.37772 7.5 6.875 7.5ZM6.875 9.375C7.86956 9.375 8.82339 8.97991 9.52665 8.27665C10.2299 7.57339 10.625 6.61956 10.625 5.625C10.625 4.63044 10.2299 3.67661 9.52665 2.97335C8.82339 2.27009 7.86956 1.875 6.875 1.875C5.88044 1.875 4.92661 2.27009 4.22335 2.97335C3.52009 3.67661 3.125 4.63044 3.125 5.625C3.125 6.61956 3.52009 7.57339 4.22335 8.27665C4.92661 8.97991 5.88044 9.375 6.875 9.375ZM3.08875 12.9825C2.1175 13.6575 1.875 14.3113 1.875 14.615C1.875 15.1725 2.3275 15.625 2.885 15.625H10.865C11.1327 15.6243 11.3892 15.5177 11.5784 15.3284C11.7677 15.1392 11.8743 14.8827 11.875 14.615C11.875 14.31 11.6325 13.6562 10.6613 12.9825C9.74 12.3438 8.39875 11.875 6.875 11.875C5.35125 11.875 4.01 12.3438 3.08875 12.9825ZM0 14.615C0 12.3075 3.09375 10 6.875 10C8.35 10 9.7225 10.3513 10.8463 10.9175C11.9224 10.3092 13.1389 9.99287 14.375 10C17.4688 10 20 11.9225 20 13.8462C20 14.4838 19.7467 15.0952 19.296 15.546C18.8452 15.9967 18.2338 16.25 17.5962 16.25H13.2425C12.7225 17.005 11.8513 17.5 10.865 17.5H2.885C2.12005 17.4993 1.38663 17.1952 0.845728 16.6543C0.304829 16.1134 0.000662005 15.3799 0 14.615ZM13.7388 14.375H17.5962C17.8888 14.375 18.125 14.1375 18.125 13.8462C18.125 13.7175 18.005 13.2563 17.265 12.7338C16.5725 12.2425 15.5463 11.875 14.375 11.875C13.7288 11.875 13.1263 11.9875 12.6 12.17C13.2575 12.8375 13.6675 13.6025 13.7388 14.375ZM15.625 6.25C15.625 6.58152 15.4933 6.89946 15.2589 7.13388C15.0245 7.3683 14.7065 7.5 14.375 7.5C14.0435 7.5 13.7255 7.3683 13.4911 7.13388C13.2567 6.89946 13.125 6.58152 13.125 6.25C13.125 5.91848 13.2567 5.60054 13.4911 5.36612C13.7255 5.1317 14.0435 5 14.375 5C14.7065 5 15.0245 5.1317 15.2589 5.36612C15.4933 5.60054 15.625 5.91848 15.625 6.25ZM17.5 6.25C17.5 7.0788 17.1708 7.87366 16.5847 8.45971C15.9987 9.04576 15.2038 9.375 14.375 9.375C13.5462 9.375 12.7513 9.04576 12.1653 8.45971C11.5792 7.87366 11.25 7.0788 11.25 6.25C11.25 5.4212 11.5792 4.62634 12.1653 4.04029C12.7513 3.45424 13.5462 3.125 14.375 3.125C15.2038 3.125 15.9987 3.45424 16.5847 4.04029C17.1708 4.62634 17.5 5.4212 17.5 6.25Z" fill="#9747FF"/>
+                        </svg>
+                    </div>
+                    <div className="text-3xl font-bold" style={{ color: '#9747FF' }}>
+                        {loading ? '...' : (userStats?.barangayOfficial ?? 0)}
+                    </div>
+                </div>
+
+                {/* Box 5 - App Users */}
                 <div className="flex w-[370px] flex-col items-start rounded-xl border border-gray-200 shadow-sm p-5 px-6 h-32">
                     <div className="flex justify-between items-center w-full mb-3">
                         <div className="text-gray-900 text-lg font-semibold leading-5">
