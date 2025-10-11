@@ -21,7 +21,6 @@ function normalizeDisaggFields(input) {
     return Number.isFinite(n) ? n : null;
   };
 
-  // Depth-first scan that tries to match keys like:
   // infant.min, min.infant, infant_min, ageInfantMin, age_infant_min, etc.
   function deepFind(obj, bucket, bound) {
     const re1 = new RegExp(`${bucket}.*${bound}`, 'i');
@@ -71,11 +70,9 @@ function normalizeDisaggFields(input) {
       src[`${key}Max`] ?? src[`age_${key}_max`]
     );
 
-    // as a last resort, search anywhere in the object
     if (min == null) min = deepFind(src, key, 'min');
     if (max == null) max = deepFind(src, key, 'max');
 
-    // preserve buckets even if client stripped falsy fields
     const buckets = ensureBuckets(direct.buckets || grouped.buckets || {});
 
     // enabled if explicitly true OR any bucket is selected OR an age bound is provided
@@ -115,7 +112,6 @@ function normalizeDisaggFields(input) {
     reliefServices:       !!src.reliefServices, 
   };
 
-  // leave customVisibility if caller explicitly set it; otherwise undefined (caller may set default)
   return out;
 }
 
@@ -237,7 +233,6 @@ async function fetchRegistrationsForEvents(eventIds = []) {
   return data || [];
 }
 
-
 // Vulnerability type map (PWD / Pregnant / Lactating)
 async function fetchVulnerabilityTypeMap() {
   const { data, error } = await supabase
@@ -295,8 +290,6 @@ function ecNamesByOriginFromRegs(regs = [], barangayMap) {
   }
   return out;
 }
-
-
 // Evacuation Center names grouped by barangay label (using barangays table names)
 async function fetchEvacuationCenterNamesByBarangay(barangayMap) {
   // normalize: collapse spaces, normalize unicode, unify dashes
@@ -316,7 +309,6 @@ async function fetchEvacuationCenterNamesByBarangay(barangayMap) {
       console.warn('[reports] fetchEvacuationCenterNamesByBarangay warn:', error);
       return {};
     }
-
     // barangayName -> Map<canonName, displayName>
     const outMap = new Map();
 
@@ -385,7 +377,6 @@ async function fetchECNamesByBarangayCategory(barangayMap, category = 'Private H
   }
 }
 
-
 // “Active as of”: arrival <= asOf && (decamp is null || decamp > asOf)
 function filterActiveAsOf(rows, asOf) {
   const t = new Date(asOf).getTime();
@@ -445,8 +436,6 @@ async function fetchReliefByFamilyIndex(regs = [], eventIds = []) {
   return out;
 }
 
-
-
 /**
  *   @desc Generate a report for either a whole disaster or a specific event,
  *       upload the file to Supabase Storage, and record a row in `generated_reports`.
@@ -475,7 +464,6 @@ let normalizedFields = normalizeDisaggFields(fields);
 console.log('[reports.generate] per-bgy fields (raw from client):', fields ? JSON.stringify(fields) : null);
 console.log('[reports.generate] per-bgy fields (normalized):', JSON.stringify(normalizedFields));
 
-
 // If the UI didn't send fields, DON'T apply custom visibility (keep all main cols visible)
 if (!fields) {
   normalizedFields.customVisibility = false; // critical: prevents hiding everything
@@ -492,8 +480,6 @@ if (!fields) {
 }
 
 console.log('[reports.generate] disagg fields (normalized):', JSON.stringify(normalizedFields));
-
-
     // --- required fields ---
     if (!report_name || !report_type_id || !as_of || !file_format) {
       return next(
@@ -677,10 +663,10 @@ if (isPerBarangay) {
     let buffer, contentType, ext, filenameBase;
     try {
       const gen = await generateReportFile({
-        reportTypeName: rtype.report_type, // "Aggregated...", "Disaggregated...", "Per Barangay..."
+        reportTypeName: rtype.report_type, 
         fileFormat,
-        regs,                   // still provided for other report types / CSV/PDF flows
-        sqlRows: disaggSqlRows, // <-- NEW: DB aggregated rows for Disaggregated XLSX builder
+        regs,                  
+        sqlRows: disaggSqlRows, 
         reportName: report_name,
         disasterName,
         asOf: as_of,
@@ -722,11 +708,6 @@ if (isPerBarangay) {
       .from('reports')
       .getPublicUrl(path, { download: prettyDownloadName });
     const downloadUrl = dl?.publicUrl || url;
-
-
-
-
-
 
     const fileSizeBytes = Buffer.isBuffer(buffer) ? buffer.length : (buffer?.byteLength ?? 0);
 
@@ -773,7 +754,6 @@ if (isPerBarangay) {
     return next(new ApiError(err.message || 'Failed to generate report.', status));
   }
 };
-
 
 function prettyReportType(label = '') {
   const s = String(label).toLowerCase();
@@ -832,7 +812,6 @@ async function resolveSizesForPaths(paths = []) {
       result.set(full, sizeByName.get(n) ?? null);
     }
   }
-
   return result; // Map(path -> bytes|null)
 }
 
