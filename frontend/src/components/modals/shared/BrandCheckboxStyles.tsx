@@ -1,4 +1,5 @@
 // Export the exact same CSS string so you can keep: <style>{checkboxGreenStyle}</style>
+// BrandCheckboxStyles.tsx
 export const checkboxGreenStyle = `
 /* Brand checkbox: fixed size everywhere (20px) */
 .brand-checkbox {

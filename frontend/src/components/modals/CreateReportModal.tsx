@@ -1,13 +1,6 @@
+//CreateReportModal.tsx
 import React, { useMemo, useState, useEffect } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogClose,
-  DialogDescription,
-} from "../ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription } from "../ui/dialog";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
@@ -92,7 +85,7 @@ export type CreateReportModalProps = {
   reportName: string;
   setReportName: (value: string) => void;
 
-  reportType: string; // UI label
+  reportType: string;
   setReportType: (value: string) => void;
 
   disasterEvent: string;
@@ -137,7 +130,7 @@ export type CreateReportModalProps = {
   date: Date | undefined;
   setDate: (date: Date | undefined) => void;
 
-  time: string; // "HH:mm"
+  time: string;
   setTime: (time: string) => void;
 
   rowCount?: number;
@@ -155,7 +148,7 @@ export default function CreateReportModal(props: CreateReportModalProps) {
     setDisasterEvent,
     fileFormat,
     setFileFormat,
-    // Legacy/aux props (kept for compatibility)
+    // Legacy props
     barangayQuery,
     setBarangayQuery,
     barangayResults,

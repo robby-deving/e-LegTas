@@ -1,3 +1,4 @@
+// components/modals/sections/DisaggregatedSection.tsx
 import React from "react";
 import { ChevronRight } from "lucide-react";
 import Cat from "../shared/Category";

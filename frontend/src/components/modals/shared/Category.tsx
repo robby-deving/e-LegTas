@@ -1,3 +1,4 @@
+// components/modals/shared/Category.tsx
 import React, { useEffect } from "react";
 import Section from "./Section";
 import { Input } from "../../ui/input";

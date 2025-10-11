@@ -76,8 +76,6 @@ function computeAgeYearsAsOfJS(snapshot, reportedAgeAtArrival, residentBirthdate
   return null;
 }
 
-
-
 // Layout for the Disaggregated sheet: compact number columns, wrapped headers.
 function applyDisaggColumnLayout(ws) {
   // Wider text columns

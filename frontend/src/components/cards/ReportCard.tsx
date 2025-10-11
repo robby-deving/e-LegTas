@@ -1,3 +1,4 @@
+// components/cards/ReportCard.tsx
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Download, FileText, Trash2 } from 'lucide-react';
 import calendarIcon from '@/assets/calendar-days.svg';

@@ -1,3 +1,4 @@
+// components/modals/sections/BarangaySection.tsx
 import React from "react";
 import { ChevronRight } from "lucide-react";
 import Section from "../shared/Section";

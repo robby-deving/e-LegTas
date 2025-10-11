@@ -1,3 +1,4 @@
+// components/modals/sections/AggregatedSection.tsx
 import React from "react";
 import { ChevronRight } from "lucide-react";
 import Section from "../shared/Section";
