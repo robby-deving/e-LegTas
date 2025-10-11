@@ -111,11 +111,11 @@ export function useDashboardData(selectedDateRange?: DateRange) {
   // Active Evacuation Centers Count
   useEffect(() => {
     if (!effectiveToken) return; // wait for auth token
-    const fetchActiveEvacuationCenters = async () => {
+    const fetchActiveEvacuationCenters = async (isRealtimeUpdate = false) => {
       if (!selectedDisaster?.id) return;
 
       try {
-      setLoading(true);
+      if (!isRealtimeUpdate) setLoading(true);
         let url = `https://api.e-legtas.tech/api/v1/dashboard/active-evacuation-centers/${selectedDisaster.id}`;
 
         if (selectedDateRange?.from) {
@@ -151,7 +151,7 @@ export function useDashboardData(selectedDateRange?: DateRange) {
         console.error('Error fetching active evacuation centers:', error);
         setActiveEvacuationCenters(0);
       } finally {
-        setLoading(false);
+        if (!isRealtimeUpdate) setLoading(false);
       }
     };
 
@@ -171,7 +171,7 @@ export function useDashboardData(selectedDateRange?: DateRange) {
             table: 'disaster_evacuation_event',
             filter: `disaster_id=eq.${selectedDisaster?.id}`
           },
-          () => fetchActiveEvacuationCenters()
+          () => fetchActiveEvacuationCenters(true)
         )
         .subscribe();
     }
@@ -185,14 +185,14 @@ export function useDashboardData(selectedDateRange?: DateRange) {
   // Registered Evacuees Count
   useEffect(() => {
     if (!effectiveToken) return; // wait for auth token
-    const fetchRegisteredEvacueesCount = async () => {
+    const fetchRegisteredEvacueesCount = async (isRealtimeUpdate = false) => {
       if (!selectedDisaster?.id) return;
 
       try {
-        setLoading(true);
+        if (!isRealtimeUpdate) setLoading(true);
         let url = `https://api.e-legtas.tech/api/v1/dashboard/registered-evacuees/${selectedDisaster.id}`;
 
-        // ✅ If date filter applied, add query params with Manila → UTC conversion
+        // If date filter applied, add query params with Manila → UTC conversion
         if (selectedDateRange?.from) {
           const timeZone = "Asia/Manila";
 
@@ -226,7 +226,7 @@ export function useDashboardData(selectedDateRange?: DateRange) {
         console.error('Error fetching registered evacuees:', error);
         setRegisteredEvacueesCount(0);
       } finally {
-        setLoading(false);
+        if (!isRealtimeUpdate) setLoading(false);
       }
     };
 
@@ -245,7 +245,7 @@ export function useDashboardData(selectedDateRange?: DateRange) {
       channel,
       selectedDisaster?.id,
       (newData, oldData) => newData?.total_no_of_individuals !== oldData?.total_no_of_individuals,
-      fetchRegisteredEvacueesCount,
+      () => fetchRegisteredEvacueesCount(true),
       'Evacuees'
     );
  
@@ -253,7 +253,7 @@ export function useDashboardData(selectedDateRange?: DateRange) {
     listenToEvacuationEndDateChange(
       channel,
       selectedDisaster?.id,
-      fetchRegisteredEvacueesCount,
+      () => fetchRegisteredEvacueesCount(true),
       'Evacuees'
     );
 
@@ -267,14 +267,14 @@ export function useDashboardData(selectedDateRange?: DateRange) {
   // Registered Families Count
   useEffect(() => {
     if (!effectiveToken) return; // wait for auth token
-    const fetchRegisteredFamiliesCount = async () => {
+    const fetchRegisteredFamiliesCount = async (isRealtimeUpdate = false) => {
       if (!selectedDisaster?.id) return;
 
       try {
-        setLoading(true);
+        if (!isRealtimeUpdate) setLoading(true);
         let url = `https://api.e-legtas.tech/api/v1/dashboard/registered-families/${selectedDisaster.id}`;
 
-        // ✅ If date filter applied, add query params with Manila → UTC conversion
+        // If date filter applied, add query params with Manila → UTC conversion
         if (selectedDateRange?.from) {
           const timeZone = "Asia/Manila";
 
@@ -304,9 +304,10 @@ export function useDashboardData(selectedDateRange?: DateRange) {
         }
       } catch (error) {
         console.error('Error fetching registered families:', error);
-        setRegisteredFamiliesCount(0);
+        setRegisteredEvacueesCount(0)
+        setRegisteredEvacueesCount(0);
       } finally {
-        setLoading(false);
+        if (!isRealtimeUpdate) setLoading(false);
       }
     };
 
@@ -326,7 +327,7 @@ export function useDashboardData(selectedDateRange?: DateRange) {
         channel,
         selectedDisaster?.id,
         (newData, oldData) => newData?.total_no_of_family !== oldData?.total_no_of_family,
-        fetchRegisteredFamiliesCount,
+        () => fetchRegisteredFamiliesCount(true),
         'Families'
       );
 
@@ -334,7 +335,7 @@ export function useDashboardData(selectedDateRange?: DateRange) {
       listenToEvacuationEndDateChange(
         channel, 
         selectedDisaster?.id, 
-        fetchRegisteredFamiliesCount, 
+        () => fetchRegisteredFamiliesCount(true), 
         'Families'
       );
 
@@ -349,11 +350,11 @@ export function useDashboardData(selectedDateRange?: DateRange) {
 useEffect(() => {
   if (!effectiveToken) return; // wait for auth token
 
-  const fetchFamiliesWithReliefGoodsCount = async () => {
+  const fetchFamiliesWithReliefGoodsCount = async (isRealtimeUpdate = false) => {
     if (!selectedDisaster?.id) return;
 
     try {
-      setLoading(true);
+      if (!isRealtimeUpdate) setLoading(true);
       let url = `/api/v1/dashboard/families-with-relief-goods/${selectedDisaster.id}`;
 
       // If date filter applied, add query params with Manila -> UTC conversion
@@ -388,7 +389,7 @@ useEffect(() => {
       console.error('Error fetching families with relief goods:', error);
       setFamiliesWithReliefGoodsCount(0);
     } finally {
-      setLoading(false);
+      if (!isRealtimeUpdate) setLoading(false);
     }
   };
 
@@ -415,7 +416,7 @@ useEffect(() => {
         // if helper accepts (eventId, disasterId) or (row, disasterId) we attempt both safely
         if (selectedDisaster?.id && eventId) {
           const linked = await isEventLinkedToSelectedDisaster(eventId, 'event', selectedDisaster.id);
-          if (linked) fetchFamiliesWithReliefGoodsCount();
+          if (linked) fetchFamiliesWithReliefGoodsCount(true);
         }
     }
   );
@@ -430,7 +431,7 @@ useEffect(() => {
 
       if (selectedDisaster?.id && eventId) {
         const linked = await isEventLinkedToSelectedDisaster(eventId, 'event', selectedDisaster.id);
-        if (linked) fetchFamiliesWithReliefGoodsCount();
+        if (linked) fetchFamiliesWithReliefGoodsCount(true);
       }
     }
   );
@@ -439,7 +440,7 @@ useEffect(() => {
   listenToEvacuationEndDateChange(
     channel,
     selectedDisaster?.id,
-    fetchFamiliesWithReliefGoodsCount,
+    () => fetchFamiliesWithReliefGoodsCount(true),
     'ReliefGoods'
   );
 
@@ -453,11 +454,11 @@ useEffect(() => {
   // Evacuee Statistics
   useEffect(() => {
     if (!effectiveToken) return; // wait for auth token
-    const fetchEvacueeStatistics = async () => {
+    const fetchEvacueeStatistics = async (isRealtimeUpdate = false) => {
       if (!selectedDisaster?.id) return;
 
       try {
-        setLoading(true);
+        if (!isRealtimeUpdate) setLoading(true);
         let url = `https://api.e-legtas.tech/api/v1/dashboard/evacuee-statistics/${selectedDisaster.id}`;
 
         // If date filter applied, add query params (Manila → UTC conversion)
@@ -509,7 +510,7 @@ useEffect(() => {
         console.error("Error fetching evacuee statistics:", error);
         setEvacueeStatistics([]);
       } finally {
-        setLoading(false);
+        if (!isRealtimeUpdate) setLoading(false);
       }
     };
 
@@ -538,7 +539,7 @@ useEffect(() => {
         newData?.total_no_of_pwd !== oldData?.total_no_of_pwd ||
         newData?.total_no_of_pregnant !== oldData?.total_no_of_pregnant ||
         newData?.total_no_of_lactating_women !== oldData?.total_no_of_lactating_women,
-      fetchEvacueeStatistics,
+      () => fetchEvacueeStatistics(true),
       "Evacuee Stats"
     );
 
@@ -546,7 +547,7 @@ useEffect(() => {
     listenToEvacuationEndDateChange(
       channel,
       selectedDisaster?.id,
-      fetchEvacueeStatistics,
+      () => fetchEvacueeStatistics(true),
       "Evacuee Stats"
     );
 
@@ -560,11 +561,11 @@ useEffect(() => {
   // Evacuation Center Capacity Status
   useEffect(() => {
     if (!token) return; // wait for auth token
-    const fetchEvacuationCapacityStatus = async () => {
+    const fetchEvacuationCapacityStatus = async (isRealtimeUpdate = false) => {
       if (!selectedDisaster?.id) return;
 
       try {
-        setLoading(true);
+        if (!isRealtimeUpdate) setLoading(true);
         let url = `https://api.e-legtas.tech/api/v1/dashboard/capacity-status/${selectedDisaster.id}`;
 
         // If date filter applied, add query params with Manila → UTC conversion
@@ -601,7 +602,7 @@ useEffect(() => {
         console.error('Error fetching evacuation center capacity status:', error);
         setEvacuationCapacityStatus([]);
       } finally {
-        setLoading(false);
+        if (!isRealtimeUpdate) setLoading(false);
       }
     };
 
@@ -622,7 +623,7 @@ useEffect(() => {
       selectedDisaster?.id,
       (newData, oldData) =>
         newData?.total_no_of_individuals !== oldData?.total_no_of_individuals,
-      fetchEvacuationCapacityStatus,
+      () => fetchEvacuationCapacityStatus(true),
       'Evacuation Capacity'
     );
 
@@ -649,7 +650,7 @@ useEffect(() => {
 
         if (isRelevant) {
           console.log('Relevant evacuation_center capacity change → refetching');
-          fetchEvacuationCapacityStatus();
+          fetchEvacuationCapacityStatus(true);
         }
       }
     );
@@ -658,7 +659,7 @@ useEffect(() => {
     listenToEvacuationEndDateChange(
       channel,
       selectedDisaster?.id,
-      fetchEvacuationCapacityStatus,
+      () => fetchEvacuationCapacityStatus(true),
       'Capacity Status'
     );
 
@@ -677,7 +678,7 @@ useEffect(() => {
           inserted?.evacuation_end_date === null
         ) {
           console.log('New active evacuation event inserted');
-          fetchEvacuationCapacityStatus();
+          fetchEvacuationCapacityStatus(true);
         }
       }
     );

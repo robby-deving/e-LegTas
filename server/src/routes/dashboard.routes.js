@@ -12,7 +12,6 @@ const {
   getCampManagerDisasters,
   getCampManagerCenterInfo,
   getCampManagerDashboardSummary,
-  // getBarangayOfficerDisasters
   getBarangayActiveDisasters,
   getBarangayDashboard
 } = require('../controllers/dashboard.controller');
@@ -91,10 +90,8 @@ router.get("/camp-manager/summary/:eventId",
 );
 
 // For Barangay Official Dashboard
-// router.get("/barangay/disasters/:userId", getBarangayOfficerDisasters);
-router.get("/barangay/disasters/:barangayOfficialId", getBarangayActiveDisasters);
+router.get("/barangay/disasters/:barangayId", getBarangayActiveDisasters);
 router.get('/barangay/summary/:barangayId', getBarangayDashboard);
-
 
 
 // Future dashboard routes can follow this format:

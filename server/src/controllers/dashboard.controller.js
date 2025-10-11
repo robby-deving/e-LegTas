@@ -1041,112 +1041,29 @@ exports.getCampManagerDashboardSummary = async (req, res) => {
 
 // --- For Barangay Officials ---
 
-/**
- * @desc Get active disasters accessible to a barangay officer
- * @route GET /api/v1/dashboard/barangay/disasters/:userId
- * @access Public (for testing; restrict later with auth middleware)
- */
-
-// exports.getBarangayOfficerDisasters = async (req, res) => {
-//   try {
-//     const { userId } = req.params;
-
-//     // 1️⃣ Find the barangay assigned to this barangay officer
-//     const { data: barangayData, error: barangayError } = await supabase
-//       .from("barangay_officials")
-//       .select("barangay_id")
-//       .eq("user_profile_id", userId)
-//       .single();
-
-//     if (barangayError || !barangayData)
-//       return res.status(404).json({ error: "Barangay officer not found or not assigned to any barangay." });
-
-//     const barangayId = barangayData.barangay_id;
-
-//     // 2️⃣ Get all evacuation centers within this barangay
-//     const { data: evacuationCenters, error: ecError } = await supabase
-//       .from("evacuation_centers")
-//       .select("id")
-//       .eq("barangay_id", barangayId);
-
-//     if (ecError) return res.status(500).json({ error: ecError.message });
-//     if (!evacuationCenters || evacuationCenters.length === 0)
-//       return res.status(404).json({ error: "No evacuation centers found in this barangay." });
-
-//     const evacuationCenterIds = evacuationCenters.map(ec => ec.id);
-
-//     // 3️⃣ Get all active disaster evacuation events related to these centers
-//     const { data, error } = await supabase
-//       .from("disaster_evacuation_event")
-//       .select(`
-//         id,
-//         disaster_id,
-//         evacuation_center_id,
-//         disasters (
-//           id,
-//           disaster_name,
-//           disaster_start_date,
-//           disaster_end_date,
-//           disaster_types ( name )
-//         )
-//       `)
-//       .in("evacuation_center_id", evacuationCenterIds)
-//       .is("evacuation_end_date", null); // only ongoing evacuations
-
-//     if (error) return res.status(500).json({ error: error.message });
-
-//     // 4️⃣ Filter and flatten data (only active disasters)
-//     const disasters = data
-//       .filter(d => d.disasters && d.disasters.disaster_end_date === null)
-//       .map(d => ({
-//         ...d.disasters,
-//         evacuation_center_id: d.evacuation_center_id,
-//         disaster_evacuation_event_id: d.id,
-//       }));
-
-//     // 5️⃣ Send result
-//     res.status(200).json(disasters);
-//   } catch (err) {
-//     console.error("Error fetching barangay officer disasters:", err);
-//     res.status(500).json({ error: err.message });
-//   }
-// };
-
-// GET /api/v1/dashboard/barangay/disasters/:barangayOfficialId
+// GET /api/v1/dashboard/barangay/disasters/:barangayId
 exports.getBarangayActiveDisasters = async (req, res) => {
   try {
-    const { barangayOfficialId } = req.params;
-    if (!barangayOfficialId) {
-      return res.status(400).json({ message: 'barangayOfficialId is required' });
+    const { barangayId } = req.params;
+    if (!barangayId) {
+      return res.status(400).json({ message: 'barangayId is required' });
     }
 
-    // 1) find barangay_id from barangay_officials
-    const { data: bo, error: boError } = await supabase
-      .from('barangay_officials')
-      .select('barangay_id')
-      .eq('id', barangayOfficialId)
-      .maybeSingle();
-
-    if (boError) {
-      console.error('Error fetching barangay_officials:', boError);
-      return res.status(500).json({ message: 'Database error', error: boError.message });
-    }
-    if (!bo) {
-      return res.status(404).json({ message: 'Barangay official not found' });
-    }
-    const barangayId = bo.barangay_id;
-
-    // 2) fetch disaster_evacuation_event rows linked to evacuation_centers in this barangay
+    // Fetch disasters linked to evacuation centers in this barangay
     const { data: events, error: eventsError } = await supabase
       .from('disaster_evacuation_event')
       .select(`
+        id,
         disaster_id,
+        evacuation_center_id,
         disasters (
           id,
           disaster_name,
           disaster_start_date,
           disaster_end_date,
-          disaster_type_id
+          disaster_types (
+            name
+          )
         ),
         evacuation_centers (
           id,
@@ -1160,112 +1077,237 @@ exports.getBarangayActiveDisasters = async (req, res) => {
       return res.status(500).json({ message: 'Database error', error: eventsError.message });
     }
 
-    // 3) map to unique active disasters (disaster_end_date IS NULL)
-    const map = new Map();
-    (events || []).forEach((ev) => {
-      const d = ev.disasters;
-      if (!d) return;
-      if (d.disaster_end_date !== null) return; // skip ended disasters
-      if (!map.has(d.id)) {
-        map.set(d.id, {
-          id: d.id,
-          disaster_name: d.disaster_name,
-          disaster_start_date: d.disaster_start_date,
-          disaster_type_id: d.disaster_type_id
-        });
-      }
-    });
+    // Filter and map to include only active (no end_date) disasters
+    const result = (events || [])
+      .filter(ev => ev.disasters && ev.disasters.disaster_end_date === null)
+      .map(ev => ({
+        id: ev.disasters.id,
+        disaster_name: ev.disasters.disaster_name,
+        disaster_start_date: ev.disasters.disaster_start_date,
+        disaster_end_date: ev.disasters.disaster_end_date,
+        disaster_types: {
+          name: ev.disasters.disaster_types?.name || "Unknown"
+        },
+        evacuation_center_id: ev.evacuation_center_id,
+        disaster_evacuation_event_id: ev.id
+      }));
 
-    const result = Array.from(map.values());
+    // Remove duplicates by disaster ID
+    const uniqueMap = new Map();
+    for (const d of result) {
+      if (!uniqueMap.has(d.id)) uniqueMap.set(d.id, d);
+    }
 
-    return res.status(200).json({ data: result });
+    return res.status(200).json({ data: Array.from(uniqueMap.values()) });
   } catch (err) {
     console.error('Server error getBarangayActiveDisasters:', err);
     return res.status(500).json({ message: 'Server error', error: err.message });
   }
 };
 
-
 /**
- * GET /api/v1/dashboard/barangay/:barangayId?disasterId=...
- * Returns:
- *  - barangay { id, name }
- *  - totals: total_registered_families, total_registered_evacuees
- *  - evacuee_stats: male, female, infant, children, youth, adult, seniors, pwd, pregnant, lactating
- *  - families_with_relief: integer (unique family_heads who received services AND are currently evacuated in barangay)
- *  - meta: centers_count, events_count
+ * @desc Get Barangay Dashboard Summary (live + optional date filter)
+ * @route GET /api/v1/dashboard/barangay/:barangayId?disasterId=...&from=YYYY-MM-DDTHH:mm:ssZ&to=YYYY-MM-DDTHH:mm:ssZ
+ * @access Public (testing only)
  */
 exports.getBarangayDashboard = async (req, res) => {
   try {
     const { barangayId } = req.params;
-    const { disasterId } = req.query; // optional
+    const { disasterId, from, to } = req.query;
 
-    if (!barangayId) return res.status(400).json({ message: 'barangayId is required' });
+    if (!barangayId) return res.status(400).json({ message: "barangayId is required" });
 
-    // 1) Barangay info
+    // 1️⃣ Barangay info
     const { data: barangay, error: barangayError } = await supabase
-      .from('barangays')
-      .select('id,name')
-      .eq('id', barangayId)
+      .from("barangays")
+      .select("id,name")
+      .eq("id", barangayId)
       .maybeSingle();
-    if (barangayError) return res.status(500).json({ message: 'DB error (barangay)', error: barangayError.message });
-    if (!barangay) return res.status(404).json({ message: 'Barangay not found' });
+    if (barangayError)
+      return res.status(500).json({ message: "DB error (barangay)", error: barangayError.message });
+    if (!barangay) return res.status(404).json({ message: "Barangay not found" });
 
-    // 2) Evacuation centers in barangay (exclude deleted centers if your system uses deleted_at)
+    // 2️⃣ Evacuation centers under barangay
     const { data: centers, error: centersError } = await supabase
-      .from('evacuation_centers')
-      .select('id')
-      .eq('barangay_id', barangayId)
-      .is('deleted_at', null); // adjust if you want to include soft-deleted centers
-    if (centersError) return res.status(500).json({ message: 'DB error (centers)', error: centersError.message });
+      .from("evacuation_centers")
+      .select("id")
+      .eq("barangay_id", barangayId)
+      .is("deleted_at", null);
+
+    if (centersError)
+      return res.status(500).json({ message: "DB error (centers)", error: centersError.message });
 
     const centerIds = (centers || []).map(c => c.id);
     const centersCount = centerIds.length;
+
     if (centerIds.length === 0) {
-      // nothing to aggregate — return zeros
       return res.status(200).json({
         barangay,
-        totals: {
-          total_registered_families: 0,
-          total_registered_evacuees: 0
-        },
+        totals: { total_registered_families: 0, total_registered_evacuees: 0 },
         evacuee_stats: {
-          male: 0, female: 0, infant: 0, children: 0, youth: 0, adult: 0, seniors: 0, pwd: 0, pregnant: 0, lactating: 0
+          male: 0, female: 0, infant: 0, children: 0, youth: 0,
+          adult: 0, senior_citizens: 0, pwd: 0, pregnant: 0, lactating: 0
         },
         families_with_relief: 0,
         meta: { centers_count: centersCount, events_count: 0 }
       });
     }
 
-    // 3) disaster_evacuation_event rows for those centers — only currently active events (evacuation_end_date IS NULL)
+    // 3️⃣ Get active evacuation events
     let eventsQuery = supabase
-      .from('disaster_evacuation_event')
-      .select('id, disaster_id, evacuation_center_id')
-      .in('evacuation_center_id', centerIds)
-      .is('evacuation_end_date', null);
+      .from("disaster_evacuation_event")
+      .select("id, disaster_id, evacuation_center_id")
+      .in("evacuation_center_id", centerIds)
+      .is("evacuation_end_date", null);
 
-    if (disasterId) eventsQuery = eventsQuery.eq('disaster_id', disasterId);
+    if (disasterId) eventsQuery = eventsQuery.eq("disaster_id", disasterId);
 
     const { data: events, error: eventsError } = await eventsQuery;
-    if (eventsError) return res.status(500).json({ message: 'DB error (events)', error: eventsError.message });
+    if (eventsError)
+      return res.status(500).json({ message: "DB error (events)", error: eventsError.message });
 
     const eventIds = (events || []).map(e => e.id);
     const eventsCount = eventIds.length;
 
     if (eventIds.length === 0) {
-      // no active events in barangay (for that disaster if provided)
       return res.status(200).json({
         barangay,
         totals: { total_registered_families: 0, total_registered_evacuees: 0 },
-        evacuee_stats: { male: 0, female: 0, infant: 0, children: 0, youth: 0, adult: 0, seniors: 0, pwd: 0, pregnant: 0, lactating: 0 },
+        evacuee_stats: {
+          male: 0, female: 0, infant: 0, children: 0, youth: 0,
+          adult: 0, senior_citizens: 0, pwd: 0, pregnant: 0, lactating: 0
+        },
         families_with_relief: 0,
         meta: { centers_count: centersCount, events_count: eventsCount }
       });
     }
 
-    // 4) evacuation_summaries — aggregate by summing relevant columns across all eventIds
+    // Shared helper to count families with relief goods
+    const getFamiliesWithReliefGoods = async (eventIds, from = null, to = null) => {
+      try {
+        let query = supabase.from("services").select("family_id, disaster_evacuation_event_id").in("disaster_evacuation_event_id", eventIds);
+        if (from && to) query = query.gte("created_at", from).lte("created_at", to);
+
+        const { data: services, error: servicesError } = await query;
+        if (servicesError) {
+          console.error("Supabase Error (services):", servicesError);
+          return 0;
+        }
+
+        const familyIds = [...new Set((services || []).map(s => s.family_id))];
+        if (familyIds.length === 0) return 0;
+
+        const { data: regs, error: regsError } = await supabase
+          .from("evacuation_registrations")
+          .select("family_head_id")
+          .in("family_head_id", familyIds)
+          .in("disaster_evacuation_event_id", eventIds)
+          .is("decampment_timestamp", null);
+
+        if (regsError) {
+          console.error("Supabase Error (active families):", regsError);
+          return 0;
+        }
+
+        return new Set((regs || []).map(r => r.family_head_id)).size;
+      } catch (err) {
+        console.error("Error counting families with relief goods:", err);
+        return 0;
+      }
+    };
+
+    // -------------------------------
+    // FILTERED MODE (with ?from & ?to)
+    // -------------------------------
+    if (from && to) {
+      const { data: registrations, error: regError } = await supabase
+        .from("evacuation_registrations")
+        .select(`family_head_id, arrival_timestamp, vulnerability_type_ids, profile_snapshot, disaster_evacuation_event_id`)
+        .in("disaster_evacuation_event_id", eventIds)
+        .gte("arrival_timestamp", from)
+        .lte("arrival_timestamp", to);
+
+      if (regError)
+        return res.status(500).json({ message: "DB error (filtered registrations)", error: regError.message });
+
+      const registeredEvacuees = registrations?.length || 0;
+      const uniqueFamilies = new Set(registrations.map(r => r.family_head_id));
+      const registeredFamilies = uniqueFamilies.size;
+
+      // Stats accumulator
+      const stats = {
+        male: 0, female: 0, infant: 0, children: 0,
+        youth: 0, adult: 0, senior_citizens: 0,
+        pwd: 0, pregnant: 0, lactating: 0
+      };
+
+      const today = new Date();
+
+      registrations.forEach(reg => {
+        let snapshot = reg.profile_snapshot;
+        if (typeof snapshot === "string") {
+          try {
+            snapshot = JSON.parse(snapshot);
+          } catch {
+            snapshot = null;
+          }
+        }
+
+        const sex = snapshot?.sex?.toLowerCase();
+        if (sex === "male") stats.male++;
+        if (sex === "female") stats.female++;
+
+        const birthdateStr = snapshot?.birthdate;
+        if (birthdateStr) {
+          const birthDate = new Date(birthdateStr);
+          if (!isNaN(birthDate)) {
+            const age =
+              today.getFullYear() -
+              birthDate.getFullYear() -
+              (today < new Date(today.getFullYear(), birthDate.getMonth(), birthDate.getDate()) ? 1 : 0);
+
+            if (age <= 1) stats.infant++;
+            else if (age <= 12) stats.children++;
+            else if (age <= 17) stats.youth++;
+            else if (age <= 59) stats.adult++;
+            else stats.senior_citizens++;
+          }
+        }
+
+        const vulnIds = reg.vulnerability_type_ids || [];
+        if (Array.isArray(vulnIds)) {
+          vulnIds.forEach(id => {
+            if (id === "4" || id === 4) stats.pwd++;
+            if (id === "5" || id === 5) stats.pregnant++;
+            if (id === "6" || id === 6) stats.lactating++;
+          });
+        }
+      });
+
+      const familiesWithRelief = await getFamiliesWithReliefGoods(eventIds, from, to);
+
+      return res.status(200).json({
+        barangay,
+        totals: {
+          total_registered_families: registeredFamilies,
+          total_registered_evacuees: registeredEvacuees
+        },
+        evacuee_stats: stats,
+        families_with_relief: familiesWithRelief,
+        meta: {
+          centers_count: centersCount,
+          events_count: eventsCount,
+          events_ids: eventIds
+        },
+        message: "Filtered barangay dashboard summary by arrival date."
+      });
+    }
+
+    // -------------------------------
+    // LIVE MODE (no date filter)
+    // -------------------------------
     const { data: summaries, error: summariesError } = await supabase
-      .from('evacuation_summaries')
+      .from("evacuation_summaries")
       .select(`
         disaster_evacuation_event_id,
         total_no_of_family,
@@ -1281,100 +1323,63 @@ exports.getBarangayDashboard = async (req, res) => {
         total_no_of_pregnant,
         total_no_of_lactating_women
       `)
-      .in('disaster_evacuation_event_id', eventIds);
+      .in("disaster_evacuation_event_id", eventIds);
 
-    if (summariesError) return res.status(500).json({ message: 'DB error (summaries)', error: summariesError.message });
+    if (summariesError)
+      return res.status(500).json({ message: "DB error (summaries)", error: summariesError.message });
 
-    // sum up safely (coerce to numbers)
-    const totalsAccumulator = {
+    const totals = {
       total_registered_families: 0,
       total_registered_evacuees: 0,
-      male: 0,
-      female: 0,
-      infant: 0,
-      children: 0,
-      youth: 0,
-      adult: 0,
-      seniors: 0,
-      pwd: 0,
-      pregnant: 0,
-      lactating: 0
+      male: 0, female: 0, infant: 0, children: 0, youth: 0,
+      adult: 0, senior_citizens: 0, pwd: 0, pregnant: 0, lactating: 0
     };
 
-    (summaries || []).forEach(s => {
-      totalsAccumulator.total_registered_families += Number(s.total_no_of_family || 0);
-      // prefer total_no_of_individuals for total evacuees if present
-      totalsAccumulator.total_registered_evacuees += Number(s.total_no_of_individuals || 0);
-      totalsAccumulator.male += Number(s.total_no_of_male || 0);
-      totalsAccumulator.female += Number(s.total_no_of_female || 0);
-      totalsAccumulator.infant += Number(s.total_no_of_infant || 0);
-      totalsAccumulator.children += Number(s.total_no_of_children || 0);
-      totalsAccumulator.youth += Number(s.total_no_of_youth || 0);
-      totalsAccumulator.adult += Number(s.total_no_of_adult || 0);
-      totalsAccumulator.seniors += Number(s.total_no_of_seniors || 0);
-      totalsAccumulator.pwd += Number(s.total_no_of_pwd || 0);
-      totalsAccumulator.pregnant += Number(s.total_no_of_pregnant || 0);
-      totalsAccumulator.lactating += Number(s.total_no_of_lactating_women || 0);
+    summaries.forEach(s => {
+      totals.total_registered_families += Number(s.total_no_of_family || 0);
+      totals.total_registered_evacuees += Number(s.total_no_of_individuals || 0);
+      totals.male += Number(s.total_no_of_male || 0);
+      totals.female += Number(s.total_no_of_female || 0);
+      totals.infant += Number(s.total_no_of_infant || 0);
+      totals.children += Number(s.total_no_of_children || 0);
+      totals.youth += Number(s.total_no_of_youth || 0);
+      totals.adult += Number(s.total_no_of_adult || 0);
+      totals.senior_citizens += Number(s.total_no_of_seniors || 0);
+      totals.pwd += Number(s.total_no_of_pwd || 0);
+      totals.pregnant += Number(s.total_no_of_pregnant || 0);
+      totals.lactating += Number(s.total_no_of_lactating_women || 0);
     });
 
-    // 5) Families with relief goods:
-    //  - find unique family_ids in services for those eventIds
-    //  - but only count those family_ids that have a current evacuation registration (decampment_timestamp IS NULL)
-    const { data: servicesRows, error: servicesError } = await supabase
-      .from('services')
-      .select('family_id, disaster_evacuation_event_id')
-      .in('disaster_evacuation_event_id', eventIds);
+    const familiesWithRelief = await getFamiliesWithReliefGoods(eventIds);
 
-    if (servicesError) return res.status(500).json({ message: 'DB error (services)', error: servicesError.message });
-
-    const uniqueFamilyIds = Array.from(new Set((servicesRows || []).map(r => r.family_id).filter(Boolean)));
-
-    let familiesWithReliefCount = 0;
-
-    if (uniqueFamilyIds.length > 0) {
-      // find registrations of those family_head_ids that are still evacuated (decampment_timestamp IS NULL)
-      const { data: regRows, error: regsError } = await supabase
-        .from('evacuation_registrations')
-        .select('family_head_id')
-        .in('family_head_id', uniqueFamilyIds)
-        .in('disaster_evacuation_event_id', eventIds)
-        .is('decampment_timestamp', null);
-
-      if (regsError) return res.status(500).json({ message: 'DB error (registrations)', error: regsError.message });
-
-      const familiesCurrentlyEvacuatedSet = new Set((regRows || []).map(r => r.family_head_id).filter(Boolean));
-      familiesWithReliefCount = familiesCurrentlyEvacuatedSet.size;
-    }
-
-    // 6) send response
     return res.status(200).json({
       barangay,
       totals: {
-        total_registered_families: totalsAccumulator.total_registered_families,
-        total_registered_evacuees: totalsAccumulator.total_registered_evacuees
+        total_registered_families: totals.total_registered_families,
+        total_registered_evacuees: totals.total_registered_evacuees
       },
       evacuee_stats: {
-        male: totalsAccumulator.male,
-        female: totalsAccumulator.female,
-        infant: totalsAccumulator.infant,
-        children: totalsAccumulator.children,
-        youth: totalsAccumulator.youth,
-        adult: totalsAccumulator.adult,
-        senior_citizens: totalsAccumulator.seniors,
-        pwd: totalsAccumulator.pwd,
-        pregnant: totalsAccumulator.pregnant,
-        lactating: totalsAccumulator.lactating
+        male: totals.male,
+        female: totals.female,
+        infant: totals.infant,
+        children: totals.children,
+        youth: totals.youth,
+        adult: totals.adult,
+        senior_citizens: totals.senior_citizens,
+        pwd: totals.pwd,
+        pregnant: totals.pregnant,
+        lactating: totals.lactating
       },
-      families_with_relief: familiesWithReliefCount,
+      families_with_relief: familiesWithRelief,
       meta: {
         centers_count: centersCount,
         events_count: eventsCount,
-        events_ids: eventIds // helpful for debugging on client side
-      }
+        events_ids: eventIds
+      },
+      message: "Live barangay dashboard summary."
     });
-
   } catch (err) {
-    console.error('Server error getBarangayDashboard:', err);
-    return res.status(500).json({ message: 'Server error', error: err.message });
+    console.error("Server error getBarangayDashboard:", err);
+    return res.status(500).json({ message: "Server error", error: err.message });
   }
 };

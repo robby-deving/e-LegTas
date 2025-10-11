@@ -114,9 +114,9 @@ export function useCampManagerDashboardData(campManagerId: number, selectedDateR
 
     const eventId = selectedDisaster.disaster_evacuation_event_id;
 
-    const fetchSummary = async () => {
+    const fetchSummary = async (isRealtimeUpdate = false) => {
       try {
-        setLoading(true);
+        if (!isRealtimeUpdate) setLoading(true);
 
         // Build base URL
         let url = `/api/v1/dashboard/camp-manager/summary/${eventId}`;
@@ -174,7 +174,7 @@ export function useCampManagerDashboardData(campManagerId: number, selectedDateR
       } catch (err) {
         console.error("Error fetching Camp Manager Dashboard Summary:", err);
       } finally {
-        setLoading(false);
+        if (!isRealtimeUpdate) setLoading(false);
       }
     };
 
@@ -223,7 +223,7 @@ export function useCampManagerDashboardData(campManagerId: number, selectedDateR
 
         if (hasRelevantChange) {
           console.log("Relevant evacuation_summaries change → refetching");
-          fetchSummary();
+          fetchSummary(true);
         }
       }
     );
@@ -253,7 +253,7 @@ export function useCampManagerDashboardData(campManagerId: number, selectedDateR
 
         if (isRelevant) {
           console.log("Relevant evacuation_center capacity change → refetching");
-          fetchSummary();
+          fetchSummary(true);
         }
       }
     );
@@ -269,7 +269,7 @@ export function useCampManagerDashboardData(campManagerId: number, selectedDateR
       },
       async (payload) => {
         console.log("New service added:", payload.new);
-        await fetchSummary();
+        await fetchSummary(true);
       }
     );
 
@@ -292,7 +292,7 @@ export function useCampManagerDashboardData(campManagerId: number, selectedDateR
           newRow.decampment_timestamp !== null
         ) {
           console.log("An evacuee decamped — rechecking active families");
-          await fetchSummary();
+          await fetchSummary(true);
         }
       }
     );
@@ -308,7 +308,7 @@ export function useCampManagerDashboardData(campManagerId: number, selectedDateR
       },
       async (payload) => {
         console.log("Service record deleted:", payload.old);
-        await fetchSummary();
+        await fetchSummary(true);
       }
     );
 
