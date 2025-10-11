@@ -262,8 +262,168 @@ interface BarangayOptions {
 
   pregnantWomen: boolean;
   lactatingWomen: boolean;
+  reliefServices: boolean
 }
 
+
+// ---- helpers (TOP-LEVEL, above the default export) ----
+const onlyDigits3 = (raw: string) => raw.replace(/\D/g, "").slice(0, 3);
+
+const AgeRow: React.FC<{
+  label?: string;
+  value: AgeRange;
+  onMin: (v: string) => void;
+  onMax: (v: string) => void;
+}> = ({ label = "Age:", value, onMin, onMax }) => (
+  <div className="flex items-center gap-2 text-sm">
+    <span className="text-sm">{label}</span>
+
+    {/* MIN */}
+    <Input
+      type="text"
+      inputMode="numeric"
+      pattern="[0-9]*"
+      maxLength={3}
+      className="w-14 h-8 px-2 text-sm"
+      value={value.min ?? ""}
+      onChange={(e) => onMin(onlyDigits3(e.target.value))}
+      onMouseDown={(e) => e.stopPropagation()}
+      onWheel={(e) => (e.target as HTMLInputElement).blur()}
+    />
+
+    <span>–</span>
+
+    {/* MAX */}
+    <Input
+      type="text"
+      inputMode="numeric"
+      pattern="[0-9]*"
+      maxLength={3}
+      className="w-14 h-8 px-2 text-sm"
+      value={value.max ?? ""}
+      onChange={(e) => onMax(onlyDigits3(e.target.value))}
+      onMouseDown={(e) => e.stopPropagation()}
+      onWheel={(e) => (e.target as HTMLInputElement).blur()}
+    />
+  </div>
+);
+
+const Buckets: React.FC<{
+  value: SexBuckets;
+  onChange: (next: SexBuckets) => void;
+}> = ({ value, onChange }) => (
+  <>
+    <label className="flex items-center">
+      <input
+        type="checkbox"
+        className="brand-checkbox"
+        checked={value.male}
+        onChange={(e) => onChange({ ...value, male: e.target.checked })}
+      />
+      <span className="text-sm">Male</span>
+    </label>
+    <label className="flex items-center">
+      <input
+        type="checkbox"
+        className="brand-checkbox"
+        checked={value.female}
+        onChange={(e) => onChange({ ...value, female: e.target.checked })}
+      />
+      <span className="text-sm">Female</span>
+    </label>
+    <label className="flex items-center">
+      <input
+        type="checkbox"
+        className="brand-checkbox"
+        checked={value.total}
+        onChange={(e) => onChange({ ...value, total: e.target.checked })}
+      />
+      <span className="text-sm">Total</span>
+    </label>
+  </>
+);
+
+const Cat: React.FC<{
+  title: string;
+  open: boolean;
+  setOpen: (v: boolean) => void;
+  enabled: boolean;
+  setEnabled: (v: boolean) => void;
+  buckets: SexBuckets;
+  setBuckets: (b: SexBuckets) => void;
+  age?: AgeRange;
+  setAge?: (a: AgeRange) => void;
+  withAge?: boolean;
+  className?: string;
+}> = ({
+  title, open, setOpen, setEnabled,
+  buckets, setBuckets, age, setAge, withAge = true, className = "mt-2",
+}) => {
+  const vals = [buckets.male, buckets.female, buckets.total];
+  const all = vals.every(Boolean);
+  const none = vals.every((v) => !v);
+  const mixed = !all && !none;
+
+  const headerRef = React.useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (headerRef.current) headerRef.current.indeterminate = mixed;
+  }, [mixed]);
+
+  return (
+    <Section
+      variant="plain"
+      label={
+        <div className="flex items-center">
+          <input
+            ref={headerRef}
+            type="checkbox"
+            className="brand-checkbox"
+            checked={all}
+            onChange={(e) => {
+              const v = e.target.checked;
+              setEnabled(v);
+              setBuckets({ male: v, female: v, total: v });
+              if (v) setOpen(true);
+            }}
+          />
+          <span className="ml-2">{title}</span>
+        </div>
+      }
+      open={open}
+      onToggle={() => setOpen(!open)}
+      className={className}
+    >
+      {/* Stop events so clicks inside don't toggle the Section */}
+      <div
+        className="pl-6 space-y-2"
+        onPointerDownCapture={(e) => e.stopPropagation()}
+        onKeyDownCapture={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {withAge && age && setAge && (
+          <AgeRow
+            value={age}
+            onMin={(v) => {
+              setAge({ ...age, min: v });
+              if ((v ?? "") !== "" || (age.max ?? "") !== "") setEnabled(true);
+            }}
+            onMax={(v) => {
+              setAge({ ...age, max: v });
+              if ((age.min ?? "") !== "" || (v ?? "") !== "") setEnabled(true);
+            }}
+          />
+        )}
+        <Buckets
+          value={buckets}
+          onChange={(next) => {
+            setBuckets(next);
+            setEnabled(next.male || next.female || next.total);
+          }}
+        />
+      </div>
+    </Section>
+  );
+};
 
 export default function CreateReportModal(props: CreateReportModalProps) {
   const {
@@ -293,7 +453,6 @@ export default function CreateReportModal(props: CreateReportModalProps) {
     formErrors,
     isCreating,
     onCreate,
-    reportTypes, // kept for contract (unused here)
     fileFormats,
     clearFormError,
     date,
@@ -303,6 +462,7 @@ export default function CreateReportModal(props: CreateReportModalProps) {
     rowCount,
   } = props;
 
+  const [submitting, setSubmitting] = useState(false);
   // which major type is chosen (UI label)
   const selectedType = reportType; // 'Aggregated' | 'Disaggregated' | 'Barangay Report'
   // Only one section can be edited/selected at a time
@@ -670,6 +830,7 @@ const [bgy, setBgy] = useState<BarangayOptions>({
 
   pregnantWomen: false,
   lactatingWomen: false,
+  reliefServices: false,
 });
 
 // parent select-all + indeterminate for Barangay
@@ -687,7 +848,7 @@ const flatBgy = useMemo(
 
     bgy.pwd.enabled, bgy.pwd.buckets.male, bgy.pwd.buckets.female, bgy.pwd.buckets.total,
 
-    bgy.pregnantWomen, bgy.lactatingWomen,
+    bgy.pregnantWomen, bgy.lactatingWomen, bgy.reliefServices,
   ],
   [bgy]
 );
@@ -725,6 +886,7 @@ const setAllBgy = (v: boolean) => {
 
     pregnantWomen: v,
     lactatingWomen: v,
+    reliefServices: v,
   }));
 };
 
@@ -770,27 +932,28 @@ const setAllBgy = (v: boolean) => {
           </DialogDescription>
         </DialogHeader>
 
-    <div className="space-y-1 pr-2 pb-2 max-h-152 overflow-y-auto overscroll-contain [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-corner]:bg-transparent dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500 [scrollbar-width:thin] [scrollbar-color:rgb(209_213_219)_transparent] dark:[scrollbar-color:rgb(115_115_115)_transparent]">
-          <form
-            id="createReportForm"
-            className="space-y-4"
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (canDownload) {
-                onCreate({
-                  // send only the fields relevant to the chosen type
-                  fields:
-                    selectedType === "Aggregated"
-                      ? agg
-                      : selectedType === "Disaggregated"
-                      ? disagg
-                      : selectedType === "Barangay Report"
-                      ? bgy
-                      : undefined,
-                });
-             }
-             }}
-           >
+    <div className="space-y-1 pr-2 pb-2 max-h-150 overflow-y-auto overscroll-contain [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-corner]:bg-transparent dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500 [scrollbar-width:thin] [scrollbar-color:rgb(209_213_219)_transparent] dark:[scrollbar-color:rgb(115_115_115)_transparent]">
+<form
+  id="createReportForm"
+  className="space-y-4"
+  onSubmit={async (e) => {
+    e.preventDefault();
+    if (!canDownload || submitting) return;
+
+    setSubmitting(true);
+    try {
+      const fieldsForType =
+        selectedType === "Aggregated"      ? agg :
+        selectedType === "Disaggregated"   ? disagg :
+        selectedType === "Barangay Report" ? bgy :
+        undefined;
+
+      await onCreate?.({ fields: fieldsForType });
+    } finally {
+      setSubmitting(false);
+    }
+  }}
+>
             {/* Report Name */}
             <div>
               <label className="block text-sm font-semibold mb-2">Report Name:</label>
@@ -1316,262 +1479,112 @@ const setAllBgy = (v: boolean) => {
         </label>
       </div>
 
-      {/* Helper + nested sections */}
-      {(() => {
-        const AgeRow = ({
-          label = "Age:",
-          value,
-          onMin,
-          onMax,
-        }: {
-          label?: string;
-          value: AgeRange;
-          onMin: (v: string) => void;
-          onMax: (v: string) => void;
-        }) => (
-          <div className="flex items-center gap-2 text-sm">
-            <span className="text-sm">{label}</span>
-            <Input
-              type="number"
-              className="w-14 h-8 px-2 text-sm"
-              value={value.min}
-              onChange={(e) => onMin(e.target.value)}
-            />
-            <span>–</span>
-            <Input
-              type="number"
-              className="w-14 h-8 px-2 text-sm"
-              value={value.max}
-              onChange={(e) => onMax(e.target.value)}
-            />
-          </div>
-        );
+      {/* Helper + nested sections – no IIFE so inputs keep focus */}
+<div className="pl-7">
+  <Cat
+    title="Infant"
+    open={disInfantOpen}
+    setOpen={setDisInfantOpen}
+    enabled={disagg.infant.enabled}
+    setEnabled={(v) => setDisagg((s) => ({ ...s, infant: { ...s.infant, enabled: v } }))}
+    buckets={disagg.infant.buckets}
+    setBuckets={(b) => setDisagg((s) => ({ ...s, infant: { ...s.infant, buckets: b } }))}
+    age={disagg.infant.age}
+    setAge={(a) => setDisagg((s) => ({ ...s, infant: { ...s.infant, age: a } }))}
+    withAge
+    className="mt-2"
+  />
 
-        const Buckets = ({
-          value,
-          onChange,
-        }: {
-          value: SexBuckets;
-          onChange: (next: SexBuckets) => void;
-        }) => (
-          <>
-            <label className="flex items-center">
-              <input
-                type="checkbox"
-                className="brand-checkbox"
-                checked={value.male}
-                onChange={(e) => onChange({ ...value, male: e.target.checked })}
-              />
-              <span className="text-sm">Male</span>
-            </label>
-            <label className="flex items-center">
-              <input
-                type="checkbox"
-                className="brand-checkbox"
-                checked={value.female}
-                onChange={(e) => onChange({ ...value, female: e.target.checked })}
-              />
-              <span className="text-sm">Female</span>
-            </label>
-            <label className="flex items-center">
-              <input
-                type="checkbox"
-                className="brand-checkbox"
-                checked={value.total}
-                onChange={(e) => onChange({ ...value, total: e.target.checked })}
-              />
-              <span className="text-sm">Total</span>
-            </label>
-          </>
-        );
+  <Cat
+    title="Children"
+    open={disChildrenOpen}
+    setOpen={setDisChildrenOpen}
+    enabled={disagg.children.enabled}
+    setEnabled={(v) => setDisagg((s) => ({ ...s, children: { ...s.children, enabled: v } }))}
+    buckets={disagg.children.buckets}
+    setBuckets={(b) => setDisagg((s) => ({ ...s, children: { ...s.children, buckets: b } }))}
+    age={disagg.children.age}
+    setAge={(a) => setDisagg((s) => ({ ...s, children: { ...s.children, age: a } }))}
+    withAge
+  />
 
-        // Category Section with tri-state header
-        const Cat = ({
-          title,
-          open,
-          setOpen,
-          enabled,
-          setEnabled,
-          buckets,
-          setBuckets,
-          age,
-          setAge,
-          withAge = true,
-          className = "mt-2",
-        }: {
-          title: string;
-          open: boolean;
-          setOpen: (v: boolean) => void;
-          enabled: boolean;
-          setEnabled: (v: boolean) => void;
-          buckets: SexBuckets;
-          setBuckets: (b: SexBuckets) => void;
-          age?: AgeRange;
-          setAge?: (a: AgeRange) => void;
-          withAge?: boolean;
-          className?: string;
-        }) => {
-          // tri-state from bucket children
-          const vals = [buckets.male, buckets.female, buckets.total];
-          const all = vals.every(Boolean);
-          const none = vals.every((v) => !v);
-          const mixed = !all && !none;
+  <Cat
+    title="Youth"
+    open={disYouthOpen}
+    setOpen={setDisYouthOpen}
+    enabled={disagg.youth.enabled}
+    setEnabled={(v) => setDisagg((s) => ({ ...s, youth: { ...s.youth, enabled: v } }))}
+    buckets={disagg.youth.buckets}
+    setBuckets={(b) => setDisagg((s) => ({ ...s, youth: { ...s.youth, buckets: b } }))}
+    age={disagg.youth.age}
+    setAge={(a) => setDisagg((s) => ({ ...s, youth: { ...s.youth, age: a } }))}
+    withAge
+  />
 
-          const headerRef = React.useRef<HTMLInputElement>(null);
-          useEffect(() => {
-            if (headerRef.current) headerRef.current.indeterminate = mixed;
-          }, [mixed]);
+  <Cat
+    title="Adult"
+    open={disAdultOpen}
+    setOpen={setDisAdultOpen}
+    enabled={disagg.adult.enabled}
+    setEnabled={(v) => setDisagg((s) => ({ ...s, adult: { ...s.adult, enabled: v } }))}
+    buckets={disagg.adult.buckets}
+    setBuckets={(b) => setDisagg((s) => ({ ...s, adult: { ...s.adult, buckets: b } }))}
+    age={disagg.adult.age}
+    setAge={(a) => setDisagg((s) => ({ ...s, adult: { ...s.adult, age: a } }))}
+    withAge
+  />
 
-          return (
-            <Section
-              variant="plain"
-              label={
-                <div className="flex items-center">
-                  {/* header select-all for this category */}
-                  <input
-                    ref={headerRef}
-                    type="checkbox"
-                    className="brand-checkbox"
-                    checked={all}
-                    onChange={(e) => {
-                      const v = e.target.checked;
-                      setEnabled(v);
-                      setBuckets({ male: v, female: v, total: v });
-                      if (v) setOpen(true);
-                    }}
-                  />
-                  <span className="ml-2">{title}</span>
-                </div>
-              }
-              open={open}
-              onToggle={() => setOpen(!open)}
-              className={className}
-            >
-              <div className="pl-6 space-y-2">
-                {withAge && age && setAge && (
-                  <AgeRow
-                    value={age}
-                    onMin={(v) => setAge({ ...age, min: v })}
-                    onMax={(v) => setAge({ ...age, max: v })}
-                  />
-                )}
-                <Buckets
-                  value={buckets}
-                  onChange={(next) => {
-                    setBuckets(next);
-                    // keep "enabled" in sync with any child selection
-                    setEnabled(next.male || next.female || next.total);
-                  }}
-                />
-              </div>
-            </Section>
-          );
-        };
+  <Cat
+    title="Senior Citizens"
+    open={disSeniorsOpen}
+    setOpen={setDisSeniorsOpen}
+    enabled={disagg.seniors.enabled}
+    setEnabled={(v) => setDisagg((s) => ({ ...s, seniors: { ...s.seniors, enabled: v } }))}
+    buckets={disagg.seniors.buckets}
+    setBuckets={(b) => setDisagg((s) => ({ ...s, seniors: { ...s.seniors, buckets: b } }))}
+    age={disagg.seniors.age}
+    setAge={(a) => setDisagg((s) => ({ ...s, seniors: { ...s.seniors, age: a } }))}
+    withAge
+  />
 
-        return (
-          <div className="pl-7">
-            <Cat
-              title="Infant"
-              open={disInfantOpen}
-              setOpen={setDisInfantOpen}
-              enabled={disagg.infant.enabled}
-              setEnabled={(v) => setDisagg((s) => ({ ...s, infant: { ...s.infant, enabled: v } }))}
-              buckets={disagg.infant.buckets}
-              setBuckets={(b) => setDisagg((s) => ({ ...s, infant: { ...s.infant, buckets: b } }))}
-              age={disagg.infant.age}
-              setAge={(a) => setDisagg((s) => ({ ...s, infant: { ...s.infant, age: a } }))}
-              withAge
-              className="mt-2"
-            />
-            <Cat
-              title="Children"
-              open={disChildrenOpen}
-              setOpen={setDisChildrenOpen}
-              enabled={disagg.children.enabled}
-              setEnabled={(v) => setDisagg((s) => ({ ...s, children: { ...s.children, enabled: v } }))}
-              buckets={disagg.children.buckets}
-              setBuckets={(b) => setDisagg((s) => ({ ...s, children: { ...s.children, buckets: b } }))}
-              age={disagg.children.age}
-              setAge={(a) => setDisagg((s) => ({ ...s, children: { ...s.children, age: a } }))}
-              withAge
-            />
-            <Cat
-              title="Youth"
-              open={disYouthOpen}
-              setOpen={setDisYouthOpen}
-              enabled={disagg.youth.enabled}
-              setEnabled={(v) => setDisagg((s) => ({ ...s, youth: { ...s.youth, enabled: v } }))}
-              buckets={disagg.youth.buckets}
-              setBuckets={(b) => setDisagg((s) => ({ ...s, youth: { ...s.youth, buckets: b } }))}
-              age={disagg.youth.age}
-              setAge={(a) => setDisagg((s) => ({ ...s, youth: { ...s.youth, age: a } }))}
-              withAge
-            />
-            <Cat
-              title="Adult"
-              open={disAdultOpen}
-              setOpen={setDisAdultOpen}
-              enabled={disagg.adult.enabled}
-              setEnabled={(v) => setDisagg((s) => ({ ...s, adult: { ...s.adult, enabled: v } }))}
-              buckets={disagg.adult.buckets}
-              setBuckets={(b) => setDisagg((s) => ({ ...s, adult: { ...s.adult, buckets: b } }))}
-              age={disagg.adult.age}
-              setAge={(a) => setDisagg((s) => ({ ...s, adult: { ...s.adult, age: a } }))}
-              withAge
-            />
-            <Cat
-              title="Senior Citizens"
-              open={disSeniorsOpen}
-              setOpen={setDisSeniorsOpen}
-              enabled={disagg.seniors.enabled}
-              setEnabled={(v) => setDisagg((s) => ({ ...s, seniors: { ...s.seniors, enabled: v } }))}
-              buckets={disagg.seniors.buckets}
-              setBuckets={(b) => setDisagg((s) => ({ ...s, seniors: { ...s.seniors, buckets: b } }))}
-              age={disagg.seniors.age}
-              setAge={(a) => setDisagg((s) => ({ ...s, seniors: { ...s.seniors, age: a } }))}
-              withAge
-            />
-            <Cat
-              title="PWD"
-              open={disPWDOpen}
-              setOpen={setDisPWDOpen}
-              enabled={disagg.pwd.enabled}
-              setEnabled={(v) => setDisagg((s) => ({ ...s, pwd: { ...s.pwd, enabled: v } }))}
-              buckets={disagg.pwd.buckets}
-              setBuckets={(b) => setDisagg((s) => ({ ...s, pwd: { ...s.pwd, buckets: b } }))}
-              withAge={false}
-            />
+  <Cat
+    title="PWD"
+    open={disPWDOpen}
+    setOpen={setDisPWDOpen}
+    enabled={disagg.pwd.enabled}
+    setEnabled={(v) => setDisagg((s) => ({ ...s, pwd: { ...s.pwd, enabled: v } }))}
+    buckets={disagg.pwd.buckets}
+    setBuckets={(b) => setDisagg((s) => ({ ...s, pwd: { ...s.pwd, buckets: b } }))}
+    withAge={false}
+  />
 
-            {/* Singles */}
-            <div className="space-y-2 mt-2">
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  className="brand-checkbox"
-                  checked={disagg.pregnantWomen}
-                  onChange={(e) => setDisagg((s) => ({ ...s, pregnantWomen: e.target.checked }))}
-                />
-                <span className="text-sm">Pregnant Women</span>
-              </label>
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  className="brand-checkbox"
-                  checked={disagg.lactatingWomen}
-                  onChange={(e) => setDisagg((s) => ({ ...s, lactatingWomen: e.target.checked }))}
-                />
-                <span className="text-sm">Lactating Women</span>
-              </label>
-            </div>
-          </div>
-        );
-      })()}
+  {/* Singles */}
+  <div className="space-y-2 mt-2">
+    <label className="flex items-center">
+      <input
+        type="checkbox"
+        className="brand-checkbox"
+        checked={disagg.pregnantWomen}
+        onChange={(e) => setDisagg((s) => ({ ...s, pregnantWomen: e.target.checked }))}
+      />
+      <span className="text-sm">Pregnant Women</span>
+    </label>
+    <label className="flex items-center">
+      <input
+        type="checkbox"
+        className="brand-checkbox"
+        checked={disagg.lactatingWomen}
+        onChange={(e) => setDisagg((s) => ({ ...s, lactatingWomen: e.target.checked }))}
+      />
+      <span className="text-sm">Lactating Women</span>
+    </label>
+  </div>
+</div>
+
     </div>
   </fieldset>
   )}
 </div>
-
-
 
 {/* Barangay Report (header matches Aggregated) */}
 <div>
@@ -1766,245 +1779,112 @@ const setAllBgy = (v: boolean) => {
       </div>
 
       {/* Age buckets + PWD + Preg/Lactating */}
-      {(() => {
-        const AgeRow = ({
-          label = "Age:",
-          value,
-          onMin,
-          onMax,
-        }: {
-          label?: string;
-          value: AgeRange;
-          onMin: (v: string) => void;
-          onMax: (v: string) => void;
-        }) => (
-          <div className="flex items-center gap-2 text-sm">
-            <span className="text-sm">{label}</span>
-            <Input type="number" className="w-14 h-8 px-2 text-sm" value={value.min} onChange={(e) => onMin(e.target.value)} />
-            <span>–</span>
-            <Input type="number" className="w-14 h-8 px-2 text-sm" value={value.max} onChange={(e) => onMax(e.target.value)} />
-          </div>
-        );
 
-        const Buckets = ({
-          value,
-          onChange,
-        }: {
-          value: SexBuckets;
-          onChange: (next: SexBuckets) => void;
-        }) => (
-          <>
-            <label className="flex items-center">
-              <input
-                type="checkbox"
-                className="brand-checkbox"
-                checked={value.male}
-                onChange={(e) => onChange({ ...value, male: e.target.checked })}
-              />
-              <span className="text-sm">Male</span>
-            </label>
-            <label className="flex items-center">
-              <input
-                type="checkbox"
-                className="brand-checkbox"
-                checked={value.female}
-                onChange={(e) => onChange({ ...value, female: e.target.checked })}
-              />
-              <span className="text-sm">Female</span>
-            </label>
-            <label className="flex items-center">
-              <input
-                type="checkbox"
-                className="brand-checkbox"
-                checked={value.total}
-                onChange={(e) => onChange({ ...value, total: e.target.checked })}
-              />
-              <span className="text-sm">Total</span>
-            </label>
-          </>
-        );
+<div className="pl-7">
+  <Cat
+    title="Infant"
+    open={bgyInfantOpen}
+    setOpen={setBgyInfantOpen}
+    enabled={bgy.infant.enabled}
+    setEnabled={(v) => setBgy((s) => ({ ...s, infant: { ...s.infant, enabled: v } }))}
+    buckets={bgy.infant.buckets}
+    setBuckets={(b) => setBgy((s) => ({ ...s, infant: { ...s.infant, buckets: b } }))}
+    age={bgy.infant.age}
+    setAge={(a) => setBgy((s) => ({ ...s, infant: { ...s.infant, age: a } }))}
+    withAge
+    className="mt-2"
+  />
+  <Cat
+    title="Children"
+    open={bgyChildrenOpen}
+    setOpen={setBgyChildrenOpen}
+    enabled={bgy.children.enabled}
+    setEnabled={(v) => setBgy((s) => ({ ...s, children: { ...s.children, enabled: v } }))}
+    buckets={bgy.children.buckets}
+    setBuckets={(b) => setBgy((s) => ({ ...s, children: { ...s.children, buckets: b } }))}
+    age={bgy.children.age}
+    setAge={(a) => setBgy((s) => ({ ...s, children: { ...s.children, age: a } }))}
+    withAge
+  />
+  <Cat
+    title="Youth"
+    open={bgyYouthOpen}
+    setOpen={setBgyYouthOpen}
+    enabled={bgy.youth.enabled}
+    setEnabled={(v) => setBgy((s) => ({ ...s, youth: { ...s.youth, enabled: v } }))}
+    buckets={bgy.youth.buckets}
+    setBuckets={(b) => setBgy((s) => ({ ...s, youth: { ...s.youth, buckets: b } }))}
+    age={bgy.youth.age}
+    setAge={(a) => setBgy((s) => ({ ...s, youth: { ...s.youth, age: a } }))}
+    withAge
+  />
+  <Cat
+    title="Adult"
+    open={bgyAdultOpen}
+    setOpen={setBgyAdultOpen}
+    enabled={bgy.adult.enabled}
+    setEnabled={(v) => setBgy((s) => ({ ...s, adult: { ...s.adult, enabled: v } }))}
+    buckets={bgy.adult.buckets}
+    setBuckets={(b) => setBgy((s) => ({ ...s, adult: { ...s.adult, buckets: b } }))}
+    age={bgy.adult.age}
+    setAge={(a) => setBgy((s) => ({ ...s, adult: { ...s.adult, age: a } }))}
+    withAge
+  />
+  <Cat
+    title="Senior Citizens"
+    open={bgySeniorsOpen}
+    setOpen={setBgySeniorsOpen}
+    enabled={bgy.seniors.enabled}
+    setEnabled={(v) => setBgy((s) => ({ ...s, seniors: { ...s.seniors, enabled: v } }))}
+    buckets={bgy.seniors.buckets}
+    setBuckets={(b) => setBgy((s) => ({ ...s, seniors: { ...s.seniors, buckets: b } }))}
+    age={bgy.seniors.age}
+    setAge={(a) => setBgy((s) => ({ ...s, seniors: { ...s.seniors, age: a } }))}
+    withAge
+  />
+  <Cat
+    title="PWD"
+    open={bgyPWDOpen}
+    setOpen={setBgyPWDOpen}
+    enabled={bgy.pwd.enabled}
+    setEnabled={(v) => setBgy((s) => ({ ...s, pwd: { ...s.pwd, enabled: v } }))}
+    buckets={bgy.pwd.buckets}
+    setBuckets={(b) => setBgy((s) => ({ ...s, pwd: { ...s.pwd, buckets: b } }))}
+    withAge={false}
+  />
 
-const Cat = ({
-  title,
-  open,
-  setOpen,
-  enabled,
-  setEnabled,
-  buckets,
-  setBuckets,
-  age,
-  setAge,
-  withAge = true,
-  className = "mt-2",
-}: {
-  title: string;
-  open: boolean;
-  setOpen: (v: boolean) => void;
-  enabled: boolean;
-  setEnabled: (v: boolean) => void;
-  buckets: SexBuckets;
-  setBuckets: (b: SexBuckets) => void;
-  age?: AgeRange;
-  setAge?: (a: AgeRange) => void;
-  withAge?: boolean;
-  className?: string;
-}) => {
-  // tri-state from bucket children
-  const vals = [buckets.male, buckets.female, buckets.total];
-  const all = vals.every(Boolean);
-  const none = vals.every((v) => !v);
-  const mixed = !all && !none;
+  {/* Single-column groups */}
+  <div className="space-y-2 mt-2">
+    <label className="flex items-center">
+      <input
+        type="checkbox"
+        className="brand-checkbox"
+        checked={bgy.pregnantWomen}
+        onChange={(e) => setBgy((s) => ({ ...s, pregnantWomen: e.target.checked }))}
+      />
+      <span className="text-sm">Pregnant Women</span>
+    </label>
+    <label className="flex items-center">
+      <input
+        type="checkbox"
+        className="brand-checkbox"
+        checked={bgy.lactatingWomen}
+        onChange={(e) => setBgy((s) => ({ ...s, lactatingWomen: e.target.checked }))}
+      />
+      <span className="text-sm">Lactating Women</span>
+    </label>
+    <label className="flex items-center">
+  <input
+    type="checkbox"
+    className="brand-checkbox"
+    checked={bgy.reliefServices}
+    onChange={(e) => setBgy((s) => ({ ...s, reliefServices: e.target.checked }))}
+  />
+  <span className="text-sm">Relief Services</span>
+</label>
+  </div>
+</div>
 
-  const headerRef = React.useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    if (headerRef.current) headerRef.current.indeterminate = mixed;
-  }, [mixed]);
-
-  return (
-    <Section
-      variant="plain"
-      label={
-        <div className="flex items-center">
-          {/* header select-all for this category */}
-          <input
-            ref={headerRef}
-            type="checkbox"
-            className="brand-checkbox"
-            checked={all}
-            onChange={(e) => {
-              const v = e.target.checked;
-              setEnabled(v);
-              setBuckets({ male: v, female: v, total: v });
-              if (v) setOpen(true);
-            }}
-          />
-          <span className="ml-2">{title}</span>
-        </div>
-      }
-      open={open}
-      onToggle={() => setOpen(!open)}
-      className={className}
-    >
-      <div className="pl-6 space-y-2">
-        {withAge && age && setAge && (
-          <AgeRow
-            value={age}
-            onMin={(v) => setAge({ ...age, min: v })}
-            onMax={(v) => setAge({ ...age, max: v })}
-          />
-        )}
-        <Buckets
-          value={buckets}
-          onChange={(next) => {
-            setBuckets(next);
-            // bubble up to enable when any child selected
-            setEnabled(next.male || next.female || next.total);
-          }}
-        />
-      </div>
-    </Section>
-  );
-};
-
-
-        return (
-          <div className="pl-7">
-            <Cat
-              title="Infant"
-              open={bgyInfantOpen}
-              setOpen={setBgyInfantOpen}
-              enabled={bgy.infant.enabled}
-              setEnabled={(v) => setBgy((s) => ({ ...s, infant: { ...s.infant, enabled: v } }))}
-              buckets={bgy.infant.buckets}
-              setBuckets={(b) => setBgy((s) => ({ ...s, infant: { ...s.infant, buckets: b } }))}
-              age={bgy.infant.age}
-              setAge={(a) => setBgy((s) => ({ ...s, infant: { ...s.infant, age: a } }))}
-              withAge
-              className="mt-2"
-            />
-            <Cat
-              title="Children"
-              open={bgyChildrenOpen}
-              setOpen={setBgyChildrenOpen}
-              enabled={bgy.children.enabled}
-              setEnabled={(v) => setBgy((s) => ({ ...s, children: { ...s.children, enabled: v } }))}
-              buckets={bgy.children.buckets}
-              setBuckets={(b) => setBgy((s) => ({ ...s, children: { ...s.children, buckets: b } }))}
-              age={bgy.children.age}
-              setAge={(a) => setBgy((s) => ({ ...s, children: { ...s.children, age: a } }))}
-              withAge
-            />
-            <Cat
-              title="Youth"
-              open={bgyYouthOpen}
-              setOpen={setBgyYouthOpen}
-              enabled={bgy.youth.enabled}
-              setEnabled={(v) => setBgy((s) => ({ ...s, youth: { ...s.youth, enabled: v } }))}
-              buckets={bgy.youth.buckets}
-              setBuckets={(b) => setBgy((s) => ({ ...s, youth: { ...s.youth, buckets: b } }))}
-              age={bgy.youth.age}
-              setAge={(a) => setBgy((s) => ({ ...s, youth: { ...s.youth, age: a } }))}
-              withAge
-            />
-            <Cat
-              title="Adult"
-              open={bgyAdultOpen}
-              setOpen={setBgyAdultOpen}
-              enabled={bgy.adult.enabled}
-              setEnabled={(v) => setBgy((s) => ({ ...s, adult: { ...s.adult, enabled: v } }))}
-              buckets={bgy.adult.buckets}
-              setBuckets={(b) => setBgy((s) => ({ ...s, adult: { ...s.adult, buckets: b } }))}
-              age={bgy.adult.age}
-              setAge={(a) => setBgy((s) => ({ ...s, adult: { ...s.adult, age: a } }))}
-              withAge
-            />
-            <Cat
-              title="Senior Citizens"
-              open={bgySeniorsOpen}
-              setOpen={setBgySeniorsOpen}
-              enabled={bgy.seniors.enabled}
-              setEnabled={(v) => setBgy((s) => ({ ...s, seniors: { ...s.seniors, enabled: v } }))}
-              buckets={bgy.seniors.buckets}
-              setBuckets={(b) => setBgy((s) => ({ ...s, seniors: { ...s.seniors, buckets: b } }))}
-              age={bgy.seniors.age}
-              setAge={(a) => setBgy((s) => ({ ...s, seniors: { ...s.seniors, age: a } }))}
-              withAge
-            />
-            <Cat
-              title="PWD"
-              open={bgyPWDOpen}
-              setOpen={setBgyPWDOpen}
-              enabled={bgy.pwd.enabled}
-              setEnabled={(v) => setBgy((s) => ({ ...s, pwd: { ...s.pwd, enabled: v } }))}
-              buckets={bgy.pwd.buckets}
-              setBuckets={(b) => setBgy((s) => ({ ...s, pwd: { ...s.pwd, buckets: b } }))}
-              withAge={false}
-            />
-
-            {/* Single-column groups */}
-            <div className="space-y-2 mt-2">
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  className="brand-checkbox"
-                  checked={bgy.pregnantWomen}
-                  onChange={(e) => setBgy((s) => ({ ...s, pregnantWomen: e.target.checked }))}
-                />
-                <span className="text-sm">Pregnant Women</span>
-              </label>
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  className="brand-checkbox"
-                  checked={bgy.lactatingWomen}
-                  onChange={(e) => setBgy((s) => ({ ...s, lactatingWomen: e.target.checked }))}
-                />
-                <span className="text-sm">Lactating Women</span>
-              </label>
-            </div>
-          </div>
-        );
-      })()}
     </div>
     </fieldset>
   )}

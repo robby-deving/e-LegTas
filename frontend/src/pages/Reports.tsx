@@ -10,6 +10,7 @@ import { Dialog, DialogTrigger } from "../components/ui/dialog";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "../components/ui/dropdown-menu";
 import { Plus, Filter } from "lucide-react";
 import ReportCard from '@/components/cards/ReportCard';
+import type { ReportCardItem } from '@/components/cards/ReportCard';
 import DeleteReportModal from '@/components/modals/DeleteReportModal';
 import MonthYearGridPicker from '@/components/Disasters/MonthYearGridPicker'; 
 import { Input } from "../components/ui/input";
@@ -18,18 +19,7 @@ import { usePermissions } from '../contexts/PermissionContext';
 // Types 
 type FileIcon = 'CSV' | 'XLSX';
 
-type CardReport = {
-  id: string;
-  name: string;
-  type: string; 
-  disaster: string;
-  format: FileIcon;
-  date: string; 
-  asOfISO?: string; 
-  size: string;
-  icon: FileIcon;
-  publicUrl?: string | null;
-};
+type CardReport = ReportCardItem;
 
 type ApiReport = {
   id: number | string;
@@ -83,27 +73,42 @@ function invalidateReportsCache() {
 
 // Utils
 async function forceDownload(url: string, fallbackName = 'report') {
-  const res = await fetch(url, { credentials: 'omit' });
+  const res = await fetch(url, { credentials: 'omit', redirect: 'follow' as RequestRedirect });
   if (!res.ok) throw new Error(`Download failed: ${res.status}`);
+
   const blob = await res.blob();
   let filename = fallbackName;
-  const cd = res.headers.get('content-disposition');
+
+  // 1) Try Content-Disposition (if CORS exposes it)
+  const cd = res.headers.get('content-disposition') || res.headers.get('Content-Disposition');
   if (cd) {
-    const m = cd.match(/filename\*?=(?:UTF-8'')?["']?([^"';]+)["']?/i);
-    if (m) filename = decodeURIComponent(m[1]);
+    // filename*=UTF-8''... has priority; else filename="..."
+    const mStar = cd.match(/filename\*\s*=\s*UTF-8''([^;]+)/i);
+    const mPlain = cd.match(/filename\s*=\s*"?(.*?)"?(\s*;|$)/i);
+    const extracted = (mStar?.[1] ?? mPlain?.[1])?.trim();
+    if (extracted) filename = decodeURIComponent(extracted);
   } else {
-    const u = new URL(url);
-    filename = u.pathname.split('/').pop() || filename;
+    // 2) Fall back to the ?download=... param (from final URL or original)
+    const finalURL = new URL(res.url || url);
+    const dlParam = finalURL.searchParams.get('download') || new URL(url).searchParams.get('download');
+    if (dlParam) {
+      filename = decodeURIComponent(dlParam);
+    } else {
+      // 3) Last resort: path basename
+      filename = decodeURIComponent(finalURL.pathname.split('/').pop() || fallbackName);
+    }
   }
+
   const href = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = href;
-  a.setAttribute('download', filename);
+  a.download = filename;               // <-- force the exact name
   document.body.appendChild(a);
   a.click();
   a.remove();
   URL.revokeObjectURL(href);
 }
+
 
 const API_BASE = 'http://localhost:3000/api/v1';
 const FILE_FORMATS: FileIcon[] = ['CSV', 'XLSX'];
@@ -155,6 +160,8 @@ export default function Reports() {
   // Modal state
   const [createModalOpen, setCreateModalOpen] = useState(false);
 
+  const [modalKey, setModalKey] = useState(0);
+
   // Create form state
   const [reportName, setReportName] = useState('');
   const [reportType, setReportType] = useState('');
@@ -198,6 +205,8 @@ export default function Reports() {
   const now = new Date();
   const [year, setYear] = useState<number>(now.getFullYear());
   const [month, setMonth] = useState<number | null>(null);
+
+
 
   // Hydrate filters from localStorage
   useEffect(() => {
@@ -351,14 +360,21 @@ useEffect(() => { loadOptions('', ''); }, []);
   }, [disasterQuery, createModalOpen]);
 
   /* Card adapters */
-  const onCardDownload = async (r: any) => {
-    const pubUrl: string | null = r.publicUrl ?? r.public_url ?? r.publicURL ?? null;
-    if (pubUrl) {
-      try { await forceDownload(pubUrl); } catch (e) { console.error(e); alert('Failed to download file.'); }
-      return;
+const onCardDownload = async (r: CardReport) => {
+  const pubUrl: string | null = r.publicUrl ?? null;
+  if (pubUrl) {
+    try {
+      const ext = r.format.toLowerCase(); // 'csv' | 'xlsx'
+      await forceDownload(pubUrl, `${r.name}.${ext}`);
+    } catch (e) {
+      console.error(e);
+      alert('Failed to download file.');
     }
-    alert('No file available for download. Please regenerate the report.');
-  };
+    return;
+  }
+  alert('No file available for download. Please regenerate the report.');
+};
+
 
   const onCardDelete = (r: any) => {
     const normalized: CardReport = {
@@ -413,9 +429,11 @@ setPendingDelete(null);
         file_format: fileFormat,
         generated_by_user_id: generatorId,
       };
-           if (reportType === 'Aggregated' && opts?.fields) {
-        payload.fields = opts.fields;
-      }
+ // Reports.tsx (fix)
+if (opts?.fields) {
+  payload.fields = opts.fields;
+}
+
 
       if (reportType === 'Barangay Report') {
         const bId = selectedBarangay?.id ? Number(selectedBarangay.id) : NaN;
@@ -423,15 +441,24 @@ setPendingDelete(null);
         payload.barangay_id = bId;
       }
       const res = await axios.post<ApiResponse<any>>(`${API_BASE}/reports/generate`, payload, { withCredentials: true, headers: { 'Authorization': `Bearer ${token}` } });
-      const pubUrl: string | undefined = res.data?.data?.public_url;
-      if (pubUrl) {
-        try { await forceDownload(pubUrl); } catch (e) { console.error(e); alert('Failed to download file.'); }
-      }
+// inside handleCreateReport, after the POST succeeds:
+const pubUrl: string | undefined = res.data?.data?.public_url;
+if (pubUrl) {
+  try {
+    const ext = String(fileFormat || 'CSV').toLowerCase();
+    await forceDownload(pubUrl, `${reportName}.${ext}`);
+  } catch (e) {
+    console.error(e);
+    alert('Failed to download file.');
+  }
+}
+
       invalidateReportsCache();
       await fetchReports(true);
       setReportName(''); setReportType(''); setDisasterEvent(''); setSelectedDisaster(null);
       setDisasterQuery(''); setDate(undefined); setTime('12:00'); setFileFormat('CSV');
       setBarangayQuery(''); setSelectedBarangay(null); setFormErrors({}); setCreateModalOpen(false);
+      setModalKey(k => k + 1);
   } catch (err: any) {
     console.error('Failed to generate report:', err);
     const msg =
@@ -535,16 +562,23 @@ const filteredReports = useMemo(() => {
           />
 
           {/* Create Report - only if allowed */}
-          {canCreateReport && (
-            <Dialog open={createModalOpen} onOpenChange={setCreateModalOpen}>
-              <DialogTrigger asChild>
-                <Button className="bg-green-700 hover:bg-green-800 text-white px-6 cursor-pointer">
-                  <Plus className="w-4 h-4" />
-                  Create Report
-                </Button>
-              </DialogTrigger>
-            </Dialog>
-          )}
+{canCreateReport && (
+  <Dialog
+    open={createModalOpen}
+    onOpenChange={(open) => {
+      setCreateModalOpen(open);
+      if (!open) setModalKey(k => k + 1); // reset when user closes
+    }}
+  >
+    <DialogTrigger asChild>
+      <Button className="bg-green-700 hover:bg-green-800 text-white px-6 cursor-pointer">
+        <Plus className="w-4 h-4" />
+        Create Report
+      </Button>
+    </DialogTrigger>
+  </Dialog>
+)}
+
         </div>
 
         {/* List */}
@@ -607,8 +641,12 @@ const filteredReports = useMemo(() => {
       {/* Create Modal */}
       {canCreateReport && (
         <CreateReportModal
+          key={modalKey}
           isOpen={createModalOpen}
-          onOpenChange={setCreateModalOpen}
+          onOpenChange={(open) => {
+            setCreateModalOpen(open);
+            if (!open) setModalKey(k => k + 1);
+          }}
           reportName={reportName}
           setReportName={setReportName}
           reportType={reportType}
