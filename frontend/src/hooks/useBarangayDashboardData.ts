@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabaseClient";
 import type {
   Disaster,
-  CenterInfo,
 } from '../types/dashboard';
 import { useSelector } from 'react-redux';
 import { selectToken } from '../features/auth/authSlice';
