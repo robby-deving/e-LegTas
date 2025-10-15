@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import activeEC from '../../assets/activeEC.svg';
 import registeredEvacuees from '../../assets/registeredEvacuees.svg';
 import registeredFamilies from '../../assets/registeredFamilies.svg';
-import reliefGoods from '../../assets/reliefGoods.svg';
+import reliefGoods from '../../assets/ReliefGoods.svg';
 import GISMap from '../Map/GISMap';
 import StatCard from '../../components/StatCard';
 import EvacueeStatisticsChart from '../../components/EvacueeStatisticsChart';
