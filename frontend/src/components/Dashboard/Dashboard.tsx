@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import activeEC from '../../assets/activeEC.svg';
 import registeredEvacuees from '../../assets/registeredEvacuees.svg';
 import registeredFamilies from '../../assets/registeredFamilies.svg';
+import reliefGoods from '../../assets/reliefGoods.svg';
 import GISMap from '../Map/GISMap';
 import StatCard from '../../components/StatCard';
 import EvacueeStatisticsChart from '../../components/EvacueeStatisticsChart';
@@ -29,6 +30,7 @@ export default function Dashboard() {
     activeEvacuationCenters,
     registeredEvacueesCount,
     registeredFamiliesCount,
+    familiesWithReliefGoodsCount,
     evacueeStatistics,
     evacuationCapacityStatus,
     loading, } = useDashboardData(selectedDateRange);
@@ -88,7 +90,7 @@ export default function Dashboard() {
 )}
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <StatCard
           title="Active Evacuation Centers"
           value={activeEvacuationCenters}
@@ -106,6 +108,12 @@ export default function Dashboard() {
           value={registeredFamiliesCount.toLocaleString()}
           icon={<img src={registeredFamilies} alt="Registered Families" className="w-6 h-6 text-blue-600" />}
           valueClassName="text-blue-500"
+        />
+        <StatCard
+          title="Families with Relief Goods"
+          value={(familiesWithReliefGoodsCount || 0).toLocaleString()}
+          icon={<img src={reliefGoods} alt="Families with Relief Goods" className="w-6 h-6 text-red-600" />}
+          valueClassName="text-red-500"
         />
       </div>
 
@@ -176,10 +184,10 @@ export default function Dashboard() {
         <div className="flex items-center justify-center h-64">
           <div className="flex flex-col items-center justify-center h-[400px] text-center">
             <h2 className="text-2xl font-semibold text-gray-700 mb-2">
-              No Ongoing Disaster
+              No Ongoing Incident
             </h2>
             <p className="text-lg text-gray-500 max-w-2xl">
-              Please record or activate a disaster to view dashboard data.
+              Please record or activate an incident to view dashboard data.
             </p>
           </div>
         </div>

@@ -4,6 +4,7 @@ import { selectCurrentUser } from '../features/auth/authSlice';
 import SystemAdminDashboard from '../components/SystemAdminDashboard';
 import MainDashboard from '../components/Dashboard/Dashboard';
 import CampManagerDashboard from '../components/Dashboard/CampManagerDashboard';
+// import BarangayDashboard from '../components/Dashboard/BarangayDashboard';
 
 export default function Dashboard(){
 	usePageTitle('Dashboard');
@@ -15,6 +16,10 @@ export default function Dashboard(){
 			{user?.role_id === 1 ? <SystemAdminDashboard /> : 
 			 user?.role_id === 5 || user?.role_id === 7 ? <CampManagerDashboard /> : 
 			 <MainDashboard />}
+			{/* {user?.role_id === 1 ? <SystemAdminDashboard /> : 
+			user?.role_id === 5 ? <CampManagerDashboard /> : 
+			user?.role_id === 7 ? <BarangayDashboard /> : 
+			<MainDashboard />} */}
 			
 			{/* Other role dashboards can be added here */}
 			{/* {user?.role_id === 2 && <CDRRMODashboard />} */}

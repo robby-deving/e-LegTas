@@ -19,6 +19,7 @@ export function useCampManagerDashboardData(campManagerId: number, selectedDateR
   const [familiesCount, setFamiliesCount] = useState(0);
   const [evacueesCount, setEvacueesCount] = useState(0);
   const [capacityCount, setCapacityCount] = useState(0);
+  const [familiesWithReliefGoodsCount, setFamiliesWithReliefGoodsCount] = useState(0);
   const [chartData, setChartData] = useState<{ label: string; value: number }[]>([]);
   const [loading, setLoading] = useState(false);
   
@@ -106,18 +107,19 @@ export function useCampManagerDashboardData(campManagerId: number, selectedDateR
       setFamiliesCount(0);
       setEvacueesCount(0);
       setCapacityCount(0);
+      setFamiliesWithReliefGoodsCount(0);
       setChartData([]);
       return;
     }
 
     const eventId = selectedDisaster.disaster_evacuation_event_id;
 
-    const fetchSummary = async () => {
+    const fetchSummary = async (isRealtimeUpdate = false) => {
       try {
-        setLoading(true);
+        if (!isRealtimeUpdate) setLoading(true);
 
         // Build base URL
-        let url = `https://api.e-legtas.tech/api/v1/dashboard/camp-manager/summary/${eventId}`;
+        let url = `/api/v1/dashboard/camp-manager/summary/${eventId}`;
 
         // If date filter applied, append from/to (Manila -> UTC ISO conversion)
         if (selectedDateRange?.from) {
@@ -153,6 +155,7 @@ export function useCampManagerDashboardData(campManagerId: number, selectedDateR
         setFamiliesCount(data.registeredFamilies || 0);
         setEvacueesCount(data.registeredEvacuees || 0);
         setCapacityCount(data.ecCapacity || 0);
+        setFamiliesWithReliefGoodsCount(data.totalFamiliesWithReliefGoods || 0);
 
         const stats = data.evacueeStatistics || {};
         const formattedStats = [
@@ -171,7 +174,7 @@ export function useCampManagerDashboardData(campManagerId: number, selectedDateR
       } catch (err) {
         console.error("Error fetching Camp Manager Dashboard Summary:", err);
       } finally {
-        setLoading(false);
+        if (!isRealtimeUpdate) setLoading(false);
       }
     };
 
@@ -220,7 +223,7 @@ export function useCampManagerDashboardData(campManagerId: number, selectedDateR
 
         if (hasRelevantChange) {
           console.log("Relevant evacuation_summaries change → refetching");
-          fetchSummary();
+          fetchSummary(true);
         }
       }
     );
@@ -250,8 +253,62 @@ export function useCampManagerDashboardData(campManagerId: number, selectedDateR
 
         if (isRelevant) {
           console.log("Relevant evacuation_center capacity change → refetching");
-          fetchSummary();
+          fetchSummary(true);
         }
+      }
+    );
+
+    // When a new service is added, re-fetch dashboard
+    channel.on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "services",
+        filter: `disaster_evacuation_event_id=eq.${eventId}`,
+      },
+      async (payload) => {
+        console.log("New service added:", payload.new);
+        await fetchSummary(true);
+      }
+    );
+
+    // When an evacuee is updated, check for family decampment
+    channel.on(
+      "postgres_changes",
+      {
+        event: "UPDATE",
+        schema: "public",
+        table: "evacuation_registrations",
+        filter: `disaster_evacuation_event_id=eq.${eventId}`,
+      },
+      async (payload) => {
+        const oldRow = payload.old as Record<string, any>;
+        const newRow = payload.new as Record<string, any>;
+
+        // Only react when decampment_timestamp changes (evacuee leaves)
+        if (
+          oldRow.decampment_timestamp === null &&
+          newRow.decampment_timestamp !== null
+        ) {
+          console.log("An evacuee decamped — rechecking active families");
+          await fetchSummary(true);
+        }
+      }
+    );
+
+    // also handle deletions in `services`
+    channel.on(
+      "postgres_changes",
+      {
+        event: "DELETE",
+        schema: "public",
+        table: "services",
+        filter: `disaster_evacuation_event_id=eq.${eventId}`,
+      },
+      async (payload) => {
+        console.log("Service record deleted:", payload.old);
+        await fetchSummary(true);
       }
     );
 
@@ -272,6 +329,7 @@ export function useCampManagerDashboardData(campManagerId: number, selectedDateR
     familiesCount,
     evacueesCount,
     capacityCount,
+    familiesWithReliefGoodsCount,
     chartData,
     loading,
   };
