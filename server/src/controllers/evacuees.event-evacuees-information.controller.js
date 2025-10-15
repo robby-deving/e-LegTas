@@ -1,4 +1,5 @@
-// server/src/controllers/evacuees.event-evacuees-information.controller.js
+//evacuees.event-evacuees-information.controller.js
+
 const { supabase } = require('../config/supabase');
 
 class ApiError extends Error {
@@ -59,7 +60,52 @@ exports.getEvacueesInformationbyDisasterEvacuationEventId = async (req, res, nex
     return residentJoinName || 'Unknown';
   };
 
-  try {
+try {
+// --- Fallback: get the event's EC name (works for Private House too)
+let fallbackEventLocationName = null;
+
+try {
+  const { data: eventRow, error: evtErr } = await supabase
+    .from('disaster_evacuation_event')       // your table name
+    .select(`
+      id,
+      evacuation_center_id,
+      evacuation_centers:evacuation_center_id (
+        id,
+        name,
+        category
+      )
+    `)
+    .eq('id', eventId)
+    .maybeSingle();
+
+  if (evtErr) console.warn('[WARN] event fetch failed:', evtErr);
+  console.log('[DEBUG] eventRow:', eventRow);
+
+  // Primary: name from joined center
+  fallbackEventLocationName = eventRow?.evacuation_centers?.name ?? null;
+
+  // Safety net: direct fetch by id if the join didn't hydrate
+  if (!fallbackEventLocationName && eventRow?.evacuation_center_id) {
+    const { data: ecRow, error: ecErr } = await supabase
+      .from('evacuation_centers')
+      .select('id, name, category')
+      .eq('id', eventRow.evacuation_center_id)
+      .maybeSingle();
+
+    if (ecErr) console.warn('[WARN] ec fetch by id failed:', ecErr);
+    console.log('[DEBUG] ecRow:', ecRow);
+
+    fallbackEventLocationName = ecRow?.name ?? null;
+  }
+
+  console.log('[DEBUG] fallbackEventLocationName:', fallbackEventLocationName);
+} catch (e) {
+  console.warn('[WARN] could not fetch event location name', e);
+}
+
+
+
     // 0) vulnerability type names
     const { data: vulnTypes, error: vulnTypesErr } = await supabase
       .from('vulnerability_types')
@@ -132,6 +178,34 @@ exports.getEvacueesInformationbyDisasterEvacuationEventId = async (req, res, nex
       if (!familyGroups.has(fhId)) familyGroups.set(fhId, []);
       familyGroups.get(fhId).push(r);
     }
+
+// --- Bulk fetch services for all visible families in this event ---
+const familyHeadIds = Array.from(familyGroups.keys()).filter((x) => Number.isFinite(x));
+let servicesByFamilyId = new Map();
+
+if (familyHeadIds.length > 0) {
+  const { data: serviceRows, error: svcErr } = await supabase
+    .from('services')
+    .select('family_id, service_received, created_at') // <-- include created_at
+    .in('family_id', familyHeadIds)
+    .eq('disaster_evacuation_event_id', eventId)
+    .order('created_at', { ascending: false });
+
+  if (svcErr) {
+    console.warn('[WARN] fetching services:', svcErr);
+  } else {
+    servicesByFamilyId = serviceRows.reduce((map, row) => {
+      const fid = Number(row.family_id);
+      const arr = map.get(fid) || [];
+      arr.push({
+        service_received: row.service_received,
+        created_at: row.created_at,              // <-- keep created_at
+      });
+      map.set(fid, arr);
+      return map;
+    }, new Map());
+  }
+}
 
     const response = [];
 
@@ -209,8 +283,6 @@ exports.getEvacueesInformationbyDisasterEvacuationEventId = async (req, res, nex
           .filter(Number.isFinite);
         const vulnNames = vulnIds.map((id) => vulnNameById.get(id)).filter(Boolean);
 
-        // NOTE: if your IDs for PWD/Pregnant/Lactating are not 4/5/6 in prod,
-        // this counting will be off. Keep as-is to preserve behavior.
         if (vulnIds.includes(4)) summary.total_no_of_pwd++;
         if (vulnIds.includes(5)) summary.total_no_of_pregnant++;
         if (vulnIds.includes(6)) summary.total_no_of_lactating_women++;
@@ -270,7 +342,7 @@ exports.getEvacueesInformationbyDisasterEvacuationEventId = async (req, res, nex
         room_name: first?.ec_rooms?.room_name || 'Unknown',
         decampment_timestamp: first?.decampment_timestamp || null,
         view_family: {
-          evacuation_center_name: first?.ec_rooms?.evacuation_centers?.name || 'Unknown',
+          evacuation_center_name: first?.ec_rooms?.evacuation_centers?.name || fallbackEventLocationName ||'Unknown',
           head_of_family: family_head_full_name,
           decampment: first?.decampment_timestamp || null,
           summary_per_family: summary,
@@ -278,6 +350,7 @@ exports.getEvacueesInformationbyDisasterEvacuationEventId = async (req, res, nex
         list_of_family_members: {
           family_members: familyMembers.map(({ _snap, _resident, ...pub }) => pub),
         },
+        relief_goods_and_services: servicesByFamilyId.get(Number(familyHeadId)) || [],
       });
     }
 
