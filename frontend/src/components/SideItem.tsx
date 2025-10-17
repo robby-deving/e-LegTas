@@ -1,38 +1,32 @@
 import { NavLink } from 'react-router-dom';
 
-type SideItemProps = {
+interface SideItemProps {
+  collapsed: boolean;
   icon: string;
   label: string;
   to: string;
-  collapsed: boolean;
-};
+}
 
-export default function SideItem({ icon, label, to, collapsed }: SideItemProps) {
+export default function SideItem({ collapsed, icon, label, to }: SideItemProps) {
   return (
-    <NavLink to={to}>
+    <NavLink
+      to={to}
+      className={({ isActive }) =>
+        `flex items-center gap-3 px-5 py-2 rounded-sm font-medium overflow-hidden transition-all duration-300 ease-in-out
+        ${isActive ? 'bg-[#1CA567] text-white' : 'text-black hover:bg-gray-100'}`
+      }
+    >
       {({ isActive }) => (
-        <div
-          className={`group relative flex items-center transition-colors px-5 py-2 rounded-sm
-            ${isActive ? 'bg-[#0C955B] text-white' : 'text-black hover:bg-gray-100'}
-            ${collapsed ? 'justify-center px-2' : 'gap-3'}`}
-        >
-          <img
-            src={icon}
-            alt={`${label} icon`}
-            className={`w-6 h-6 object-contain ${isActive ? 'filter brightness-0 invert' : ''}`}
+        <>
+          <img 
+            className={`h-4.5 w-4.5 flex-shrink-0 transition-all duration-300 ease-in-out ${isActive ? 'brightness-0 invert' : 'brightness-0'}`}
+            src={icon} 
+            alt={label} 
           />
-          {!collapsed && (
-            <span className="text-l font-medium whitespace-nowrap">{label}</span>
-          )}
-
-          {/* tool tip */}
-          {collapsed && (
-            <span className="absolute left-full top-1/2 -translate-y-1/2 ml-4 z-10 opacity-0 group-hover:opacity-100
-              bg-green-100 text-green-800 text-xs font-medium rounded px-3 py-1  transition-opacity duration-300 pointer-events-none whitespace-nowrap">
-              {label}
-            </span>
-          )}
-        </div>
+          <span className={`whitespace-nowrap transition-all duration-300 ease-in-out ${collapsed ? 'max-w-0 opacity-0' : 'max-w-xs opacity-100'}`}>
+            {label}
+          </span>
+        </>
       )}
     </NavLink>
   );
