@@ -147,10 +147,14 @@ export default function Dashboard() {
                 </div>
               ) : (
               evacuationCapacityStatus.map((center, idx) => {
+                // If center is Private House → treat as "outside" center
+                const isPrivateHouse = center.category?.trim().toLowerCase() === 'private house';
+
+                // Only compute percentage when NOT a Private House and capacity > 0
                 const capacityPercentage =
-                  center.total_capacity === 0
-                    ? 0
-                    : Math.round((center.current_occupancy / center.total_capacity) * 1000) / 10;
+                  !isPrivateHouse && center.total_capacity > 0
+                    ? Math.round((center.current_occupancy / center.total_capacity) * 1000) / 10
+                    : 0;
 
                 return (
                   <div key={idx} className="grid grid-cols-2 py-2 items-center">
@@ -160,15 +164,24 @@ export default function Dashboard() {
                     </div>
                     <span
                       className={`font-bold text-sm ${
-                        capacityPercentage > 80
+                        // color based on percentage only for non-private centers
+                        !isPrivateHouse && capacityPercentage > 80
                           ? 'text-red-500'
-                          : capacityPercentage > 70
+                          : !isPrivateHouse && capacityPercentage > 70
                           ? 'text-yellow-500'
                           : 'text-green-600'
                       }`}
                     >
-                      {center.current_occupancy.toLocaleString()} / {center.total_capacity.toLocaleString()}{' '}
-                      <span className="ml-1">({capacityPercentage}%)</span>
+                      {isPrivateHouse ? (
+                        // For outside centers (Private House) show only total occupants
+                        `${center.current_occupancy.toLocaleString()} persons`
+                      ) : (
+                        // For inside centers show occupancy / capacity and percentage
+                        <>
+                          {center.current_occupancy.toLocaleString()} / {center.total_capacity.toLocaleString()}{' '}
+                          <span className="ml-1">({capacityPercentage}%)</span>
+                        </>
+                      )}
                     </span>
                   </div>
                 );
