@@ -53,7 +53,7 @@ exports.getAllEvacuationCenters = async (req, res, next) => {
         if (ecType === 'inside') {
             query = query.in('category', ['School', 'Chapel/Church', 'Dedicated Evacuation Center', 'Government Building']);
         } else if (ecType === 'outside') {
-            query = query.in('category', ['Commercial Building', 'Private House']);
+            query = query.in('category', ['Private House']);
         }
 
         // Add barangay filter if provided
@@ -73,8 +73,8 @@ exports.getAllEvacuationCenters = async (req, res, next) => {
 
         // Get total count for pagination metadata
         let totalCount = count;
-        if (search || !includeSoftDeleted || barangayId) {
-            // If we have search, deleted_at, or barangay filter, we need to get the total count separately
+        if (search || !includeSoftDeleted || barangayId || ecType) {
+            // If we have search, deleted_at, barangay, or ec_type filter, we need to get the total count separately
             let countQuery = supabase
                 .from(TABLE_NAME)
                 .select('*', { count: 'exact', head: true });
@@ -89,6 +89,13 @@ exports.getAllEvacuationCenters = async (req, res, next) => {
 
             if (barangayId && !isNaN(barangayId)) {
                 countQuery = countQuery.eq('barangay_id', barangayId);
+            }
+
+            // Add ec_type filter if provided
+            if (ecType === 'inside') {
+                countQuery = countQuery.in('category', ['School', 'Chapel/Church', 'Dedicated Evacuation Center', 'Government Building']);
+            } else if (ecType === 'outside') {
+                countQuery = countQuery.in('category', ['Private House']);
             }
 
             const { count: filteredCount } = await countQuery;
