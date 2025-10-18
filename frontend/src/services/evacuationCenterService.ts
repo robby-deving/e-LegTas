@@ -43,7 +43,7 @@ class EvacuationCenterService {
   }> {
     console.log('Service getEvacuationCenters params:', params);
     const queryParams = new URLSearchParams();
-    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    queryParams.append('limit', (params?.limit || 10).toString());
     if (params?.offset) queryParams.append('offset', params.offset.toString());
     if (params?.search) queryParams.append('search', params.search);
     if (params?.ec_type) queryParams.append('ec_type', params.ec_type);

@@ -27,7 +27,8 @@ describe('EvacuationCenterForm', () => {
     barangayId: 1,
     latitude: '14.123',
     longitude: '121.123',
-    total_capacity: '100'
+    total_capacity: '100',
+    ec_status: 'Available'
   };
 
   const mockBarangays = [

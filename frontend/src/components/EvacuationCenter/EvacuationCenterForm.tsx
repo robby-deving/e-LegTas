@@ -27,6 +27,7 @@ interface EvacuationCenterFormData {
   latitude: string;
   longitude: string;
   total_capacity: string;  // Added this field
+  ec_status: string;
 }
 
 interface EvacuationCenterFormProps {
@@ -139,6 +140,23 @@ export function EvacuationCenterForm({ formData, onFormChange, errors }: Evacuat
         </Select>
         {errors?.barangay && <p className="text-red-500 text-sm mt-1">{errors.barangay}</p>}
       </div>
+
+      <div>
+            <label htmlFor="status" className="block text-sm font-medium mb-2">Status</label>
+            <Select
+              value={formData.ec_status}
+              onValueChange={(value) => onFormChange('ec_status', value)}
+            >
+              <SelectTrigger id="status" className={`w-full ${errors?.ec_status ? 'border-red-500' : ''}`}>
+                <SelectValue placeholder="Select Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Available">Available</SelectItem>
+                <SelectItem value="Unavailable">Unavailable</SelectItem>
+              </SelectContent>
+            </Select>
+      </div>
+
 
       {formData.category !== 'Private House' && (
         <>

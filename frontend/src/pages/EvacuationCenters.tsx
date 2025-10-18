@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "../components/ui/table";
@@ -58,7 +58,7 @@ export default function EvacuationCentersPage() {
   // Debounce search term
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
 
-  
+
   const [activeTab, setActiveTab] = useState<'Inside EC' | 'Outside EC'>('Inside EC');
 
   // Handle tab change
@@ -69,6 +69,14 @@ export default function EvacuationCentersPage() {
     setSearchTerm(''); // Clear search when changing tabs
   };
 
+  // Helper function to get current parameters
+  const getCurrentParams = useCallback(() => ({
+    limit: rowsPerPage,
+    offset: (currentPage - 1) * rowsPerPage,
+    search: debouncedSearchTerm,
+    ec_type: (activeTab === 'Inside EC' ? 'inside' : 'outside') as 'inside' | 'outside',
+    barangay_id: assignedBarangayId || undefined
+  }), [rowsPerPage, currentPage, debouncedSearchTerm, activeTab, assignedBarangayId]);
 
   // Hooks
   const {
@@ -77,6 +85,7 @@ export default function EvacuationCentersPage() {
     error,
     pagination,
     refreshCenters,
+    refreshWithCurrentParams,
     refetchWithParams
   } = useEvacuationCenters();
 
@@ -96,15 +105,8 @@ export default function EvacuationCentersPage() {
 
   // Handle data fetching
   useEffect(() => {
-    const params = {
-      limit: rowsPerPage,
-      offset: (currentPage - 1) * rowsPerPage,
-      search: debouncedSearchTerm,
-      ec_type: (activeTab === 'Inside EC' ? 'inside' : 'outside') as 'inside' | 'outside',
-      barangay_id: assignedBarangayId || undefined
-    };
-    refetchWithParams(params);
-  }, [currentPage, rowsPerPage, debouncedSearchTerm, activeTab, assignedBarangayId, refetchWithParams]);
+    refetchWithParams(getCurrentParams());
+  }, [currentPage, rowsPerPage, debouncedSearchTerm, activeTab, assignedBarangayId, refetchWithParams, getCurrentParams]);
 
   // Handle rows per page change
   const handleRowsPerPageChange = (value: string) => {
@@ -172,7 +174,10 @@ export default function EvacuationCentersPage() {
     const success = await deleteCenter(centerToDelete.id);
     if (success) {
       toast.success('Evacuation center deleted successfully');
-      refreshCenters();
+
+      // Refresh with current parameters to maintain filters and pagination
+      refreshWithCurrentParams(getCurrentParams());
+
       setIsDeleteModalOpen(false);
       setCenterToDelete(null);
     }
@@ -184,7 +189,8 @@ export default function EvacuationCentersPage() {
   };
 
   const handleModalSuccess = () => {
-    refreshCenters();
+    // Refresh with current parameters to maintain filters and pagination
+    refreshWithCurrentParams(getCurrentParams());
   };
 
   const handleCloseModal = () => {

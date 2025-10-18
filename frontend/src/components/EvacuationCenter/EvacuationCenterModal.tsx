@@ -19,6 +19,7 @@ interface FormData {
   latitude: string;
   longitude: string;
   total_capacity: string;  // Changed from capacity to total_capacity
+  ec_status: string;
 }
 
 interface FormErrors {
@@ -48,7 +49,8 @@ export function EvacuationCenterModal({ isOpen, onClose, mode, center, onSuccess
     barangayId: 0, // Add this field
     latitude: '',
     longitude: '',
-    total_capacity: ''
+    total_capacity: '',
+    ec_status: 'Available'
   });
 
   const [rooms, setRooms] = useState<EvacuationRoom[]>([]);
@@ -81,7 +83,8 @@ export function EvacuationCenterModal({ isOpen, onClose, mode, center, onSuccess
         barangayId: center.barangay_id,
         latitude: (center.latitude ?? '').toString(),
         longitude: (center.longitude ?? '').toString(),
-        total_capacity: (center.total_capacity ?? 0).toString()
+        total_capacity: (center.total_capacity ?? 0).toString(),
+        ec_status: center.ec_status || 'Available'
       });
       setRooms(center.rooms || []); // Make sure we're setting rooms with a default empty array
     } else {
@@ -93,7 +96,8 @@ export function EvacuationCenterModal({ isOpen, onClose, mode, center, onSuccess
         barangayId: 0, // Reset barangayId
         latitude: '',
         longitude: '',
-        total_capacity: ''
+        total_capacity: '',
+        ec_status: 'Available'
       });
       setRooms([]);
     }
@@ -325,7 +329,7 @@ export function EvacuationCenterModal({ isOpen, onClose, mode, center, onSuccess
         longitude: formData.category === 'Private House' ? 0 : Number(formData.longitude),
         category: formData.category as EvacuationCenterCategory,
         total_capacity: formData.category === 'Private House' ? 1 : (Number(formData.total_capacity) || 0),
-        ec_status: center?.ec_status || 'Available' as EvacuationCenterStatus,
+        ec_status: formData.ec_status as EvacuationCenterStatus,
         created_by: center?.created_by || currentUserId,
         assigned_user_id: center?.assigned_user_id || null
       };
@@ -335,6 +339,7 @@ export function EvacuationCenterModal({ isOpen, onClose, mode, center, onSuccess
       if (mode === 'add') {
         savedCenter = await createCenter(centerData);
       } else if (center) {
+        console.log('Updating center data:', centerData);
         savedCenter = await updateCenter(center.id, centerData);
 
         // Handle room deletions first
@@ -395,7 +400,8 @@ export function EvacuationCenterModal({ isOpen, onClose, mode, center, onSuccess
       barangayId: 0,
       latitude: '',
       longitude: '',
-      total_capacity: ''
+      total_capacity: '',
+      ec_status: 'Available'
     });
     setRooms([]);
     onClose();

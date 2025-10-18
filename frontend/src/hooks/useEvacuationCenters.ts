@@ -42,6 +42,10 @@ export function useEvacuationCenters(initialParams?: UseEvacuationCentersParams)
     fetchCenters(initialParams);
   }, [fetchCenters, initialParams]);
 
+  const refreshWithCurrentParams = useCallback((currentParams: UseEvacuationCentersParams) => {
+    fetchCenters(currentParams);
+  }, [fetchCenters]);
+
   const refetchWithParams = useCallback((newParams: UseEvacuationCentersParams) => {
     fetchCenters(newParams);
   }, [fetchCenters]);
@@ -52,6 +56,7 @@ export function useEvacuationCenters(initialParams?: UseEvacuationCentersParams)
     error,
     pagination,
     refreshCenters,
+    refreshWithCurrentParams,
     refetchWithParams,
   };
 }
