@@ -3,6 +3,7 @@ import { Input } from "../ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import type { EvacuationCenterCategory } from '../../types/evacuation';
 import { evacuationCenterService } from '../../services/evacuationCenterService';
+import { usePermissions } from '../../contexts/PermissionContext';
 
 const CATEGORIES: EvacuationCenterCategory[] = [
   'School',
@@ -39,6 +40,14 @@ interface EvacuationCenterFormProps {
 export function EvacuationCenterForm({ formData, onFormChange, errors }: EvacuationCenterFormProps) {
   const [barangays, setBarangays] = useState<Barangay[]>([]);
   const [loading, setLoading] = useState(false);
+  const { hasPermission } = usePermissions();
+  const canAddOutsideEC = hasPermission('add_outside_ec');
+
+  // Filter categories based on permission - users with add_outside_ec can see Private House, others cannot
+  const availableCategories = canAddOutsideEC
+    ? CATEGORIES
+    : CATEGORIES.filter(category => category !== 'Private House');
+
 
   useEffect(() => {
     const fetchBarangays = async () => {
@@ -96,7 +105,7 @@ export function EvacuationCenterForm({ formData, onFormChange, errors }: Evacuat
             <SelectValue placeholder="Select Category" />
           </SelectTrigger>
           <SelectContent>
-            {CATEGORIES.map((category) => (
+            {availableCategories.map((category) => (
               <SelectItem key={category} value={category}>
                 {category}
               </SelectItem>

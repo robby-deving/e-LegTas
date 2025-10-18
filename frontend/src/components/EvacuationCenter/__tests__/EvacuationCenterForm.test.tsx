@@ -18,6 +18,16 @@ jest.mock('../../../components/ui/select', () => {
   };
 });
 
+// Mock the PermissionContext
+jest.mock('../../../contexts/PermissionContext', () => ({
+  usePermissions: () => ({
+    hasPermission: jest.fn((permission: string) => {
+      if (permission === 'add_outside_ec') return false;
+      return true;
+    })
+  })
+}));
+
 describe('EvacuationCenterForm', () => {
   const mockFormData = {
     name: 'Test Center',
