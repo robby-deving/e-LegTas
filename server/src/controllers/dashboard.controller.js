@@ -523,6 +523,7 @@ exports.getEvacueeStatisticsByDisaster = async (req, res, next) => {
  * @access Public
  */
 exports.getEvacuationCenterCapacityStatus = async (req, res, next) => {
+  console.log("🛰️ getEvacuationCenterCapacityStatus triggered, disasterId =", req.params.disasterId);
     const { disasterId } = req.params;
     const { from, to } = req.query; // optional date filter
 
@@ -633,6 +634,7 @@ exports.getEvacuationCenterCapacityStatus = async (req, res, next) => {
             .select(`
                 id,
                 name,
+                category,
                 total_capacity,
                 address,
                 barangay_id,
@@ -650,6 +652,7 @@ exports.getEvacuationCenterCapacityStatus = async (req, res, next) => {
             id: center.id,
             name: center.name,
             barangay_name: center.barangay?.name || 'Unknown',
+            category: center.category || '',
             total_capacity: center.total_capacity || 0,
             current_occupancy: occupancyMap[center.id] || 0
         })).sort((a, b) => b.current_occupancy - a.current_occupancy);

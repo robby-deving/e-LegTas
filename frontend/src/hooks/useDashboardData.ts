@@ -58,6 +58,7 @@ export function useDashboardData(selectedDateRange?: DateRange) {
       barangay_name: string;
       current_occupancy: number;
       total_capacity: number;
+      category: string;
     }[]
   >([]);
   const [loading, setLoading] = useState(false);
@@ -566,7 +567,10 @@ useEffect(() => {
 
       try {
         if (!isRealtimeUpdate) setLoading(true);
-        let url = `https://api.e-legtas.tech/api/v1/dashboard/capacity-status/${selectedDisaster.id}`;
+        // console.log("🌐 Fetching capacity-status from:", `/api/v1/dashboard/capacity-status/${selectedDisaster.id}`);
+        // console.log("🌐 Fetching capacity-status from:", fullUrl);
+
+        let url = `/api/v1/dashboard/capacity-status/${selectedDisaster.id}`;
 
         // If date filter applied, add query params with Manila → UTC conversion
         if (selectedDateRange?.from) {
@@ -593,7 +597,16 @@ useEffect(() => {
         const result = await response.json();
 
         if (response.ok) {
-          setEvacuationCapacityStatus(result.data || []);
+          // NORMALIZE the data so the UI has guaranteed fields and types
+          const normalized = (result.data || []).map((c: any) => ({
+            id: Number(c.id),
+            name: c.name || '',
+            barangay_name: c.barangay_name || (c.barangay?.[0]?.name || ''),
+            current_occupancy: Number(c.current_occupancy || 0),
+            total_capacity: Number(c.total_capacity || 0),
+            category: c.category || ''
+          }));
+          setEvacuationCapacityStatus(normalized);
         } else {
           console.error(result.message || 'Failed to fetch evacuation center capacity status.');
           setEvacuationCapacityStatus([]);
@@ -639,7 +652,7 @@ useEffect(() => {
         const newData = payload.new;
         const oldData = payload.old;
 
-        const capacityChanged = newData?.total_capacity !== oldData?.total_capacity;
+        const capacityChanged = newData?.total_capacity !== oldData?.total_capacity || newData?.category !== oldData?.category;;
         if (!capacityChanged) return;
 
         const isRelevant = await isEventLinkedToSelectedDisaster(
