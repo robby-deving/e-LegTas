@@ -17,6 +17,7 @@ import { selectToken, selectAssignedBarangayId } from "../features/auth/authSlic
 import { disasterService } from "@/services/disasterService";
 import LoadingSpinner from "@/components/loadingSpinner";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SearchEvacueeModal } from "@/components/modals/SearchEvacueeModal";
 import { RegisterEvacueeModal } from "@/components/modals/RegisterEvacueeModal";
 import { FamilyHeadSearchModal } from "@/components/modals/FamilyHeadSearchModal";
@@ -147,12 +148,7 @@ export default function DisasterDetail() {
 
 
 
-  const [activeTab, setActiveTab] = useState('Inside EC');
-
-  const tabs = [
-    { name: 'Inside EC' }, // Replace with your actual icon component or image
-    { name: 'Outside EC' },
-  ];
+  const [activeTab, setActiveTab] = useState('inside-ec');
   useEffect(() => {
     
     const loadDisaster = async () => {
@@ -223,7 +219,7 @@ export default function DisasterDetail() {
       const params = new URLSearchParams({
         page: page.toString(),
         limit: limit.toString(),
-        ec_type: activeTab === 'Inside EC' ? 'inside' : 'outside'
+        ec_type: activeTab === 'inside-ec' ? 'inside' : 'outside'
       });
 
       // Add search parameter if provided
@@ -622,28 +618,16 @@ export default function DisasterDetail() {
             </div>
 
             <div className="flex gap-8 text-sm text-gray-600 items-center">
-              <div className="flex gap-2 items-center">
-                <div className=" border border-gray-300 rounded-full inline-flex space-x-2">
-                  {tabs.map((tab) => (
-                    <button
-                      key={tab.name}
-                      onClick={() => {
-                        setActiveTab(tab.name);
-                        setCurrentPage(1); // Reset to first page when changing tabs
-                      }}
-                      className={`flex items-center px-4 py-2  rounded-full transition-colors duration-200
-                        ${activeTab === tab.name
-                          ? 'bg-green-700 text-white'
-                          : 'text-gray-400 hover:text-black'
-                        }`}
-                    >
-                      <span className="font-semibold">{tab.name}</span>
-                    </button>
-                  ))}
-                </div>
+              <div className="flex  items-center">
+                <Tabs value={activeTab} onValueChange={(value) => { setActiveTab(value); setCurrentPage(1); }}>
+                  <TabsList className="grid w-fit grid-cols-2">
+                    <TabsTrigger value="inside-ec" className="px-3 py-1">Inside EC</TabsTrigger>
+                    <TabsTrigger value="outside-ec" className="px-3 py-1">Outside EC</TabsTrigger>
+                  </TabsList>
+                </Tabs>
               </div>
               {canRegisterOutsideEC && (
-                <Button 
+                <Button
                   className="bg-green-700 hover:bg-green-800 text-white px-6 flex gap-2 items-center cursor-pointer"
                   onClick={() => setShowSearchModal(true)}
                 >
@@ -727,7 +711,7 @@ export default function DisasterDetail() {
                           {center.total_no_of_family} Family
                         </TableCell>
                         <TableCell className="text-foreground">
-                        {activeTab === 'Inside EC' 
+                        {activeTab === 'inside-ec'
                           ? `${center.total_no_of_individuals} / ${center.evacuation_center_total_capacity} Persons`
                           : `${center.total_no_of_individuals} Persons`
                         }

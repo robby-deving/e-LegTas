@@ -234,19 +234,18 @@ export default function EvacuationCentersPage() {
         </h1>
 
         {/* Search and Add Button */}
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center justify-between">
           <Input
             placeholder="Search by name or address..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="max-w-sm"
           />
-          <div className="flex gap-1">
+          <div className="flex gap-4">
              <Tabs
                defaultValue="Inside EC"
                value={activeTab}
                onValueChange={(value) => handleTabChange(value as 'Inside EC' | 'Outside EC')}
-               className="w-[400px]"
              >
                <TabsList>
                  <TabsTrigger value="Inside EC">
