@@ -118,7 +118,7 @@ export default function RoleModuleConfig() {
     const getPermissionGroup = (permissionName: string): string => {
         if (permissionName.includes('dashboard')) return 'Dashboard';
         if (permissionName.includes('map')) return 'Mapping';
-        if (permissionName.includes('evacuee') || permissionName.includes('family')) return 'Evacuee Management';
+        if (permissionName.includes('evacuee') || permissionName.includes('family') || permissionName === 'add_relief_service') return 'Evacuee Management';
         if (permissionName.includes('disaster')) return 'Disaster Management';
         if (permissionName.includes('evacuation_center')) return 'Evacuation Center Management';
         if (permissionName.includes('report')) return 'Reports';
