@@ -1,6 +1,7 @@
 //FamilyDetailsModal.tsx
 import { useState, useEffect, useMemo } from "react";
 import axios from "axios";
+import { usePermissions } from "@/contexts/PermissionContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../ui/dialog";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
@@ -64,6 +65,7 @@ export const FamilyDetailsModal: React.FC<FamilyDetailsModalProps> = ({
 }) => {
   const token = useSelector(selectToken);
   const userId = useSelector(selectUserId);
+  const { hasPermission } = usePermissions();
   const [savingDecamp, setSavingDecamp] = useState(false);
   const [decampError, setDecampError] = useState<string | null>(null);
 
@@ -584,22 +586,24 @@ const displayCenterName =
                 </div>
 
                 {/* Row 2 / Col 2 — Services */}
-                <div>
-                  <label className="block text-sm font-semibold mb-2">Services</label>
-                  <AddService
-                    onValueChange={() => {}}
-                    familyId={Number(evacuee?.id)}
-                    eventId={Number(evacuee?.disaster_evacuation_event_id)}
-                    token={token!}
-                    addedBy={Number(userId)}
-                    onSuccess={async () => {
-                      await onSaved?.();
-                    }}
-                    placeholder="Add Service(s)"
-                    className="w-full"
-                    showLabel={false}  
-                  />
-                </div>
+                {hasPermission("add_relief_service") && (
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">Services</label>
+                    <AddService
+                      onValueChange={() => {}}
+                      familyId={Number(evacuee?.id)}
+                      eventId={Number(evacuee?.disaster_evacuation_event_id)}
+                      token={token!}
+                      addedBy={Number(userId)}
+                      onSuccess={async () => {
+                        await onSaved?.();
+                      }}
+                      placeholder="Add Service(s)"
+                      className="w-full"
+                      showLabel={false}  
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Breakdown table */}

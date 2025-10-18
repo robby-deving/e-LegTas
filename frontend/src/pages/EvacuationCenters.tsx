@@ -45,6 +45,12 @@ export default function EvacuationCentersPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [activeTab, setActiveTab] = useState<'Inside EC' | 'Outside EC'>('Inside EC');
+
+  // Show actions column based on permissions and current tab
+  const showActions = (activeTab === 'Inside EC')
+    ? (canUpdateCenter || canDeleteCenter)  // For Inside EC: need update or delete permission
+    : canEditOutsideEC;  // For Outside EC: need edit_outside_ec permission
 
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -59,7 +65,6 @@ export default function EvacuationCentersPage() {
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
 
 
-  const [activeTab, setActiveTab] = useState<'Inside EC' | 'Outside EC'>('Inside EC');
 
   // Handle tab change
   const handleTabChange = (tabName: 'Inside EC' | 'Outside EC') => {
@@ -319,7 +324,7 @@ export default function EvacuationCentersPage() {
                     </>
                   )}
                   <TableHead className="text-left">Status</TableHead>
-                  <TableHead className="text-center w-12">Actions</TableHead>
+                  {showActions && <TableHead className="text-center w-12">Actions</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -353,9 +358,11 @@ export default function EvacuationCentersPage() {
                     <TableCell>
                       <div className="h-6 bg-gray-200 rounded-full animate-pulse w-16"></div>
                     </TableCell>
-                    <TableCell className="text-center">
-                      <div className="h-8 w-8 bg-gray-200 rounded animate-pulse mx-auto"></div>
-                    </TableCell>
+                    {showActions && (
+                      <TableCell className="text-center">
+                        <div className="h-8 w-8 bg-gray-200 rounded animate-pulse mx-auto"></div>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>
@@ -384,7 +391,7 @@ export default function EvacuationCentersPage() {
                     </>
                   )}
                   <TableHead className="text-left">Status</TableHead>
-                  <TableHead className="text-center w-12">Actions</TableHead>
+                  {showActions && <TableHead className="text-center w-12">Actions</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
