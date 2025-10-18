@@ -79,8 +79,8 @@ export function EvacuationCenterModal({ isOpen, onClose, mode, center, onSuccess
         streetName: center.address.split(',')[0] || '',
         barangay: center.address.split(',')[1]?.trim() || '',
         barangayId: center.barangay_id,
-        latitude: center.latitude.toString(),
-        longitude: center.longitude.toString(),
+        latitude: (center.latitude ?? '').toString(),
+        longitude: (center.longitude ?? '').toString(),
         total_capacity: (center.total_capacity ?? 0).toString()
       });
       setRooms(center.rooms || []); // Make sure we're setting rooms with a default empty array
