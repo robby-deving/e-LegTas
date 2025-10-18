@@ -1,8 +1,9 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { usePageTitle } from '../hooks/usePageTitle';
 import GISMap from '../components/Map/GISMap';
 import EvacuationCenterSidebar from '../components/Map/EvacuationCenterSidebar';
 import MapStatusIndicator from '../components/Map/MapStatusIndicator';
+import MapSearch from '../components/Map/MapSearch';
 import type { EvacuationCenter } from '@/types/EvacuationCenter';
 
 
@@ -14,6 +15,9 @@ export default function Map() {
   const [selectedEvacuationCenter, setSelectedEvacuationCenter] = useState<EvacuationCenter | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [evacuationCenters, setEvacuationCenters] = useState<EvacuationCenter[]>([]);
+  const [filteredEvacuationCenters, setFilteredEvacuationCenters] = useState<EvacuationCenter[]>([]);
 
   const handleLastUpdatedChange = useCallback((timestamp: Date | null) => {
     setLastUpdated(timestamp);
@@ -31,12 +35,60 @@ export default function Map() {
     }
   }, []);
 
+  const handleEvacuationCentersChange = useCallback((centers: EvacuationCenter[]) => {
+    setEvacuationCenters(centers);
+    setFilteredEvacuationCenters(centers); // Initialize filtered centers with all centers
+  }, []);
+
+  const handleFilteredCentersChange = useCallback((centers: EvacuationCenter[]) => {
+    setFilteredEvacuationCenters(centers);
+  }, []);
+
+  const handleCenterOnMap = useCallback((center: EvacuationCenter) => {
+    // Close any open sidebar first
+    setSelectedEvacuationCenter(null);
+
+    // Use the map reference to center on the selected evacuation center
+    if (typeof window !== 'undefined' && (window as any).gisMapRef) {
+      const map = (window as any).gisMapRef;
+      map.flyTo([center.latitude, center.longitude], 17, {
+        animate: true,
+        duration: 1.5,
+      });
+
+      // Also trigger the marker click to show the sidebar
+      setTimeout(() => {
+        setSelectedEvacuationCenter(center);
+      }, 500);
+    }
+  }, []);
+
+  // Reset filtered centers when search query is cleared
+  useEffect(() => {
+    if (!searchQuery.trim() && evacuationCenters.length > 0) {
+      setFilteredEvacuationCenters(evacuationCenters);
+    }
+  }, [searchQuery, evacuationCenters]);
+
   return (
     <div className="flex h-full overflow-hidden relative">
+      {/* Floating search component in upper left */}
+      <div className="absolute top-4 left-4 z-20 w-80">
+        <MapSearch
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          evacuationCenters={filteredEvacuationCenters}
+          onCenterOnMap={handleCenterOnMap}
+        />
+      </div>
+
       <div className="flex-grow relative z-0">
         <GISMap
           onMarkerClick={setSelectedEvacuationCenter}
           onLastUpdatedChange={handleLastUpdatedChange}
+          searchQuery={searchQuery}
+          onEvacuationCentersChange={handleEvacuationCentersChange}
+          onFilteredCentersChange={handleFilteredCentersChange}
         />
       </div>
 
