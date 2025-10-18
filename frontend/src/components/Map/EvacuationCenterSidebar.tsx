@@ -119,13 +119,12 @@ const EvacuationCenterSidebar: React.FC<Props> = ({ selectedEvacuationCenter, se
         return;
       }
 
-      // Get the latest evacuation summary for these events
+      // Get all evacuation summaries for these events
       const { data: summaries, error: summariesError } = await supabase
         .from('evacuation_summaries')
-        .select('total_no_of_individuals')
+        .select('disaster_evacuation_event_id, total_no_of_individuals, created_at')
         .in('disaster_evacuation_event_id', activeEvents.map(event => event.id))
-        .order('created_at', { ascending: false })
-        .limit(1);
+        .order('created_at', { ascending: false });
 
       if (summariesError) {
         console.error('Error fetching summaries:', summariesError);
@@ -135,8 +134,21 @@ const EvacuationCenterSidebar: React.FC<Props> = ({ selectedEvacuationCenter, se
       console.log('Fetched summaries:', summaries);
 
       if (summaries && summaries.length > 0) {
-        console.log('Setting new capacity:', summaries[0].total_no_of_individuals);
-        setCurrentCapacity(summaries[0].total_no_of_individuals);
+        // Group summaries by disaster_evacuation_event_id and get the latest one for each event
+        const summariesByEvent: { [key: number]: any } = {};
+        summaries.forEach(summary => {
+          if (!summariesByEvent[summary.disaster_evacuation_event_id]) {
+            summariesByEvent[summary.disaster_evacuation_event_id] = summary;
+          }
+        });
+
+        // Sum up all the total_no_of_individuals from the latest summaries of each event
+        const totalCapacity = Object.values(summariesByEvent).reduce((sum, summary: any) => {
+          return sum + (summary.total_no_of_individuals || 0);
+        }, 0);
+
+        console.log('Setting new capacity:', totalCapacity);
+        setCurrentCapacity(totalCapacity);
       } else {
         console.log('No summaries found, setting capacity to 0');
         setCurrentCapacity(0);
@@ -176,7 +188,7 @@ const EvacuationCenterSidebar: React.FC<Props> = ({ selectedEvacuationCenter, se
           <div className="flex items-center gap-3">
             <img src={evacueeCount} alt="" />
             <h3 className="text-sm font-bold">
-             {selectedEvacuationCenter.current_capacity || '0'}
+             {currentCapacity || '0'}
             </h3>
           </div>
           <div className="flex items-center gap-2">
