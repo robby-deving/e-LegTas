@@ -157,19 +157,9 @@ export default function GISMap({ onMarkerClick, onLastUpdatedChange, height = '1
       const result = await response.json();
       console.log('Evacuation Centers:', result.data);
 
-      // Filter out centers with invalid coordinates
-      const validCenters = result.data.filter(center => {
-        const isValid = center.latitude && center.longitude && 
-                       !isNaN(center.latitude) && !isNaN(center.longitude);
-        if (!isValid) {
-          console.warn(`Filtering out evacuation center ${center.id} - ${center.name} due to invalid coordinates`);
-        }
-        return isValid;
-      });
-
-      // Update state and cache with validated data
-      setEvacuationCenters(validCenters);
-      setCachedData(validCenters);
+      // Update state and cache
+      setEvacuationCenters(result.data);
+      setCachedData(result.data);
     } catch (err) {
       console.error('Failed to fetch evacuation centers:', err);
     }
