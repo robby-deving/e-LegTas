@@ -222,15 +222,13 @@ const login = async (req, res) => {
     if (!employeeNumber || !password) {
       return res.status(400).json({ message: 'Employee number and password are required' });
     }
-    // Step 1: Find user by employee_number and get all related data in a single query
-    console.log('Looking up user with employee number:', employeeNumber);
-    
+    // Step 1: Find user by employee_number and get email from users_profile
     const { data: userData, error: userError } = await supabaseAdmin
       .from('users')
       .select(`
         id,
         employee_number,
-        users_profile:user_profile_id (
+        users_profile!inner (
           id,
           email,
           role_id,
@@ -238,7 +236,7 @@ const login = async (req, res) => {
           user_id,
           is_active,
           deleted_at,
-          residents:resident_id (
+          residents (
             first_name,
             last_name
           )
@@ -247,65 +245,10 @@ const login = async (req, res) => {
       .eq('employee_number', employeeNumber)
       .is('deleted_at', null)
       .single();
-
-    if (userError) {
-      console.error('User query error:', userError);
-      throw userError;
-    }
-
-    console.log('Raw userData:', JSON.stringify(userData, null, 2));
-
-    // Get resident data from the nested query result
-    let residents = userData.users_profile?.residents;
-    console.log('Extracted residents:', residents);
-    // Fallback: if joined residents is null, try fetching the nested users_profile->residents like profile controller
-    if (!residents) {
-      try {
-        console.log('Joined residents is null, attempting profile-style query fallback (login) for user id', userData.id);
-        const { data: profileFull, error: profileFullError } = await supabaseAdmin
-          .from('users')
-          .select(`
-            id,
-            employee_number,
-            users_profile (
-              id,
-              email,
-              role_id,
-              resident_id,
-              user_id,
-              is_active,
-              deleted_at,
-              residents (
-                first_name,
-                last_name
-              )
-            )
-          `)
-          .eq('id', userData.id)
-          .single();
-
-        console.log('Profile-style query result (login fallback):', JSON.stringify(profileFull, null, 2), 'error:', profileFullError);
-        if (!profileFullError && profileFull?.users_profile?.residents) {
-          residents = profileFull.users_profile.residents;
-          console.log('Recovered residents via profile-style query (login):', residents);
-        }
-      } catch (e) {
-        console.error('Exception during profile-style fallback (login):', e);
-      }
-    }
-
     if (userError || !userData) {
       console.error('User not found:', userError);
       return res.status(401).json({ message: 'Invalid employee number or password' });
     }
-
-    if (!userData.users_profile) {
-      console.error('No user profile found');
-      return res.status(400).json({ message: 'User profile is incomplete' });
-    }
-
-    console.log('Found user data:', JSON.stringify(userData, null, 2));
-
     if (userData.users_profile.deleted_at) {
       console.log('Login attempt for soft-deleted user:', employeeNumber);
       return res.status(403).json({ message: 'Account has been deactivated. Please contact administrator.' });
@@ -333,21 +276,7 @@ const login = async (req, res) => {
       console.error('Authentication error:', authError);
       return res.status(401).json({ message: 'Invalid employee number or password' });
     }
-    // Step 4: Prepare user data response with resident info
-    console.log('Resident data:', residents);
-
-    const userResponse = {
-      user_id: userData.id,
-      auth_id: authData.user.id,
-      email: userData.users_profile.email,
-      employee_number: userData.employee_number,
-      role_id: userData.users_profile.role_id,
-      resident_id: userData.users_profile.resident_id,
-      first_name: residents ? residents.first_name : null,
-      last_name: residents ? residents.last_name : null
-    };
-
-    // Step 5: Persist Supabase refresh token
+    // Step 4: Persist Supabase refresh token
     const sbRefreshToken = authData.session?.refresh_token;
     if (!sbRefreshToken) {
       console.error('No Supabase refresh token found on login response');
@@ -398,13 +327,13 @@ const login = async (req, res) => {
         employee_number: userData.employee_number,
         role_id: userData.users_profile.role_id,
         resident_id: userData.users_profile.resident_id,
-        first_name: residents?.first_name || null,
-        last_name: residents?.last_name || null,
+        first_name: userData.users_profile.residents?.first_name,
+        last_name: userData.users_profile.residents?.last_name,
         ...(barangayAssignment || {})
       },
       token: authData.session?.access_token || '' // Always use Supabase access token
     };
-    console.log('Final response data:', JSON.stringify(responseData, null, 2));
+    console.log('Final response data:', responseData);
     console.log('Login successful for employee:', employeeNumber);
     res.status(200).json(responseData);
   } catch (error) {
@@ -431,7 +360,7 @@ const refresh = async (req, res) => {
       setSbRefreshTokenCookie(res, rotated);
     }
 
-    // Get user data from the session (same query structure as login)
+    // Get user data from the session
     const { data: userData, error: userError } = await supabaseAdmin
       .from('users')
       .select(`
@@ -445,7 +374,7 @@ const refresh = async (req, res) => {
           user_id,
           is_active,
           deleted_at,
-          residents:resident_id (
+          residents (
             first_name,
             last_name
           )
@@ -459,50 +388,6 @@ const refresh = async (req, res) => {
       console.error('User not found during refresh:', userError);
       return res.status(401).json({ message: 'User not found' });
     }
-
-  console.log('Raw userData during refresh:', JSON.stringify(userData, null, 2));
-  // Extra debug: log users_profile and residents
-  console.log('users_profile during refresh:', JSON.stringify(userData.users_profile, null, 2));
-  console.log('residents during refresh:', JSON.stringify(userData.users_profile?.residents, null, 2));
-
-  // Extract resident data from the nested query result (same as login)
-  let residents = userData.users_profile?.residents;
-  console.log('Extracted residents during refresh:', residents);
-  // Fallback: if joined residents is null, try fetching the nested users_profile->residents like profile controller
-  if (!residents) {
-    try {
-      console.log('Joined residents is null, attempting profile-style query fallback (refresh) for user id', userData.id);
-      const { data: profileFull, error: profileFullError } = await supabaseAdmin
-        .from('users')
-        .select(`
-          id,
-          employee_number,
-          users_profile (
-            id,
-            email,
-            role_id,
-            resident_id,
-            user_id,
-            is_active,
-            deleted_at,
-            residents (
-              first_name,
-              last_name
-            )
-          )
-        `)
-        .eq('id', userData.id)
-        .single();
-
-      console.log('Profile-style query result (refresh fallback):', JSON.stringify(profileFull, null, 2), 'error:', profileFullError);
-      if (!profileFullError && profileFull?.users_profile?.residents) {
-        residents = profileFull.users_profile.residents;
-        console.log('Recovered residents via profile-style query (refresh):', residents);
-      }
-    } catch (e) {
-      console.error('Exception during profile-style fallback (refresh):', e);
-    }
-  }
 
     // Fetch barangay assignment for role 7 users
     let barangayAssignment = null;
@@ -532,8 +417,8 @@ const refresh = async (req, res) => {
         employee_number: userData.employee_number,
         role_id: userData.users_profile.role_id,
         resident_id: userData.users_profile.resident_id,
-        first_name: residents?.first_name || null,
-        last_name: residents?.last_name || null,
+        first_name: userData.users_profile.residents?.first_name,
+        last_name: userData.users_profile.residents?.last_name,
         ...(barangayAssignment || {})
       },
       token: data.session.access_token

@@ -26,8 +26,6 @@ export default function SideNav() {
   
   // Get user data using consistent selector pattern
   const user = useSelector(selectCurrentUser);
-  // Debug log for Redux user state
-  console.log('[SideNav] Redux user state:', user);
   const { hasPermission } = usePermissions();
   const canViewMap = hasPermission('view_map');
   const canViewEvacCenters = hasPermission('view_evacuation_centers');
@@ -51,8 +49,10 @@ export default function SideNav() {
 
   // Simplified helper functions using Redux data
   const getDisplayName = () => {
-    if (!user || (!user.first_name && !user.last_name)) return 'Admin';
-    return `${user.first_name || ''} ${user.last_name || ''}`.trim();
+    if (!user) return 'Admin';
+    
+    const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim();
+    return fullName || 'Admin';
   };
 
   const getDisplayEmail = () => {
