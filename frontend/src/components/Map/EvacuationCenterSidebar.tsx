@@ -171,12 +171,12 @@ const EvacuationCenterSidebar: React.FC<Props> = ({ selectedEvacuationCenter, se
       </div>
 
       <div className="mt-3 border-t-2 border-gray-200 py-3">
-        <h3 className="text-sm text-gray-500">Evacuation Capacity:</h3>
+        <h3 className="text-sm text-gray-500">Current Number of Evacuees:</h3>
         <div className="flex items-center justify-between ps-3">
           <div className="flex items-center gap-3">
             <img src={evacueeCount} alt="" />
             <h3 className="text-sm font-bold">
-              Capacity: {currentCapacity}/{selectedEvacuationCenter.total_capacity || '0'}
+             {selectedEvacuationCenter.current_capacity || '0'}
             </h3>
           </div>
           <div className="flex items-center gap-2">
@@ -188,6 +188,14 @@ const EvacuationCenterSidebar: React.FC<Props> = ({ selectedEvacuationCenter, se
               LIVE
             </span>
           </div>
+        </div>
+      </div>
+
+      <div className="pb-3">
+        <h3 className="text-sm text-gray-500">Total Capacity:</h3>
+        <div className="flex items-center gap-3 ps-3">
+          <img src={evacueeCount} alt="" />
+          <h3 className="text-sm font-bold">{selectedEvacuationCenter.total_capacity}</h3>
         </div>
       </div>
 
