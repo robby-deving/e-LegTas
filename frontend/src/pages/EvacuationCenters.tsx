@@ -413,59 +413,61 @@ export default function EvacuationCentersPage() {
                       </div>
                     </TableCell>
                     <TableCell className="text-center">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0"
-                            disabled={isCreating || isUpdating || isDeleting}
-                          >
-                            <MoreHorizontal className="w-4 h-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          {activeTab !== 'Outside EC' && canUpdateCenter && (
-                            <DropdownMenuItem
-                              onClick={() => handleEditCenter(center)}
-                              className="cursor-pointer"
-                              disabled={isUpdating}
+                      {((activeTab !== 'Outside EC' && canUpdateCenter) || (activeTab === 'Outside EC' && canEditOutsideEC) || canDeleteCenter) && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              disabled={isCreating || isUpdating || isDeleting}
                             >
-                              <Edit className="w-4 h-4 mr-2" />
-                              Edit
-                            </DropdownMenuItem>
-                          )}
-                          {activeTab === 'Outside EC' && canEditOutsideEC && (
-                            <DropdownMenuItem
-                              onClick={() => handleEditCenter(center)}
-                              className="cursor-pointer"
-                              disabled={isUpdating}
-                            >
-                              <Edit className="w-4 h-4 mr-2" />
-                              Edit
-                            </DropdownMenuItem>
-                          )}
-                          {canDeleteCenter && (
-                            <DropdownMenuItem
-                              onClick={() => handleDeleteCenter(center)}
-                              className="cursor-pointer text-red-600"
-                              disabled={isDeleting}
-                            >
-                              {isDeleting ? (
-                                <>
-                                  <LoadingSpinner size="sm" />
-                                  <span className="ml-2">Deleting...</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Trash2 className="w-4 h-4 mr-2" />
-                                  Delete
-                                </>
-                              )}
-                            </DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                              <MoreHorizontal className="w-4 h-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            {activeTab !== 'Outside EC' && canUpdateCenter && (
+                              <DropdownMenuItem
+                                onClick={() => handleEditCenter(center)}
+                                className="cursor-pointer"
+                                disabled={isUpdating}
+                              >
+                                <Edit className="w-4 h-4 mr-2" />
+                                Edit
+                              </DropdownMenuItem>
+                            )}
+                            {activeTab === 'Outside EC' && canEditOutsideEC && (
+                              <DropdownMenuItem
+                                onClick={() => handleEditCenter(center)}
+                                className="cursor-pointer"
+                                disabled={isUpdating}
+                              >
+                                <Edit className="w-4 h-4 mr-2" />
+                                Edit
+                              </DropdownMenuItem>
+                            )}
+                            {canDeleteCenter && (
+                              <DropdownMenuItem
+                                onClick={() => handleDeleteCenter(center)}
+                                className="cursor-pointer text-red-600"
+                                disabled={isDeleting}
+                              >
+                                {isDeleting ? (
+                                  <>
+                                    <LoadingSpinner size="sm" />
+                                    <span className="ml-2">Deleting...</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Trash2 className="w-4 h-4 mr-2" />
+                                    Delete
+                                  </>
+                                )}
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
