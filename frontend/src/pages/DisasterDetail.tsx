@@ -727,8 +727,10 @@ export default function DisasterDetail() {
                           {center.total_no_of_family} Family
                         </TableCell>
                         <TableCell className="text-foreground">
-                          {center.total_no_of_individuals} /{" "}
-                          {center.evacuation_center_total_capacity} Persons
+                        {activeTab === 'Inside EC' 
+                          ? `${center.total_no_of_individuals} / ${center.evacuation_center_total_capacity} Persons`
+                          : `${center.total_no_of_individuals} Persons`
+                        }
                         </TableCell>
                         <TableCell className="flex items-center justify-between text-foreground">
                           {center.assigned_user_name}

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Input } from '@/components/ui/input';
-import { Search, X, MapPin } from 'lucide-react';
+import { X } from 'lucide-react';
 import searchIcon from '../../assets/search.svg';
 import type { EvacuationCenter } from '@/types/EvacuationCenter';
 
