@@ -46,10 +46,33 @@ export default function Login(){
             }
 
             // Successfully logged in - Redux dispatch with data from server
-            dispatch(setCredentials({
-                user: data.user,
-                token: data.token,
-            }));
+            // After login, fetch full profile to ensure resident names are available
+            try {
+                const profileRes = await fetch(`/api/v1/profile/${data.user.user_id}`, {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${data.token}`
+                    }
+                });
+                const profileJson = await profileRes.json();
+                const profileData = profileJson?.data || null;
+
+                const mergedUser = {
+                    ...data.user,
+                    first_name: profileData?.first_name ?? data.user.first_name ?? null,
+                    last_name: profileData?.last_name ?? data.user.last_name ?? null,
+                    email: profileData?.email ?? data.user.email ?? null,
+                };
+
+                dispatch(setCredentials({
+                    user: mergedUser,
+                    token: data.token,
+                }));
+            } catch (e) {
+                // If profile fetch fails, still dispatch what we have
+                console.warn('Failed to fetch profile after login, using login payload', e);
+                dispatch(setCredentials({ user: data.user, token: data.token }));
+            }
             navigate('/dashboard');
         } catch (error: any) {
             console.error('Login error:', error);
