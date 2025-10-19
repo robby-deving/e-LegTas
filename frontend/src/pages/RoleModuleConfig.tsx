@@ -58,6 +58,7 @@ import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, MoreHorizontal,
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../components/ui/dropdown-menu';
 import { Button } from '../components/ui/button';
 import { usePermissions } from '../contexts/PermissionContext';
+import { Tooltip, TooltipTrigger, TooltipContent } from '../components/ui/Tooltip';
 
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 
@@ -77,6 +78,7 @@ interface Permission {
     permission_name: string;
     label: string;
     group?: string;
+    description?: string;
 }
 
 export default function RoleModuleConfig() {
@@ -818,7 +820,7 @@ export default function RoleModuleConfig() {
                                                 {isExpanded && (
                                                     <div className="ml-16 mt-3 space-y-3">
                                                         {groupPermissions.map((permission) => (
-                                                            <label key={permission.permission_name} className="flex items-center">
+                                                            <label key={permission.permission_name} className="flex items-center gap-2">
                                                                 <input
                                                                     type="checkbox"
                                                                     checked={formData.permissions.includes(permission.permission_name)}
@@ -827,6 +829,21 @@ export default function RoleModuleConfig() {
                                                                     disabled={!canModifyRolePermissions}
                                                                 />
                                                                 <span className="text-base">{permission.label}</span>
+                                                                {/* Hoverable question mark showing permission details */}
+                                                                <Tooltip>
+                                                                    <TooltipTrigger asChild>
+                                                                        <button
+                                                                            type="button"
+                                                                            className="ml-2 text-sm text-gray-500 hover:text-gray-700"
+                                                                            onClick={(e) => e.preventDefault()}
+                                                                        >
+                                                                            <span style={{ display: 'inline-block', width: 16, height: 16, lineHeight: '16px', textAlign: 'center', borderRadius: 8, border: '1px solid #cbd5e1' }}>?</span>
+                                                                        </button>
+                                                                    </TooltipTrigger>
+                                                                    <TooltipContent>
+                                                                        <div>{permission.description || permission.label}</div>
+                                                                    </TooltipContent>
+                                                                </Tooltip>
                                                             </label>
                                                         ))}
                                                     </div>
