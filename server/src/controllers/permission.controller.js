@@ -62,7 +62,8 @@ const getRolePermissions = async (req, res) => {
         permissions!permission_id (
           id,
           permission_name,
-          label
+          label,
+          description
         )
       `)
       .eq('role_id', parseInt(roleId))
@@ -282,7 +283,8 @@ const getUserPermissions = async (req, res) => {
         permissions!permission_id (
           id,
           permission_name,
-          label
+          label,
+          description
         )
       `)
       .eq('role_id', roleId)

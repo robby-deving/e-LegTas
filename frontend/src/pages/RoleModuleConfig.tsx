@@ -58,6 +58,7 @@ import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, MoreHorizontal,
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../components/ui/dropdown-menu';
 import { Button } from '../components/ui/button';
 import { usePermissions } from '../contexts/PermissionContext';
+import { Tooltip, TooltipTrigger, TooltipContent } from '../components/ui/Tooltip';
 
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 
@@ -77,6 +78,7 @@ interface Permission {
     permission_name: string;
     label: string;
     group?: string;
+    description?: string;
 }
 
 export default function RoleModuleConfig() {
@@ -123,13 +125,13 @@ export default function RoleModuleConfig() {
         if (permissionName.includes('map')) return 'Mapping';
         if (permissionName.includes('evacuee') || permissionName.includes('family') || permissionName === 'add_relief_service') return 'Evacuee Management';
         if (permissionName.includes('disaster')) return 'Disaster Management';
-        if (permissionName.includes('evacuation_center')) return 'Evacuation Center Management';
+    if (permissionName.includes('evacuation_center')) return '(Inside) Evacuation Centers';
         if (permissionName.includes('report')) return 'Reports';
         if (permissionName.includes('announcement')) return 'Announcements';
         if (permissionName.includes('user') || permissionName.includes('role')) return 'User Management';
         if (permissionName.includes('profile') || permissionName.includes('password')) return 'Profile';
-        // Add a new category for Outside Evacuation Centers
-        if (permissionName.includes('outside_ec')) return 'Outside Evacuation Centers';
+    // Category for outside/external evacuation centers
+    if (permissionName.includes('outside_ec')) return '(Outside) Evacuation Centers';
         return 'Other';
     };
     
@@ -148,7 +150,22 @@ export default function RoleModuleConfig() {
             group: getPermissionGroup(permission.permission_name)
         }));
     
-    const permissionGroups = Array.from(new Set(permissionsWithGroups.map(p => p.group))).sort();
+    // Order groups: keep 'Disaster Management' first among these related groups,
+    // then place evacuation center groups immediately after it, followed by other groups alphabetically.
+    const rawGroups = Array.from(new Set(permissionsWithGroups.map(p => p.group)));
+    const preferredOrder = [
+        'Announcements',
+        'Dashboard',
+        'Disaster Management',
+        '(Inside) Evacuation Centers',
+        '(Outside) Evacuation Centers'
+    ];
+
+    const remaining = rawGroups.filter(g => !preferredOrder.includes(g)).sort();
+    const permissionGroups = [
+        ...preferredOrder.filter(g => rawGroups.includes(g)),
+        ...remaining
+    ];
     
     // Helper function to get auth headers
     const getAuthHeaders = () => ({
@@ -803,7 +820,7 @@ export default function RoleModuleConfig() {
                                                 {isExpanded && (
                                                     <div className="ml-16 mt-3 space-y-3">
                                                         {groupPermissions.map((permission) => (
-                                                            <label key={permission.permission_name} className="flex items-center">
+                                                            <label key={permission.permission_name} className="flex items-center gap-2">
                                                                 <input
                                                                     type="checkbox"
                                                                     checked={formData.permissions.includes(permission.permission_name)}
@@ -812,6 +829,21 @@ export default function RoleModuleConfig() {
                                                                     disabled={!canModifyRolePermissions}
                                                                 />
                                                                 <span className="text-base">{permission.label}</span>
+                                                                {/* Hoverable question mark showing permission details */}
+                                                                <Tooltip>
+                                                                    <TooltipTrigger asChild>
+                                                                        <button
+                                                                            type="button"
+                                                                            className="ml-2 text-sm text-gray-500 hover:text-gray-700"
+                                                                            onClick={(e) => e.preventDefault()}
+                                                                        >
+                                                                            <span style={{ display: 'inline-block', width: 16, height: 16, lineHeight: '16px', textAlign: 'center', borderRadius: 8, border: '1px solid #cbd5e1' }}>?</span>
+                                                                        </button>
+                                                                    </TooltipTrigger>
+                                                                    <TooltipContent>
+                                                                        <div>{permission.description || permission.label}</div>
+                                                                    </TooltipContent>
+                                                                </Tooltip>
                                                             </label>
                                                         ))}
                                                     </div>

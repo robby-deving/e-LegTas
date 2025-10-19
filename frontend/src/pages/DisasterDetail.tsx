@@ -65,6 +65,7 @@ export default function DisasterDetail() {
   const { hasPermission } = usePermissions();
   const canCreateFamilyInformation = hasPermission("create_family_information");
   const canRegisterOutsideEC = hasPermission('register_outside_ec');
+  const canViewActiveOutsideEC = hasPermission('view_active_outside_ec');
 
   // Registration state
   const [showSearchModal, setShowSearchModal] = useState(false);
@@ -148,7 +149,20 @@ export default function DisasterDetail() {
 
 
 
-  const [activeTab, setActiveTab] = useState('inside-ec');
+  const [activeTab, setActiveTab] = useState('Inside EC');
+
+  const tabs = [
+    { name: 'Inside EC' }, // Replace with your actual icon component or image
+    // Only include Outside EC tab when user has permission
+    ...(canViewActiveOutsideEC ? [{ name: 'Outside EC' }] : []),
+  ];
+
+  // If user doesn't have permission to view active outside ECs, ensure tab is Inside EC
+  useEffect(() => {
+    if (!canViewActiveOutsideEC && activeTab === 'Outside EC') {
+      setActiveTab('Inside EC');
+    }
+  }, [canViewActiveOutsideEC, activeTab]);
   useEffect(() => {
     
     const loadDisaster = async () => {

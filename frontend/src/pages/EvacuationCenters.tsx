@@ -41,6 +41,8 @@ export default function EvacuationCentersPage() {
   const canDeleteCenter = hasPermission('delete_evacuation_center');
   const canAddOutsideEC = hasPermission('add_outside_ec');
   const canEditOutsideEC = hasPermission('edit_outside_ec');
+  const canViewOutsideEC = hasPermission('view_outside_ec');
+  const canCreateCenter = hasPermission('create_evacuation_center');
 
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -112,6 +114,13 @@ export default function EvacuationCentersPage() {
   useEffect(() => {
     refetchWithParams(getCurrentParams());
   }, [currentPage, rowsPerPage, debouncedSearchTerm, activeTab, assignedBarangayId, refetchWithParams, getCurrentParams]);
+
+  // If user doesn't have view_outside_ec permission, force the tab back to Inside EC
+  useEffect(() => {
+    if (!canViewOutsideEC && activeTab === 'Outside EC') {
+      setActiveTab('Inside EC');
+    }
+  }, [canViewOutsideEC, activeTab]);
 
   // Handle rows per page change
   const handleRowsPerPageChange = (value: string) => {
@@ -253,15 +262,17 @@ export default function EvacuationCentersPage() {
                onValueChange={(value) => handleTabChange(value as 'Inside EC' | 'Outside EC')}
              >
                <TabsList>
-                 <TabsTrigger value="Inside EC">
-                   Inside EC
-                 </TabsTrigger>
-                 <TabsTrigger value="Outside EC">
-                   Outside EC
-                 </TabsTrigger>
-               </TabsList>
+                   <TabsTrigger value="Inside EC">
+                     Inside EC
+                   </TabsTrigger>
+                   {canViewOutsideEC && (
+                     <TabsTrigger value="Outside EC">
+                       Outside EC
+                     </TabsTrigger>
+                   )}
+                 </TabsList>
              </Tabs>
-          {activeTab === 'Inside EC' && (
+          {activeTab === 'Inside EC' && canCreateCenter && (
             <Button
               onClick={handleAddCenter}
               disabled={isCreating}

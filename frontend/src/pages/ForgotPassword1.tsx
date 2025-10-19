@@ -127,7 +127,7 @@ export default function ForgotPassword1(){
             setError(null);
             
             // Call backend API to resend OTP
-            const response = await fetch('https://api.e-legtas.tech/api/v1/auth/send-otp', {
+            const response = await fetch('/api/v1/auth/send-otp', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
