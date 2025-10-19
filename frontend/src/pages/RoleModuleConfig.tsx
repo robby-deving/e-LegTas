@@ -58,6 +58,11 @@ import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, MoreHorizontal,
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../components/ui/dropdown-menu';
 import { Button } from '../components/ui/button';
 import { usePermissions } from '../contexts/PermissionContext';
+import { Tooltip, TooltipTrigger, TooltipContent } from '../components/ui/Tooltip';
+
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
+
+import { Plus } from 'lucide-react';
 
 interface Role {
     id: number;
@@ -73,6 +78,7 @@ interface Permission {
     permission_name: string;
     label: string;
     group?: string;
+    description?: string;
 }
 
 export default function RoleModuleConfig() {
@@ -95,7 +101,6 @@ export default function RoleModuleConfig() {
     const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
     const [rowsPerPage, setRowsPerPage] = useState(10);
-    const [selectedRows] = useState(0);
     const [isAddRoleModalOpen, setIsAddRoleModalOpen] = useState(false);
     const [isEditRoleModalOpen, setIsEditRoleModalOpen] = useState(false);
     const [editingRole, setEditingRole] = useState<Role | null>(null);
@@ -118,15 +123,15 @@ export default function RoleModuleConfig() {
     const getPermissionGroup = (permissionName: string): string => {
         if (permissionName.includes('dashboard')) return 'Dashboard';
         if (permissionName.includes('map')) return 'Mapping';
-        if (permissionName.includes('evacuee') || permissionName.includes('family')) return 'Evacuee Management';
+        if (permissionName.includes('evacuee') || permissionName.includes('family') || permissionName === 'add_relief_service') return 'Evacuee Management';
         if (permissionName.includes('disaster')) return 'Disaster Management';
-        if (permissionName.includes('evacuation_center')) return 'Evacuation Center Management';
+    if (permissionName.includes('evacuation_center')) return '(Inside) Evacuation Centers';
         if (permissionName.includes('report')) return 'Reports';
         if (permissionName.includes('announcement')) return 'Announcements';
         if (permissionName.includes('user') || permissionName.includes('role')) return 'User Management';
         if (permissionName.includes('profile') || permissionName.includes('password')) return 'Profile';
-        // Add a new category for Outside Evacuation Centers
-        if (permissionName.includes('outside_ec')) return 'Outside Evacuation Centers';
+    // Category for outside/external evacuation centers
+    if (permissionName.includes('outside_ec')) return '(Outside) Evacuation Centers';
         return 'Other';
     };
     
@@ -145,7 +150,22 @@ export default function RoleModuleConfig() {
             group: getPermissionGroup(permission.permission_name)
         }));
     
-    const permissionGroups = Array.from(new Set(permissionsWithGroups.map(p => p.group))).sort();
+    // Order groups: keep 'Disaster Management' first among these related groups,
+    // then place evacuation center groups immediately after it, followed by other groups alphabetically.
+    const rawGroups = Array.from(new Set(permissionsWithGroups.map(p => p.group)));
+    const preferredOrder = [
+        'Announcements',
+        'Dashboard',
+        'Disaster Management',
+        '(Inside) Evacuation Centers',
+        '(Outside) Evacuation Centers'
+    ];
+
+    const remaining = rawGroups.filter(g => !preferredOrder.includes(g)).sort();
+    const permissionGroups = [
+        ...preferredOrder.filter(g => rawGroups.includes(g)),
+        ...remaining
+    ];
     
     // Helper function to get auth headers
     const getAuthHeaders = () => ({
@@ -566,7 +586,7 @@ export default function RoleModuleConfig() {
     return (
         <>
             <style>{checkboxGreenStyle}</style>
-            <div className='p-6'>
+            <div className="text-black p-6 space-y-6 flex flex-col">
             {/* Title */}
             <h1 
                 className='font-bold mb-6'
@@ -581,82 +601,54 @@ export default function RoleModuleConfig() {
             {/* Add User Roles Button */}
             <div className="mb-6 flex justify-end">
                 {canCreateRole && (
-                    <button
+                    <Button
                         onClick={handleAddRole}
-                        className='inline-flex items-center gap-2 px-4 py-2 text-white font-medium text-base rounded-md hover:opacity-90 transition-opacity focus:outline-none'
-                        style={{
-                            backgroundColor: '#00824E'
-                        }}
+                        className="bg-green-700 hover:bg-green-800 text-white px-6 flex gap-2 items-center disabled:opacity-50"
                     >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14 14" fill="none">
-                            <g clipPath="url(#clip0_876_48038)">
-                                <path d="M7.0013 12.8327C10.223 12.8327 12.8346 10.221 12.8346 6.99935C12.8346 3.77769 10.223 1.16602 7.0013 1.16602C3.77964 1.16602 1.16797 3.77769 1.16797 6.99935C1.16797 10.221 3.77964 12.8327 7.0013 12.8327Z" stroke="#F8FAFC" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"/>
-                                <path d="M7 4.66602V9.33268" stroke="#F8FAFC" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"/>
-                                <path d="M4.66797 7H9.33464" stroke="#F8FAFC" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"/>
-                            </g>
-                            <defs>
-                                <clipPath id="clip0_876_48038">
-                                    <rect width="14" height="14" fill="white"/>
-                                </clipPath>
-                            </defs>
-                        </svg>
+                        <Plus className="w-4 h-4" />
                         Add User Roles
-                    </button>
+                    </Button>
                 )}
             </div>
             
             {/* Content */}
-            <div 
-                className='rounded-md'
-                style={{
-                    border: '1px solid #E4E4E7',
-                    overflow: 'visible'
-                }}
-            >
-                {/* Table */}
-                <div className="overflow-x-auto">
-                    <table className='min-w-full'>
-                    <thead className='bg-white border-b border-gray-200'>
-                        <tr>
-                            <th className='px-6 py-3 text-left text-base font-medium text-gray-500'>
-                                Name
-                            </th>
-                            <th className='px-6 py-3 text-center text-base font-medium text-gray-500'>
-                                Users
-                            </th>
-                            <th className='px-6 py-3 text-center text-base font-medium text-gray-500'>
-                                Permissions
-                            </th>
-                            <th className='px-6 py-3'>
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody className='bg-white'>
+            <div className="rounded-md border border-input overflow-hidden">
+                <div className="relative w-full overflow-x-auto">
+                <Table>
+                    <TableHeader className="bg-gray-50">
+                        <TableRow>
+                            <TableHead className="text-left">Name</TableHead>
+                            <TableHead className="text-center">Users</TableHead>
+                            <TableHead className="text-center">Permissions</TableHead>
+                            <TableHead className="text-center w-12">Actions</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
                         {loading ? (
-                            <tr>
-                                <td colSpan={4} className="px-6 py-4 text-center text-gray-500 text-base">
+                            <TableRow>
+                                <TableCell colSpan={4} className="text-center py-4 text-gray-500">
                                     Loading roles...
-                                </td>
-                            </tr>
+                                </TableCell>
+                            </TableRow>
                         ) : roles.length === 0 ? (
-                            <tr>
-                                <td colSpan={4} className="px-6 py-4 text-center text-gray-500 text-base">
+                            <TableRow>
+                                <TableCell colSpan={4} className="text-center py-4 text-gray-500">
                                     No roles found
-                                </td>
-                            </tr>
+                                </TableCell>
+                            </TableRow>
                         ) : (
                             paginatedRoles.map((role) => (
-                                <tr key={role.id} className="hover:bg-gray-50 border-b border-gray-200" style={{ position: 'relative' }}>
-                                    <td className="px-6 py-4 whitespace-nowrap text-gray-900 text-base">
+                                <TableRow key={role.id} className="hover:bg-gray-50" style={{ position: 'relative' }}>
+                                    <TableCell className="text-foreground font-medium">
                                         {role.name}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-gray-900 text-base text-center">
+                                    </TableCell>
+                                    <TableCell className="text-center text-foreground">
                                         {getUserCountByRole(role.id)}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-gray-900 text-base text-center">
+                                    </TableCell>
+                                    <TableCell className="text-center text-foreground">
                                         {rolePermissions[role.id] || 0}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-gray-900 text-base">
+                                    </TableCell>
+                                    <TableCell className="text-center">
                                         <div className="flex justify-end">
                                             <div className="relative" data-role-id={role.id}>
                                                 <DropdownMenu>
@@ -684,31 +676,20 @@ export default function RoleModuleConfig() {
                                                 </DropdownMenu>
                                             </div>
                                         </div>
-                                    </td>
-                                </tr>
+                                    </TableCell>
+                                </TableRow>
                             ))
                         )}
-                    </tbody>
-                </table>
+                    </TableBody>
+                </Table>
                 </div>
             </div>
 
             {/* Pagination */}
-            <div 
-                className='flex items-center justify-between px-6 py-3 pt-5 bg-white'
-                style={{
-                    border: '1px solid #E4E4E7',
-                    borderTop: 'none',
-                    borderBottomLeftRadius: '6px',
-                    borderBottomRightRadius: '6px'
-                }}
-            >
-                <div className='flex items-center gap-4'>
-                    <span className='text-base text-gray-500'>
-                        {selectedRows} of {totalRows} row(s) selected.
-                    </span>
+            <div className="flex items-center justify-between">
+                <div className="flex-1 text-sm text-muted-foreground">
+                    {paginatedRoles.length} of {totalRows} row(s) shown.
                 </div>
-                
                 <div className='flex items-center gap-6'>
                     <div className='flex items-center gap-2'>
                         <span className='text-base text-gray-700'>Rows per page</span>
@@ -839,7 +820,7 @@ export default function RoleModuleConfig() {
                                                 {isExpanded && (
                                                     <div className="ml-16 mt-3 space-y-3">
                                                         {groupPermissions.map((permission) => (
-                                                            <label key={permission.permission_name} className="flex items-center">
+                                                            <label key={permission.permission_name} className="flex items-center gap-2">
                                                                 <input
                                                                     type="checkbox"
                                                                     checked={formData.permissions.includes(permission.permission_name)}
@@ -848,6 +829,21 @@ export default function RoleModuleConfig() {
                                                                     disabled={!canModifyRolePermissions}
                                                                 />
                                                                 <span className="text-base">{permission.label}</span>
+                                                                {/* Hoverable question mark showing permission details */}
+                                                                <Tooltip>
+                                                                    <TooltipTrigger asChild>
+                                                                        <button
+                                                                            type="button"
+                                                                            className="ml-2 text-sm text-gray-500 hover:text-gray-700"
+                                                                            onClick={(e) => e.preventDefault()}
+                                                                        >
+                                                                            <span style={{ display: 'inline-block', width: 16, height: 16, lineHeight: '16px', textAlign: 'center', borderRadius: 8, border: '1px solid #cbd5e1' }}>?</span>
+                                                                        </button>
+                                                                    </TooltipTrigger>
+                                                                    <TooltipContent>
+                                                                        <div>{permission.description || permission.label}</div>
+                                                                    </TooltipContent>
+                                                                </Tooltip>
                                                             </label>
                                                         ))}
                                                     </div>
