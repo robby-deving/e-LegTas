@@ -1074,7 +1074,7 @@ export default function UserManagement(){
                                         </TableCell>
                                     </TableRow>
                                 ) : (
-                                    paginatedUsers.map((user, index) => (
+                                    paginatedUsers.map((user) => (
                                         <TableRow 
                                             key={user.user_id} 
                                             className="hover:bg-gray-50"
