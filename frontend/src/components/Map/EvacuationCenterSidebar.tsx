@@ -158,7 +158,7 @@ const EvacuationCenterSidebar: React.FC<Props> = ({ selectedEvacuationCenter, se
         </svg>
       </button>
 
-      <div>
+      <div className="mt-4">
         <h3 className="text-sm text-gray-500">Evacuation Center:</h3>
         <h1 className="text-2xl font-bold text-green-700">{selectedEvacuationCenter.name}</h1>
 

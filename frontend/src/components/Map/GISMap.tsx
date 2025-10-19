@@ -4,10 +4,10 @@ import icon from 'leaflet/dist/images/marker-icon.png';
 import iconRetina from 'leaflet/dist/images/marker-icon-2x.png';
 import shadow from 'leaflet/dist/images/marker-shadow.png';
 import { MapContainer, TileLayer, Marker, Tooltip } from 'react-leaflet';
-import ECMarker from '../../assets/ECMarker.svg';
-import fullIcon from '../../assets/full.svg';
-import overcapacityIcon from '../../assets/overcapacity.svg';
-import unavailableIcon from '../../assets/unavailable.svg';
+import ECMarker from '../../assets/ec-marker.svg';
+import fullIcon from '../../assets/full-marker.svg';
+import overcapacityIcon from '../../assets/overcapacity-marker.svg';
+import unavailableIcon from '../../assets/unavailable-marker.svg';
 import type { EvacuationCenter } from '@/types/EvacuationCenter';
 import { store } from '@/store';
 import { selectToken, selectUserId } from '@/features/auth/authSlice';
@@ -28,21 +28,21 @@ const evacCenterIcon = new L.Icon({
 
 const fullCapacityIcon = new L.Icon({
   iconUrl: fullIcon,
-  iconSize: [39, 40],
+  iconSize: [40, 40],
   iconAnchor: [16, 32],
   popupAnchor: [0, -32],
 });
 
 const overCapacityIcon = new L.Icon({
   iconUrl: overcapacityIcon,
-  iconSize: [39, 40],
+  iconSize: [40, 40],
   iconAnchor: [16, 32],
   popupAnchor: [0, -32],
 });
 
 const unavailableCapacityIcon = new L.Icon({
   iconUrl: unavailableIcon,
-  iconSize: [39, 40],
+  iconSize: [40, 40],
   iconAnchor: [16, 32],
   popupAnchor: [0, -32],
 });
