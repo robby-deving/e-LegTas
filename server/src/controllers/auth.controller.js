@@ -71,60 +71,24 @@ const resetPassword = async (req, res) => {
       return res.status(400).json({ message: 'Missing required fields' });
     }
 
-    console.log('Received userId (could be employee_number or auth user id):', userId);
+    console.log('Received userId:', userId);
 
-    // First, try to find user by employee_number if userId looks like an employee number
-    let userProfile = null;
-    let authUserId = null;
+    // Verify the user exists and is active
+    const { data: userProfile, error: profileError } = await supabaseAdmin
+      .from('users_profile')
+      .select('id, email, user_id')
+      .eq('user_id', userId)
+      .is('deleted_at', null)  // Exclude soft-deleted users
+      .single();
 
-    // Check if userId looks like an employee number (contains hyphens)
-    if (userId.includes('-')) {
-      console.log('Looking up user by employee_number:', userId);
-      
-      // Find user by employee_number and get their auth user_id
-      const { data: userData, error: userError } = await supabaseAdmin
-        .from('users')
-        .select(`
-          id,
-          employee_number,
-          users_profile!inner (
-            id,
-            email,
-            user_id
-          )
-        `)
-        .eq('employee_number', userId)
-        .is('deleted_at', null)  // Exclude soft-deleted users
-        .single();
-
-      if (userError || !userData) {
-        console.error('User not found by employee_number:', userError);
-        return res.status(404).json({ message: 'User not found' });
-      }
-
-      userProfile = userData.users_profile;
-      authUserId = userData.users_profile.user_id;
-      console.log('Found user by employee_number, auth user_id:', authUserId);
-    } else {
-      console.log('Looking up user by auth user_id:', userId);
-      
-      // Assume userId is an auth user UUID, look it up directly
-      const { data: profileData, error: profileError } = await supabaseAdmin
-        .from('users_profile')
-        .select('id, email, user_id')
-        .eq('user_id', userId)
-        .is('deleted_at', null)  // Exclude soft-deleted users
-        .single();
-
-      if (profileError || !profileData) {
-        console.error('User profile not found by user_id:', profileError);
-        return res.status(404).json({ message: 'User not found in users_profile' });
-      }
-
-      userProfile = profileData;
-      authUserId = userId;
-      console.log('Found user by auth user_id:', authUserId);
+    if (profileError || !userProfile) {
+      console.error('User profile not found:', profileError);
+      return res.status(404).json({ message: 'User not found' });
     }
+
+    // Since we get the auth user_id directly from OTP verification,
+    // we can use it directly for the password reset
+    const authUserId = userId;
 
     if (!authUserId) {
       console.error('No auth user_id found');
@@ -132,6 +96,20 @@ const resetPassword = async (req, res) => {
     }
 
     console.log('Found user profile with email:', userProfile.email);
+
+    // Clear any existing OTP data first
+    const { error: clearOtpError } = await supabaseAdmin
+      .from('users_profile')
+      .update({ 
+        otp_code: null, 
+        otp_expiration: null 
+      })
+      .eq('user_id', authUserId);
+
+    if (clearOtpError) {
+      console.error('Error clearing OTP data:', clearOtpError);
+      // Don't return error - continue with password reset
+    }
 
     // Use the custom function to reset password
     console.log('Calling reset_user_password function...');
