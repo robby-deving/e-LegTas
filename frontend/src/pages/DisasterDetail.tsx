@@ -151,11 +151,6 @@ export default function DisasterDetail() {
 
   const [activeTab, setActiveTab] = useState('Inside EC');
 
-  const tabs = [
-    { name: 'Inside EC' }, // Replace with your actual icon component or image
-    // Only include Outside EC tab when user has permission
-    ...(canViewActiveOutsideEC ? [{ name: 'Outside EC' }] : []),
-  ];
 
   // If user doesn't have permission to view active outside ECs, ensure tab is Inside EC
   useEffect(() => {
