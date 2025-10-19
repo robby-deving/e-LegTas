@@ -123,13 +123,13 @@ export default function RoleModuleConfig() {
         if (permissionName.includes('map')) return 'Mapping';
         if (permissionName.includes('evacuee') || permissionName.includes('family') || permissionName === 'add_relief_service') return 'Evacuee Management';
         if (permissionName.includes('disaster')) return 'Disaster Management';
-        if (permissionName.includes('evacuation_center')) return 'Evacuation Center Management';
+    if (permissionName.includes('evacuation_center')) return '(Inside) Evacuation Centers';
         if (permissionName.includes('report')) return 'Reports';
         if (permissionName.includes('announcement')) return 'Announcements';
         if (permissionName.includes('user') || permissionName.includes('role')) return 'User Management';
         if (permissionName.includes('profile') || permissionName.includes('password')) return 'Profile';
-        // Add a new category for Outside Evacuation Centers
-        if (permissionName.includes('outside_ec')) return 'Outside Evacuation Centers';
+    // Category for outside/external evacuation centers
+    if (permissionName.includes('outside_ec')) return '(Outside) Evacuation Centers';
         return 'Other';
     };
     
@@ -148,7 +148,22 @@ export default function RoleModuleConfig() {
             group: getPermissionGroup(permission.permission_name)
         }));
     
-    const permissionGroups = Array.from(new Set(permissionsWithGroups.map(p => p.group))).sort();
+    // Order groups: keep 'Disaster Management' first among these related groups,
+    // then place evacuation center groups immediately after it, followed by other groups alphabetically.
+    const rawGroups = Array.from(new Set(permissionsWithGroups.map(p => p.group)));
+    const preferredOrder = [
+        'Announcements',
+        'Dashboard',
+        'Disaster Management',
+        '(Inside) Evacuation Centers',
+        '(Outside) Evacuation Centers'
+    ];
+
+    const remaining = rawGroups.filter(g => !preferredOrder.includes(g)).sort();
+    const permissionGroups = [
+        ...preferredOrder.filter(g => rawGroups.includes(g)),
+        ...remaining
+    ];
     
     // Helper function to get auth headers
     const getAuthHeaders = () => ({
