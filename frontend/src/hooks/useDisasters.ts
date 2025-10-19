@@ -17,6 +17,7 @@ interface UseDisastersReturn {
   updateDisaster: (disasterId: number, disasterData: DisasterPayload) => Promise<void>;
   deleteDisaster: (disasterId: number) => Promise<void>;
   invalidateCache: (month: number | null, year: number) => void;
+  refetchCurrentData: () => Promise<void>;
 }
 
 const CACHE_DURATION = 1000 * 60 * 5; // 5 minutes
@@ -32,6 +33,8 @@ export const useDisasters = (): UseDisastersReturn => {
   const [deleting, setDeleting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const token = useSelector(selectToken);
+  const [currentMonth, setCurrentMonth] = useState<number | null>(null);
+  const [currentYear, setCurrentYear] = useState<number>(new Date().getFullYear());
 
   const getCacheKey = (month: number | null, year: number): string => {
     return `disasters_${month}_${year}`;
@@ -44,6 +47,10 @@ export const useDisasters = (): UseDisastersReturn => {
   const fetchDisastersByMonthYear = useCallback(
     async (month: number | null, year: number) => {
       if (!token) return;
+
+      // Track current month/year
+      setCurrentMonth(month);
+      setCurrentYear(year);
 
       setLoading(true);
       setError(null);
@@ -159,6 +166,12 @@ export const useDisasters = (): UseDisastersReturn => {
     [token]
   );
 
+  const refetchCurrentData = useCallback(async () => {
+    if (currentMonth !== null || currentYear !== null) {
+      await fetchDisastersByMonthYear(currentMonth, currentYear);
+    }
+  }, [currentMonth, currentYear, fetchDisastersByMonthYear]);
+
   const deleteDisaster = useCallback(
     async (disasterId: number) => {
       if (!token) return;
@@ -168,8 +181,9 @@ export const useDisasters = (): UseDisastersReturn => {
       try {
         await disasterService.deleteDisaster(disasterId, token);
         console.log("Disaster deleted successfully:", disasterId);
-        // Invalidate all caches since we don't know which month/year this affects
+        // Invalidate all caches and refetch current data
         invalidateAllCaches();
+        await refetchCurrentData();
       } catch (error) {
         console.error("Error deleting disaster:", error);
         setError("Failed to delete disaster");
@@ -178,7 +192,7 @@ export const useDisasters = (): UseDisastersReturn => {
         setDeleting(false);
       }
     },
-    [token]
+    [token, refetchCurrentData]
   );
 
   const invalidateCache = useCallback((month: number | null, year: number) => {
@@ -216,5 +230,6 @@ export const useDisasters = (): UseDisastersReturn => {
     updateDisaster,
     deleteDisaster,
     invalidateCache,
+    refetchCurrentData,
   };
 };
