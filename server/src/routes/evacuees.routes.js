@@ -11,7 +11,7 @@ const { transferHead } = require('../controllers/evacuees.transferhead.controlle
 const { getEvacueeStatisticsByDisasterEvacuationEventId } = require('../controllers/evacuees.stats.controller');
 const { getEvacueesInformationbyDisasterEvacuationEventId } = require('../controllers/evacuees.event-evacuees-information.controller');
 const { updateEvacuee } = require('../controllers/evacuees.update-registration.controller');
-const { authenticateUser, requirePermission } = require('../middleware');
+const { authenticateUser, requirePermission, requireAnyPermission } = require('../middleware');
 const { decampFamily, undecampedCountInEvent, decampAllFamiliesInEvent, endEvacuationOperation, } = require('../controllers/decamp.controller');
 const { addService } = require('../controllers/evacuees.services.controller');
 
@@ -27,10 +27,12 @@ router.get('/search', authenticateUser, requirePermission('view_evacuee_informat
 router.get('/:disasterEvacuationEventId/family-heads', authenticateUser, requirePermission('view_family_information'), searchFamilyHeads);
 
 // Register a new evacuee with vulnerability data
-router.post('/', authenticateUser, requirePermission('create_family_information'), registerEvacuee);
+// Allow either 'create_family_information' (standard) or 'register_outside_ec' to register evacuees
+router.post('/', authenticateUser, requireAnyPermission(['create_family_information', 'register_outside_ec']), registerEvacuee);
 
 // Add a new service for a family
-router.post('/services', authenticateUser, /*requirePermission('create_family_information'),*/ addService);
+// Requires explicit permission: permission_name = 'add_relief_service' (id 52 in permissions seeder)
+router.post('/services', authenticateUser, requirePermission('add_relief_service'), addService);
 
 // Route to get all barangays
 router.get('/barangays', getAllBarangays);

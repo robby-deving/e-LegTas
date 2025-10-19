@@ -2,7 +2,7 @@
 
 const express = require('express');
 const evacuationController = require('../controllers/evacuationCenters.controller');
-const { authenticateUser, requirePermission } = require('../middleware');
+const { authenticateUser, requirePermission, requireAnyPermission } = require('../middleware');
 const { searchEvacuations } = require('../controllers/evacuation.search.controller');
 
 // Create an Express Router instance
@@ -15,7 +15,7 @@ const router = express.Router();
 router.get(
   '/',
   authenticateUser,
-  requirePermission('view_evacuation_centers'),
+  requireAnyPermission(['view_evacuation_centers', 'view_outside_ec']),
   evacuationController.getAllEvacuationCenters
 );
 
@@ -34,7 +34,7 @@ router.get(
 router.get(
   '/:id',
   authenticateUser,
-  requirePermission('view_evacuation_centers'),
+  requireAnyPermission(['view_evacuation_centers', 'view_outside_ec']),
   evacuationController.getEvacuationCenterById
 );
 
@@ -43,7 +43,7 @@ router.get(
 router.get(
   '/:id/rooms',
   authenticateUser,
-  requirePermission('view_evacuation_centers'),
+  requireAnyPermission(['view_evacuation_centers', 'view_outside_ec']),
   evacuationController.getEvacuationCenterWithRooms
 );
 
@@ -52,7 +52,7 @@ router.get(
 router.post(
   '/',
   authenticateUser,
-  requirePermission('create_evacuation_center'),
+  requireAnyPermission(['create_evacuation_center', 'add_outside_ec']),
   evacuationController.createEvacuationCenter
 );
 
@@ -61,7 +61,7 @@ router.post(
 router.put(
   '/:id',
   authenticateUser,
-  requirePermission('update_evacuation_center'),
+  requireAnyPermission(['update_evacuation_center', 'edit_outside_ec']),
   evacuationController.updateEvacuationCenter
 );
 
