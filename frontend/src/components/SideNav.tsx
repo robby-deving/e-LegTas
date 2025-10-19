@@ -70,7 +70,7 @@ export default function SideNav() {
 
   return (
     <div className={`relative h-full border-r-2 border-gray-200 bg-white py-4 flex flex-col transition-all duration-500 ease-in-out
-     ${collapsed ? 'w-20 px-2' : 'w-[20rem] px-5'}`}>
+     ${collapsed ? 'w-20 px-2' : 'w-[20rem] px-5'}`} style={{ overflow: 'visible' }}>
 
       {/* Toggle Button */}
       <button
@@ -131,12 +131,24 @@ export default function SideNav() {
       {/* Logout */}
       <div 
         onClick={handleLogout}
-        className="flex items-center gap-3 px-5 py-2 rounded-sm text-black hover:bg-gray-100 cursor-pointer transition-all duration-300 ease-in-out font-medium overflow-hidden"
+        className="relative flex items-center gap-3 px-5 py-2 rounded-sm text-black hover:bg-gray-100 cursor-pointer transition-all duration-300 ease-in-out font-medium group"
       >
         <img className="h-4.5 w-4.5 flex-shrink-0 brightness-0 transition-all duration-300" src={logout} alt="Logout" />
-        <span className={`whitespace-nowrap transition-all duration-500 ease-in-out ${collapsed ? 'max-w-0 opacity-0' : 'max-w-xs opacity-100'}`}>
+        <span className={`whitespace-nowrap transition-all duration-500 ease-in-out overflow-hidden ${collapsed ? 'max-w-0 opacity-0' : 'max-w-xs opacity-100'}`}>
           Logout
         </span>
+        
+        {/* Tooltip - Only visible when collapsed and on hover */}
+        {collapsed && (
+          <div className="absolute left-full ml-5 px-3 py-2 bg-[#0C955B] text-white text-sm font-medium rounded-lg shadow-xl
+                        opacity-0 invisible group-hover:opacity-100 group-hover:visible
+                        transition-all duration-200 ease-out
+                        transform -translate-x-2 group-hover:translate-x-0
+                        whitespace-nowrap z-[9999]
+                        pointer-events-none">
+            Logout
+          </div>
+        )}
       </div>
 
       {/* Profile - Only visible with view_profile permission */}
