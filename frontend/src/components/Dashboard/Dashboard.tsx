@@ -47,7 +47,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="text-black p-6 space-y-6">
+    <div className="text-black p-10 space-y-6">
       {/* Header */}
       <DashboardHeader
         disasters={disasters}
@@ -73,11 +73,11 @@ export default function Dashboard() {
     {/* Expand Button */}
     <button
       onClick={() => navigate('/map')}
-      className="absolute bottom-2 right-2 bg-white rounded-full p-2 shadow-md hover:bg-gray-100 transition z-50"
+      className="absolute cursor-pointer bottom-2 right-2 bg-white rounded-full p-2 shadow-md hover:bg-white transition z-50"
       title="Expand GIS Map"
     >
       <svg
-        className="w-5 h-5 text-gray-600"
+        className="w-5 h-5 text-green-600"
         fill="none"
         stroke="currentColor"
         strokeWidth={2}
@@ -90,7 +90,7 @@ export default function Dashboard() {
 )}
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <StatCard
           title="Active Evacuation Centers"
           value={activeEvacuationCenters}
@@ -118,7 +118,7 @@ export default function Dashboard() {
       </div>
 
       {/* Main Sections */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Evacuees Statistics */}
         <div className="border border-gray-200 rounded-xl shadow-sm p-6 flex flex-col min-h-[400px]">
           <h2 className="text-lg font-bold mb-4 text-left">Evacuees Statistics</h2>
