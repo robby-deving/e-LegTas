@@ -94,25 +94,25 @@ export default function Dashboard() {
         <StatCard
           title="Active Evacuation Centers"
           value={activeEvacuationCenters}
-          icon={<img src={activeEC} alt="Evacuation Center" className="w-6 h-6 text-sky-600" />}
+          icon={<img src={activeEC} alt="Evacuation Center" className="w-6 h-6 flex-shrink-0" />}
           valueClassName="text-yellow-400"
         />
         <StatCard
           title="Registered Evacuees"
           value={registeredEvacueesCount.toLocaleString()}
-          icon={<img src={registeredEvacuees} alt="Registered Evacuees" className="w-6 h-6 text-green-600" />}
+          icon={<img src={registeredEvacuees} alt="Registered Evacuees" className="w-6 h-6 flex-shrink-0" />}
           valueClassName="text-green-600"
         />
         <StatCard
           title="Registered Families"
           value={registeredFamiliesCount.toLocaleString()}
-          icon={<img src={registeredFamilies} alt="Registered Families" className="w-6 h-6 text-blue-600" />}
+          icon={<img src={registeredFamilies} alt="Registered Families" className="w-6 h-6 flex-shrink-0" />}
           valueClassName="text-blue-500"
         />
         <StatCard
           title="Families with Relief Goods"
           value={(familiesWithReliefGoodsCount || 0).toLocaleString()}
-          icon={<img src={reliefGoods} alt="Families with Relief Goods" className="w-6 h-6 text-red-600" />}
+          icon={<img src={reliefGoods} alt="Families with Relief Goods" className="w-6 h-6 flex-shrink-0" />}
           valueClassName="text-red-500"
         />
       </div>
