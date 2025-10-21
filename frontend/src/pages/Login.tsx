@@ -67,26 +67,26 @@ export default function Login(){
     return (
         <div className='flex items-center justify-center min-h-screen bg-[#1CA567] p-4'>
             {/* Login Container */}
-            <div className='relative w-full h-auto max-w-[min(90vw,700px)] max-h-[95vh] sm:max-w-[min(80vw,650px)] md:max-w-[min(70vw,600px)] lg:max-w-[min(60vw,475px)]'>
+            <div className='relative w-full h-auto max-w-[600px] sm:max-w-[550px] md:max-w-[530px] lg:max-w-[530px] aspect-[4/5]'>
                 {/* Background Image */}
                 <img 
                     src={loginContainer} 
                     alt="Login background" 
-                    className='w-full h-full max-h-[95vh] object-contain'
+                    className='w-full h-full object-contain'
                 />
                 
                 {/* Content Overlay */}
-                <div className='absolute inset-14 flex items-center justify-center px-6 mt-18'>
-                    <div className="w-full max-w-md space-y-5 sm:space-y-6">
+                <div className='absolute inset-0 flex items-center justify-center p-[10%] sm:px-[19%] md:px-[19%] sm:pt-[30%] md:pt-[30%]'>
+                    <div className="w-full space-y-3 sm:space-y-5 md:space-y-6">
                         
                         {/* Header: Logo & Title */}
-                        <div className="flex flex-col items-center space-y-2 sm:space-y-3 py-4">
+                        <div className="flex flex-col items-center space-y-1 sm:space-y-2">
                             <img 
                                 src={legTasLogo}
                                 alt="LegTas Logo"
-                                className='w-12 sm:w-14 md:w-16 lg:w-22 h-auto'
+                                className='w-14 sm:w-24 md:w-24 lg:w-24 h-auto'
                             />
-                            <h1 className='text-xl sm:text-2xl md:text-3xl lg:text-4xl font-black text-center'>
+                            <h1 className='text-xl sm:text-4xl md:text-4xl lg:text-4xl font-black text-center'>
                                 <span className="text-[#6D6E71]">e-</span>
                                 <span className="text-[#2BB673]">Leg</span>
                                 <span className="text-[#038B53]">Tas</span>
@@ -105,12 +105,12 @@ export default function Login(){
                             
                             {/* Employee Number Field */}
                             <div className="space-y-1 sm:space-y-1.5">
-                                <label className='block text-xs sm:text-sm font-medium text-gray-800'>
+                                <label className='block text-xs sm:text-sm md:text-sm font-medium text-gray-800'>
                                     Employee Number
                                 </label>
                                 <Input 
                                     type='text' 
-                                    placeholder="Employee Number"
+                                    placeholder="Wnter your employee number"
                                     value={employeeNumber}
                                     onChange={(e) => setEmployeeNumber(e.target.value)}
                                     className='text-xs sm:text-sm bg-white'
@@ -120,16 +120,16 @@ export default function Login(){
                             
                             {/* Password Field */}
                             <div className="space-y-1 sm:space-y-1.5">
-                                <label className='block text-xs sm:text-sm font-medium text-gray-800'>
+                                <label className='block text-xs sm:text-sm md:text-sm font-medium text-gray-800'>
                                     Password
                                 </label>
                                 <div className="relative">
                                     <Input 
                                         type={showPassword ? 'text' : 'password'}
-                                        placeholder="Password"
+                                        placeholder="Enter your password"
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
-                                        className='pr-10 text-xs sm:text-sm bg-white'
+                                        className='text-xs sm:text-sm bg-white'
                                         required
                                     />
                                     <button
