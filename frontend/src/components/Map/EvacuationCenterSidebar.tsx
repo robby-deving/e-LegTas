@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import EC from '../../assets/ECMarker.svg';
 import direction from '../../assets/direction.svg';
 import contact from '../../assets/contact.svg';
 import evacueeCount from '../../assets/evacueeCount.svg';
