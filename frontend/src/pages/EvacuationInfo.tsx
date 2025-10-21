@@ -8,6 +8,7 @@ import DisasterFormDialog from "../components/Disasters/DisasterFormDialog";
 import ErrorBoundary from "../components/Disasters/ErrorBoundary";
 import LoadingSpinner from "../components/loadingSpinner";
 import ActivateScreen from "../components/ActivateScreen";
+import DeleteDisasterModal from "../components/modals/DeleteDisasterModal";
 import type { Disaster, DisasterPayload } from "@/types/disaster";
 import { encodeId } from "@/utils/secureId";
 import { usePermissions } from "../contexts/PermissionContext";
@@ -189,7 +190,7 @@ const navigateToDetail = async (d: Disaster) => {
 
   return (
     <ErrorBoundary>
-      <div className="text-black p-6 space-y-6">
+      <div className="text-black p-10 space-y-6">
         <h1 className="text-3xl font-bold text-green-800">Evacuation Information</h1>
 
         {error && (
@@ -268,73 +269,13 @@ const navigateToDetail = async (d: Disaster) => {
         />
 
         {/* Delete Confirmation Modal */}
-        {deleteConfirmDisaster && (
-          <div 
-            className='fixed inset-0 flex items-center justify-center z-50'
-            style={{
-              background: 'rgba(211, 211, 211, 0.80)'
-            }}
-          >
-            <div className='bg-white rounded-lg p-6 w-[400px] shadow-lg'>
-              {/* Modal Header */}
-              <div className='flex items-center justify-between mb-4'>
-                <h2 
-                  className='text-xl font-bold'
-                  style={{ color: '#DC2626' }}
-                >
-                  Delete Disaster
-                </h2>
-                <button
-                  onClick={() => setDeleteConfirmDisaster(null)}
-                  className='hover:bg-gray-100 p-1 rounded'
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="17" viewBox="0 0 16 17" fill="none">
-                    <g opacity="0.7">
-                      <path d="M12 4.5L4 12.5" stroke="#020617" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"/>
-                      <path d="M4 4.5L12 12.5" stroke="#020617" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"/>
-                    </g>
-                  </svg>
-                </button>
-              </div>
-              
-              {/* Modal Content */}
-              <div className='mb-6'>
-                <p className='text-gray-700 mb-2'>
-                  Are you sure you want to delete this disaster?
-                </p>
-                <div className='bg-gray-50 p-3 rounded-md'>
-                  <p className='font-medium text-gray-900'>
-                    {deleteConfirmDisaster.name}
-                  </p>
-                  <p className='text-sm text-gray-600'>
-                    {deleteConfirmDisaster.type}
-                  </p>
-                </div>
-                <p className='text-sm text-red-600 mt-2'>
-                  This action cannot be undone. All associated evacuation data will be lost.
-                </p>
-              </div>
-              
-              {/* Modal Footer */}
-              <div className='flex justify-end gap-3'>
-                <button
-                  onClick={() => setDeleteConfirmDisaster(null)}
-                  className='px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none'
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => handleDeleteDisaster(deleteConfirmDisaster)}
-                  disabled={deleting}
-                  className='px-4 py-2 text-white bg-red-600 rounded-md hover:bg-red-700 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2'
-                >
-                  {deleting && <LoadingSpinner size="sm" />}
-                  {deleting ? "Deleting..." : "Delete Incident"}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        <DeleteDisasterModal
+          isOpen={deleteConfirmDisaster !== null}
+          onOpenChange={(open) => !open && setDeleteConfirmDisaster(null)}
+          disaster={deleteConfirmDisaster}
+          onConfirm={handleDeleteDisaster}
+          deleting={deleting}
+        />
           </>
         )}
       </div>
