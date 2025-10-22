@@ -130,7 +130,6 @@ export default function DisasterFormDialog({
                   setTypeId(Number(selectedType.id)); // Update actual ID
                 }
               }}
-              disabled={mode === "edit"}
             >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select category">
