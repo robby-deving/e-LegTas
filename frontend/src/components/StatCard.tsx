@@ -17,17 +17,17 @@ const StatCard: React.FC<StatCardProps> = ({
   icon,
   valueClassName = "",
   onClick,
-  cardClassName = "cursor-pointer",
+  cardClassName = "",
   iconClassName = "ml-auto",
 }) => (
-  <Card className={cardClassName} onClick={onClick}>
-    <CardHeader>
-      <CardTitle className="flex items-center gap-2 text-base font-medium">
+  <Card className={`${cardClassName} flex-1`} onClick={onClick}>
+    <CardHeader className="flex-grow">
+      <CardTitle className="flex items-start gap-2 text-base font-medium">
         {title}
-        {icon && <span className={iconClassName}>{icon}</span>}
+        {icon && <span className={`${iconClassName} inline-flex items-center justify-center w-6 h-6 flex-shrink-0`}>{icon}</span>}
       </CardTitle>
     </CardHeader>
-    <CardContent>
+    <CardContent className="mt-auto">
       <span className={`text-2xl font-bold ${valueClassName}`}>{value}</span>
     </CardContent>
   </Card>

@@ -51,7 +51,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
       <SideNav />
       <div className="flex flex-col flex-1 overflow-hidden">
         <TopNav />
-        <div className="flex-1 p-4 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto">
           {children}
         </div>
       </div>

@@ -6,6 +6,7 @@ import { Calendar as CalendarIcon } from "lucide-react";
 import type { DateRange } from "react-day-picker";
 import type { Disaster } from "../../types/dashboard";
 import { usePermissions } from "../../contexts/PermissionContext";
+import disasterfilter from '../../assets/disaster-filter.svg';
 
 interface DashboardHeaderProps {
   disasters: Disaster[];
@@ -31,13 +32,14 @@ export default function DashboardHeader({
   const canFilterByDate = hasPermission('filter_dashboard_by_date');
 
   return (
-    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-3">
       <h1 className="text-3xl font-bold text-green-800">Dashboard</h1>
-      <div className="flex gap-2 items-center">
+      <div className="flex gap-3 items-center">
         {canFilterByDisaster && disasters.length > 0 ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="text-green-700 border-green-300 cursor-pointer">
+              <Button variant="outline" className="text-black border-green-300 cursor-pointer flex items-center gap-2">
+                <img src={disasterfilter} alt="Disaster Filter" className="w-4 h-4" />
                 {selectedDisaster
                   ? `${selectedDisaster.disaster_types?.name ?? ''} ${selectedDisaster.disaster_name}`
                   : 'No Active Incident'}
@@ -72,9 +74,9 @@ export default function DashboardHeader({
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
-                className={`border-green-300 cursor-pointer flex items-center space-x-2 ${
-                  selectedDateRange?.from ? "bg-green-100" : "bg-white"
-                } text-green-700`}
+                className={`border-green-300 cursor-pointer flex items-center ${
+                  selectedDateRange?.from ? "bg-gray-100" : "bg-white"
+                } text-black`}
               >
                 <CalendarIcon className="w-4 h-4" />
                 <span>
@@ -117,7 +119,7 @@ export default function DashboardHeader({
               </Button>
             </PopoverTrigger>
 
-            <PopoverContent className="w-auto px-3 pt-3 pb-3" align="end">
+            <PopoverContent className="w-auto p-3" align="end">
               <div className="flex flex-col items-center space-y-3">
                 <DateCalendar
                   mode="range"
