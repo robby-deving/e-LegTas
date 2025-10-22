@@ -42,7 +42,7 @@ const EvacuationCenterSidebar: React.FC<Props> = ({ selectedEvacuationCenter, se
     } else {
       return {
         text: selectedEvacuationCenter.ec_status || 'Available',
-        style: 'bg-green-100 text-green-800'
+        style: 'bg-green-100 text-green-700'
       };
     }
   };
@@ -162,23 +162,27 @@ const EvacuationCenterSidebar: React.FC<Props> = ({ selectedEvacuationCenter, se
     <div className="p-6 h-full overflow-y-auto">
       <button
         onClick={() => setSelectedEvacuationCenter(null)}
-        className="hover:bg-gray-100 rounded-full transition-colors duration-200"
+        className="cursor-pointer hover:bg-gray-100 rounded-full transition-colors duration-200"
         aria-label="Close sidebar"
       >
-        <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 25 25">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
         </svg>
       </button>
 
-      <div>
-        <h3 className="text-sm text-gray-500">Evacuation Center:</h3>
-        <h1 className="text-2xl font-bold text-green-700">{selectedEvacuationCenter.name}</h1>
-
-        <div className="flex items-center gap-2 mt-3">
-          <img src={direction} alt="" />
-          <h3 className="text-sm text-gray-500">
-            {selectedEvacuationCenter.address}, {selectedEvacuationCenter.barangay_name}
-          </h3>
+      <div className="flex flex-col items-center gap-1 my-4">
+        <div className="flex flex-col gap-1">
+          <h3 className="text-sm text-gray-500">Evacuation Center:</h3>
+          <h1 className="text-xl font-extrabold text-green-700 leading-tight">{selectedEvacuationCenter.name}</h1>
+        </div>
+        
+        <div className="flex flex-col gap-1 mt-2">
+          <div className="flex items-center gap-3">
+            <img src={direction} alt="" className="w-4 h-4"/>
+            <h3 className="text-sm text-black">
+              {selectedEvacuationCenter.address}, {selectedEvacuationCenter.barangay_name}
+            </h3>
+          </div>
         </div>
       </div>
 
@@ -211,26 +215,26 @@ const EvacuationCenterSidebar: React.FC<Props> = ({ selectedEvacuationCenter, se
         </div>
       </div>
 
-      <div>
-        <h3 className="text-sm text-gray-500">Contact Information:</h3>
-        <div className="flex items-center gap-3 ps-3">
-          <img src={contact} alt="" />
-          <div>
-            <h3 className="text-sm font-bold">{selectedEvacuationCenter.camp_manager_name}</h3>
-            <h3 className="text-sm font-bold">{selectedEvacuationCenter.camp_manager_phone_number}</h3>
+        <div className="flex flex-col gap-1">
+          <h3 className="text-sm text-gray-500">Contact Information:</h3>
+          <div className="flex items-center gap-3 ps-3">
+            <img src={contact} alt="" className="w-4 h-4"/>
+            <div className="flex flex-col">
+              <h3 className="text-sm font-bold">{selectedEvacuationCenter.camp_manager_name}</h3>
+              <h3 className="text-sm font-bold">{selectedEvacuationCenter.camp_manager_phone_number}</h3>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div className="border-b border-gray-200 mb-3 py-3">
-        <h3 className="text-sm text-gray-500">Evacuation Status:</h3>
-        <div className="flex items-center gap-3 ps-3 py-1">
-          <img src={statusEC} alt="" />
-          <div className={`font-semibold px-2 text-sm rounded ${getStatusDisplay().style}`}>
-            {getStatusDisplay().text}
+        <div className="flex flex-col gap-0 mt-2">
+          <h3 className="text-sm text-gray-500">Evacuation Status:</h3>
+          <div className="flex items-center gap-3 ps-3 py-1">
+              <img src={statusEC} alt="" className="w-4 h-4" />
+              <div className={`font-semibold py-1 px-3 text-sm rounded-full ${getStatusDisplay().style}`}>
+                {getStatusDisplay().text}
+              </div>
           </div>
         </div>
-      </div>
     </div>
   );
 };
