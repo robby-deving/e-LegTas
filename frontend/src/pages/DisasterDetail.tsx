@@ -149,13 +149,13 @@ export default function DisasterDetail() {
 
 
 
-  const [activeTab, setActiveTab] = useState('Inside EC');
+  const [activeTab, setActiveTab] = useState('inside-ec');
 
 
   // If user doesn't have permission to view active outside ECs, ensure tab is Inside EC
   useEffect(() => {
-    if (!canViewActiveOutsideEC && activeTab === 'Outside EC') {
-      setActiveTab('Inside EC');
+    if (!canViewActiveOutsideEC && activeTab === 'outside-ec') {
+      setActiveTab('inside-ec');
     }
   }, [canViewActiveOutsideEC, activeTab]);
   useEffect(() => {
