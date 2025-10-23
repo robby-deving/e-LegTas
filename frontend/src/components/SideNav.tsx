@@ -38,10 +38,14 @@ export default function SideNav() {
   const handleLogout = async () => {
     try {
       await supabase.auth.signOut();
+      // Clear all local storage
+      localStorage.clear();
       dispatch(logoutAction());
       navigate('/login');
     } catch (error) {
       console.error('Logout error:', error);
+      // Clear all local storage even if sign out fails
+      localStorage.clear();
       dispatch(logoutAction());
       navigate('/login');
     }
