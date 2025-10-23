@@ -170,10 +170,10 @@ const EvacuationCenterSidebar: React.FC<Props> = ({ selectedEvacuationCenter, se
         </svg>
       </button>
 
-      <div className="flex flex-col items-center gap-1 my-4">
+      <div className="flex flex-col gap-1 my-4">
         <div className="flex flex-col gap-1">
           <h3 className="text-sm text-gray-500">Evacuation Center:</h3>
-          <h1 className="text-xl font-extrabold text-green-700 leading-tight">{selectedEvacuationCenter.name}</h1>
+          <h1 className="text-2xl font-extrabold text-green-700 leading-tight">{selectedEvacuationCenter.name}</h1>
         </div>
         
         <div className="flex flex-col gap-1 mt-2">
@@ -186,34 +186,35 @@ const EvacuationCenterSidebar: React.FC<Props> = ({ selectedEvacuationCenter, se
         </div>
       </div>
 
-      <div className="mt-3 border-t-2 border-gray-200 py-3">
-        <h3 className="text-sm text-gray-500">Current Number of Evacuees:</h3>
-        <div className="flex items-center justify-between ps-3">
-          <div className="flex items-center gap-3">
-            <img src={evacueeCount} alt="" />
-            <h3 className="text-sm font-bold">
-             {currentCapacity || '0'}
-            </h3>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="relative">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-              <div className="absolute inset-0 w-2 h-2 bg-green-500 rounded-full animate-ping opacity-75"></div>
+      <div className="border-y-1 border-gray-200 py-4 gap-3 flex flex-col">
+        <div className="flex flex-col gap-1">
+          <h3 className="text-sm text-gray-500">Current Number of Evacuees:</h3>
+            <div className="flex items-center justify-between ps-3">
+              <div className="flex items-center gap-3">
+                <img src={evacueeCount} alt="" className="w-4 h-4" />
+                <h3 className="text-sm font-bold">
+                  {currentCapacity || '0'}
+                </h3>
+              </div>
+                <div className="flex items-center gap-2 bg-green-100 px-3 py-1 rounded-full">
+                  <div className="relative">
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                    <div className="absolute inset-0 w-2 h-2 bg-green-500 rounded-full animate-ping opacity-75"></div>
+                  </div>
+                  <span className="text-xs font-bold text-green-700">
+                    LIVE
+                  </span>
+                </div>
             </div>
-            <span className="text-xs font-semibold text-green-700 bg-green-100 px-2 py-1 rounded-full">
-              LIVE
-            </span>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <h3 className="text-sm text-gray-500">Total Capacity:</h3>
+          <div className="flex items-center gap-3 ps-3">
+            <img src={evacueeCount} alt="" className="w-4 h-4" />
+            <h3 className="text-sm font-bold">{selectedEvacuationCenter.total_capacity}</h3>
           </div>
         </div>
-      </div>
-
-      <div className="pb-3">
-        <h3 className="text-sm text-gray-500">Total Capacity:</h3>
-        <div className="flex items-center gap-3 ps-3">
-          <img src={evacueeCount} alt="" />
-          <h3 className="text-sm font-bold">{selectedEvacuationCenter.total_capacity}</h3>
-        </div>
-      </div>
 
         <div className="flex flex-col gap-1">
           <h3 className="text-sm text-gray-500">Contact Information:</h3>
@@ -226,7 +227,7 @@ const EvacuationCenterSidebar: React.FC<Props> = ({ selectedEvacuationCenter, se
           </div>
         </div>
 
-        <div className="flex flex-col gap-0 mt-2">
+        <div className="fflex flex-col gap-0">
           <h3 className="text-sm text-gray-500">Evacuation Status:</h3>
           <div className="flex items-center gap-3 ps-3 py-1">
               <img src={statusEC} alt="" className="w-4 h-4" />
@@ -235,6 +236,8 @@ const EvacuationCenterSidebar: React.FC<Props> = ({ selectedEvacuationCenter, se
               </div>
           </div>
         </div>
+
+      </div>
     </div>
   );
 };

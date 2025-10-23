@@ -27,18 +27,18 @@ export default function MapSearch({ searchQuery, onSearchChange, evacuationCente
   return (
     <div className={`relative ${className}`}>
       <div className="relative">
-        <img src={searchIcon} alt="Search" className="absolute left-3 top-1/2 transform -translate-y-1/2 z-50" />
+        <img src={searchIcon} alt="Search" className="absolute left-3 top-1/2 transform -translate-y-1/2 z-50 cursor-pointer" />
         <Input
           type="text"
           placeholder="Search evacuation centers, barangays..."
           value={searchQuery}
           onChange={handleSearchChange}
-          className="pl-10 pr-12 py-2 w-full bg-white/95 backdrop-blur-sm border-gray-300 shadow-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent rounded-lg"
+          className="pl-10 py-2 w-full bg-white/95 backdrop-blur-sm border-gray-300 shadow-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent rounded-lg"
         />
         {searchQuery && (
           <button
             onClick={handleClearSearch}
-            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
             aria-label="Clear search"
           >
             <X className="h-4 w-4" />
