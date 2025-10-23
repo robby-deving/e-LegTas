@@ -1,4 +1,69 @@
 const { supabaseAdmin } = require('../config/supabase');
+const { LRUCache } = require('lru-cache');
+
+// LRU Cache for role permissions
+// Cache key: role_${roleId}
+// Cache value: Array of permission names
+const permissionsCache = new LRUCache({
+  max: 100, // Maximum number of roles to cache
+  ttl: 5 * 60 * 1000, // 5 minutes TTL (in milliseconds)
+  updateAgeOnGet: true, // Reset TTL on access
+  updateAgeOnHas: false,
+});
+
+/**
+ * Get role permissions from cache or database
+ * @param {number} roleId - The role ID
+ * @returns {Promise<string[]>} Array of permission names
+ */
+const getRolePermissions = async (roleId) => {
+  const cacheKey = `role_${roleId}`;
+  
+  // Check cache first
+  const cachedPermissions = permissionsCache.get(cacheKey);
+  if (cachedPermissions) {
+    return cachedPermissions;
+  }
+
+  // Cache miss - query database
+  const { data: rolePermissions, error: permError } = await supabaseAdmin
+    .from('role_permission')
+    .select(`
+      permissions (
+        permission_name
+      )
+    `)
+    .eq('role_id', roleId)
+    .is('deleted_at', null);
+
+  if (permError) {
+    throw new Error(`Error fetching permissions: ${permError.message}`);
+  }
+
+  // Extract permission names
+  const permissions = rolePermissions?.map(rp => rp.permissions?.permission_name).filter(Boolean) || [];
+  
+  // Cache the result
+  permissionsCache.set(cacheKey, permissions);
+  
+  return permissions;
+};
+
+/**
+ * Invalidate permissions cache for a specific role
+ * Call this when role permissions are updated
+ * @param {number} roleId - The role ID to invalidate (optional - clears all if not provided)
+ */
+const invalidatePermissionsCache = (roleId = null) => {
+  if (roleId) {
+    const cacheKey = `role_${roleId}`;
+    permissionsCache.delete(cacheKey);
+    console.log(`Invalidated permissions cache for role ${roleId}`);
+  } else {
+    permissionsCache.clear();
+    console.log('Cleared all permissions cache');
+  }
+};
 
 /**
  * Optimized middleware to check if user has specific permission
@@ -40,28 +105,11 @@ const requirePermission = (permissionName) => {
         return next();
       }
 
-      // Get role permissions (only one query now, role_id comes from JWT claims)
-      const { data: rolePermissions, error: permError } = await supabaseAdmin
-        .from('role_permission')
-        .select(`
-          permissions (
-            permission_name
-          )
-        `)
-        .eq('role_id', roleId)
-        .is('deleted_at', null);
-
-      if (permError) {
-        return res.status(500).json({ 
-          message: 'Error fetching permissions',
-          error: permError.message
-        });
-      }
+      // Get role permissions from cache or database
+      const userPermissions = await getRolePermissions(roleId);
 
       // Check if user has the required permission
-      const hasPermission = rolePermissions?.some(rp => 
-        rp.permissions?.permission_name === permissionName
-      );
+      const hasPermission = userPermissions.includes(permissionName);
 
       if (!hasPermission) {
         return res.status(403).json({ 
@@ -73,7 +121,7 @@ const requirePermission = (permissionName) => {
       }
 
       // Add user info to request for downstream use
-      req.userPermissions = rolePermissions.map(rp => rp.permissions?.permission_name);
+      req.userPermissions = userPermissions;
       req.userRole = roleId;
       
       next();
@@ -115,26 +163,10 @@ const requireAnyPermission = (permissionNames) => {
         });
       }
 
-      // Get role permissions (only one query now, role_id comes from JWT claims)
-      const { data: rolePermissions, error: permError } = await supabaseAdmin
-        .from('role_permission')
-        .select(`
-          permissions (
-            permission_name
-          )
-        `)
-        .eq('role_id', roleId)
-        .is('deleted_at', null);
-
-      if (permError) {
-        return res.status(500).json({ 
-          message: 'Error fetching permissions',
-          error: permError.message
-        });
-      }
+      // Get role permissions from cache or database
+      const userPermissions = await getRolePermissions(roleId);
 
       // Check if user has any of the required permissions
-      const userPermissions = rolePermissions?.map(rp => rp.permissions?.permission_name) || [];
       const hasAnyPermission = permissionNames.some(perm => userPermissions.includes(perm));
 
       if (!hasAnyPermission) {
@@ -188,26 +220,10 @@ const requireAllPermissions = (permissionNames) => {
         });
       }
 
-      // Get role permissions (only one query now, role_id comes from JWT claims)
-      const { data: rolePermissions, error: permError } = await supabaseAdmin
-        .from('role_permission')
-        .select(`
-          permissions (
-            permission_name
-          )
-        `)
-        .eq('role_id', roleId)
-        .is('deleted_at', null);
-
-      if (permError) {
-        return res.status(500).json({ 
-          message: 'Error fetching permissions',
-          error: permError.message
-        });
-      }
+      // Get role permissions from cache or database
+      const userPermissions = await getRolePermissions(roleId);
 
       // Check if user has all required permissions
-      const userPermissions = rolePermissions?.map(rp => rp.permissions?.permission_name) || [];
       const hasAllPermissions = permissionNames.every(perm => userPermissions.includes(perm));
 
       if (!hasAllPermissions) {
@@ -248,19 +264,11 @@ const attachPermissions = async (req, res, next) => {
       return next();
     }
 
-    // Get role permissions (only one query now, role_id comes from JWT claims)
-    const { data: rolePermissions, error: permError } = await supabaseAdmin
-      .from('role_permission')
-      .select(`
-        permissions (
-          permission_name
-        )
-      `)
-      .eq('role_id', roleId)
-      .is('deleted_at', null);
-
-    if (!permError && rolePermissions) {
-      req.userPermissions = rolePermissions.map(rp => rp.permissions?.permission_name);
+    // Get role permissions from cache or database
+    const userPermissions = await getRolePermissions(roleId);
+    
+    if (userPermissions) {
+      req.userPermissions = userPermissions;
       req.userRole = roleId;
     }
     
@@ -318,5 +326,7 @@ module.exports = {
   requireAnyPermission,
   requireAllPermissions,
   attachPermissions,
-  getUserPermissions
+  getUserPermissions,
+  invalidatePermissionsCache, // Export for use when permissions are updated
+  getRolePermissions // Export for direct use in controllers if needed
 };
