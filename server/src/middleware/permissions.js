@@ -1,13 +1,15 @@
 const { supabaseAdmin } = require('../config/supabase');
 
 /**
- * Middleware to check if user has specific permission
+ * Optimized middleware to check if user has specific permission
+ * Uses role_id from JWT claims (set by authenticateUser middleware)
  * @param {string} permissionName - The permission name to check (e.g., 'view_user_management')
  */
 const requirePermission = (permissionName) => {
   return async (req, res, next) => {
     try {
-      // Get user from auth middleware (assuming it sets req.user)
+      // Get role_id from req.user (set by authenticateUser middleware with custom claims)
+      const roleId = req.user?.role_id;
       const userUuid = req.user?.uuid || req.headers['x-user-id'];
       
       if (!userUuid) {
@@ -17,17 +19,12 @@ const requirePermission = (permissionName) => {
         });
       }
 
-      // Get user's role from users_profile using UUID
-      const { data: userProfile, error: profileError } = await supabaseAdmin
-        .from('users_profile')
-        .select('role_id')
-        .eq('user_id', userUuid)
-        .single();
-
-      if (profileError || !userProfile) {
-        return res.status(404).json({ 
-          message: 'User profile not found',
-          error: profileError?.message
+      // If role_id is not available (legacy fallback)
+      if (!roleId) {
+        console.warn('Role ID not found in req.user. Ensure authenticateUser middleware is used before permission checks.');
+        return res.status(500).json({ 
+          message: 'Permission check failed',
+          error: 'User role information not available'
         });
       }
 
@@ -38,12 +35,12 @@ const requirePermission = (permissionName) => {
         'update_role',
         'delete_role',
       ]);
-      if (userProfile.role_id === 1 && adminBypass.has(permissionName)) {
-        req.userRole = userProfile.role_id;
+      if (roleId === 1 && adminBypass.has(permissionName)) {
+        req.userRole = roleId;
         return next();
       }
 
-      // Get role permissions
+      // Get role permissions (only one query now, role_id comes from JWT claims)
       const { data: rolePermissions, error: permError } = await supabaseAdmin
         .from('role_permission')
         .select(`
@@ -51,7 +48,7 @@ const requirePermission = (permissionName) => {
             permission_name
           )
         `)
-        .eq('role_id', userProfile.role_id)
+        .eq('role_id', roleId)
         .is('deleted_at', null);
 
       if (permError) {
@@ -70,14 +67,14 @@ const requirePermission = (permissionName) => {
         return res.status(403).json({ 
           message: 'Insufficient permissions',
           error: `Permission '${permissionName}' required`,
-          userRole: userProfile.role_id,
+          userRole: roleId,
           requiredPermission: permissionName
         });
       }
 
       // Add user info to request for downstream use
       req.userPermissions = rolePermissions.map(rp => rp.permissions?.permission_name);
-      req.userRole = userProfile.role_id;
+      req.userRole = roleId;
       
       next();
     } catch (error) {
@@ -91,12 +88,15 @@ const requirePermission = (permissionName) => {
 };
 
 /**
- * Middleware to check if user has any of the specified permissions
+ * Optimized middleware to check if user has any of the specified permissions
+ * Uses role_id from JWT claims (set by authenticateUser middleware)
  * @param {string[]} permissionNames - Array of permission names
  */
 const requireAnyPermission = (permissionNames) => {
   return async (req, res, next) => {
     try {
+      // Get role_id from req.user (set by authenticateUser middleware with custom claims)
+      const roleId = req.user?.role_id;
       const userUuid = req.user?.uuid || req.headers['x-user-id'];
       
       if (!userUuid) {
@@ -106,21 +106,16 @@ const requireAnyPermission = (permissionNames) => {
         });
       }
 
-      // Get user's role from users_profile using UUID
-      const { data: userProfile, error: profileError } = await supabaseAdmin
-        .from('users_profile')
-        .select('role_id')
-        .eq('user_id', userUuid)
-        .single();
-
-      if (profileError || !userProfile) {
-        return res.status(404).json({ 
-          message: 'User profile not found',
-          error: profileError?.message
+      // If role_id is not available (legacy fallback)
+      if (!roleId) {
+        console.warn('Role ID not found in req.user. Ensure authenticateUser middleware is used before permission checks.');
+        return res.status(500).json({ 
+          message: 'Permission check failed',
+          error: 'User role information not available'
         });
       }
 
-      // Get role permissions
+      // Get role permissions (only one query now, role_id comes from JWT claims)
       const { data: rolePermissions, error: permError } = await supabaseAdmin
         .from('role_permission')
         .select(`
@@ -128,7 +123,7 @@ const requireAnyPermission = (permissionNames) => {
             permission_name
           )
         `)
-        .eq('role_id', userProfile.role_id)
+        .eq('role_id', roleId)
         .is('deleted_at', null);
 
       if (permError) {
@@ -146,13 +141,13 @@ const requireAnyPermission = (permissionNames) => {
         return res.status(403).json({ 
           message: 'Insufficient permissions',
           error: `One of these permissions required: ${permissionNames.join(', ')}`,
-          userRole: userProfile.role_id,
+          userRole: roleId,
           requiredPermissions: permissionNames
         });
       }
 
       req.userPermissions = userPermissions;
-      req.userRole = userProfile.role_id;
+      req.userRole = roleId;
       
       next();
     } catch (error) {
@@ -166,12 +161,15 @@ const requireAnyPermission = (permissionNames) => {
 };
 
 /**
- * Middleware to check if user has all specified permissions
+ * Optimized middleware to check if user has all specified permissions
+ * Uses role_id from JWT claims (set by authenticateUser middleware)
  * @param {string[]} permissionNames - Array of permission names
  */
 const requireAllPermissions = (permissionNames) => {
   return async (req, res, next) => {
     try {
+      // Get role_id from req.user (set by authenticateUser middleware with custom claims)
+      const roleId = req.user?.role_id;
       const userUuid = req.user?.uuid || req.headers['x-user-id'];
       
       if (!userUuid) {
@@ -181,21 +179,16 @@ const requireAllPermissions = (permissionNames) => {
         });
       }
 
-      // Get user's role from users_profile using UUID
-      const { data: userProfile, error: profileError } = await supabaseAdmin
-        .from('users_profile')
-        .select('role_id')
-        .eq('user_id', userUuid)
-        .single();
-
-      if (profileError || !userProfile) {
-        return res.status(404).json({ 
-          message: 'User profile not found',
-          error: profileError?.message
+      // If role_id is not available (legacy fallback)
+      if (!roleId) {
+        console.warn('Role ID not found in req.user. Ensure authenticateUser middleware is used before permission checks.');
+        return res.status(500).json({ 
+          message: 'Permission check failed',
+          error: 'User role information not available'
         });
       }
 
-      // Get role permissions
+      // Get role permissions (only one query now, role_id comes from JWT claims)
       const { data: rolePermissions, error: permError } = await supabaseAdmin
         .from('role_permission')
         .select(`
@@ -203,7 +196,7 @@ const requireAllPermissions = (permissionNames) => {
             permission_name
           )
         `)
-        .eq('role_id', userProfile.role_id)
+        .eq('role_id', roleId)
         .is('deleted_at', null);
 
       if (permError) {
@@ -222,13 +215,13 @@ const requireAllPermissions = (permissionNames) => {
         return res.status(403).json({ 
           message: 'Insufficient permissions',
           error: `Missing permissions: ${missingPermissions.join(', ')}`,
-          userRole: userProfile.role_id,
+          userRole: roleId,
           missingPermissions
         });
       }
 
       req.userPermissions = userPermissions;
-      req.userRole = userProfile.role_id;
+      req.userRole = roleId;
       
       next();
     } catch (error) {
@@ -242,28 +235,20 @@ const requireAllPermissions = (permissionNames) => {
 };
 
 /**
- * Helper middleware to attach user permissions to request without blocking
+ * Optimized helper middleware to attach user permissions to request without blocking
+ * Uses role_id from JWT claims (set by authenticateUser middleware)
  */
 const attachPermissions = async (req, res, next) => {
   try {
+    // Get role_id from req.user (set by authenticateUser middleware with custom claims)
+    const roleId = req.user?.role_id;
     const userUuid = req.user?.uuid || req.headers['x-user-id'];
     
-    if (!userUuid) {
+    if (!userUuid || !roleId) {
       return next();
     }
 
-    // Get user's role from users_profile using UUID
-    const { data: userProfile, error: profileError } = await supabaseAdmin
-      .from('users_profile')
-      .select('role_id')
-      .eq('user_id', userUuid)
-      .single();
-
-    if (profileError || !userProfile) {
-      return next();
-    }
-
-    // Get role permissions
+    // Get role permissions (only one query now, role_id comes from JWT claims)
     const { data: rolePermissions, error: permError } = await supabaseAdmin
       .from('role_permission')
       .select(`
@@ -271,12 +256,12 @@ const attachPermissions = async (req, res, next) => {
           permission_name
         )
       `)
-      .eq('role_id', userProfile.role_id)
+      .eq('role_id', roleId)
       .is('deleted_at', null);
 
     if (!permError && rolePermissions) {
       req.userPermissions = rolePermissions.map(rp => rp.permissions?.permission_name);
-      req.userRole = userProfile.role_id;
+      req.userRole = roleId;
     }
     
     next();
