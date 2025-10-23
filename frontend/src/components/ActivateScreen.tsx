@@ -226,7 +226,8 @@ const ActivateScreen: React.FC<ActivateScreenProps> = ({
           >
             {isLoading ? (
               <div className="flex items-center gap-2">
-                <LoadingSpinner text="Activating..." size="md" />
+                <LoadingSpinner size="sm" />
+                Activating...
               </div>
             ) : (
               <>
