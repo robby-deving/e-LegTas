@@ -1,13 +1,13 @@
-import { useRef, useEffect, useState, useCallback } from 'react';
+import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import L from 'leaflet';
 import icon from 'leaflet/dist/images/marker-icon.png';
 import iconRetina from 'leaflet/dist/images/marker-icon-2x.png';
 import shadow from 'leaflet/dist/images/marker-shadow.png';
 import { MapContainer, TileLayer, Marker, Tooltip } from 'react-leaflet';
-import ECMarker from '../../assets/ECMarker.svg';
-import fullIcon from '../../assets/full.svg';
-import overcapacityIcon from '../../assets/overcapacity.svg';
-import unavailableIcon from '../../assets/unavailable.svg';
+import ECMarker from '../../assets/ec-marker.svg';
+import fullIcon from '../../assets/full-marker.svg';
+import overcapacityIcon from '../../assets/overcapacity-marker.svg';
+import unavailableIcon from '../../assets/unavailable-marker.svg';
 import type { EvacuationCenter } from '@/types/EvacuationCenter';
 import { store } from '@/store';
 import { selectToken, selectUserId } from '@/features/auth/authSlice';
@@ -28,21 +28,21 @@ const evacCenterIcon = new L.Icon({
 
 const fullCapacityIcon = new L.Icon({
   iconUrl: fullIcon,
-  iconSize: [39, 40],
+  iconSize: [40, 40],
   iconAnchor: [16, 32],
   popupAnchor: [0, -32],
 });
 
 const overCapacityIcon = new L.Icon({
   iconUrl: overcapacityIcon,
-  iconSize: [39, 40],
+  iconSize: [40, 40],
   iconAnchor: [16, 32],
   popupAnchor: [0, -32],
 });
 
 const unavailableCapacityIcon = new L.Icon({
   iconUrl: unavailableIcon,
-  iconSize: [39, 40],
+  iconSize: [40, 40],
   iconAnchor: [16, 32],
   popupAnchor: [0, -32],
 });
@@ -56,9 +56,12 @@ type GISMapProps = {
   onMarkerClick: (evacuationCenter: EvacuationCenter) => void;
   onLastUpdatedChange?: (timestamp: Date | null) => void;
   height?: string; // Add this prop
+  searchQuery?: string; // Add search query prop
+  onEvacuationCentersChange?: (centers: EvacuationCenter[]) => void; // Add callback for parent
+  onFilteredCentersChange?: (centers: EvacuationCenter[]) => void; // Add filtered data for parent
 };
 
-export default function GISMap({ onMarkerClick, onLastUpdatedChange, height = '100vh' }: GISMapProps) {
+export default function GISMap({ onMarkerClick, onLastUpdatedChange, height = '100vh', searchQuery, onEvacuationCentersChange, onFilteredCentersChange }: GISMapProps) {
   const mapRef = useRef<L.Map | null>(null);
   const [evacuationCenters, setEvacuationCenters] = useState<EvacuationCenter[]>([]);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -98,10 +101,11 @@ export default function GISMap({ onMarkerClick, onLastUpdatedChange, height = '1
       localStorage.setItem(CACHE_TIMESTAMP_KEY, now.toISOString());
       setLastUpdated(now);
       onLastUpdatedChange?.(now);
+      onEvacuationCentersChange?.(data);
     } catch (error) {
       console.error('Error writing to cache:', error);
     }
-  }, [onLastUpdatedChange]);
+  }, [onLastUpdatedChange, onEvacuationCentersChange]);
 
   const getMarkerIcon = (center: EvacuationCenter) => {
     // Check status first (highest priority)
@@ -175,6 +179,26 @@ export default function GISMap({ onMarkerClick, onLastUpdatedChange, height = '1
 
 
 
+  // Filter evacuation centers based on search query
+  const filteredEvacuationCenters = useMemo(() => {
+    if (!searchQuery || !searchQuery.trim()) {
+      onFilteredCentersChange?.(evacuationCenters);
+      return evacuationCenters;
+    }
+
+    const query = searchQuery.toLowerCase().trim();
+    const filtered = evacuationCenters.filter(center =>
+      center.name.toLowerCase().includes(query) ||
+      center.barangay_name.toLowerCase().includes(query) ||
+      center.address.toLowerCase().includes(query) ||
+      center.category.toLowerCase().includes(query) ||
+      (center.camp_manager_name && center.camp_manager_name.toLowerCase().includes(query))
+    );
+
+    onFilteredCentersChange?.(filtered);
+    return filtered;
+  }, [evacuationCenters, searchQuery, onFilteredCentersChange]);
+
   const handleMarkerClick = (evacuationCenter: EvacuationCenter) => {
     if (mapRef.current) {
       mapRef.current.flyTo([evacuationCenter.latitude, evacuationCenter.longitude], 17, {
@@ -185,7 +209,7 @@ export default function GISMap({ onMarkerClick, onLastUpdatedChange, height = '1
     onMarkerClick(evacuationCenter);
   };
 
-  // Expose refresh function and last updated for parent component
+  // Expose refresh function, last updated, and map reference for parent component
   useEffect(() => {
     if (typeof window !== 'undefined') {
       (window as any).gisMapRefresh = refreshData;
@@ -193,39 +217,51 @@ export default function GISMap({ onMarkerClick, onLastUpdatedChange, height = '1
     }
   }, [refreshData, lastUpdated]);
 
+  // Expose map reference when it becomes available
+  useEffect(() => {
+    if (mapRef.current && typeof window !== 'undefined') {
+      (window as any).gisMapRef = mapRef.current;
+    }
+  }, [evacuationCenters]); // Trigger when evacuation centers are loaded
+
   return (
-    <MapContainer
-      center={[13.1391, 123.7438]}
-      zoom={15}
-      scrollWheelZoom={true}
-      style={{ height: height, width: '100%' }} // Use the height prop
-      ref={mapRef}
-      className="z-0"
-    >
-      <TileLayer
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
-      {evacuationCenters.map((center) => (
-        <Marker
-          key={center.id}
-          position={[center.latitude, center.longitude]}
-          icon={getMarkerIcon(center)}
-          eventHandlers={{
-            click: () => handleMarkerClick(center),
-          }}
+<MapContainer
+  center={[13.1391, 123.7438]}
+  zoom={15}
+  scrollWheelZoom={true}
+  style={{ height: height, width: '100%' }} // Use the height prop
+  ref={mapRef}
+  className="z-0"
+  zoomControl={false}
+>
+  <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+  {filteredEvacuationCenters.map((center: EvacuationCenter) => {
+    // Fallback to default coordinates if latitude/longitude is missing or invalid
+    const lat = center.latitude || 0;  // Default latitude value
+    const lon = center.longitude || 0; // Default longitude value
+    return (
+      <Marker
+        key={center.id}
+        position={[lat, lon]}
+        icon={getMarkerIcon(center)}
+        eventHandlers={{
+          click: () => handleMarkerClick(center),
+        }}
+      >
+        <Tooltip
+          direction="top"
+          offset={[5, -30]}
+          opacity={1}
+          permanent={false}
         >
-          <Tooltip
-            direction="top"
-            offset={[5, -30]}
-            opacity={1}
-            permanent={false}
-          >
-            <div className="px-3 py-1 rounded font-semibold text-sm">
-              {center.name}
-            </div>
-          </Tooltip>
-        </Marker>
-      ))}
-    </MapContainer>
+          <div className="px-3 py-1 rounded font-semibold text-sm">
+            {center.name}
+          </div>
+        </Tooltip>
+      </Marker>
+    );
+  })}
+</MapContainer>
+
   );
 }

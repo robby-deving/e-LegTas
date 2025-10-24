@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePageTitle } from '../hooks/usePageTitle';
+import { Eye, EyeOff } from 'lucide-react';
+import { Input } from '../components/ui/input';
+import { Button } from '../components/ui/button';
 import unionBackground from '../assets/Union.png';
 import legTasLogo from '../assets/LegTas-Logo.png';
 
@@ -10,6 +13,8 @@ export default function ForgotPassword2(){
     const [loading, setLoading] = useState(false);
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
     const [userId, setUserId] = useState('');
@@ -69,7 +74,7 @@ export default function ForgotPassword2(){
             setLoading(true);
             
             // Make sure this matches your server port (3000)
-            const response = await fetch('https://api.e-legtas.tech/api/v1/auth/reset-password', {
+            const response = await fetch('/api/v1/auth/reset-password', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -112,89 +117,126 @@ export default function ForgotPassword2(){
     };
 
     return(
-        <div className='flex items-center justify-center h-screen bg-[#1CA567]'>
-            <div className='relative mx-auto' style={{ width: '700px', height: '800px' }}>
+        <div className='flex items-center justify-center min-h-screen bg-[#1CA567] p-4'>
+            {/* Create New Password Container */}
+            <div className='relative w-full h-auto max-w-[min(90vw,700px)] max-h-[95vh] sm:max-w-[min(80vw,650px)] md:max-w-[min(70vw,600px)] lg:max-w-[min(60vw,475px)]'>
+                {/* Background Image */}
                 <img 
                     src={unionBackground} 
                     alt="Create new password background" 
-                    className='w-full h-full object-contain'
+                    className='w-full h-full max-h-[95vh] object-contain'
                 />
-                <div className='absolute top-0 left-0 w-full h-full flex flex-col p-8'>
-                    {/* Top section with logo and content */}
-                    <div className="flex-1 flex flex-col justify-center items-center -mt-8">
-                        {/* Logo */}
-                        <img 
-                            src={legTasLogo}
-                            alt="LegTas Logo"
-                            className='w-24 h-auto mb-0'
-                        />
+                
+                {/* Content Overlay */}
+                <div className='absolute inset-14 flex items-center justify-center px-6 mt-18'>
+                    <div className="w-full max-w-md space-y-5 sm:space-y-6">
                         
-                        <h1 className='text-3xl font-black mb-6 text-center'>
-                          <span className="text-[#6D6E71]">e-</span>
-                          <span className="text-[#2BB673]">Leg</span>
-                          <span className="text-[#038B53]">Tas</span>
-                        </h1>
+                        {/* Header: Logo & Title */}
+                        <div className="flex flex-col items-center space-y-2 sm:space-y-3 py-4">
+                            <img 
+                                src={legTasLogo}
+                                alt="LegTas Logo"
+                                className='w-12 sm:w-14 md:w-16 lg:w-22 h-auto'
+                            />
+                            <h1 className='text-xl sm:text-2xl md:text-3xl lg:text-4xl font-black text-center'>
+                                <span className="text-[#6D6E71]">e-</span>
+                                <span className="text-[#2BB673]">Leg</span>
+                                <span className="text-[#038B53]">Tas</span>
+                            </h1>
+                            <h2 className='text-base sm:text-lg md:text-xl font-extrabold text-gray-500 text-center'>
+                                Create New Password
+                            </h2>
+                            <p className='text-xs sm:text-sm text-gray-600 text-center'>
+                                Your new password must be different from<br />your previous password.
+                            </p>
+                        </div>
                         
-                        <h2 className='text-2xl font-extrabold mb-2 text-center text-gray-500'>
-                            Create New Password
-                        </h2>
-
-                        <p className='text-base text-center text-gray-600 mb-8'>
-                            Your new password must be different from<br />your previous password.
-                        </p>
-                        
-                        {/* Error message */}
+                        {/* Error Message */}
                         {error && (
-                            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded-md mb-4 w-96 text-sm">
+                            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded-md text-center text-sm">
                                 {error}
                             </div>
                         )}
                         
-                        {/* Success message */}
+                        {/* Success Message */}
                         {success && (
-                            <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-2 rounded-md mb-4 w-96 text-sm">
+                            <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-2 rounded-md text-center text-sm">
                                 {success}
                             </div>
                         )}
                         
-                        {/* Password Input Fields */}
-                        <div className="w-96 flex flex-col space-y-4">
-                            <div className="flex flex-col">
-                                <label className='block text-sm font-medium text-gray-700 mb-1'>New Password</label>
-                                <input 
-                                    type='password' 
-                                    placeholder="Enter new password"
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    className='block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-[#0A9359] focus:outline-none'
-                                    required
-                                />
+                        {/* Reset Password Form */}
+                        <form className='space-y-2 sm:space-y-4' onSubmit={handleResetPassword}>
+                            
+                            {/* New Password Field */}
+                            <div className="space-y-1 sm:space-y-1.5">
+                                <label className='block text-xs sm:text-sm font-medium text-gray-800'>
+                                    New Password
+                                </label>
+                                <div className="relative">
+                                    <Input 
+                                        type={showPassword ? 'text' : 'password'}
+                                        placeholder="Enter new password"
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        className='pr-10 text-xs sm:text-sm bg-white'
+                                        required
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
+                                        aria-label={showPassword ? "Hide password" : "Show password"}
+                                    >
+                                        {showPassword ? (
+                                            <EyeOff className="w-4 h-4 sm:w-5 sm:h-5" />
+                                        ) : (
+                                            <Eye className="w-4 h-4 sm:w-5 sm:h-5" />
+                                        )}
+                                    </button>
+                                </div>
                             </div>
                             
-                            <div className="flex flex-col">
-                                <label className='block text-sm font-medium text-gray-700 mb-1'>Confirm Password</label>
-                                <input 
-                                    type='password' 
-                                    placeholder="Confirm new password"
-                                    value={confirmPassword}
-                                    onChange={(e) => setConfirmPassword(e.target.value)}
-                                    className='block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-[#0A9359] focus:outline-none'
-                                    required
-                                />
+                            {/* Confirm Password Field */}
+                            <div className="space-y-1 sm:space-y-1.5">
+                                <label className='block text-xs sm:text-sm font-medium text-gray-800'>
+                                    Confirm Password
+                                </label>
+                                <div className="relative">
+                                    <Input 
+                                        type={showConfirmPassword ? 'text' : 'password'}
+                                        placeholder="Confirm new password"
+                                        value={confirmPassword}
+                                        onChange={(e) => setConfirmPassword(e.target.value)}
+                                        className='pr-10 text-xs sm:text-sm bg-white'
+                                        required
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
+                                        aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                                    >
+                                        {showConfirmPassword ? (
+                                            <EyeOff className="w-4 h-4 sm:w-5 sm:h-5" />
+                                        ) : (
+                                            <Eye className="w-4 h-4 sm:w-5 sm:h-5" />
+                                        )}
+                                    </button>
+                                </div>
                             </div>
-                        </div>
-                    </div>
-                    
-                    {/* Submit button at bottom */}
-                    <div className="flex justify-center">
-                        <button 
-                            type='submit'
-                            onClick={handleResetPassword}
-                            disabled={loading}
-                            className='w-96 py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-bold text-white bg-[#0A9359] hover:bg-[#078048] disabled:opacity-50 mb-8'
-                        >
-                            {loading ? 'Updating...' : 'Update Password'}
-                        </button>
+                            
+                            {/* Submit Button */}
+                            <Button
+                                type='submit'
+                                disabled={loading}
+                                className='w-full py-2 sm:py-2.5 px-4 rounded-md shadow-md text-xs sm:text-sm font-semibold text-white bg-[#0A9359] hover:bg-[#078048] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0A9359] disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer'
+                            >
+                                {loading ? 'Updating...' : 'Update Password'}
+                            </Button>
+                            
+                        </form>
+                        
                     </div>
                 </div>
             </div>

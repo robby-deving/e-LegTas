@@ -2,6 +2,7 @@
 const config = {
   preset: 'ts-jest',
   testEnvironment: 'jsdom',
+  extensionsToTreatAsEsm: ['.ts', '.tsx'],
   moduleNameMapper: {
     '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
     '\\.(gif|ttf|eot|svg|png)$': '<rootDir>/test/__mocks__/fileMock.js',
@@ -10,7 +11,8 @@ const config = {
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   transform: {
     '^.+\\.(ts|tsx)$': ['ts-jest', {
-      tsconfig: 'tsconfig.test.json'
+      tsconfig: 'tsconfig.test.json',
+      useESM: true
     }],
     '^.+\\.(js|jsx)$': ['babel-jest', {
       presets: [

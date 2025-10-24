@@ -6,10 +6,15 @@
 const { authenticateUser, basicAuth } = require('./auth');
 const { 
   requirePermission,
-  requireAnyPermission
+  requireAnyPermission,
+  requireAllPermissions,
+  attachPermissions,
+  getUserPermissions,
+  invalidatePermissionsCache,
+  getRolePermissions
 } = require('./permissions');
 
-// Export only the essential middleware
+// Export all middleware and utilities
 module.exports = {
   // Authentication (from auth.js)
   authenticateUser,
@@ -17,5 +22,12 @@ module.exports = {
   
   // Permissions (from permissions.js)
   requirePermission,
-  requireAnyPermission
+  requireAnyPermission,
+  requireAllPermissions,
+  attachPermissions,
+  getUserPermissions,
+  
+  // Cache management (from permissions.js)
+  invalidatePermissionsCache,
+  getRolePermissions
 };

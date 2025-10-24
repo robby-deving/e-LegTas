@@ -32,6 +32,8 @@ exports.getAllEvacuationCenters = async (req, res, next) => {
         const offset = parseInt(req.query.offset) || 0;
         const search = req.query.search || '';
         const includeSoftDeleted = req.query.include_deleted === 'true';
+        const ecType = req.query.ec_type;
+        const barangayId = req.query.barangay_id ? parseInt(req.query.barangay_id) : null;
 
         let query = supabase
             .from(TABLE_NAME)
@@ -47,6 +49,18 @@ exports.getAllEvacuationCenters = async (req, res, next) => {
             query = query.or(`name.ilike.%${search}%,address.ilike.%${search}%`);
         }
 
+        // Add ec_type filter if provided
+        if (ecType === 'inside') {
+            query = query.in('category', ['School', 'Chapel/Church', 'Dedicated Evacuation Center', 'Government Building']);
+        } else if (ecType === 'outside') {
+            query = query.in('category', ['Private House']);
+        }
+
+        // Add barangay filter if provided
+        if (barangayId && !isNaN(barangayId)) {
+            query = query.eq('barangay_id', barangayId);
+        }
+
         // Add pagination
         query = query.range(offset, offset + limit - 1);
 
@@ -59,8 +73,8 @@ exports.getAllEvacuationCenters = async (req, res, next) => {
 
         // Get total count for pagination metadata
         let totalCount = count;
-        if (search || !includeSoftDeleted) {
-            // If we have search or deleted_at filter, we need to get the total count separately
+        if (search || !includeSoftDeleted || barangayId || ecType) {
+            // If we have search, deleted_at, barangay, or ec_type filter, we need to get the total count separately
             let countQuery = supabase
                 .from(TABLE_NAME)
                 .select('*', { count: 'exact', head: true });
@@ -71,6 +85,17 @@ exports.getAllEvacuationCenters = async (req, res, next) => {
 
             if (search) {
                 countQuery = countQuery.or(`name.ilike.%${search}%,address.ilike.%${search}%`);
+            }
+
+            if (barangayId && !isNaN(barangayId)) {
+                countQuery = countQuery.eq('barangay_id', barangayId);
+            }
+
+            // Add ec_type filter if provided
+            if (ecType === 'inside') {
+                countQuery = countQuery.in('category', ['School', 'Chapel/Church', 'Dedicated Evacuation Center', 'Government Building']);
+            } else if (ecType === 'outside') {
+                countQuery = countQuery.in('category', ['Private House']);
             }
 
             const { count: filteredCount } = await countQuery;
@@ -167,23 +192,38 @@ exports.createEvacuationCenter = async (req, res, next) => {
         created_by
     } = req.body;
 
-    if (!name || !address || !barangay_id || !latitude || !longitude || !ec_status || !category || !created_by) {
+    // Check if all required fields are present
+    if (!name || !address || !barangay_id || !ec_status || !category || !created_by) {
         return next(new ApiError('Missing required fields for evacuation center.', 400));
+    }
+
+    // For non-Private House categories, validate additional required fields
+    if (category !== 'Private House' && (!latitude || !longitude || !total_capacity)) {
+        return next(new ApiError('Latitude, longitude, and total capacity are required for non-Private House evacuation centers.', 400));
     }
 
     const newEvacuationCenterEntry = {
         name,
         address,
         barangay_id: Number(barangay_id),
-        latitude: Number(latitude),
-        longitude: Number(longitude),
         ec_status,
         category,
         assigned_user_id: null,
-        total_capacity: Number(total_capacity),
         created_by: Number(created_by),
         created_at: new Date().toISOString()
     };
+
+    // Add optional fields for non-Private House categories
+    if (category !== 'Private House') {
+        newEvacuationCenterEntry.latitude = Number(latitude);
+        newEvacuationCenterEntry.longitude = Number(longitude);
+        newEvacuationCenterEntry.total_capacity = Number(total_capacity);
+    } else {
+        // For Private House, add these fields if provided, otherwise set to null
+        newEvacuationCenterEntry.latitude = latitude ? Number(latitude) : null;
+        newEvacuationCenterEntry.longitude = longitude ? Number(longitude) : null;
+        newEvacuationCenterEntry.total_capacity = total_capacity ? Number(total_capacity) : null;
+    }
 
     try {
         const { data, error } = await supabase
@@ -444,7 +484,8 @@ exports.getEvacuationCenterMapData = async (req, res, next) => {
                     )
                 )
             `)
-            .is('deleted_at', null); // Only get active (non-deleted) evacuation centers
+            .is('deleted_at', null) // Only get active (non-deleted) evacuation centers
+            .neq('category', 'Private House'); // Exclude Private House category
 
         if (centersError) {
             console.error('Supabase Error (getEvacuationCenterMapData - centers):', centersError);

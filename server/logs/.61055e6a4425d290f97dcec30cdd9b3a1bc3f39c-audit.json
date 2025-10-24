@@ -6,14 +6,14 @@
     "auditLog": "C:\\projects\\e-LegTas\\server\\logs\\.61055e6a4425d290f97dcec30cdd9b3a1bc3f39c-audit.json",
     "files": [
         {
-            "date": 1756951527142,
-            "name": "C:\\projects\\e-LegTas\\server\\logs\\04-09-2025-combined.log",
-            "hash": "477531cf22373ee48a290c7c1eeaf4534df5a4f57253236c8ce20ed32f597049"
+            "date": 1758526428897,
+            "name": "C:\\projects\\e-LegTas\\server\\logs\\22-09-2025-combined.log",
+            "hash": "7bb5c99d271957ee2c099d07a9028ebadc3c93aaa11a45f2835a36f8b4611995"
         },
         {
-            "date": 1757061813823,
-            "name": "C:\\projects\\e-LegTas\\server\\logs\\05-09-2025-combined.log",
-            "hash": "e73211f48713965f6cf3197137ee6e15b4b26797f8b91b345e1228bb7d23f3b8"
+            "date": 1758698684860,
+            "name": "C:\\projects\\e-LegTas\\server\\logs\\24-09-2025-combined.log",
+            "hash": "82d51a8e52f6991588fb470158a97b6f64d4bf8fee454abe1ae4e36d144cbc9f"
         }
     ],
     "hashType": "sha256"

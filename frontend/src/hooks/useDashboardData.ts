@@ -49,6 +49,7 @@ export function useDashboardData(selectedDateRange?: DateRange) {
   const [activeEvacuationCenters, setActiveEvacuationCenters] = useState<number>(0);
   const [registeredEvacueesCount, setRegisteredEvacueesCount] = useState<number>(0);
   const [registeredFamiliesCount, setRegisteredFamiliesCount] = useState<number>(0);
+  const [familiesWithReliefGoodsCount, setFamiliesWithReliefGoodsCount] = useState<number>(0);
   const [evacueeStatistics, setEvacueeStatistics] = useState<{ label: string; value: number }[]>([]);
   const [evacuationCapacityStatus, setEvacuationCapacityStatus] = useState<
     {
@@ -57,6 +58,7 @@ export function useDashboardData(selectedDateRange?: DateRange) {
       barangay_name: string;
       current_occupancy: number;
       total_capacity: number;
+      category: string;
     }[]
   >([]);
   const [loading, setLoading] = useState(false);
@@ -110,11 +112,11 @@ export function useDashboardData(selectedDateRange?: DateRange) {
   // Active Evacuation Centers Count
   useEffect(() => {
     if (!effectiveToken) return; // wait for auth token
-    const fetchActiveEvacuationCenters = async () => {
+    const fetchActiveEvacuationCenters = async (isRealtimeUpdate = false) => {
       if (!selectedDisaster?.id) return;
 
       try {
-      setLoading(true);
+      if (!isRealtimeUpdate) setLoading(true);
         let url = `https://api.e-legtas.tech/api/v1/dashboard/active-evacuation-centers/${selectedDisaster.id}`;
 
         if (selectedDateRange?.from) {
@@ -150,7 +152,7 @@ export function useDashboardData(selectedDateRange?: DateRange) {
         console.error('Error fetching active evacuation centers:', error);
         setActiveEvacuationCenters(0);
       } finally {
-        setLoading(false);
+        if (!isRealtimeUpdate) setLoading(false);
       }
     };
 
@@ -170,7 +172,7 @@ export function useDashboardData(selectedDateRange?: DateRange) {
             table: 'disaster_evacuation_event',
             filter: `disaster_id=eq.${selectedDisaster?.id}`
           },
-          () => fetchActiveEvacuationCenters()
+          () => fetchActiveEvacuationCenters(true)
         )
         .subscribe();
     }
@@ -184,14 +186,14 @@ export function useDashboardData(selectedDateRange?: DateRange) {
   // Registered Evacuees Count
   useEffect(() => {
     if (!effectiveToken) return; // wait for auth token
-    const fetchRegisteredEvacueesCount = async () => {
+    const fetchRegisteredEvacueesCount = async (isRealtimeUpdate = false) => {
       if (!selectedDisaster?.id) return;
 
       try {
-        setLoading(true);
+        if (!isRealtimeUpdate) setLoading(true);
         let url = `https://api.e-legtas.tech/api/v1/dashboard/registered-evacuees/${selectedDisaster.id}`;
 
-        // ✅ If date filter applied, add query params with Manila → UTC conversion
+        // If date filter applied, add query params with Manila → UTC conversion
         if (selectedDateRange?.from) {
           const timeZone = "Asia/Manila";
 
@@ -225,7 +227,7 @@ export function useDashboardData(selectedDateRange?: DateRange) {
         console.error('Error fetching registered evacuees:', error);
         setRegisteredEvacueesCount(0);
       } finally {
-        setLoading(false);
+        if (!isRealtimeUpdate) setLoading(false);
       }
     };
 
@@ -244,7 +246,7 @@ export function useDashboardData(selectedDateRange?: DateRange) {
       channel,
       selectedDisaster?.id,
       (newData, oldData) => newData?.total_no_of_individuals !== oldData?.total_no_of_individuals,
-      fetchRegisteredEvacueesCount,
+      () => fetchRegisteredEvacueesCount(true),
       'Evacuees'
     );
  
@@ -252,7 +254,7 @@ export function useDashboardData(selectedDateRange?: DateRange) {
     listenToEvacuationEndDateChange(
       channel,
       selectedDisaster?.id,
-      fetchRegisteredEvacueesCount,
+      () => fetchRegisteredEvacueesCount(true),
       'Evacuees'
     );
 
@@ -266,14 +268,14 @@ export function useDashboardData(selectedDateRange?: DateRange) {
   // Registered Families Count
   useEffect(() => {
     if (!effectiveToken) return; // wait for auth token
-    const fetchRegisteredFamiliesCount = async () => {
+    const fetchRegisteredFamiliesCount = async (isRealtimeUpdate = false) => {
       if (!selectedDisaster?.id) return;
 
       try {
-        setLoading(true);
+        if (!isRealtimeUpdate) setLoading(true);
         let url = `https://api.e-legtas.tech/api/v1/dashboard/registered-families/${selectedDisaster.id}`;
 
-        // ✅ If date filter applied, add query params with Manila → UTC conversion
+        // If date filter applied, add query params with Manila → UTC conversion
         if (selectedDateRange?.from) {
           const timeZone = "Asia/Manila";
 
@@ -303,9 +305,10 @@ export function useDashboardData(selectedDateRange?: DateRange) {
         }
       } catch (error) {
         console.error('Error fetching registered families:', error);
-        setRegisteredFamiliesCount(0);
+        setRegisteredEvacueesCount(0)
+        setRegisteredEvacueesCount(0);
       } finally {
-        setLoading(false);
+        if (!isRealtimeUpdate) setLoading(false);
       }
     };
 
@@ -325,7 +328,7 @@ export function useDashboardData(selectedDateRange?: DateRange) {
         channel,
         selectedDisaster?.id,
         (newData, oldData) => newData?.total_no_of_family !== oldData?.total_no_of_family,
-        fetchRegisteredFamiliesCount,
+        () => fetchRegisteredFamiliesCount(true),
         'Families'
       );
 
@@ -333,7 +336,7 @@ export function useDashboardData(selectedDateRange?: DateRange) {
       listenToEvacuationEndDateChange(
         channel, 
         selectedDisaster?.id, 
-        fetchRegisteredFamiliesCount, 
+        () => fetchRegisteredFamiliesCount(true), 
         'Families'
       );
 
@@ -344,14 +347,119 @@ export function useDashboardData(selectedDateRange?: DateRange) {
     };
   }, [selectedDisaster, selectedDateRange, effectiveToken]);
 
+// Families with Relief Goods Count (live + filtered)
+useEffect(() => {
+  if (!effectiveToken) return; // wait for auth token
+
+  const fetchFamiliesWithReliefGoodsCount = async (isRealtimeUpdate = false) => {
+    if (!selectedDisaster?.id) return;
+
+    try {
+      if (!isRealtimeUpdate) setLoading(true);
+      let url = `/api/v1/dashboard/families-with-relief-goods/${selectedDisaster.id}`;
+
+      // If date filter applied, add query params with Manila -> UTC conversion
+      if (selectedDateRange?.from) {
+        const timeZone = "Asia/Manila";
+
+        const fromUtc = new Date(
+          selectedDateRange.from.toLocaleString("en-US", { timeZone })
+        );
+        fromUtc.setHours(0, 0, 0, 0);
+        const fromIso = fromUtc.toISOString();
+
+        const toDate = selectedDateRange?.to
+          ? new Date(selectedDateRange.to.toLocaleString("en-US", { timeZone }))
+          : new Date(selectedDateRange.from.toLocaleString("en-US", { timeZone }));
+        toDate.setHours(23, 59, 59, 999);
+        const toIso = toDate.toISOString();
+
+        url += `?from=${encodeURIComponent(fromIso)}&to=${encodeURIComponent(toIso)}`;
+      }
+
+      const response = await fetch(url, { headers: getAuthHeaders() });
+      const result = await response.json();
+
+      if (response.ok) {
+        setFamiliesWithReliefGoodsCount(result.count || 0);
+      } else {
+        console.error(result.message || 'Failed to fetch families with relief goods.');
+        setFamiliesWithReliefGoodsCount(0);
+      }
+    } catch (error) {
+      console.error('Error fetching families with relief goods:', error);
+      setFamiliesWithReliefGoodsCount(0);
+    } finally {
+      if (!isRealtimeUpdate) setLoading(false);
+    }
+  };
+
+  // If filter active → no realtime
+  if (selectedDateRange?.from) {
+    fetchFamiliesWithReliefGoodsCount();
+    return;
+  }
+
+  // Live mode
+  fetchFamiliesWithReliefGoodsCount();
+
+  const channel = supabase.channel('realtime-families-with-relief-goods');
+
+  // ---- listen to services table changes ----
+  channel.on(
+    'postgres_changes',
+    { event: '*', schema: 'public', table: 'services' },
+    async (payload: any) => {
+      // row that changed
+      const row = payload.new || payload.old;
+      const eventId = row?.disaster_evacuation_event_id || row?.disaster_evacuation_event?.id;
+
+        // if helper accepts (eventId, disasterId) or (row, disasterId) we attempt both safely
+        if (selectedDisaster?.id && eventId) {
+          const linked = await isEventLinkedToSelectedDisaster(eventId, 'event', selectedDisaster.id);
+          if (linked) fetchFamiliesWithReliefGoodsCount(true);
+        }
+    }
+  );
+
+  // ---- listen to evacuation_registrations changes (decampment changes) ----
+  channel.on(
+    'postgres_changes',
+    { event: '*', schema: 'public', table: 'evacuation_registrations' },
+    async (payload: any) => {
+      const row = payload.new || payload.old;
+      const eventId = row?.disaster_evacuation_event_id || row?.disaster_evacuation_event?.id;
+
+      if (selectedDisaster?.id && eventId) {
+        const linked = await isEventLinkedToSelectedDisaster(eventId, 'event', selectedDisaster.id);
+        if (linked) fetchFamiliesWithReliefGoodsCount(true);
+      }
+    }
+  );
+
+  // ---- also listen for evacuation_end_date changes on disaster_evacuation_event ----
+  listenToEvacuationEndDateChange(
+    channel,
+    selectedDisaster?.id,
+    () => fetchFamiliesWithReliefGoodsCount(true),
+    'ReliefGoods'
+  );
+
+  channel.subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}, [selectedDisaster, selectedDateRange, effectiveToken]);
+
   // Evacuee Statistics
   useEffect(() => {
     if (!effectiveToken) return; // wait for auth token
-    const fetchEvacueeStatistics = async () => {
+    const fetchEvacueeStatistics = async (isRealtimeUpdate = false) => {
       if (!selectedDisaster?.id) return;
 
       try {
-        setLoading(true);
+        if (!isRealtimeUpdate) setLoading(true);
         let url = `https://api.e-legtas.tech/api/v1/dashboard/evacuee-statistics/${selectedDisaster.id}`;
 
         // If date filter applied, add query params (Manila → UTC conversion)
@@ -403,7 +511,7 @@ export function useDashboardData(selectedDateRange?: DateRange) {
         console.error("Error fetching evacuee statistics:", error);
         setEvacueeStatistics([]);
       } finally {
-        setLoading(false);
+        if (!isRealtimeUpdate) setLoading(false);
       }
     };
 
@@ -432,7 +540,7 @@ export function useDashboardData(selectedDateRange?: DateRange) {
         newData?.total_no_of_pwd !== oldData?.total_no_of_pwd ||
         newData?.total_no_of_pregnant !== oldData?.total_no_of_pregnant ||
         newData?.total_no_of_lactating_women !== oldData?.total_no_of_lactating_women,
-      fetchEvacueeStatistics,
+      () => fetchEvacueeStatistics(true),
       "Evacuee Stats"
     );
 
@@ -440,7 +548,7 @@ export function useDashboardData(selectedDateRange?: DateRange) {
     listenToEvacuationEndDateChange(
       channel,
       selectedDisaster?.id,
-      fetchEvacueeStatistics,
+      () => fetchEvacueeStatistics(true),
       "Evacuee Stats"
     );
 
@@ -454,12 +562,15 @@ export function useDashboardData(selectedDateRange?: DateRange) {
   // Evacuation Center Capacity Status
   useEffect(() => {
     if (!token) return; // wait for auth token
-    const fetchEvacuationCapacityStatus = async () => {
+    const fetchEvacuationCapacityStatus = async (isRealtimeUpdate = false) => {
       if (!selectedDisaster?.id) return;
 
       try {
-        setLoading(true);
-        let url = `https://api.e-legtas.tech/api/v1/dashboard/capacity-status/${selectedDisaster.id}`;
+        if (!isRealtimeUpdate) setLoading(true);
+        // console.log("🌐 Fetching capacity-status from:", `/api/v1/dashboard/capacity-status/${selectedDisaster.id}`);
+        // console.log("🌐 Fetching capacity-status from:", fullUrl);
+
+        let url = `/api/v1/dashboard/capacity-status/${selectedDisaster.id}`;
 
         // If date filter applied, add query params with Manila → UTC conversion
         if (selectedDateRange?.from) {
@@ -486,7 +597,16 @@ export function useDashboardData(selectedDateRange?: DateRange) {
         const result = await response.json();
 
         if (response.ok) {
-          setEvacuationCapacityStatus(result.data || []);
+          // NORMALIZE the data so the UI has guaranteed fields and types
+          const normalized = (result.data || []).map((c: any) => ({
+            id: Number(c.id),
+            name: c.name || '',
+            barangay_name: c.barangay_name || (c.barangay?.[0]?.name || ''),
+            current_occupancy: Number(c.current_occupancy || 0),
+            total_capacity: Number(c.total_capacity || 0),
+            category: c.category || ''
+          }));
+          setEvacuationCapacityStatus(normalized);
         } else {
           console.error(result.message || 'Failed to fetch evacuation center capacity status.');
           setEvacuationCapacityStatus([]);
@@ -495,7 +615,7 @@ export function useDashboardData(selectedDateRange?: DateRange) {
         console.error('Error fetching evacuation center capacity status:', error);
         setEvacuationCapacityStatus([]);
       } finally {
-        setLoading(false);
+        if (!isRealtimeUpdate) setLoading(false);
       }
     };
 
@@ -516,7 +636,7 @@ export function useDashboardData(selectedDateRange?: DateRange) {
       selectedDisaster?.id,
       (newData, oldData) =>
         newData?.total_no_of_individuals !== oldData?.total_no_of_individuals,
-      fetchEvacuationCapacityStatus,
+      () => fetchEvacuationCapacityStatus(true),
       'Evacuation Capacity'
     );
 
@@ -532,7 +652,7 @@ export function useDashboardData(selectedDateRange?: DateRange) {
         const newData = payload.new;
         const oldData = payload.old;
 
-        const capacityChanged = newData?.total_capacity !== oldData?.total_capacity;
+        const capacityChanged = newData?.total_capacity !== oldData?.total_capacity || newData?.category !== oldData?.category;;
         if (!capacityChanged) return;
 
         const isRelevant = await isEventLinkedToSelectedDisaster(
@@ -543,7 +663,7 @@ export function useDashboardData(selectedDateRange?: DateRange) {
 
         if (isRelevant) {
           console.log('Relevant evacuation_center capacity change → refetching');
-          fetchEvacuationCapacityStatus();
+          fetchEvacuationCapacityStatus(true);
         }
       }
     );
@@ -552,7 +672,7 @@ export function useDashboardData(selectedDateRange?: DateRange) {
     listenToEvacuationEndDateChange(
       channel,
       selectedDisaster?.id,
-      fetchEvacuationCapacityStatus,
+      () => fetchEvacuationCapacityStatus(true),
       'Capacity Status'
     );
 
@@ -571,7 +691,7 @@ export function useDashboardData(selectedDateRange?: DateRange) {
           inserted?.evacuation_end_date === null
         ) {
           console.log('New active evacuation event inserted');
-          fetchEvacuationCapacityStatus();
+          fetchEvacuationCapacityStatus(true);
         }
       }
     );
@@ -590,6 +710,7 @@ export function useDashboardData(selectedDateRange?: DateRange) {
     activeEvacuationCenters,
     registeredEvacueesCount,
     registeredFamiliesCount,
+    familiesWithReliefGoodsCount, 
     evacueeStatistics,
     evacuationCapacityStatus,
     loading,

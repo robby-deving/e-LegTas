@@ -18,6 +18,16 @@ jest.mock('../../../components/ui/select', () => {
   };
 });
 
+// Mock the PermissionContext
+jest.mock('../../../contexts/PermissionContext', () => ({
+  usePermissions: () => ({
+    hasPermission: jest.fn((permission: string) => {
+      if (permission === 'add_outside_ec') return false;
+      return true;
+    })
+  })
+}));
+
 describe('EvacuationCenterForm', () => {
   const mockFormData = {
     name: 'Test Center',
@@ -27,7 +37,8 @@ describe('EvacuationCenterForm', () => {
     barangayId: 1,
     latitude: '14.123',
     longitude: '121.123',
-    total_capacity: '100'
+    total_capacity: '100',
+    ec_status: 'Available'
   };
 
   const mockBarangays = [

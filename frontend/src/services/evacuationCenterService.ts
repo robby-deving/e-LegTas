@@ -29,6 +29,8 @@ class EvacuationCenterService {
     limit?: number;
     offset?: number;
     search?: string;
+    ec_type?: 'inside' | 'outside';
+    barangay_id?: number;
   }): Promise<{
     data: EvacuationCenter[];
     pagination: {
@@ -39,13 +41,19 @@ class EvacuationCenterService {
       currentPage: number;
     };
   }> {
+    console.log('Service getEvacuationCenters params:', params);
     const queryParams = new URLSearchParams();
-    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    queryParams.append('limit', (params?.limit || 10).toString());
     if (params?.offset) queryParams.append('offset', params.offset.toString());
     if (params?.search) queryParams.append('search', params.search);
+    if (params?.ec_type) queryParams.append('ec_type', params.ec_type);
+    if (params?.barangay_id !== undefined && params?.barangay_id !== null) {
+      console.log('Adding barangay_id to query:', params.barangay_id);
+      queryParams.append('barangay_id', params.barangay_id.toString());
+    }
 
     const url = `${this.baseUrl}/evacuation-centers${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-
+    console.log('URL:', url);
     const response = await fetch(url, {
       headers: this.buildHeaders(),
     });

@@ -5,12 +5,15 @@ const {
   getActiveEvacuationCentersByDisaster,
   getTotalRegisteredEvacueesByDisaster,
   getTotalRegisteredFamiliesByDisaster,
+  getFamiliesWithReliefGoodsByDisaster,
   getEvacueeStatisticsByDisaster,
   getEvacuationCenterCapacityStatus,
   getActiveDisasters,
   getCampManagerDisasters,
   getCampManagerCenterInfo,
-  getCampManagerDashboardSummary
+  getCampManagerDashboardSummary,
+  getBarangayActiveDisasters,
+  getBarangayDashboard
 } = require('../controllers/dashboard.controller');
 const { authenticateUser, requirePermission } = require('../middleware');
 
@@ -39,6 +42,13 @@ router.get(
   '/registered-families/:disasterId',
   requirePermission('view_dashboard'),
   getTotalRegisteredFamiliesByDisaster
+);
+// GET total families with relief goods for a specific disaster
+// Example: GET /api/v1/dashboard/families-with-relief-goods/:disasterId
+router.get(
+  '/families-with-relief-goods/:disasterId',
+  requirePermission('view_dashboard'),
+  getFamiliesWithReliefGoodsByDisaster
 );
 // GET evacuee statistics by vulnerability type for a specific disaster
 // Example: GET /api/v1/dashboard/evacuee-statistics/:disasterId
@@ -78,6 +88,11 @@ router.get("/camp-manager/summary/:eventId",
   requirePermission('view_dashboard_specific'), 
   getCampManagerDashboardSummary
 );
+
+// For Barangay Official Dashboard
+router.get("/barangay/disasters/:barangayId", getBarangayActiveDisasters);
+router.get('/barangay/summary/:barangayId', getBarangayDashboard);
+
 
 // Future dashboard routes can follow this format:
 // router.get('/total-evacuees/:disasterId', dashboardController.getTotalEvacuees);

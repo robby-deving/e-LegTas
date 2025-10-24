@@ -1,22 +1,17 @@
 import { Button } from "../ui/button";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "../ui/dropdown-menu";
-// Popover and Calendar are no longer directly used in this component for date selection
-// import { Popover, PopoverTrigger, PopoverContent } from "../ui/popover";
-// import { Calendar } from "../ui/calendar";
-import DisasterFilterIcon from "../../assets/disaster-filter.svg"; // Ensure this path is correct
-// import { format } from "date-fns"; // No longer needed for date formatting here
-import MonthYearGridPicker from "./MonthYearGridPicker"; // Ensure this path is correct
+import DisasterFilterIcon from "../../assets/disaster-filter.svg"; 
+import MonthYearGridPicker from "./MonthYearGridPicker"; 
 import { usePermissions } from "../../contexts/PermissionContext";
-
+/**
+ * Note: While the UI displays "Incident", we use "Disaster" in our
+ * codebase for consistency with our data models and APIs.
+ */
 interface Props {
   disasterTypes: string[];
   typeFilter: string;
   setTypeFilter: (t: string) => void;
-  // Removed selectedDate and setSelectedDate as MonthYearGridPicker handles this
-  // selectedDate: Date | undefined;
-  // setSelectedDate: (d: Date | undefined) => void;
   onRecordNew: () => void;
-  // New props for month/year filtering
   month: number | null; 
   year: number;
   onMonthYearChange: (month: number | null, year: number) => void;
@@ -26,12 +21,11 @@ export default function DisasterFilterBar({
   disasterTypes,
   typeFilter,
   setTypeFilter,
-  // selectedDate, // Removed
-  // setSelectedDate, // Removed
+
   onRecordNew,
-  month, // New prop
-  year,  // New prop
-  onMonthYearChange, // New prop
+  month, 
+  year,  
+  onMonthYearChange, 
 }: Props) {
   const { hasPermission } = usePermissions();
   const canCreateDisaster = hasPermission('create_disaster');
@@ -46,7 +40,7 @@ export default function DisasterFilterBar({
             ) : (
               <span>Icon</span>
             )}
-            {typeFilter === 'All' ? 'Disaster Type' : typeFilter}
+            {typeFilter === 'All' ? 'Incident Type' : typeFilter}
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start">
@@ -58,7 +52,7 @@ export default function DisasterFilterBar({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {/* Date Filter - Now using MonthYearGridPicker */}
+      {/* Date Filter */}
       <MonthYearGridPicker
         month={month}
         year={year}
@@ -71,7 +65,7 @@ export default function DisasterFilterBar({
           className="bg-green-700 hover:bg-green-800 text-white px-6 flex gap-2 items-center cursor-pointer"
           onClick={onRecordNew}
         >
-          <span className="text-lg">+</span> Record New Disaster
+          <span className="text-lg">+</span> Record New Incident
         </Button>
       )}
     </div>

@@ -4,8 +4,10 @@
     "jsx": "react-jsx",
     "esModuleInterop": true,
     "types": ["jest", "node", "@testing-library/jest-dom"],
-    "moduleResolution": "node",
-    "verbatimModuleSyntax": false
+    "moduleResolution": "node16",
+    "verbatimModuleSyntax": false,
+    "module": "node18",
+    "isolatedModules": true
   },
   "include": ["src/**/*.test.ts", "src/**/*.test.tsx", "src/**/__tests__/**/*"]
 }
