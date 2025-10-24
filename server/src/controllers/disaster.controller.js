@@ -1,6 +1,7 @@
 // disaster.controller.js
 
 const { supabase } = require('../config/supabase');
+const logger = require('../utils/logger');
 
 const TABLE_NAME = 'disasters'; 
 
@@ -45,11 +46,12 @@ exports.getAllDisasters = async (req, res, next) => {
         const { data, error } = await query;
 
         if (error) {
-            console.error('Supabase Error (getAllDisasters):', error);
+            logger.error('Supabase Error (getAllDisasters):', { error: error.message, details: error });
             return next(new ApiError('Failed to retrieve disaster entries.', 500));
         }
 
         if (!data || data.length === 0) {
+            logger.info('No disaster entries found');
             return res.status(200).json({ message: 'No disaster entries found.', data: [] });
         }
 
@@ -64,6 +66,9 @@ exports.getAllDisasters = async (req, res, next) => {
             };
         });
 
+        logger.info('Successfully retrieved disaster entries', { count: transformedData.length, year, month });
+        logger.debug('Disaster entries data', { data: transformedData });
+        
         res.status(200).json({
             message: year !== undefined
                 ? `Successfully retrieved disaster entries for ${month !== undefined ? `month ${parseInt(month) + 1}/` : ''}${year}.`
@@ -72,6 +77,7 @@ exports.getAllDisasters = async (req, res, next) => {
             data: transformedData
         });
     } catch (err) {
+        logger.error('Internal server error during getAllDisasters', { error: err.message, stack: err.stack });
         next(new ApiError('Internal server error during getAllDisasters.', 500));
     }
 };
@@ -85,6 +91,7 @@ exports.getDisasterById = async (req, res, next) => {
     const { id } = req.params;
 
     if (!id || isNaN(Number(id))) {
+        logger.warn('Invalid disaster ID provided', { id });
         return next(new ApiError('Invalid disaster ID provided.', 400));
     }
 
@@ -100,14 +107,16 @@ exports.getDisasterById = async (req, res, next) => {
             .single();
 
         if (error && error.code === 'PGRST116') {
+             logger.warn('Disaster not found', { id, code: error.code });
              return next(new ApiError(`Disaster with ID ${id} not found.`, 404));
         }
         if (error) {
-            console.error('Supabase Error (getDisasterById):', error);
+            logger.error('Supabase Error (getDisasterById):', { error: error.message, details: error, id });
             return next(new ApiError('Failed to retrieve disaster entry.', 500));
         }
 
         if (!data) {
+            logger.warn('Disaster not found', { id });
             return next(new ApiError(`Disaster with ID ${id} not found.`, 404));
         }
 
@@ -119,11 +128,15 @@ exports.getDisasterById = async (req, res, next) => {
             disaster_type_name: disasterTypeName
         };
 
+        logger.debug('Successfully retrieved disaster by ID', { id });
+        logger.debug('Disaster data', { data: transformedData });
+        
         res.status(200).json({
             message: `Successfully retrieved disaster with ID ${id}.`,
             data: transformedData
         });
     } catch (err) {
+        logger.error('Internal server error during getDisasterById', { error: err.message, stack: err.stack, id });
         next(new ApiError('Internal server error during getDisasterById.', 500));
     }
 };
@@ -143,6 +156,7 @@ exports.createDisaster = async (req, res, next) => {
 
     // Basic input validation
     if (!disaster_name || !disaster_type_id || !disaster_start_date) {
+        logger.warn('Missing required fields for disaster creation', { disaster_name, disaster_type_id, disaster_start_date });
         return next(new ApiError('Missing required fields for disaster.', 400));
     }
 
@@ -161,18 +175,23 @@ exports.createDisaster = async (req, res, next) => {
             .select();
 
         if (error) {
-            console.error('Supabase Error (createDisaster):', error);
             if (error.code === '23503') { // PostgreSQL foreign key violation error code
+                logger.warn('Foreign key constraint failed during disaster creation', { error: error.message, disaster_type_id });
                 return next(new ApiError('Foreign key constraint failed (disaster_type_id does not exist).', 400));
             }
+            logger.error('Supabase Error (createDisaster):', { error: error.message, details: error });
             return next(new ApiError('Failed to create disaster entry.', 500));
         }
 
+        logger.debug('Disaster entry created successfully', { disaster_id: data[0].id, disaster_name });
+        logger.debug('Created disaster data', { data: data[0] });
+        
         res.status(201).json({
             message: 'Disaster entry created successfully.',
             data: data[0]
         });
     } catch (err) {
+        logger.error('Internal server error during createDisaster', { error: err.message, stack: err.stack });
         next(new ApiError('Internal server error during createDisaster.', 500));
     }
 };
@@ -187,6 +206,7 @@ exports.updateDisaster = async (req, res, next) => {
     const updates = req.body;
 
     if (!id || isNaN(Number(id))) {
+        logger.warn('Invalid disaster ID provided for update', { id });
         return next(new ApiError('Invalid disaster ID provided.', 400));
     }
 
@@ -206,25 +226,32 @@ exports.updateDisaster = async (req, res, next) => {
             .select();
 
         if (error && error.code === 'PGRST116') {
+             logger.warn('Disaster not found for update', { id, code: error.code });
              return next(new ApiError(`Disaster with ID ${id} not found for update.`, 404));
         }
         if (error) {
-            console.error('Supabase Error (updateDisaster):', error);
             if (error.code === '23503') { // PostgreSQL foreign key violation error code
+                logger.warn('Foreign key constraint failed during disaster update', { error: error.message, id, updates });
                 return next(new ApiError('Foreign key constraint failed (disaster_type_id does not exist).', 400));
             }
+            logger.error('Supabase Error (updateDisaster):', { error: error.message, details: error, id });
             return next(new ApiError('Failed to update disaster entry.', 500));
         }
 
         if (!data || data.length === 0) {
+            logger.warn('Disaster not found for update', { id });
             return next(new ApiError(`Disaster with ID ${id} not found for update.`, 404));
         }
 
+        logger.debug('Disaster updated successfully', { id });
+        logger.debug('Updated disaster data', { data: data[0] });
+        
         res.status(200).json({
             message: `Disaster with ID ${id} updated successfully.`,
             data: data[0]
         });
     } catch (err) {
+        logger.error('Internal server error during updateDisaster', { error: err.message, stack: err.stack, id });
         next(new ApiError('Internal server error during updateDisaster.', 500));
     }
 };
@@ -238,6 +265,7 @@ exports.deleteDisaster = async (req, res, next) => {
     const { id } = req.params;
 
     if (!id || isNaN(Number(id))) {
+        logger.warn('Invalid disaster ID provided for deletion', { id });
         return next(new ApiError('Invalid disaster ID provided.', 400));
     }
 
@@ -251,18 +279,22 @@ exports.deleteDisaster = async (req, res, next) => {
             .select();
 
         if (error) {
-            console.error('Supabase Error (deleteDisaster):', error);
+            logger.error('Supabase Error (deleteDisaster):', { error: error.message, details: error, id });
             return next(new ApiError('Failed to delete disaster entry.', 500));
         }
 
         if (!data || data.length === 0) {
+            logger.warn('Disaster not found for deletion or already deleted', { id });
             return next(new ApiError(`Disaster with ID ${id} not found for deletion or already deleted.`, 404));
         }
 
+        logger.debug('Disaster soft deleted successfully', { id });
+        
         res.status(200).json({
             message: `Disaster with ID ${id} deleted successfully.`
         });
     } catch (err) {
+        logger.error('Internal server error during deleteDisaster', { error: err.message, stack: err.stack, id });
         next(new ApiError('Internal server error during deleteDisaster.', 500));
     }
 };
@@ -274,20 +306,25 @@ exports.getAllDisasterTypes = async (req, res, next) => {
             .select('*'); // Select all columns from the Disasters_Types table
 
         if (error) {
-            console.error('Supabase Error (getAllDisasterTypes):', error);
+            logger.error('Supabase Error (getAllDisasterTypes):', { error: error.message, details: error });
             return next(new ApiError('Failed to retrieve disaster type entries.', 500));
         }
 
         if (!data || data.length === 0) {
+            logger.debug('No disaster type entries found');
             return res.status(200).json({ message: 'No disaster type entries found.', data: [] });
         }
 
+        logger.debug('Successfully retrieved all disaster type entries', { count: data.length });
+        logger.debug('Disaster types data', { data });
+        
         res.status(200).json({
             message: 'Successfully retrieved all disaster type entries.',
             count: data.length,
             data: data
         });
     } catch (err) {
+        logger.error('Internal server error during getAllDisasterTypes', { error: err.message, stack: err.stack });
         next(new ApiError('Internal server error during getAllDisasterTypes.', 500));
     }
 };

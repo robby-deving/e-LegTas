@@ -1,6 +1,7 @@
 // room.controller.js
 
 const { supabase } = require('../config/supabase'); // Import the centralized Supabase client
+const logger = require('../utils/logger');
 
 const TABLE_NAME = 'evacuation_center_rooms'; // IMPORTANT: Ensure this matches your Supabase table name
 
@@ -28,7 +29,7 @@ exports.getAllRooms = async (req, res, next) => {
             .is('deleted_at', null); // Only retrieve records where deleted_at is NULL
 
         if (error) {
-            console.error('Supabase Error (getAllRooms):', error);
+            logger.error('Supabase Error (getAllRooms):', { error: error.message, stack: error.stack });
             return next(new ApiError('Failed to retrieve evacuation room entries.', 500));
         }
 
@@ -42,6 +43,7 @@ exports.getAllRooms = async (req, res, next) => {
             data: data
         });
     } catch (err) {
+        logger.error('Error in getAllRooms:', { error: err.message, stack: err.stack });
         next(new ApiError('Internal server error during getAllRooms.', 500));
     }
 };
@@ -70,7 +72,7 @@ exports.getRoomById = async (req, res, next) => {
              return next(new ApiError(`Evacuation room with ID ${id} not found or is deleted.`, 404));
         }
         if (error) {
-            console.error('Supabase Error (getRoomById):', error);
+            logger.error('Supabase Error (getRoomById):', { error: error.message, stack: error.stack });
             return next(new ApiError('Failed to retrieve evacuation room entry.', 500));
         }
 
@@ -83,6 +85,7 @@ exports.getRoomById = async (req, res, next) => {
             data: data
         });
     } catch (err) {
+        logger.error('Error in getRoomById:', { error: err.message, stack: err.stack });
         next(new ApiError('Internal server error during getRoomById.', 500));
     }
 };
@@ -121,7 +124,7 @@ exports.createRoom = async (req, res, next) => {
             .select();
 
         if (error) {
-            console.error('Supabase Error (createRoom):', error);
+            logger.error('Supabase Error (createRoom):', { error: error.message, stack: error.stack });
             if (error.code === '23503') { // PostgreSQL foreign key violation error code
                 return next(new ApiError('Foreign key constraint failed (evacuation_center_id does not exist).', 400));
             }
@@ -133,6 +136,7 @@ exports.createRoom = async (req, res, next) => {
             data: data[0]
         });
     } catch (err) {
+        logger.error('Error in createRoom:', { error: err.message, stack: err.stack });
         next(new ApiError('Internal server error during createRoom.', 500));
     }
 };
@@ -171,7 +175,7 @@ exports.updateRoom = async (req, res, next) => {
              return next(new ApiError(`Evacuation room with ID ${id} not found for update or is deleted.`, 404));
         }
         if (error) {
-            console.error('Supabase Error (updateRoom):', error);
+            logger.error('Supabase Error (updateRoom):', { error: error.message, stack: error.stack });
             if (error.code === '23503') { // PostgreSQL foreign key violation error code
                 return next(new ApiError('Foreign key constraint failed (evacuation_center_id does not exist).', 400));
             }
@@ -211,7 +215,7 @@ exports.deleteRoom = async (req, res, next) => {
             .select();
 
         if (error) {
-            console.error('Supabase Error (deleteRoom):', error);
+            logger.error('Supabase Error (deleteRoom):', { error: error.message, stack: error.stack });
             return next(new ApiError('Failed to delete evacuation room entry.', 500));
         }
 
@@ -223,6 +227,7 @@ exports.deleteRoom = async (req, res, next) => {
             message: `Evacuation room with ID ${id} deleted successfully.`
         });
     } catch (err) {
+        logger.error('Error in deleteRoom:', { error: err.message, stack: err.stack });
         next(new ApiError('Internal server error during deleteRoom.', 500));
     }
 };
@@ -251,7 +256,7 @@ exports.softDeleteRoom = async (req, res, next) => {
              return next(new ApiError(`Evacuation room with ID ${id} not found for soft deletion or already deleted.`, 404));
         }
         if (error) {
-            console.error('Supabase Error (softDeleteRoom):', error);
+            logger.error('Supabase Error (softDeleteRoom):', { error: error.message, stack: error.stack });
             return next(new ApiError('Failed to soft-delete evacuation room entry.', 500));
         }
 
@@ -264,6 +269,7 @@ exports.softDeleteRoom = async (req, res, next) => {
             data: data[0]
         });
     } catch (err) {
+        logger.error('Error in softDeleteRoom:', { error: err.message, stack: err.stack });
         next(new ApiError('Internal server error during softDeleteRoom.', 500));
     }
 };
@@ -288,7 +294,7 @@ exports.getRoomsByEvacuationCenterId = async (req, res, next) => {
             .is('deleted_at', null); // Only retrieve active (non-soft-deleted) rooms
 
         if (error) {
-            console.error('Supabase Error (getRoomsByEvacuationCenterId):', error);
+            logger.error('Supabase Error (getRoomsByEvacuationCenterId):', { error: error.message, stack: error.stack });
             return next(new ApiError('Failed to retrieve rooms for the specified evacuation center.', 500));
         }
 
@@ -305,6 +311,7 @@ exports.getRoomsByEvacuationCenterId = async (req, res, next) => {
             data: data
         });
     } catch (err) {
+        logger.error('Error in getRoomsByEvacuationCenterId:', { error: err.message, stack: err.stack });
         next(new ApiError('Internal server error during getRoomsByEvacuationCenterId.', 500));
     }
 };

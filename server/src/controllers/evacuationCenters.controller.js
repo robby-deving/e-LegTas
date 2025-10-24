@@ -1,7 +1,8 @@
 // evacuation.controller.js
 
 // Import the centralized Supabase client
-const { supabase } = require('../config/supabase'); 
+const { supabase } = require('../config/supabase');
+const logger = require('../utils/logger'); 
 
 // Define the table name for evacuation centers
 const TABLE_NAME = 'evacuation_centers'; 
@@ -67,7 +68,7 @@ exports.getAllEvacuationCenters = async (req, res, next) => {
         const { data, error, count } = await query;
 
         if (error) {
-            console.error('Supabase Error (getAllEvacuationCenters):', error);
+            logger.error('Supabase Error (getAllEvacuationCenters):', { error: error.message, details: error });
             return next(new ApiError('Failed to retrieve evacuation center entries.', 500));
         }
 
@@ -103,6 +104,7 @@ exports.getAllEvacuationCenters = async (req, res, next) => {
         }
 
         if (!data || data.length === 0) {
+            logger.info('No evacuation center entries found');
             return res.status(200).json({
                 message: 'No evacuation center entries found.',
                 data: [],
@@ -116,6 +118,9 @@ exports.getAllEvacuationCenters = async (req, res, next) => {
             });
         }
 
+        logger.debug('Successfully retrieved evacuation center entries', { count: data.length, totalCount, limit, offset });
+        logger.debug('Evacuation centers data', { data });
+        
         res.status(200).json({
             message: 'Successfully retrieved evacuation center entries.',
             count: data.length,
@@ -129,6 +134,7 @@ exports.getAllEvacuationCenters = async (req, res, next) => {
             }
         });
     } catch (err) {
+        logger.error('Internal server error during getAllEvacuationCenters', { error: err.message, stack: err.stack });
         next(new ApiError('Internal server error during getAllEvacuationCenters.', 500));
     }
 };
@@ -142,6 +148,7 @@ exports.getEvacuationCenterById = async (req, res, next) => {
     const { id } = req.params;
 
     if (!id || isNaN(Number(id))) {
+        logger.warn('Invalid evacuation center ID provided', { id });
         return next(new ApiError('Invalid evacuation center ID provided.', 400));
     }
 
@@ -154,22 +161,28 @@ exports.getEvacuationCenterById = async (req, res, next) => {
             .single();
 
         if (error && error.code === 'PGRST116') {
+             logger.warn('Evacuation center not found', { id, code: error.code });
              return next(new ApiError(`Evacuation center with ID ${id} not found.`, 404));
         }
         if (error) {
-            console.error('Supabase Error (getEvacuationCenterById):', error);
+            logger.error('Supabase Error (getEvacuationCenterById):', { error: error.message, details: error, id });
             return next(new ApiError('Failed to retrieve evacuation center entry.', 500));
         }
 
         if (!data) {
+            logger.warn('Evacuation center not found', { id });
             return next(new ApiError(`Evacuation center with ID ${id} not found.`, 404));
         }
 
+        logger.debug('Successfully retrieved evacuation center by ID', { id });
+        logger.debug('Evacuation center data', { data });
+        
         res.status(200).json({
             message: `Successfully retrieved evacuation center with ID ${id}.`,
             data: data
         });
     } catch (err) {
+        logger.error('Internal server error during getEvacuationCenterById', { error: err.message, stack: err.stack, id });
         next(new ApiError('Internal server error during getEvacuationCenterById.', 500));
     }
 };
@@ -194,11 +207,13 @@ exports.createEvacuationCenter = async (req, res, next) => {
 
     // Check if all required fields are present
     if (!name || !address || !barangay_id || !ec_status || !category || !created_by) {
+        logger.warn('Missing required fields for evacuation center creation', { name, address, barangay_id, ec_status, category, created_by });
         return next(new ApiError('Missing required fields for evacuation center.', 400));
     }
 
     // For non-Private House categories, validate additional required fields
     if (category !== 'Private House' && (!latitude || !longitude || !total_capacity)) {
+        logger.warn('Missing required fields for non-Private House evacuation center', { category, latitude, longitude, total_capacity });
         return next(new ApiError('Latitude, longitude, and total capacity are required for non-Private House evacuation centers.', 400));
     }
 
@@ -232,18 +247,23 @@ exports.createEvacuationCenter = async (req, res, next) => {
             .select();
 
         if (error) {
-            console.error('Supabase Error (createEvacuationCenter):', error);
             if (error.code === '23503') {
+                logger.warn('Foreign key constraint failed during evacuation center creation', { error: error.message, barangay_id, created_by });
                 return next(new ApiError('Foreign key constraint failed (e.g., barangay_id or created_by does not exist).', 400));
             }
+            logger.error('Supabase Error (createEvacuationCenter):', { error: error.message, details: error });
             return next(new ApiError('Failed to create evacuation center entry.', 500));
         }
 
+        logger.debug('Evacuation center entry created successfully', { evacuation_center_id: data[0].id, name });
+        logger.debug('Created evacuation center data', { data: data[0] });
+        
         res.status(201).json({
             message: 'Evacuation center entry created successfully.',
             data: data[0]
         });
     } catch (err) {
+        logger.error('Internal server error during createEvacuationCenter', { error: err.message, stack: err.stack });
         next(new ApiError('Internal server error during createEvacuationCenter.', 500));
     }
 };
@@ -258,6 +278,7 @@ exports.updateEvacuationCenter = async (req, res, next) => {
     const updates = req.body;
 
     if (!id || isNaN(Number(id))) {
+        logger.warn('Invalid evacuation center ID provided for update', { id });
         return next(new ApiError('Invalid evacuation center ID provided.', 400));
     }
 
@@ -281,22 +302,28 @@ exports.updateEvacuationCenter = async (req, res, next) => {
             .select();
 
         if (error && error.code === 'PGRST116') {
+             logger.warn('Evacuation center not found for update', { id, code: error.code });
              return next(new ApiError(`Evacuation center with ID ${id} not found for update.`, 404));
         }
         if (error) {
-            console.error('Supabase Error (updateEvacuationCenter):', error);
+            logger.error('Supabase Error (updateEvacuationCenter):', { error: error.message, details: error, id });
             return next(new ApiError('Failed to update evacuation center entry.', 500));
         }
 
         if (!data || data.length === 0) {
+            logger.warn('Evacuation center not found for update', { id });
             return next(new ApiError(`Evacuation center with ID ${id} not found.`, 404));
         }
 
+        logger.info('Evacuation center updated successfully', { id });
+        logger.debug('Updated evacuation center data', { data: data[0] });
+        
         res.status(200).json({
             message: `Evacuation center with ID ${id} updated successfully.`,
             data: data[0]
         });
     } catch (err) {
+        logger.error('Internal server error during updateEvacuationCenter', { error: err.message, stack: err.stack, id });
         next(new ApiError('Internal server error during updateEvacuationCenter.', 500));
     }
 };
@@ -310,6 +337,7 @@ exports.deleteEvacuationCenter = async (req, res, next) => {
     const { id } = req.params;
 
     if (!id || isNaN(Number(id))) {
+        logger.warn('Invalid evacuation center ID provided for deletion', { id });
         return next(new ApiError('Invalid evacuation center ID provided.', 400));
     }
 
@@ -323,18 +351,22 @@ exports.deleteEvacuationCenter = async (req, res, next) => {
             .select(); // Returns the deleted row(s) in 'data'
 
         if (error) {
-            console.error('Supabase Error (deleteEvacuationCenter):', error);
+            logger.error('Supabase Error (deleteEvacuationCenter):', { error: error.message, details: error, id });
             return next(new ApiError('Failed to delete evacuation center entry.', 500));
         }
 
         if (!data || data.length === 0) {
+            logger.warn('Evacuation center not found for deletion', { id });
             return next(new ApiError(`Evacuation center with ID ${id} not found for deletion.`, 404));
         }
 
+        logger.debug('Evacuation center deleted successfully', { id });
+        
         res.status(200).json({
             message: `Evacuation center with ID ${id} deleted successfully.`
         });
     } catch (err) {
+        logger.error('Internal server error during deleteEvacuationCenter', { error: err.message, stack: err.stack, id });
         next(new ApiError('Internal server error during deleteEvacuationCenter.', 500));
     }
 };
@@ -348,6 +380,7 @@ exports.softDeleteEvacuationCenter = async (req, res, next) => {
     const { id } = req.params;
 
     if (!id || isNaN(Number(id))) {
+        logger.warn('Invalid evacuation center ID provided for soft delete', { id });
         return next(new ApiError('Invalid evacuation center ID provided.', 400));
     }
 
@@ -365,7 +398,7 @@ exports.softDeleteEvacuationCenter = async (req, res, next) => {
             .is('deleted_at', null);
 
         if (roomsError) {
-            console.error('Supabase Error (softDeleteRooms):', roomsError);
+            logger.error('Supabase Error (softDeleteRooms):', { error: roomsError.message, details: roomsError, id });
             return next(new ApiError('Failed to soft delete associated rooms.', 500));
         }
 
@@ -381,30 +414,38 @@ exports.softDeleteEvacuationCenter = async (req, res, next) => {
             .select();
 
         if (centerError) {
-            console.error('Supabase Error (softDeleteEvacuationCenter):', {
-                error: centerError,
+            logger.error('Supabase Error (softDeleteEvacuationCenter):', {
+                error: centerError.message,
                 details: centerError.details,
                 hint: centerError.hint,
-                code: centerError.code
+                code: centerError.code,
+                id
             });
             if (centerError.code === '23503') {
+                logger.warn('Cannot delete: evacuation center referenced by other records', { id, code: centerError.code });
                 return next(new ApiError('Cannot delete: This evacuation center is referenced by other records.', 400));
             }
             if (centerError.code === '23505') {
+                logger.warn('Cannot delete: duplicate key violation', { id, code: centerError.code });
                 return next(new ApiError('Cannot delete: Duplicate key violation.', 400));
             }
             return next(new ApiError(`Failed to soft delete evacuation center entry: ${centerError.message}`, 500));
         }
 
         if (!data || data.length === 0) {
+            logger.warn('Evacuation center not found or already deleted', { id });
             return next(new ApiError(`Evacuation center with ID ${id} not found or already deleted.`, 404));
         }
 
+        logger.info('Evacuation center and rooms soft deleted successfully', { id });
+        logger.debug('Soft deleted evacuation center data', { data: data[0] });
+        
         res.status(200).json({
             message: `Evacuation center with ID ${id} and all its rooms soft deleted successfully.`,
             data: data[0]
         });
     } catch (err) {
+        logger.error('Internal server error during softDeleteEvacuationCenter', { error: err.message, stack: err.stack, id });
         next(new ApiError('Internal server error during softDeleteEvacuationCenter.', 500));
     }
 };
@@ -418,6 +459,7 @@ exports.restoreEvacuationCenter = async (req, res, next) => {
     const { id } = req.params;
 
     if (!id || isNaN(Number(id))) {
+        logger.warn('Invalid evacuation center ID provided for restore', { id });
         return next(new ApiError('Invalid evacuation center ID provided.', 400));
     }
 
@@ -434,11 +476,12 @@ exports.restoreEvacuationCenter = async (req, res, next) => {
             .select();
 
         if (centerError) {
-            console.error('Supabase Error (restoreEvacuationCenter):', centerError);
+            logger.error('Supabase Error (restoreEvacuationCenter):', { error: centerError.message, details: centerError, id });
             return next(new ApiError('Failed to restore evacuation center entry.', 500));
         }
 
         if (!centerData || centerData.length === 0) {
+            logger.warn('Evacuation center not found or not deleted', { id });
             return next(new ApiError(`Evacuation center with ID ${id} not found or not deleted.`, 404));
         }
 
@@ -452,15 +495,19 @@ exports.restoreEvacuationCenter = async (req, res, next) => {
             .not('deleted_at', 'is', null);
 
         if (roomsError) {
-            console.error('Supabase Error (restoreRooms):', roomsError);
+            logger.error('Supabase Error (restoreRooms):', { error: roomsError.message, details: roomsError, id });
             return next(new ApiError('Failed to restore associated rooms.', 500));
         }
 
+        logger.debug('Evacuation center and rooms restored successfully', { id });
+        logger.debug('Restored evacuation center data', { data: centerData[0] });
+        
         res.status(200).json({
             message: `Evacuation center with ID ${id} and all its rooms restored successfully.`,
             data: centerData[0]
         });
     } catch (err) {
+        logger.error('Internal server error during restoreEvacuationCenter', { error: err.message, stack: err.stack, id });
         next(new ApiError('Internal server error during restoreEvacuationCenter.', 500));
     }
 };
@@ -488,11 +535,12 @@ exports.getEvacuationCenterMapData = async (req, res, next) => {
             .neq('category', 'Private House'); // Exclude Private House category
 
         if (centersError) {
-            console.error('Supabase Error (getEvacuationCenterMapData - centers):', centersError);
+            logger.error('Supabase Error (getEvacuationCenterMapData - centers):', { error: centersError.message, details: centersError });
             return next(new ApiError('Failed to retrieve evacuation center data.', 500));
         }
 
         if (!centers || centers.length === 0) {
+            logger.info('No evacuation centers found for map data');
             return res.status(200).json({
                 message: 'No evacuation centers found.',
                 count: 0,
@@ -509,7 +557,7 @@ exports.getEvacuationCenterMapData = async (req, res, next) => {
             .is('evacuation_end_date', null);
 
         if (eventsError) {
-            console.error('Supabase Error (getEvacuationCenterMapData - active events):', eventsError);
+            logger.error('Supabase Error (getEvacuationCenterMapData - active events):', { error: eventsError.message, details: eventsError });
             return next(new ApiError('Failed to retrieve active disaster events.', 500));
         }
 
@@ -524,7 +572,7 @@ exports.getEvacuationCenterMapData = async (req, res, next) => {
                 .order('created_at', { ascending: false });
 
             if (summariesError) {
-                console.error('Supabase Error (getEvacuationCenterMapData - summaries):', summariesError);
+                logger.error('Supabase Error (getEvacuationCenterMapData - summaries):', { error: summariesError.message, details: summariesError });
                 return next(new ApiError('Failed to retrieve evacuation summaries.', 500));
             }
 
@@ -580,13 +628,16 @@ exports.getEvacuationCenterMapData = async (req, res, next) => {
             };
         });
 
+        logger.debug('Successfully retrieved evacuation center map data', { count: transformedData.length });
+        logger.debug('Evacuation center map data', { data: transformedData });
+        
         res.status(200).json({
             message: 'Successfully retrieved detailed evacuation center map data.',
             count: transformedData.length,
             data: transformedData
         });
     } catch (err) {
-        console.error('Internal server error during getEvacuationCenterMapData:', err);
+        logger.error('Internal server error during getEvacuationCenterMapData', { error: err.message, stack: err.stack });
         next(new ApiError('Internal server error during getEvacuationCenterMapData.', 500));
     }
 };
@@ -600,6 +651,7 @@ exports.getEvacuationCenterWithRooms = async (req, res, next) => {
     const { id } = req.params;
 
     if (!id || isNaN(Number(id))) {
+        logger.warn('Invalid evacuation center ID provided for rooms query', { id });
         return next(new ApiError('Invalid evacuation center ID provided.', 400));
     }
 
@@ -624,11 +676,12 @@ exports.getEvacuationCenterWithRooms = async (req, res, next) => {
             .single();
 
         if (error) {
-            console.error('Supabase Error (getEvacuationCenterWithRooms):', error);
+            logger.error('Supabase Error (getEvacuationCenterWithRooms):', { error: error.message, details: error, id });
             return next(new ApiError('Failed to retrieve evacuation center with rooms.', 500));
         }
 
         if (!data) {
+            logger.warn('Evacuation center not found for rooms query', { id });
             return next(new ApiError(`Evacuation center with ID ${id} not found.`, 404));
         }
 
@@ -639,11 +692,15 @@ exports.getEvacuationCenterWithRooms = async (req, res, next) => {
                 .filter(room => !room.deleted_at)
         };
 
+        logger.info('Successfully retrieved evacuation center with rooms', { id, roomCount: centerData.evacuation_center_rooms.length });
+        logger.debug('Evacuation center with rooms data', { data: centerData });
+        
         res.status(200).json({
             message: `Successfully retrieved evacuation center with ID ${id} and its rooms.`,
             data: centerData
         });
     } catch (err) {
+        logger.error('Internal server error during getEvacuationCenterWithRooms', { error: err.message, stack: err.stack, id });
         next(new ApiError('Internal server error during getEvacuationCenterWithRooms.', 500));
     }
 };
@@ -659,6 +716,7 @@ exports.getAssignedEvacuationCenter = async (req, res, next) => {
     const { userId } = req.params;
 
     if (!userId || isNaN(Number(userId))) {
+        logger.warn('Invalid user ID provided for assigned evacuation center query', { userId });
         return next(new ApiError('Invalid user ID provided.', 400));
     }
 
@@ -671,12 +729,14 @@ exports.getAssignedEvacuationCenter = async (req, res, next) => {
             .single();
 
         if (error && error.code !== 'PGRST116') { // PGRST116 is "not found" which is okay
-            console.error('Supabase Error (getAssignedEvacuationCenter):', error);
+            logger.error('Supabase Error (getAssignedEvacuationCenter):', { error: error.message, details: error, userId });
             return next(new ApiError('Failed to retrieve assigned evacuation center.', 500));
         }
 
         const evacuationCenterId = data ? data.id : null;
 
+        logger.debug('Retrieved assigned evacuation center for user', { userId, evacuationCenterId });
+        
         res.status(200).json({
             message: data 
                 ? `Successfully retrieved assigned evacuation center ID for user ${userId}.`
@@ -684,6 +744,7 @@ exports.getAssignedEvacuationCenter = async (req, res, next) => {
             evacuation_center_id: evacuationCenterId
         });
     } catch (err) {
+        logger.error('Internal server error during getAssignedEvacuationCenter', { error: err.message, stack: err.stack, userId });
         next(new ApiError('Internal server error during getAssignedEvacuationCenter.', 500));
     }
 };

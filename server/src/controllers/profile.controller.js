@@ -1,6 +1,7 @@
 // controllers/profile.controller.js
 
 const { supabase } = require('../config/supabase');
+const logger = require('../utils/logger');
 
 // --- Helper for Custom API Errors ---
 class ApiError extends Error {
@@ -40,7 +41,7 @@ exports.getUserProfile = async (req, res, next) => {
             .single();
 
         if (error) {
-            console.error('Supabase Error (getUserProfile):', error);
+            logger.error('Supabase Error (getUserProfile):', { error: error.message, stack: error.stack });
             return next(new ApiError('Failed to retrieve user profile.', 500));
         }
 
@@ -64,7 +65,7 @@ exports.getUserProfile = async (req, res, next) => {
             data: profileData
         });
     } catch (err) {
-        console.error('Unexpected Error (getUserProfile):', err);
+        logger.error('Unexpected Error (getUserProfile):', { error: err.message, stack: err.stack });
         next(new ApiError('Internal server error during getUserProfile.', 500));
     }
 };
@@ -99,7 +100,7 @@ exports.updateUserProfile = async (req, res, next) => {
       .single();
 
     if (fetchError) {
-      console.error('Supabase Error (fetch profile before update):', fetchError);
+      logger.error('Supabase Error (fetch profile before update):', { error: fetchError.message, stack: fetchError.stack });
       return next(new ApiError('Failed to fetch user profile before update.', 500));
     }
 
@@ -121,7 +122,7 @@ exports.updateUserProfile = async (req, res, next) => {
         .eq('id', profileId);
 
       if (updateProfileError) {
-        console.error('Supabase Error (update users_profile):', updateProfileError);
+        logger.error('Supabase Error (update users_profile):', { error: updateProfileError.message, stack: updateProfileError.stack });
         return next(new ApiError('Failed to update user profile details.', 500));
       }
     }
@@ -137,7 +138,7 @@ exports.updateUserProfile = async (req, res, next) => {
         .eq('id', residentId);
 
       if (updateResidentError) {
-        console.error('Supabase Error (update residents):', updateResidentError);
+        logger.error('Supabase Error (update residents):', { error: updateResidentError.message, stack: updateResidentError.stack });
         return next(new ApiError('Failed to update resident details.', 500));
       }
     }
@@ -146,7 +147,7 @@ exports.updateUserProfile = async (req, res, next) => {
       message: 'Successfully updated user profile.'
     });
   } catch (err) {
-    console.error('Unexpected Error (updateUserProfile):', err);
+    logger.error('Unexpected Error (updateUserProfile):', { error: err.message, stack: err.stack });
     next(new ApiError('Internal server error during updateUserProfile.', 500));
   }
 };

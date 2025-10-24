@@ -1,6 +1,7 @@
 // Import the centralized Supabase client
 const { supabase } = require('../config/supabase');
 const admin = require('../config/firebase-admin'); // Assume you have a centralized Firebase Admin setup
+const logger = require('../utils/logger');
 
 // Define the table names
 const DEVICE_TOKENS_TABLE = 'device_tokens';
@@ -44,7 +45,7 @@ exports.getAllAnnouncements = async (req, res, next) => {
             .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
 
         if (error) {
-            console.error('Supabase Error (getAllAnnouncements):', error);
+            logger.error('Supabase Error (getAllAnnouncements):', { error: error.message, details: error });
             return next(new ApiError('Failed to retrieve announcements.', 500));
         }
 
@@ -64,6 +65,7 @@ exports.getAllAnnouncements = async (req, res, next) => {
             data: data
         });
     } catch (err) {
+        logger.error('Error in getAllAnnouncements:', { error: err.message, stack: err.stack });
         next(new ApiError('Internal server error during getAllAnnouncements.', 500));
     }
 };
@@ -89,7 +91,7 @@ exports.registerDeviceToken = async (req, res, next) => {
             .maybeSingle(); // Use maybeSingle to get null if no row is found
 
         if (selectError) {
-            console.error('Supabase Error (registerDeviceToken - select):', selectError);
+            logger.error('Supabase Error (registerDeviceToken - select):', { error: selectError.message, details: selectError });
             return next(new ApiError('Failed to check for existing token.', 500));
         }
 
@@ -106,7 +108,7 @@ exports.registerDeviceToken = async (req, res, next) => {
             .insert({ token: token });
 
         if (insertError) {
-            console.error('Supabase Error (registerDeviceToken - insert):', insertError);
+            logger.error('Supabase Error (registerDeviceToken - insert):', { error: insertError.message, details: insertError });
             return next(new ApiError('Failed to register device token.', 500));
         }
 
@@ -114,7 +116,7 @@ exports.registerDeviceToken = async (req, res, next) => {
             message: 'Device token registered successfully.',
         });
     } catch (err) {
-        console.error('Internal Server Error (registerDeviceToken):', err);
+        logger.error('Internal Server Error (registerDeviceToken):', { error: err.message, stack: err.stack });
         next(new ApiError('Internal server error during device token registration.', 500));
     }
 };
@@ -144,7 +146,7 @@ exports.sendAnnouncementNotification = async (req, res, next) => {
             .select(); // Return the newly created row
 
         if (insertError) {
-            console.error('Supabase Error (sendAnnouncementNotification - insert):', insertError);
+            logger.error('Supabase Error (sendAnnouncementNotification - insert):', { error: insertError.message, details: insertError });
             return next(new ApiError('Failed to save announcement.', 500));
         }
 
@@ -154,9 +156,9 @@ exports.sendAnnouncementNotification = async (req, res, next) => {
             .select('token');
 
         if (tokensError) {
-            console.error('Supabase Error (sendAnnouncementNotification - select tokens):', tokensError);
+            logger.error('Supabase Error (sendAnnouncementNotification - select tokens):', { error: tokensError.message, details: tokensError });
             // We'll still respond with success for saving the announcement, but log the notification error
-            console.warn('Notification send failed due to token retrieval error.');
+            logger.warn('Notification send failed due to token retrieval error.');
         }
 
         // Check if there are any tokens to send to
@@ -174,9 +176,9 @@ exports.sendAnnouncementNotification = async (req, res, next) => {
             // 3. Send the message using Firebase Admin SDK
             const firebaseResponse = await admin.messaging().sendEachForMulticast(message);
 
-            console.log('Successfully sent notification:', firebaseResponse);
+            logger.info('Successfully sent notification:', { response: firebaseResponse });
         } else {
-            console.log('No device tokens registered to send a notification.');
+            logger.info('No device tokens registered to send a notification.');
         }
 
         res.status(201).json({
@@ -185,7 +187,7 @@ exports.sendAnnouncementNotification = async (req, res, next) => {
         });
 
     } catch (err) {
-        console.error('Internal Server Error (sendAnnouncementNotification):', err);
+        logger.error('Internal Server Error (sendAnnouncementNotification):', { error: err.message, stack: err.stack });
         next(new ApiError('Internal server error during announcement creation and notification.', 500));
     }
 };
@@ -213,7 +215,7 @@ exports.deleteAnnouncement = async (req, res, next) => {
 
         if (error) {
             // Log the error and pass it to the error handling middleware
-            console.error('Supabase Error (deleteAnnouncement):', error);
+            logger.error('Supabase Error (deleteAnnouncement):', { error: error.message, details: error });
             return next(new ApiError('Failed to delete announcement.', 500));
         }
 
@@ -226,7 +228,7 @@ exports.deleteAnnouncement = async (req, res, next) => {
         });
 
     } catch (err) {
-        console.error('Internal Server Error (deleteAnnouncement):', err);
+        logger.error('Internal Server Error (deleteAnnouncement):', { error: err.message, stack: err.stack });
         next(new ApiError('Internal server error during announcement deletion.', 500));
     }
 };
