@@ -62,16 +62,16 @@ const clearSbRefreshTokenCookie = (res) => {
 
 const resetPassword = async (req, res) => {
   try {
-    console.log('Reset password request received:', req.body);
+    logger.info('Reset password request received', { body: req.body });
     
     const { userId, newPassword } = req.body;
 
     if (!userId || !newPassword) {
-      console.error('Missing fields:', { userId: !!userId, newPassword: !!newPassword });
+      logger.warn('Missing fields in reset password request', { userId: !!userId, newPassword: !!newPassword });
       return res.status(400).json({ message: 'Missing required fields' });
     }
 
-    console.log('Received userId:', userId);
+    logger.debug('Received userId for password reset', { userId });
 
     // Verify the user exists and is active
     const { data: userProfile, error: profileError } = await supabaseAdmin
@@ -82,7 +82,7 @@ const resetPassword = async (req, res) => {
       .single();
 
     if (profileError || !userProfile) {
-      console.error('User profile not found:', profileError);
+      logger.warn('User profile not found during password reset', { error: profileError });
       return res.status(404).json({ message: 'User not found' });
     }
 
@@ -91,11 +91,11 @@ const resetPassword = async (req, res) => {
     const authUserId = userId;
 
     if (!authUserId) {
-      console.error('No auth user_id found');
+      logger.warn('No auth user_id found during password reset');
       return res.status(404).json({ message: 'User authentication record not found' });
     }
 
-    console.log('Found user profile with email:', userProfile.email);
+    logger.debug('Found user profile for password reset', { email: userProfile.email });
 
     // Clear any existing OTP data first
     const { error: clearOtpError } = await supabaseAdmin
@@ -107,12 +107,12 @@ const resetPassword = async (req, res) => {
       .eq('user_id', authUserId);
 
     if (clearOtpError) {
-      console.error('Error clearing OTP data:', clearOtpError);
+      logger.error('Error clearing OTP data during password reset', { error: clearOtpError });
       // Don't return error - continue with password reset
     }
 
     // Use the custom function to reset password
-    console.log('Calling reset_user_password function...');
+    logger.debug('Calling reset_user_password function', { userId: authUserId });
     
     const { data, error } = await supabaseAdmin.rpc('reset_user_password', {
       user_id: authUserId,
@@ -120,27 +120,27 @@ const resetPassword = async (req, res) => {
     });
 
     if (error) {
-      console.error('Error calling reset_user_password function:', error);
+      logger.error('Error calling reset_user_password function', { error: error.message });
       return res.status(500).json({ 
         message: 'Error updating password',
         error: error.message
       });
     }
 
-    console.log('Function result:', data);
+    logger.debug('Password reset function result', { success: data?.success });
 
     if (data && data.success) {
-      console.log('Password updated successfully!');
+      logger.info('Password updated successfully', { userId: authUserId });
       res.status(200).json({ message: 'Password updated successfully' });
     } else {
-      console.error('Function returned error:', data);
+      logger.error('Password reset function returned error', { data });
       return res.status(500).json({ 
         message: data?.message || 'Failed to update password'
       });
     }
     
   } catch (error) {
-    console.error('Reset password error:', error);
+    logger.error('Reset password error', { error: error.message, stack: error.stack });
     res.status(500).json({ 
       message: error.message || 'Failed to reset password',
       error: error.message
@@ -150,11 +150,12 @@ const resetPassword = async (req, res) => {
 
 const sendOTP = async (req, res) => {
   try {
-    console.log('Send OTP request received:', req.body);
+    logger.debug('Send OTP request received', { email: req.body.email });
     
     const { email } = req.body;
 
     if (!email) {
+      logger.warn('Email missing in send OTP request');
       return res.status(400).json({ message: 'Email is required' });
     }
 
@@ -187,7 +188,7 @@ const sendOTP = async (req, res) => {
       .eq('email', email);
 
     if (otpError) {
-      console.error('Error updating OTP:', otpError);
+      logger.error('Error updating OTP in database', { error: otpError.message });
       return res.status(500).json({ message: 'Failed to generate OTP' });
     }
 
@@ -195,18 +196,18 @@ const sendOTP = async (req, res) => {
     const emailResult = await sendOTPEmail(email, otp);
     
     if (!emailResult.success) {
-      console.error('Failed to send OTP email:', emailResult.error);
+      logger.error('Failed to send OTP email', { error: emailResult.error });
       return res.status(500).json({ message: 'Failed to send verification code' });
     }
 
-    console.log(`OTP sent successfully to ${email}`);
+    logger.debug('OTP sent successfully', { email });
     
     res.status(200).json({ 
       message: 'Verification code sent to your email successfully!' 
     });
     
   } catch (error) {
-    console.error('Send OTP error:', error);
+    logger.error('Send OTP error', { error: error.message, stack: error.stack });
     res.status(500).json({ 
       message: 'Failed to send verification code',
       error: error.message
@@ -217,9 +218,10 @@ const sendOTP = async (req, res) => {
 
 const login = async (req, res) => {
   try {
-    console.log('Login request received:', req.body);
+    logger.debug('Login request received', { employeeNumber: req.body.employeeNumber });
     const { employeeNumber, password } = req.body;
     if (!employeeNumber || !password) {
+      logger.warn('Missing credentials in login request', { hasEmployeeNumber: !!employeeNumber, hasPassword: !!password });
       return res.status(400).json({ message: 'Employee number and password are required' });
     }
     // Step 1: Find user by employee_number and get email from users_profile
@@ -246,25 +248,25 @@ const login = async (req, res) => {
       .is('deleted_at', null)
       .single();
     if (userError || !userData) {
-      console.error('User not found:', userError);
+      logger.warn('User not found during login', { employeeNumber, error: userError?.message });
       return res.status(401).json({ message: 'Invalid employee number or password' });
     }
     if (userData.users_profile.deleted_at) {
-      console.log('Login attempt for soft-deleted user:', employeeNumber);
+      logger.warn('Login attempt for soft-deleted user', { employeeNumber });
       return res.status(403).json({ message: 'Account has been deactivated. Please contact administrator.' });
     }
     if (!userData.users_profile.is_active) {
-      console.log('Login attempt for inactive user:', employeeNumber);
+      logger.warn('Login attempt for inactive user', { employeeNumber });
       return res.status(403).json({ message: 'Account is inactive. Please contact administrator.' });
     }
     // Step 2: Check if auth user is soft-deleted before attempting login
     const { data: authUser, error: authUserError } = await supabaseAdmin.auth.admin.getUserById(userData.users_profile.user_id);
     if (authUserError || !authUser.user) {
-      console.error('Auth user not found:', authUserError);
+      logger.warn('Auth user not found during login', { employeeNumber, error: authUserError?.message });
       return res.status(401).json({ message: 'Invalid employee number or password' });
     }
     if (authUser.user.banned_until || authUser.user.deleted_at) {
-      console.log('Login attempt for banned/deleted auth user:', employeeNumber);
+      logger.warn('Login attempt for banned/deleted auth user', { employeeNumber });
       return res.status(403).json({ message: 'Account has been deactivated. Please contact administrator.' });
     }
     // Step 3: Use the email from users_profile to authenticate with Supabase
@@ -273,13 +275,13 @@ const login = async (req, res) => {
       password,
     });
     if (authError) {
-      console.error('Authentication error:', authError);
+      logger.warn('Authentication failed during login', { employeeNumber, error: authError.message });
       return res.status(401).json({ message: 'Invalid employee number or password' });
     }
     // Step 4: Persist Supabase refresh token
     const sbRefreshToken = authData.session?.refresh_token;
     if (!sbRefreshToken) {
-      console.error('No Supabase refresh token found on login response');
+      logger.error('No Supabase refresh token found on login response', { employeeNumber });
       return res.status(500).json({ message: 'Login session missing refresh token' });
     }
     // Ensure any legacy cookie is removed so only sb_refresh_token remains
@@ -290,7 +292,7 @@ const login = async (req, res) => {
     let barangayAssignment = null;
     if (userData.users_profile.role_id === 7) {
       try {
-        logger.debug('Fetching barangay data for user profile:', userData.users_profile.id);
+        logger.debug('Fetching barangay data for user profile', { userProfileId: userData.users_profile.id });
         // Get barangay official record
         const { data: barangayData, error: barangayError } = await supabaseAdmin
           .from('barangay_officials')
@@ -298,22 +300,22 @@ const login = async (req, res) => {
           .eq('user_profile_id', userData.users_profile.id)
           .single();
 
-        console.log('Raw barangay official data:', barangayData);
+        logger.debug('Raw barangay official data', { barangayData });
         
         if (barangayError) {
-          console.error('Error fetching barangay data:', barangayError);
+          logger.error('Error fetching barangay data during login', { error: barangayError.message });
         }
 
-        console.log('Barangay Data:', barangayData);
+        logger.debug('Barangay data retrieved', { barangayData });
         if (!barangayError && barangayData) {
-          console.log('Raw barangay_id:', barangayData.barangay_id);
+          logger.debug('Processing barangay assignment', { barangayId: barangayData.barangay_id });
           barangayAssignment = {
             assigned_barangay_id: barangayData.barangay_id || null
           };
-          console.log('Final barangayAssignment:', barangayAssignment);
+          logger.debug('Final barangay assignment', { barangayAssignment });
         }
       } catch (barangayError) {
-        console.error('Error fetching barangay assignment during login:', barangayError);
+        logger.error('Error fetching barangay assignment during login', { error: barangayError.message });
         // Don't fail login if barangay fetch fails
       }
     }
@@ -333,11 +335,11 @@ const login = async (req, res) => {
       },
       token: authData.session?.access_token || '' // Always use Supabase access token
     };
-    console.log('Final response data:', responseData);
-    console.log('Login successful for employee:', employeeNumber);
+    logger.debug('Final login response data', { userId: responseData.user.user_id, roleId: responseData.user.role_id });
+    logger.info('Login successful', { employeeNumber, roleId: userData.users_profile.role_id });
     res.status(200).json(responseData);
   } catch (error) {
-    console.error('Login error:', error);
+    logger.error('Login error', { error: error.message, stack: error.stack });
     res.status(500).json({ message: 'Internal server error', error: error.message });
   }
 };
@@ -346,11 +348,13 @@ const refresh = async (req, res) => {
   try {
     const sbRefreshToken = req.cookies?.sb_refresh_token || req.body?.sb_refresh_token;
     if (!sbRefreshToken) {
+      logger.warn('No refresh token provided in refresh request');
       return res.status(401).json({ message: 'No refresh token provided' });
     }
 
     const { data, error } = await supabaseAdmin.auth.refreshSession({ refresh_token: sbRefreshToken });
     if (error || !data?.session) {
+      logger.warn('Invalid or expired refresh token', { error: error?.message });
       return res.status(401).json({ message: 'Invalid or expired refresh token', error: error?.message });
     }
 
@@ -385,7 +389,7 @@ const refresh = async (req, res) => {
       .single();
 
     if (userError || !userData) {
-      console.error('User not found during refresh:', userError);
+      logger.warn('User not found during token refresh', { userId: data.session.user.id, error: userError?.message });
       return res.status(401).json({ message: 'User not found' });
     }
 
@@ -405,7 +409,7 @@ const refresh = async (req, res) => {
           };
         }
       } catch (barangayError) {
-        console.error('Error fetching barangay assignment during refresh:', barangayError);
+        logger.error('Error fetching barangay assignment during token refresh', { error: barangayError.message });
       }
     }
 
@@ -424,9 +428,10 @@ const refresh = async (req, res) => {
       token: data.session.access_token
     };
 
+    logger.info('Token refresh successful', { userId: userData.id, roleId: userData.users_profile.role_id });
     return res.status(200).json(responseData);
   } catch (error) {
-    console.error('Refresh error:', error);
+    logger.error('Token refresh error', { error: error.message, stack: error.stack });
     return res.status(500).json({ message: 'Internal server error', error: error.message });
   }
 };
@@ -439,7 +444,7 @@ const logout = async (req, res) => {
     clearSbRefreshTokenCookie(res);
     res.status(200).json({ message: 'Logged out successfully' });
   } catch (error) {
-    console.error('Logout error:', error);
+    logger.error('Logout error', { error: error.message, stack: error.stack });
     res.status(500).json({ message: 'Internal server error', error: error.message });
   }
 };

@@ -1,4 +1,5 @@
 const { supabase } = require('../config/supabase');
+const logger = require('../utils/logger');
 
 class ApiError extends Error {
     constructor(message, statusCode = 500) {
@@ -21,17 +22,17 @@ exports.getBarangays = async (req, res, next) => {
             .order('name', { ascending: true });
 
         if (error) {
-            console.error('Supabase Error (getBarangays):', error);
+            logger.error('Supabase Error (getBarangays):', error);
             return next(new ApiError('Failed to retrieve barangays.', 500));
         }
-
+        
         res.status(200).json({
             message: 'Successfully retrieved barangays.',
             count: data.length,
             data: data
         });
     } catch (err) {
-        console.error('Error in getBarangays:', err);
+        logger.error('Error in getBarangays:', err);
         next(new ApiError('Internal server error during getBarangays.', 500));
     }
 }; 
