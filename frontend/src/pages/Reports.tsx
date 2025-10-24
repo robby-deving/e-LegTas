@@ -110,7 +110,7 @@ async function forceDownload(url: string, fallbackName = 'report') {
 }
 
 
-const API_BASE = 'http://localhost:3000/api/v1';
+const API_BASE = '/api/v1';
 const FILE_FORMATS: FileIcon[] = ['CSV', 'XLSX'];
 const DEFAULT_GENERATOR_USER_ID = 2; // dev user_CDRRMO AND CAMP MANAGER CAN MAKE A REPORT
 

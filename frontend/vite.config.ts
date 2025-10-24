@@ -16,13 +16,13 @@ export default defineConfig({
     proxy: {
       // Bypass proxy for user management data endpoints to reach localhost server
       '^/api/v1/users/data/': {
-        target: 'http://localhost:3000',
+        target: 'https://api.e-legtas.tech',
         changeOrigin: true,
         secure: false,
       },
       // All other API requests go to production
       '/api': {
-        target: 'http://localhost:3000',
+        target: 'https://api.e-legtas.tech',
         changeOrigin: true,
         secure: false,
         configure: (proxy) => {
