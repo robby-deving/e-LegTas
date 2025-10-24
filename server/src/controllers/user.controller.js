@@ -1,3 +1,7 @@
+const { supabaseAdmin } = require('../config/supabase');
+const bcrypt = require('bcrypt');
+const logger = require('../utils/logger');
+
 // Update a role's name by ID
 const updateRole = async (req, res) => {
   try {
@@ -23,7 +27,7 @@ const updateRole = async (req, res) => {
     }
     return res.status(200).json({ message: 'Role updated successfully', role: data[0] });
   } catch (err) {
-    console.error('Error updating role:', err);
+    logger.error('Error updating role:', err);
     return res.status(500).json({ message: 'Internal server error', error: err.message });
   }
 };
@@ -61,7 +65,7 @@ const getUserCountsByRole = async (req, res) => {
 
     return res.status(200).json({ roleCounts: countsMap });
   } catch (error) {
-    console.error('Get user counts by role error:', error);
+    logger.error('Get user counts by role error:', error);
     return res.status(500).json({ message: 'Internal server error', error: error.message });
   }
 };
@@ -108,12 +112,11 @@ const deleteRole = async (req, res) => {
 
     return res.status(200).json({ message: 'Role deleted successfully (soft delete).' });
   } catch (error) {
-    console.error('Delete role error:', error);
+    logger.error('Delete role error:', error);
     return res.status(500).json({ message: 'Internal server error', error: error.message });
   }
 };
-const { supabaseAdmin } = require('../config/supabase');
-const bcrypt = require('bcrypt');
+
 
 // Generate employee number
 const generateEmployeeNumber = () => {
@@ -125,7 +128,7 @@ const generateEmployeeNumber = () => {
 
 const createUser = async (req, res) => {
   try {
-    console.log('Create user request received:', req.body);
+    logger.debug('Create user request received:', req.body);
     
     const {
       firstName,
@@ -248,7 +251,7 @@ const createUser = async (req, res) => {
 
     if (residentCheckError && residentCheckError.code !== 'PGRST116') {
       // Error other than "not found"
-      console.error('Error checking existing resident:', residentCheckError);
+      logger.error('Error checking existing resident:', residentCheckError);
       return res.status(500).json({ 
         message: 'Failed to check existing resident',
         error: residentCheckError.message
@@ -266,7 +269,7 @@ const createUser = async (req, res) => {
         .single();
 
       if (profileCheckError && profileCheckError.code !== 'PGRST116') {
-        console.error('Error checking existing user profile:', profileCheckError);
+        logger.error('Error checking existing user profile:', profileCheckError);
         return res.status(500).json({ 
           message: 'Failed to check existing user profile',
           error: profileCheckError.message
@@ -299,7 +302,7 @@ const createUser = async (req, res) => {
         .single();
 
       if (residentError) {
-        console.error('Error creating resident:', residentError);
+        logger.error('Error creating resident:', residentError);
         return res.status(500).json({ 
           message: 'Failed to create resident profile',
           error: residentError.message
@@ -322,7 +325,7 @@ const createUser = async (req, res) => {
       .single();
 
     if (profileError) {
-      console.error('Error creating user profile:', profileError);
+      logger.error('Error creating user profile:', profileError);
       // Only delete the resident if we just created it in this request
       if (!existingResident) {
         await supabaseAdmin
@@ -347,7 +350,7 @@ const createUser = async (req, res) => {
       .single();
 
     if (userError) {
-      console.error('Error creating user:', userError);
+      logger.error('Error creating user:', userError);
       
       // Cleanup: delete the user profile and resident records
       await supabaseAdmin
@@ -380,7 +383,7 @@ const createUser = async (req, res) => {
     });
 
     if (authError) {
-      console.error('Error creating auth user:', authError);
+      logger.error('Error creating auth user:', authError);
       
       // Cleanup: delete all created records
       await supabaseAdmin
@@ -411,7 +414,7 @@ const createUser = async (req, res) => {
       .eq('id', userProfile.id);
 
     if (updateError) {
-      console.error('Error linking auth user to profile:', updateError);
+      logger.error('Error linking auth user to profile:', updateError);
       // Note: This is not critical, the user can still login with their email
     }
 
@@ -446,7 +449,7 @@ const createUser = async (req, res) => {
             .single();
 
           if (createCenterError) {
-            console.error('Error creating evacuation center:', createCenterError);
+            logger.error('Error creating evacuation center:', createCenterError);
           } else {
             evacuationCenter = newCenter;
             evacuationCenterAssignment = {
@@ -463,7 +466,7 @@ const createUser = async (req, res) => {
             .eq('id', evacuationCenter.id);
 
           if (updateError) {
-            console.error('Error updating evacuation center assignment:', updateError);
+            logger.error('Error updating evacuation center assignment:', updateError);
           } else {
             evacuationCenterAssignment = {
               center_name: evacuationCenter.name,
@@ -473,7 +476,7 @@ const createUser = async (req, res) => {
           }
         }
       } catch (evacuationError) {
-        console.error('Error handling evacuation center assignment:', evacuationError);
+        logger.error('Error handling evacuation center assignment:', evacuationError);
         // Don't fail the entire user creation if evacuation assignment fails
       }
     }
@@ -488,9 +491,9 @@ const createUser = async (req, res) => {
           .eq('barangay_id', parseInt(assignedBarangay));
 
         if (removeFromOthersError) {
-          console.error('Error removing barangay from other users:', removeFromOthersError);
+          logger.error('Error removing barangay from other users:', removeFromOthersError);
         } else {
-          console.log('Removed barangay', assignedBarangay, 'from any previously assigned users');
+          logger.info('Removed barangay', assignedBarangay, 'from any previously assigned users');
         }
 
         // Then, create new assignment for this user
@@ -503,13 +506,13 @@ const createUser = async (req, res) => {
           });
 
         if (barangayAssignmentError) {
-          console.error('Error creating barangay assignment:', barangayAssignmentError);
+          logger.error('Error creating barangay assignment:', barangayAssignmentError);
           // Don't fail the entire user creation if barangay assignment fails
         } else {
-          console.log('Barangay assignment created successfully for user:', userProfile.id, 'barangay:', assignedBarangay, 'at:', new Date().toISOString());
+          logger.info('Barangay assignment created successfully for user:', userProfile.id, 'barangay:', assignedBarangay, 'at:', new Date().toISOString());
         }
       } catch (barangayError) {
-        console.error('Error handling barangay assignment:', barangayError);
+        logger.error('Error handling barangay assignment:', barangayError);
         // Don't fail the entire user creation if barangay assignment fails
       }
     }
@@ -536,11 +539,11 @@ const createUser = async (req, res) => {
       }
     };
 
-    console.log('User created successfully:', responseData);
+    logger.info('User created successfully:', responseData);
     res.status(201).json(responseData);
 
   } catch (error) {
-    console.error('Create user error:', error);
+    logger.error('Create user error:', error);
     res.status(500).json({ 
       message: 'Internal server error',
       error: error.message
@@ -596,7 +599,7 @@ const getUsers = async (req, res) => {
     const { data: users, error } = await query;
 
     if (error) {
-      console.error('Error fetching users:', error);
+      logger.error('Error fetching users:', error);
       return res.status(500).json({ message: 'Failed to fetch users' });
     }
 
@@ -613,7 +616,7 @@ const getUsers = async (req, res) => {
         .in('assigned_user_id', userIds);
 
       if (evacuationError) {
-        console.error('Error fetching evacuation assignments:', evacuationError);
+        logger.error('Error fetching evacuation assignments:', evacuationError);
       }
 
       // Get barangay assignments for users with role 7 (Barangay Official)
@@ -630,7 +633,7 @@ const getUsers = async (req, res) => {
         .in('user_profile_id', userProfileIds);
 
       if (barangayError) {
-        console.error('Error fetching barangay assignments:', barangayError);
+        logger.error('Error fetching barangay assignments:', barangayError);
       }
 
       // Merge evacuation center and barangay data with users
@@ -654,7 +657,7 @@ const getUsers = async (req, res) => {
       .is('deleted_at', null);  // Exclude soft-deleted users from count
 
     if (countError) {
-      console.error('Error counting users:', countError);
+      logger.error('Error counting users:', countError);
       return res.status(500).json({ message: 'Failed to count users' });
     }
 
@@ -690,7 +693,7 @@ const getUsers = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Get users error:', error);
+    logger.error('Get users error:', error);
     res.status(500).json({ 
       message: 'Internal server error',
       error: error.message
@@ -787,7 +790,7 @@ const getUserById = async (req, res) => {
     res.status(200).json({ user: mappedUser });
 
   } catch (error) {
-    console.error('Get user by ID error:', error);
+    logger.error('Get user by ID error:', error);
     res.status(500).json({ 
       message: 'Internal server error',
       error: error.message
@@ -797,7 +800,7 @@ const getUserById = async (req, res) => {
 
 const updateUser = async (req, res) => {
   try {
-    console.log('Update user request received:', req.body);
+    logger.debug('Update user request received:', req.body);
     
     const { id } = req.params;
     const {
@@ -916,7 +919,7 @@ const updateUser = async (req, res) => {
       .eq('id', existingUser.users_profile.resident_id);
 
     if (residentError) {
-      console.error('Error updating resident:', residentError);
+      logger.error('Error updating resident:', residentError);
       return res.status(500).json({ 
         message: 'Failed to update resident profile',
         error: residentError.message
@@ -944,7 +947,7 @@ const updateUser = async (req, res) => {
       .eq('id', existingUser.users_profile.id);
 
     if (profileError) {
-      console.error('Error updating user profile:', profileError);
+      logger.error('Error updating user profile:', profileError);
       return res.status(500).json({ 
         message: 'Failed to update user profile',
         error: profileError.message
@@ -962,7 +965,7 @@ const updateUser = async (req, res) => {
         .eq('id', id);
 
       if (userError) {
-        console.error('Error updating user:', userError);
+        logger.error('Error updating user:', userError);
         return res.status(500).json({ 
           message: 'Failed to update user record',
           error: userError.message
@@ -983,7 +986,7 @@ const updateUser = async (req, res) => {
       }
 
       if (Object.keys(authUpdateData).length > 0) {
-        console.log('Updating Supabase auth user with:', { 
+        logger.debug('Updating Supabase auth user with:', { 
           user_id: existingUser.users_profile.user_id, 
           updates: Object.keys(authUpdateData) 
         });
@@ -994,26 +997,26 @@ const updateUser = async (req, res) => {
         );
 
         if (authError) {
-          console.error('Error updating auth user:', authError);
+          logger.error('Error updating auth user:', authError);
           return res.status(500).json({ 
             message: 'Failed to update authentication credentials',
             error: authError.message
           });
         } else {
-          console.log('Auth user updated successfully:', authUpdateResult);
+          logger.debug('Auth user updated successfully:', authUpdateResult);
         }
       }
     } else {
-      console.warn('No auth user_id found for user profile:', existingUser.users_profile.id);
+      logger.warn('No auth user_id found for user profile:', existingUser.users_profile.id);
     }
 
     // Handle evacuation center assignment if provided
     let evacuationCenterAssignment = null;
-    console.log('Processing evacuation center assignment. assignedEvacuationCenter:', assignedEvacuationCenter);
+    logger.debug('Processing evacuation center assignment. assignedEvacuationCenter:', assignedEvacuationCenter);
     
     if (assignedEvacuationCenter && assignedEvacuationCenter.trim()) {
       try {
-        console.log('Assigning user', id, 'to evacuation center:', assignedEvacuationCenter);
+        logger.debug('Assigning user', id, 'to evacuation center:', assignedEvacuationCenter);
         
         // Database trigger will automatically clear existing assignments when we assign a new one
         const { error: assignmentError } = await supabaseAdmin
@@ -1022,17 +1025,17 @@ const updateUser = async (req, res) => {
           .eq('name', assignedEvacuationCenter);
 
         if (assignmentError) {
-          console.error('Error updating evacuation center assignment:', assignmentError);
+          logger.error('Error updating evacuation center assignment:', assignmentError);
         } else {
-          console.log('Successfully assigned user', id, 'to center:', assignedEvacuationCenter);
+          logger.info('Successfully assigned user', id, 'to center:', assignedEvacuationCenter);
           evacuationCenterAssignment = assignedEvacuationCenter;
         }
       } catch (evacuationError) {
-        console.error('Error handling evacuation center assignment:', evacuationError);
+        logger.error('Error handling evacuation center assignment:', evacuationError);
       }
     } else {
       // Remove user from any existing evacuation center assignments if no center is selected
-      console.log('No evacuation center selected, clearing all assignments for user:', id);
+      logger.debug('No evacuation center selected, clearing all assignments for user:', id);
       try {
         const { error: clearError } = await supabaseAdmin
           .from('evacuation_centers')
@@ -1040,12 +1043,12 @@ const updateUser = async (req, res) => {
           .eq('assigned_user_id', id);
           
         if (clearError) {
-          console.error('Error removing evacuation center assignment:', clearError);
+          logger.error('Error removing evacuation center assignment:', clearError);
         } else {
-          console.log('Successfully removed all evacuation center assignments for user:', id);
+          logger.info('Successfully removed all evacuation center assignments for user:', id);
         }
       } catch (evacuationError) {
-        console.error('Error removing evacuation center assignment:', evacuationError);
+        logger.error('Error removing evacuation center assignment:', evacuationError);
       }
     }
 
@@ -1059,7 +1062,7 @@ const updateUser = async (req, res) => {
           .eq('user_profile_id', existingUser.users_profile.id);
 
         if (removeError) {
-          console.error('Error removing existing barangay assignment:', removeError);
+          logger.error('Error removing existing barangay assignment:', removeError);
         }
 
         // If assignedBarangay is provided, implement true transfer
@@ -1071,9 +1074,9 @@ const updateUser = async (req, res) => {
             .eq('barangay_id', parseInt(assignedBarangay));
 
           if (removeFromOthersError) {
-            console.error('Error removing barangay from other users:', removeFromOthersError);
+            logger.error('Error removing barangay from other users:', removeFromOthersError);
           } else {
-            console.log('Removed barangay', assignedBarangay, 'from any previously assigned users');
+            logger.info('Removed barangay', assignedBarangay, 'from any previously assigned users');
           }
 
           // Then create new assignment for this user
@@ -1086,13 +1089,13 @@ const updateUser = async (req, res) => {
             });
 
           if (barangayAssignmentError) {
-            console.error('Error creating barangay assignment:', barangayAssignmentError);
+            logger.error('Error creating barangay assignment:', barangayAssignmentError);
           } else {
-            console.log('Barangay assignment updated successfully for user:', existingUser.users_profile.id, 'barangay:', assignedBarangay, 'at:', new Date().toISOString());
+            logger.info('Barangay assignment updated successfully for user:', existingUser.users_profile.id, 'barangay:', assignedBarangay, 'at:', new Date().toISOString());
           }
         }
       } catch (barangayError) {
-        console.error('Error handling barangay assignment:', barangayError);
+        logger.error('Error handling barangay assignment:', barangayError);
         // Don't fail the entire user update if barangay assignment fails
       }
     } else {
@@ -1104,12 +1107,12 @@ const updateUser = async (req, res) => {
           .eq('user_profile_id', existingUser.users_profile.id);
 
         if (removeError) {
-          console.error('Error removing barangay assignment for non-barangay role:', removeError);
+          logger.error('Error removing barangay assignment for non-barangay role:', removeError);
         } else {
-          console.log('Removed barangay assignment for role change from user:', existingUser.users_profile.id);
+          logger.info('Removed barangay assignment for role change from user:', existingUser.users_profile.id);
         }
       } catch (barangayError) {
-        console.error('Error removing barangay assignment:', barangayError);
+        logger.error('Error removing barangay assignment:', barangayError);
       }
     }
 
@@ -1126,11 +1129,11 @@ const updateUser = async (req, res) => {
       }
     };
 
-    console.log('User updated successfully:', responseData);
+    logger.info('User updated successfully:', responseData);
     res.status(200).json(responseData);
 
   } catch (error) {
-    console.error('Update user error:', error);
+    logger.error('Update user error:', error);
     res.status(500).json({ 
       message: 'Internal server error',
       error: error.message
@@ -1147,7 +1150,7 @@ const getRoles = async (req, res) => {
       .order('role_name');
 
     if (error) {
-      console.error('Error fetching roles:', error);
+      logger.error('Error fetching roles:', error);
       return res.status(500).json({ message: 'Failed to fetch roles' });
     }
 
@@ -1160,7 +1163,7 @@ const getRoles = async (req, res) => {
     res.status(200).json({ roles: formattedRoles });
 
   } catch (error) {
-    console.error('Get roles error:', error);
+    logger.error('Get roles error:', error);
     res.status(500).json({ 
       message: 'Internal server error',
       error: error.message
@@ -1172,8 +1175,8 @@ const createRole = async (req, res) => {
   try {
     const { role_name, permissions } = req.body;
 
-    console.log('Creating role:', role_name);
-    console.log('With permissions:', permissions);
+    logger.debug('Creating role:', role_name);
+    logger.debug('With permissions:', permissions);
 
     if (!role_name || !role_name.trim()) {
       return res.status(400).json({ 
@@ -1198,7 +1201,7 @@ const createRole = async (req, res) => {
       .single();
 
     if (roleError) {
-      console.error('Error creating role:', roleError);
+      logger.error('Error creating role:', roleError);
       return res.status(500).json({ 
         message: 'Failed to create role',
         error: roleError.message
@@ -1206,7 +1209,7 @@ const createRole = async (req, res) => {
     }
 
     const roleId = roleData.id;
-    console.log('Created role with ID:', roleId);
+    logger.debug('Created role with ID:', roleId);
 
     // Add permissions to the role if any are provided
     if (permissions.length > 0) {
@@ -1217,7 +1220,7 @@ const createRole = async (req, res) => {
         .in('permission_name', permissions);
 
       if (permError) {
-        console.error('Error fetching permissions:', permError);
+        logger.error('Error fetching permissions:', permError);
         return res.status(500).json({ 
           message: 'Failed to fetch permissions',
           error: permError.message
@@ -1225,7 +1228,7 @@ const createRole = async (req, res) => {
       }
 
       const permissionIds = permissionData.map(p => p.id);
-      console.log('Found permission IDs:', permissionIds);
+      logger.debug('Found permission IDs:', permissionIds);
 
       if (permissionIds.length > 0) {
         const rolePermissions = permissionIds.map(permissionId => ({
@@ -1238,7 +1241,7 @@ const createRole = async (req, res) => {
           .insert(rolePermissions);
 
         if (rolePermError) {
-          console.error('Error adding role permissions:', rolePermError);
+          logger.error('Error adding role permissions:', rolePermError);
           return res.status(500).json({ 
             message: 'Role created but failed to add permissions',
             error: rolePermError.message
@@ -1257,7 +1260,7 @@ const createRole = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Create role error:', error);
+    logger.error('Create role error:', error);
     res.status(500).json({ 
       message: 'Internal server error',
       error: error.message
@@ -1288,7 +1291,7 @@ const getEvacuationCenters = async (req, res) => {
       .order('name');
 
     if (error) {
-      console.error('Error fetching evacuation centers:', error);
+      logger.error('Error fetching evacuation centers:', error);
       return res.status(500).json({ 
         message: 'Failed to fetch evacuation centers',
         error: error.message 
@@ -1314,7 +1317,7 @@ const getEvacuationCenters = async (req, res) => {
     res.status(200).json({ centers: formattedCenters });
 
   } catch (error) {
-    console.error('Get evacuation centers error:', error);
+    logger.error('Get evacuation centers error:', error);
     res.status(500).json({ 
       message: 'Internal server error',
       error: error.message
@@ -1330,14 +1333,14 @@ const getBarangays = async (req, res) => {
       .order('name');
 
     if (error) {
-      console.error('Error fetching barangays:', error);
+      logger.error('Error fetching barangays:', error);
       return res.status(500).json({ message: 'Failed to fetch barangays' });
     }
 
     res.status(200).json({ barangays });
 
   } catch (error) {
-    console.error('Get barangays error:', error);
+    logger.error('Get barangays error:', error);
     res.status(500).json({ 
       message: 'Internal server error',
       error: error.message
@@ -1363,14 +1366,14 @@ const getDisasters = async (req, res) => {
       .order('disaster_start_date', { ascending: false });
 
     if (error) {
-      console.error('Error fetching disasters:', error);
+      logger.error('Error fetching disasters:', error);
       return res.status(500).json({ message: 'Failed to fetch disasters' });
     }
 
     res.status(200).json({ disasters });
 
   } catch (error) {
-    console.error('Get disasters error:', error);
+    logger.error('Get disasters error:', error);
     res.status(500).json({ 
       message: 'Internal server error',
       error: error.message
@@ -1388,7 +1391,7 @@ const getEnumValues = async (req, res) => {
     res.status(200).json({ enumValues });
 
   } catch (error) {
-    console.error('Get enum values error:', error);
+    logger.error('Get enum values error:', error);
     res.status(500).json({ 
       message: 'Internal server error',
       error: error.message
@@ -1437,7 +1440,7 @@ const checkUserSynchronization = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Check synchronization error:', error);
+    logger.error('Check synchronization error:', error);
     res.status(500).json({ 
       message: 'Internal server error',
       error: error.message
@@ -1448,7 +1451,7 @@ const checkUserSynchronization = async (req, res) => {
 // Simplified user creation using auth.users trigger
 const createUserWithTrigger = async (req, res) => {
   try {
-    console.log('Create user with trigger request received:', req.body);
+    logger.debug('Create user with trigger request received:', req.body);
     
     const { 
       email, 
@@ -1518,7 +1521,7 @@ const createUserWithTrigger = async (req, res) => {
       .single();
 
     if (residentError) {
-      console.error('Error creating resident:', residentError);
+      logger.error('Error creating resident:', residentError);
       return res.status(500).json({ 
         message: 'Failed to create resident profile',
         error: residentError.message
@@ -1571,7 +1574,7 @@ const createUserWithTrigger = async (req, res) => {
       });
 
       if (authError) {
-        console.error('Error creating auth user:', authError);
+        logger.error('Error creating auth user:', authError);
         
         // Cleanup resident record
         await supabaseAdmin
@@ -1600,7 +1603,7 @@ const createUserWithTrigger = async (req, res) => {
         .single();
 
       if (profileError) {
-        console.error('Error creating user profile:', profileError);
+        logger.error('Error creating user profile:', profileError);
         
         // Cleanup auth user and resident
         await supabaseAdmin.auth.admin.deleteUser(authUser.user.id);
@@ -1626,7 +1629,7 @@ const createUserWithTrigger = async (req, res) => {
         .single();
 
       if (userError) {
-        console.error('Error creating user:', userError);
+        logger.error('Error creating user:', userError);
         
         // Cleanup
         await supabaseAdmin.auth.admin.deleteUser(authUser.user.id);
@@ -1666,7 +1669,7 @@ const createUserWithTrigger = async (req, res) => {
       });
 
     } catch (error) {
-      console.error('Unexpected error in user creation:', error);
+      logger.error('Unexpected error in user creation:', error);
       
       // Cleanup resident record
       await supabaseAdmin
@@ -1681,7 +1684,7 @@ const createUserWithTrigger = async (req, res) => {
     }
 
   } catch (error) {
-    console.error('Create user with trigger error:', error);
+    logger.error('Create user with trigger error:', error);
     res.status(500).json({ 
       message: 'Internal server error',
       error: error.message
@@ -1692,7 +1695,7 @@ const createUserWithTrigger = async (req, res) => {
 // Complete profile for existing auth users (useful for trigger testing)
 const completeUserProfile = async (req, res) => {
   try {
-    console.log('Complete user profile request received:', req.body);
+    logger.debug('Complete user profile request received:', req.body);
     
     const {
       email,
@@ -1831,7 +1834,7 @@ const completeUserProfile = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Complete user profile error:', error);
+    logger.error('Complete user profile error:', error);
     res.status(500).json({ 
       message: 'Internal server error',
       error: error.message
@@ -1900,7 +1903,7 @@ const getUsersByRole = async (req, res) => {
     const { data: users, error } = await query;
 
     if (error) {
-      console.error(`Error fetching users with role_id ${roleIdInt}:`, error);
+      logger.error(`Error fetching users with role_id ${roleIdInt}:`, error);
       return res.status(500).json({ 
         message: `Failed to fetch users with role_id ${roleIdInt}`,
         error: error.message 
@@ -1918,7 +1921,7 @@ const getUsersByRole = async (req, res) => {
         .in('assigned_user_id', userIds);
 
       if (evacuationError) {
-        console.error('Error fetching evacuation assignments:', evacuationError);
+        logger.error('Error fetching evacuation assignments:', evacuationError);
         // Continue without evacuation center data
       } else {
         // Merge evacuation center data with users
@@ -1945,7 +1948,7 @@ const getUsersByRole = async (req, res) => {
       .is('deleted_at', null);  // Exclude soft-deleted users
 
     if (countError) {
-      console.error(`Error counting users with role_id ${roleIdInt}:`, countError);
+      logger.error(`Error counting users with role_id ${roleIdInt}:`, countError);
       return res.status(500).json({ 
         message: `Failed to count users with role_id ${roleIdInt}`,
         error: countError.message 
@@ -1965,7 +1968,7 @@ const getUsersByRole = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Get users by role error:', error);
+    logger.error('Get users by role error:', error);
     res.status(500).json({ 
       message: 'Internal server error',
       error: error.message
@@ -2026,7 +2029,7 @@ const getUsersWithRoleFourAndFive = async (req, res) => {
     const { data: users, error } = await query;
 
     if (error) {
-      console.error('Error fetching users with role_id 4 and 5:', error);
+      logger.error('Error fetching users with role_id 4 and 5:', error);
       return res.status(500).json({ 
         message: 'Failed to fetch users with role_id 4 and 5',
         error: error.message 
@@ -2044,7 +2047,7 @@ const getUsersWithRoleFourAndFive = async (req, res) => {
         .in('assigned_user_id', userIds);
 
       if (evacuationError) {
-        console.error('Error fetching evacuation assignments:', evacuationError);
+        logger.error('Error fetching evacuation assignments:', evacuationError);
         // Continue without evacuation center data
       } else {
         // Merge evacuation center data with users
@@ -2071,7 +2074,7 @@ const getUsersWithRoleFourAndFive = async (req, res) => {
       .is('deleted_at', null);  // Exclude soft-deleted users
 
     if (countError) {
-      console.error('Error counting users with role_id 4 and 5:', countError);
+      logger.error('Error counting users with role_id 4 and 5:', countError);
       return res.status(500).json({ 
         message: 'Failed to count users with role_id 4 and 5',
         error: countError.message 
@@ -2111,7 +2114,7 @@ const getUsersWithRoleFourAndFive = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Get users with role 4 and 5 error:', error);
+    logger.error('Get users with role 4 and 5 error:', error);
     res.status(500).json({ 
       message: 'Internal server error',
       error: error.message
@@ -2147,7 +2150,7 @@ const deleteUser = async (req, res) => {
       .single();
 
     if (userError || !user) {
-      console.error('Error fetching user for deletion:', userError);
+      logger.error('Error fetching user for deletion:', userError);
       return res.status(404).json({ message: 'User not found' });
     }
 
@@ -2167,7 +2170,7 @@ const deleteUser = async (req, res) => {
       .eq('id', id);
 
     if (userDeleteError) {
-      console.error('Error soft deleting user:', userDeleteError);
+      logger.error('Error soft deleting user:', userDeleteError);
       return res.status(500).json({ message: 'Failed to delete user' });
     }
 
@@ -2183,7 +2186,7 @@ const deleteUser = async (req, res) => {
         .eq('id', userProfileId);
 
       if (profileDeleteError) {
-        console.error('Error soft deleting user profile:', profileDeleteError);
+        logger.error('Error soft deleting user profile:', profileDeleteError);
         // We could try to rollback the user deletion here, but for simplicity, we'll log the error
       }
     }
@@ -2198,7 +2201,7 @@ const deleteUser = async (req, res) => {
       .eq('assigned_user_id', id);
 
     if (evacuationCenterError) {
-      console.error('Error clearing evacuation center assignment:', evacuationCenterError);
+      logger.error('Error clearing evacuation center assignment:', evacuationCenterError);
       // Continue with the process even if this fails
     }
 
@@ -2222,18 +2225,18 @@ const deleteUser = async (req, res) => {
         });
 
         if (authDeleteError) {
-          console.log('Note: Could not update auth.users deleted_at via RPC, but user metadata updated');
-          console.log('You may need to create the soft_delete_auth_user function in PostgreSQL');
+          logger.info('Note: Could not update auth.users deleted_at via RPC, but user metadata updated');
+          logger.info('You may need to create the soft_delete_auth_user function in PostgreSQL');
         } else {
-          console.log(`Auth user ${authUserId} deleted_at set to ${now}`);
+          logger.info(`Auth user ${authUserId} deleted_at set to ${now}`);
         }
       } catch (authError) {
-        console.error('Error updating auth user:', authError);
+        logger.error('Error updating auth user:', authError);
         // Continue with the process even if this fails
       }
     }
 
-    console.log(`User ${id} (${user.employee_number}) successfully soft deleted`);
+    logger.info(`User ${id} (${user.employee_number}) successfully soft deleted`);
 
     res.status(200).json({ 
       message: 'User successfully deleted',
@@ -2245,7 +2248,7 @@ const deleteUser = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Delete user error:', error);
+    logger.error('Delete user error:', error);
     res.status(500).json({ 
       message: 'Internal server error',
       error: error.message
@@ -2318,7 +2321,7 @@ const checkUserCanLogin = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Check user login error:', error);
+    logger.error('Check user login error:', error);
     res.status(500).json({ 
       message: 'Internal server error',
       error: error.message
@@ -2329,7 +2332,7 @@ const checkUserCanLogin = async (req, res) => {
 // Get user statistics for dashboard
 const getUserStats = async (req, res) => {
   try {
-    console.log('Getting user statistics...');
+    logger.debug('Getting user statistics...');
 
     // Get all active users with their roles
     const { data: users, error } = await supabaseAdmin
@@ -2345,7 +2348,7 @@ const getUserStats = async (req, res) => {
       .eq('users_profile.is_active', true);
 
     if (error) {
-      console.error('Error fetching user stats:', error);
+      logger.error('Error fetching user stats:', error);
       return res.status(500).json({
         message: 'Failed to fetch user statistics',
         error: error.message
@@ -2376,7 +2379,7 @@ const getUserStats = async (req, res) => {
       }
     });
 
-    console.log('User statistics calculated:', roleCounts);
+    logger.debug('User statistics calculated:', roleCounts);
 
     res.json({
       success: true,
@@ -2390,7 +2393,7 @@ const getUserStats = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error in getUserStats:', error);
+    logger.error('Error in getUserStats:', error);
     res.status(500).json({
       message: 'Internal server error',
       error: error.message
@@ -2402,7 +2405,7 @@ const getUserStats = async (req, res) => {
 const getRecentUsers = async (req, res) => {
 
   try {
-    console.log('Getting recently added users...');
+    logger.debug('Getting recently added users...');
 
     // Get limit from query, default to 7
     const limit = parseInt(req.query.limit, 10) || 7;
@@ -2445,7 +2448,7 @@ const getRecentUsers = async (req, res) => {
       .limit(limit);
 
     if (error) {
-      console.error('Error fetching recent users:', error);
+      logger.error('Error fetching recent users:', error);
       return res.status(500).json({
         message: 'Failed to fetch recent users',
         error: error.message
@@ -2475,7 +2478,7 @@ const getRecentUsers = async (req, res) => {
       birthdate: user.users_profile.residents?.birthdate || null
     }));
 
-    console.log(`Retrieved ${recentUsers.length} recent users`);
+    logger.debug(`Retrieved ${recentUsers.length} recent users`);
 
     res.json({
       success: true,
@@ -2487,7 +2490,7 @@ const getRecentUsers = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error in getRecentUsers:', error);
+    logger.error('Error in getRecentUsers:', error);
     res.status(500).json({
       message: 'Internal server error',
       error: error.message
