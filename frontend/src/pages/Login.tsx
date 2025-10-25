@@ -52,8 +52,8 @@ export default function Login(){
             }));
             navigate('/dashboard');
         } catch (error: any) {
-            console.error('Login error:', error);
-            setError(error.message || 'Failed to login');
+            window.location.href = '/error/500';
+            setError('Failed to login');
         } finally {
             setLoading(false);
         }
@@ -110,7 +110,7 @@ export default function Login(){
                                 </label>
                                 <Input 
                                     type='text' 
-                                    placeholder="Wnter your employee number"
+                                    placeholder="Enter your employee number"
                                     value={employeeNumber}
                                     onChange={(e) => setEmployeeNumber(e.target.value)}
                                     className='text-xs sm:text-sm bg-white'

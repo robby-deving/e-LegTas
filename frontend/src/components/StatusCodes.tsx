@@ -84,9 +84,21 @@ const StatusCodes: React.FC<StatusCodeProps> = ({
           }
           break;
         }
-        case 500:
-          window.location.reload();
+        case 500: {
+          // If we're on the error page, go back or to dashboard
+          if (window.location.pathname === '/error/500') {
+            const canGoBack = document.referrer !== '' && window.history.length > 1;
+            if (canGoBack) {
+              window.history.back();
+            } else {
+              window.location.href = getFallbackPath();
+            }
+          } else {
+            // If ErrorBoundary caught an error on a different page, reload to retry
+            window.location.reload();
+          }
           break;
+        }
       }
     }
   };

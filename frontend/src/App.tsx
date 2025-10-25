@@ -9,6 +9,7 @@ import TopNav from './components/TopNav';
 import SideNav from './components/SideNav';
 import { PermissionGate } from './components/PermissionGate';
 import StatusCodes from './components/StatusCodes';
+import ErrorBoundary from './components/ErrorBoundary';
 import Dashboard from './pages/Dashboard';
 import Map from './pages/Map';
 import EvacuationCenters from './pages/EvacuationCenters';
@@ -67,16 +68,17 @@ function App() {
   return (
     <PermissionProvider>
       <Toaster position="top-center" />
-      <Routes>
-        {/* Redirect root to appropriate page based on auth status */}
-        <Route 
-          path="/" 
-          element={
-            isAuthenticated ? 
-              <Navigate to="/dashboard" replace /> : 
-              <Navigate to="/login" replace />
-          } 
-        />
+      <ErrorBoundary>
+        <Routes>
+          {/* Redirect root to appropriate page based on auth status */}
+          <Route 
+            path="/" 
+            element={
+              isAuthenticated ? 
+                <Navigate to="/dashboard" replace /> : 
+                <Navigate to="/login" replace />
+            } 
+          />
         
         {/* Login routes - redirect to dashboard if already authenticated */}
         <Route 
@@ -224,26 +226,14 @@ function App() {
         
 
         <Route path="/print" element={<PrintReport />} />
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+        
+        {/* Error routes */}
+        <Route path="/error/500" element={<StatusCodes code={500} />} />
+        
+        {/* 404 Catch-all route - must be last */}
+        <Route path="*" element={<StatusCodes code={404} />} />
       </Routes>
+      </ErrorBoundary>
     </PermissionProvider>
   );
 }
