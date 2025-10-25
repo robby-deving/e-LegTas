@@ -2,8 +2,15 @@
 
 const { supabase } = require('../config/supabase');
 const logger = require('../utils/logger');
+const { createCache, generateCacheKey, invalidateCacheByPattern } = require('../utils/cache');
 
-const TABLE_NAME = 'disasters'; 
+const TABLE_NAME = 'disasters';
+
+// Initialize LRU cache with 1-hour TTL
+const disasterCache = createCache({
+    max: 500, // Maximum 500 items in cache
+    ttl: 1000 * 60 * 60, // 1 hour TTL
+}); 
 
 // --- Helper for Custom API Errors ---
 class ApiError extends Error {
@@ -25,6 +32,26 @@ class ApiError extends Error {
 exports.getAllDisasters = async (req, res, next) => {
     try {
         const { month, year } = req.query;
+        
+        // Generate cache key based on query parameters
+        const cacheKey = generateCacheKey('disasters:all', { month, year });
+        
+        // Check cache first
+        const cachedData = disasterCache.get(cacheKey);
+        if (cachedData) {
+            logger.debug('Cache hit for getAllDisasters', { cacheKey, count: cachedData.length });
+            return res.status(200).json({
+                message: year !== undefined
+                    ? `Successfully retrieved disaster entries for ${month !== undefined ? `month ${parseInt(month) + 1}/` : ''}${year}.`
+                    : 'Successfully retrieved all disaster entries.',
+                count: cachedData.length,
+                data: cachedData,
+                cached: true
+            });
+        }
+        
+        logger.debug('Cache miss for getAllDisasters', { cacheKey });
+        
         let query = supabase
             .from(TABLE_NAME)
             .select(`
@@ -66,6 +93,10 @@ exports.getAllDisasters = async (req, res, next) => {
             };
         });
 
+        // Store in cache
+        disasterCache.set(cacheKey, transformedData);
+        logger.debug('Data cached for getAllDisasters', { cacheKey, count: transformedData.length });
+
         logger.info('Successfully retrieved disaster entries', { count: transformedData.length, year, month });
         logger.debug('Disaster entries data', { data: transformedData });
         
@@ -96,6 +127,22 @@ exports.getDisasterById = async (req, res, next) => {
     }
 
     try {
+        // Generate cache key for this specific disaster
+        const cacheKey = generateCacheKey('disasters:id', id);
+        
+        // Check cache first
+        const cachedData = disasterCache.get(cacheKey);
+        if (cachedData) {
+            logger.debug('Cache hit for getDisasterById', { cacheKey, id });
+            return res.status(200).json({
+                message: `Successfully retrieved disaster with ID ${id}.`,
+                data: cachedData,
+                cached: true
+            });
+        }
+        
+        logger.debug('Cache miss for getDisasterById', { cacheKey, id });
+        
         const { data, error } = await supabase
             .from(TABLE_NAME)
             .select(`
@@ -127,6 +174,10 @@ exports.getDisasterById = async (req, res, next) => {
             ...rest,
             disaster_type_name: disasterTypeName
         };
+
+        // Store in cache
+        disasterCache.set(cacheKey, transformedData);
+        logger.debug('Data cached for getDisasterById', { cacheKey, id });
 
         logger.debug('Successfully retrieved disaster by ID', { id });
         logger.debug('Disaster data', { data: transformedData });
@@ -182,6 +233,10 @@ exports.createDisaster = async (req, res, next) => {
             logger.error('Supabase Error (createDisaster):', { error: error.message, details: error });
             return next(new ApiError('Failed to create disaster entry.', 500));
         }
+
+        // Invalidate all disaster-related caches since a new disaster was created
+        invalidateCacheByPattern(disasterCache, 'disasters:');
+        logger.info('Cache invalidated after disaster creation');
 
         logger.debug('Disaster entry created successfully', { disaster_id: data[0].id, disaster_name });
         logger.debug('Created disaster data', { data: data[0] });
@@ -243,6 +298,10 @@ exports.updateDisaster = async (req, res, next) => {
             return next(new ApiError(`Disaster with ID ${id} not found for update.`, 404));
         }
 
+        // Invalidate all disaster-related caches since a disaster was updated
+        invalidateCacheByPattern(disasterCache, 'disasters:');
+        logger.info('Cache invalidated after disaster update', { id });
+
         logger.debug('Disaster updated successfully', { id });
         logger.debug('Updated disaster data', { data: data[0] });
         
@@ -288,6 +347,10 @@ exports.deleteDisaster = async (req, res, next) => {
             return next(new ApiError(`Disaster with ID ${id} not found for deletion or already deleted.`, 404));
         }
 
+        // Invalidate all disaster-related caches since a disaster was deleted
+        invalidateCacheByPattern(disasterCache, 'disasters:');
+        logger.info('Cache invalidated after disaster deletion', { id });
+
         logger.debug('Disaster soft deleted successfully', { id });
         
         res.status(200).json({
@@ -301,6 +364,23 @@ exports.deleteDisaster = async (req, res, next) => {
 
 exports.getAllDisasterTypes = async (req, res, next) => {
     try {
+        // Generate cache key for disaster types
+        const cacheKey = generateCacheKey('disaster_types:all');
+        
+        // Check cache first
+        const cachedData = disasterCache.get(cacheKey);
+        if (cachedData) {
+            logger.debug('Cache hit for getAllDisasterTypes', { cacheKey, count: cachedData.length });
+            return res.status(200).json({
+                message: 'Successfully retrieved all disaster type entries.',
+                count: cachedData.length,
+                data: cachedData,
+                cached: true
+            });
+        }
+        
+        logger.debug('Cache miss for getAllDisasterTypes', { cacheKey });
+        
         const { data, error } = await supabase
             .from('disaster_types')
             .select('*'); // Select all columns from the Disasters_Types table
@@ -314,6 +394,10 @@ exports.getAllDisasterTypes = async (req, res, next) => {
             logger.debug('No disaster type entries found');
             return res.status(200).json({ message: 'No disaster type entries found.', data: [] });
         }
+
+        // Store in cache
+        disasterCache.set(cacheKey, data);
+        logger.debug('Data cached for getAllDisasterTypes', { cacheKey, count: data.length });
 
         logger.debug('Successfully retrieved all disaster type entries', { count: data.length });
         logger.debug('Disaster types data', { data });

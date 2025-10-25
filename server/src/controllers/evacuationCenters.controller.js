@@ -2,10 +2,17 @@
 
 // Import the centralized Supabase client
 const { supabase } = require('../config/supabase');
-const logger = require('../utils/logger'); 
+const logger = require('../utils/logger');
+const { createCache, generateCacheKey, invalidateCacheByPattern } = require('../utils/cache');
 
 // Define the table name for evacuation centers
-const TABLE_NAME = 'evacuation_centers'; 
+const TABLE_NAME = 'evacuation_centers';
+
+// Initialize LRU cache with 5-minute TTL
+const evacuationCenterCache = createCache({
+    max: 1000, // Maximum 1000 items in cache
+    ttl: 1000 * 60 * 5, // 5 minutes TTL
+}); 
 // --- Helper for Custom API Errors ---
 class ApiError extends Error {
     constructor(message, statusCode = 500) {
@@ -35,6 +42,28 @@ exports.getAllEvacuationCenters = async (req, res, next) => {
         const includeSoftDeleted = req.query.include_deleted === 'true';
         const ecType = req.query.ec_type;
         const barangayId = req.query.barangay_id ? parseInt(req.query.barangay_id) : null;
+
+        // Generate cache key based on all query parameters
+        const cacheKey = generateCacheKey('evacuation_centers:all', {
+            limit,
+            offset,
+            search,
+            include_deleted: includeSoftDeleted,
+            ec_type: ecType,
+            barangay_id: barangayId
+        });
+
+        // Check cache first
+        const cachedData = evacuationCenterCache.get(cacheKey);
+        if (cachedData) {
+            logger.debug('Cache hit for getAllEvacuationCenters', { cacheKey, count: cachedData.data.length });
+            return res.status(200).json({
+                ...cachedData,
+                cached: true
+            });
+        }
+
+        logger.debug('Cache miss for getAllEvacuationCenters', { cacheKey });
 
         let query = supabase
             .from(TABLE_NAME)
@@ -121,7 +150,7 @@ exports.getAllEvacuationCenters = async (req, res, next) => {
         logger.debug('Successfully retrieved evacuation center entries', { count: data.length, totalCount, limit, offset });
         logger.debug('Evacuation centers data', { data });
         
-        res.status(200).json({
+        const responseData = {
             message: 'Successfully retrieved evacuation center entries.',
             count: data.length,
             data: data,
@@ -132,7 +161,13 @@ exports.getAllEvacuationCenters = async (req, res, next) => {
                 totalPages: Math.ceil((totalCount || 0) / limit),
                 currentPage: Math.floor(offset / limit) + 1
             }
-        });
+        };
+
+        // Store in cache
+        evacuationCenterCache.set(cacheKey, responseData);
+        logger.debug('Data cached for getAllEvacuationCenters', { cacheKey, count: data.length });
+
+        res.status(200).json(responseData);
     } catch (err) {
         logger.error('Internal server error during getAllEvacuationCenters', { error: err.message, stack: err.stack });
         next(new ApiError('Internal server error during getAllEvacuationCenters.', 500));
@@ -153,6 +188,21 @@ exports.getEvacuationCenterById = async (req, res, next) => {
     }
 
     try {
+        // Generate cache key for this specific evacuation center
+        const cacheKey = generateCacheKey('evacuation_centers:id', id);
+        
+        // Check cache first
+        const cachedData = evacuationCenterCache.get(cacheKey);
+        if (cachedData) {
+            logger.debug('Cache hit for getEvacuationCenterById', { cacheKey, id });
+            return res.status(200).json({
+                ...cachedData,
+                cached: true
+            });
+        }
+        
+        logger.debug('Cache miss for getEvacuationCenterById', { cacheKey, id });
+
         const { data, error } = await supabase
             .from(TABLE_NAME)
             .select('*')
@@ -177,10 +227,16 @@ exports.getEvacuationCenterById = async (req, res, next) => {
         logger.debug('Successfully retrieved evacuation center by ID', { id });
         logger.debug('Evacuation center data', { data });
         
-        res.status(200).json({
+        const responseData = {
             message: `Successfully retrieved evacuation center with ID ${id}.`,
             data: data
-        });
+        };
+
+        // Store in cache
+        evacuationCenterCache.set(cacheKey, responseData);
+        logger.debug('Data cached for getEvacuationCenterById', { cacheKey, id });
+
+        res.status(200).json(responseData);
     } catch (err) {
         logger.error('Internal server error during getEvacuationCenterById', { error: err.message, stack: err.stack, id });
         next(new ApiError('Internal server error during getEvacuationCenterById.', 500));
@@ -255,6 +311,10 @@ exports.createEvacuationCenter = async (req, res, next) => {
             return next(new ApiError('Failed to create evacuation center entry.', 500));
         }
 
+        // Invalidate all evacuation center related caches since a new center was created
+        invalidateCacheByPattern(evacuationCenterCache, 'evacuation_centers:');
+        logger.info('Cache invalidated after evacuation center creation', { evacuation_center_id: data[0].id });
+
         logger.debug('Evacuation center entry created successfully', { evacuation_center_id: data[0].id, name });
         logger.debug('Created evacuation center data', { data: data[0] });
         
@@ -315,6 +375,10 @@ exports.updateEvacuationCenter = async (req, res, next) => {
             return next(new ApiError(`Evacuation center with ID ${id} not found.`, 404));
         }
 
+        // Invalidate all evacuation center related caches since a center was updated
+        invalidateCacheByPattern(evacuationCenterCache, 'evacuation_centers:');
+        logger.info('Cache invalidated after evacuation center update', { id });
+
         logger.info('Evacuation center updated successfully', { id });
         logger.debug('Updated evacuation center data', { data: data[0] });
         
@@ -359,6 +423,10 @@ exports.deleteEvacuationCenter = async (req, res, next) => {
             logger.warn('Evacuation center not found for deletion', { id });
             return next(new ApiError(`Evacuation center with ID ${id} not found for deletion.`, 404));
         }
+
+        // Invalidate all evacuation center related caches since a center was deleted
+        invalidateCacheByPattern(evacuationCenterCache, 'evacuation_centers:');
+        logger.info('Cache invalidated after evacuation center deletion', { id });
 
         logger.debug('Evacuation center deleted successfully', { id });
         
@@ -440,6 +508,10 @@ exports.softDeleteEvacuationCenter = async (req, res, next) => {
         logger.info('Evacuation center and rooms soft deleted successfully', { id });
         logger.debug('Soft deleted evacuation center data', { data: data[0] });
         
+        // Invalidate all evacuation center related caches since a center was soft deleted
+        invalidateCacheByPattern(evacuationCenterCache, 'evacuation_centers:');
+        logger.info('Cache invalidated after evacuation center soft deletion', { id });
+
         res.status(200).json({
             message: `Evacuation center with ID ${id} and all its rooms soft deleted successfully.`,
             data: data[0]
@@ -502,6 +574,10 @@ exports.restoreEvacuationCenter = async (req, res, next) => {
         logger.debug('Evacuation center and rooms restored successfully', { id });
         logger.debug('Restored evacuation center data', { data: centerData[0] });
         
+        // Invalidate all evacuation center related caches since a center was restored
+        invalidateCacheByPattern(evacuationCenterCache, 'evacuation_centers:');
+        logger.info('Cache invalidated after evacuation center restoration', { id });
+
         res.status(200).json({
             message: `Evacuation center with ID ${id} and all its rooms restored successfully.`,
             data: centerData[0]
@@ -513,6 +589,21 @@ exports.restoreEvacuationCenter = async (req, res, next) => {
 };
 exports.getEvacuationCenterMapData = async (req, res, next) => {
     try {
+        // Generate cache key for map data
+        const cacheKey = generateCacheKey('evacuation_centers:map');
+        
+        // Check cache first
+        const cachedData = evacuationCenterCache.get(cacheKey);
+        if (cachedData) {
+            logger.debug('Cache hit for getEvacuationCenterMapData', { cacheKey, count: cachedData.data.length });
+            return res.status(200).json({
+                ...cachedData,
+                cached: true
+            });
+        }
+        
+        logger.debug('Cache miss for getEvacuationCenterMapData', { cacheKey });
+
         // First, get all active evacuation centers with their basic data
         const { data: centers, error: centersError } = await supabase
             .from(TABLE_NAME) // evacuation_centers
@@ -631,11 +722,17 @@ exports.getEvacuationCenterMapData = async (req, res, next) => {
         logger.debug('Successfully retrieved evacuation center map data', { count: transformedData.length });
         logger.debug('Evacuation center map data', { data: transformedData });
         
-        res.status(200).json({
+        const responseData = {
             message: 'Successfully retrieved detailed evacuation center map data.',
             count: transformedData.length,
             data: transformedData
-        });
+        };
+
+        // Store in cache
+        evacuationCenterCache.set(cacheKey, responseData);
+        logger.debug('Data cached for getEvacuationCenterMapData', { cacheKey, count: transformedData.length });
+
+        res.status(200).json(responseData);
     } catch (err) {
         logger.error('Internal server error during getEvacuationCenterMapData', { error: err.message, stack: err.stack });
         next(new ApiError('Internal server error during getEvacuationCenterMapData.', 500));
@@ -656,6 +753,21 @@ exports.getEvacuationCenterWithRooms = async (req, res, next) => {
     }
 
     try {
+        // Generate cache key for this specific evacuation center with rooms
+        const cacheKey = generateCacheKey('evacuation_centers:rooms', id);
+        
+        // Check cache first
+        const cachedData = evacuationCenterCache.get(cacheKey);
+        if (cachedData) {
+            logger.debug('Cache hit for getEvacuationCenterWithRooms', { cacheKey, id });
+            return res.status(200).json({
+                ...cachedData,
+                cached: true
+            });
+        }
+        
+        logger.debug('Cache miss for getEvacuationCenterWithRooms', { cacheKey, id });
+
         const { data, error } = await supabase
             .from(TABLE_NAME)
             .select(`
@@ -695,10 +807,16 @@ exports.getEvacuationCenterWithRooms = async (req, res, next) => {
         logger.info('Successfully retrieved evacuation center with rooms', { id, roomCount: centerData.evacuation_center_rooms.length });
         logger.debug('Evacuation center with rooms data', { data: centerData });
         
-        res.status(200).json({
+        const responseData = {
             message: `Successfully retrieved evacuation center with ID ${id} and its rooms.`,
             data: centerData
-        });
+        };
+
+        // Store in cache
+        evacuationCenterCache.set(cacheKey, responseData);
+        logger.debug('Data cached for getEvacuationCenterWithRooms', { cacheKey, id });
+
+        res.status(200).json(responseData);
     } catch (err) {
         logger.error('Internal server error during getEvacuationCenterWithRooms', { error: err.message, stack: err.stack, id });
         next(new ApiError('Internal server error during getEvacuationCenterWithRooms.', 500));
@@ -721,6 +839,21 @@ exports.getAssignedEvacuationCenter = async (req, res, next) => {
     }
 
     try {
+        // Generate cache key for this specific user's assigned center
+        const cacheKey = generateCacheKey('evacuation_centers:user', userId);
+        
+        // Check cache first
+        const cachedData = evacuationCenterCache.get(cacheKey);
+        if (cachedData) {
+            logger.debug('Cache hit for getAssignedEvacuationCenter', { cacheKey, userId });
+            return res.status(200).json({
+                ...cachedData,
+                cached: true
+            });
+        }
+        
+        logger.debug('Cache miss for getAssignedEvacuationCenter', { cacheKey, userId });
+
         const { data, error } = await supabase
             .from(TABLE_NAME)
             .select('id')
@@ -737,12 +870,18 @@ exports.getAssignedEvacuationCenter = async (req, res, next) => {
 
         logger.debug('Retrieved assigned evacuation center for user', { userId, evacuationCenterId });
         
-        res.status(200).json({
+        const responseData = {
             message: data 
                 ? `Successfully retrieved assigned evacuation center ID for user ${userId}.`
                 : `No evacuation center assigned to user ${userId}.`,
             evacuation_center_id: evacuationCenterId
-        });
+        };
+
+        // Store in cache
+        evacuationCenterCache.set(cacheKey, responseData);
+        logger.debug('Data cached for getAssignedEvacuationCenter', { cacheKey, userId });
+
+        res.status(200).json(responseData);
     } catch (err) {
         logger.error('Internal server error during getAssignedEvacuationCenter', { error: err.message, stack: err.stack, userId });
         next(new ApiError('Internal server error during getAssignedEvacuationCenter.', 500));
