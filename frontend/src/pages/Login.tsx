@@ -39,9 +39,16 @@ export default function Login(){
                 }),
             });
 
+            // Check for 500 server error BEFORE parsing JSON
+            if (response.status === 500) {                
+                window.location.href = '/error/500';
+                return;
+            }
+
             const data = await response.json();
 
             if (!response.ok) {
+                // Handle other errors
                 throw new Error(data.message || 'Login failed');
             }
 
@@ -52,8 +59,12 @@ export default function Login(){
             }));
             navigate('/dashboard');
         } catch (error: any) {
-            window.location.href = '/error/500';
-            setError('Failed to login');
+            // Handle network errors or JSON parse errors
+            if (error instanceof TypeError) {
+                window.location.href = '/error/500';
+            } else {
+                setError(error.message || 'Failed to login');
+            }
         } finally {
             setLoading(false);
         }
