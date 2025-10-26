@@ -519,82 +519,84 @@ export default function EvacuationCenterDetail() {
     };
   }
 
-  const handleRegisterEvacuee = async () => {
-    if (isEventEnded) {
-      setAlreadyEndedOpen(true);
+  const handleRegisterEvacuee = async (opts?: { shouldHideRoom?: boolean }) => {
+  if (isEventEnded) { setAlreadyEndedOpen(true); return; }
+  if (evacueeModalMode === "edit" && !canUpdateEvacueeInformation) return;
+
+  try {
+    const birthdate = new Date(formData.birthday);
+    const age = differenceInYears(new Date(), birthdate);
+    const vulnerabilityFlags = getVulnerabilityFlags(age);
+    const relationship =
+      formData.isFamilyHead === "Yes" ? "Head" : formData.relationshipToFamilyHead;
+
+    if (formData.isFamilyHead === "No" && !formData.familyHeadId) return;
+    const hideRoom = typeof opts?.shouldHideRoom === "boolean"
+      ? opts.shouldHideRoom
+      : shouldHideRoom; 
+    const parsed = Number.parseInt(formData.searchEvacuationRoom);
+    const roomId = hideRoom ? null : (Number.isFinite(parsed) ? parsed : null);
+    if (!hideRoom && roomId == null) {
+      alert("Please select a room.");
       return;
     }
-    if (evacueeModalMode === "edit" && !canUpdateEvacueeInformation) return;
 
-    try {
-      const birthdate = new Date(formData.birthday);
-      const age = differenceInYears(new Date(), birthdate);
-      const vulnerabilityFlags = getVulnerabilityFlags(age);
-      const relationship = formData.isFamilyHead === "Yes" ? "Head" : formData.relationshipToFamilyHead;
+    if (!Number.isFinite(centerId as any)) return;
 
-      if (formData.isFamilyHead === "No" && !formData.familyHeadId) return;
+    const payload: RegisterEvacuee = {
+      first_name: formData.firstName,
+      middle_name: formData.middleName,
+      last_name: formData.lastName,
+      suffix: formData.suffix?.trim() || null,
+      birthdate: formData.birthday,
+      sex: formData.sex,
+      barangay_of_origin: Number(formData.barangayOfOrigin),
+      marital_status: formData.maritalStatus,
+      educational_attainment: formData.educationalAttainment,
+      school_of_origin: formData.schoolOfOrigin || "",
+      occupation: formData.occupation || "",
+      purok: formData.purok || "",
+      relationship_to_family_head: relationship,
+      family_head_id: formData.isFamilyHead === "No" ? formData.familyHeadId! : undefined,
+      date_registered: new Date().toISOString(),
+      ...vulnerabilityFlags,
+      is_pwd: formData.vulnerabilities.pwd,
+      is_pregnant: formData.vulnerabilities.pregnant,
+      is_lactating: formData.vulnerabilities.lactatingMother,
 
-      const roomId = Number.parseInt(formData.searchEvacuationRoom);
-      if (!Number.isFinite(roomId)) return;
-      if (!Number.isFinite(centerId as any)) return;
+      disaster_evacuation_event_id: Number(centerId),
+      ec_rooms_id: roomId,
 
-      const payload: RegisterEvacuee = {
-        first_name: formData.firstName,
-        middle_name: formData.middleName,
-        last_name: formData.lastName,
-        suffix: formData.suffix && formData.suffix.trim() !== "" ? formData.suffix.trim() : null,
-        birthdate: formData.birthday,
-        sex: formData.sex,
-        barangay_of_origin: Number(formData.barangayOfOrigin),
-        marital_status: formData.maritalStatus,
-        educational_attainment: formData.educationalAttainment,
-        school_of_origin: formData.schoolOfOrigin || "",
-        occupation: formData.occupation || "",
-        purok: formData.purok || "",
-        relationship_to_family_head: relationship,
-        family_head_id: formData.isFamilyHead === "No" ? formData.familyHeadId! : undefined,
-        date_registered: new Date().toISOString(),
-        ...vulnerabilityFlags,
-        is_pwd: formData.vulnerabilities.pwd,
-        is_pregnant: formData.vulnerabilities.pregnant,
-        is_lactating: formData.vulnerabilities.lactatingMother,
-        ec_rooms_id: roomId,
-        disaster_evacuation_event_id: Number(centerId),
-        ...(evacueeModalMode === "register" && formData.existingEvacueeResidentId
-          ? { existing_evacuee_resident_id: formData.existingEvacueeResidentId }
-          : {}),
-      };
+      ...(evacueeModalMode === "register" && formData.existingEvacueeResidentId
+        ? { existing_evacuee_resident_id: formData.existingEvacueeResidentId }
+        : {}),
+    };
 
-      if (evacueeModalMode === "register") {
-        await evacueesApi.postEvacuee(payload, token!);
-      } else if (evacueeModalMode === "edit" && selectedEvacuee?.id) {
-        await evacueesApi.putEvacuee(selectedEvacuee.id, payload, token!);
-      } else {
-        return;
-      }
-
-      setEvacueeModalOpen(false);
-      await refreshAll();
-    } catch (error: any) {
-      const status = error?.response?.status;
-      const server = error?.response?.data;
-      const msg = server?.message || "Failed to register evacuee.";
-
-      const fullName = [formData.firstName, formData.middleName, formData.lastName, formData.suffix]
-        .filter(Boolean)
-        .join(" ")
-        .replace(/\s+/g, " ")
-        .trim();
-
-      if (status === 409) {
-        setRegBlockName(fullName || undefined);
-        setRegBlockEcName(server?.active_ec_name || server?.active_ec || undefined);
-        setRegBlockOpen(true);
-      } else if (status === 400) {
-        alert(msg);
-      }
+    if (evacueeModalMode === "register") {
+      await evacueesApi.postEvacuee(payload, token!);
+    } else if (evacueeModalMode === "edit" && selectedEvacuee?.id) {
+      await evacueesApi.putEvacuee(selectedEvacuee.id, payload, token!);
+    } else {
+      return;
     }
-  };
+
+    setEvacueeModalOpen(false);
+    await refreshAll();
+  } catch (error: any) {
+    const status = error?.response?.status;
+    const server = error?.response?.data;
+    const msg = server?.message || "Failed to register evacuee.";
+    if (status === 409) {
+      const fullName = [formData.firstName, formData.middleName, formData.lastName, formData.suffix]
+        .filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
+      setRegBlockName(fullName || undefined);
+      setRegBlockEcName(server?.active_ec_name || server?.active_ec || undefined);
+      setRegBlockOpen(true);
+    } else if (status === 400) {
+      alert(msg);
+    }
+  }
+};
 
   if (!detail || !statistics) {
     return (
@@ -617,11 +619,31 @@ export default function EvacuationCenterDetail() {
     );
   }
 
+// --- EC category / private-house detection (robust) ---
+const ec = detail.evacuation_center as any;
+
+const rawCategory: string | null =
+  ec?.category ??
+  ec?.evacuation_center_category ??
+  ec?.category_name ??
+  null;
+
+const normCategory = typeof rawCategory === "string" ? rawCategory.trim().toLowerCase() : null;
+
+// Some backends omit category for private houses; capacity often null there.
+// Keep this heuristic if that’s true for your data, otherwise drop it.
+const capacityMaybe = detail?.evacuation_summary?.evacuation_center_capacity;
+const noCapacity = capacityMaybe === null || capacityMaybe === undefined;
+
+const isPrivateHouse = normCategory === "private house" || ec?.is_private_house === true || noCapacity;
+const shouldHideRoom = isPrivateHouse;
+
   const disaster = {
     name: detail?.disaster?.disaster_name || "Unknown",
     type: detail?.disaster?.disaster_type_name || "Unknown",
     start: detail?.disaster?.disaster_start_date || "N/A",
   };
+
 
   const centerName = detail.evacuation_center.evacuation_center_name;
   const centerBarangay = detail.evacuation_center.evacuation_center_barangay_name;
@@ -771,6 +793,8 @@ export default function EvacuationCenterDetail() {
         onFamilyHeadSearch={handleFamilyHeadSearchClick}
         centerId={Number(centerId)}
         canCreateFamilyInformation={canCreateFamilyInformation}
+        isPrivateHouse={isPrivateHouse}
+        hideRoomField={shouldHideRoom}
       />
 
       <RegisterBlockDialog
