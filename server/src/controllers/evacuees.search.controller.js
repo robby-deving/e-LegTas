@@ -1,6 +1,7 @@
 // evacueeSearch.controller.js
 
 const { supabase } = require('../config/supabase');
+const logger = require('../utils/logger');
 
 class ApiError extends Error {
   constructor(message, statusCode = 500) {
@@ -13,7 +14,7 @@ class ApiError extends Error {
 
 let evacueeCache = null;
 let cacheTimestamp = null;
-const CACHE_TTL_MS = 5 * 60 * 1000; 
+const CACHE_TTL_MS = 5 * 60 * 1000;
 
 exports.invalidateEvacueeSearchCache = () => {
   evacueeCache = null;
@@ -30,6 +31,7 @@ exports.invalidateEvacueeSearchCache = () => {
 exports.searchEvacueeByName = async (req, res, next) => {
   const { name } = req.query;
   if (!name || String(name).trim() === "") {
+    logger.warn("Name query is required for evacuee search");
     return next(new ApiError("Name query is required.", 400));
   }
 
@@ -39,9 +41,9 @@ exports.searchEvacueeByName = async (req, res, next) => {
 
     if (evacueeCache && cacheTimestamp && now - cacheTimestamp < CACHE_TTL_MS) {
       rows = evacueeCache;
-      console.log("[CACHE HIT] evacuees");
+      logger.debug("[CACHE HIT] evacuees");
     } else {
-      console.log("[CACHE MISS] fetching from Supabase…");
+      logger.debug("[CACHE MISS] fetching from Supabase…");
       const { data, error } = await supabase
         .from("evacuation_registrations")
         .select(`
@@ -96,13 +98,14 @@ exports.searchEvacueeByName = async (req, res, next) => {
         `);
 
       if (error) {
-        console.error("Supabase error:", error);
+        logger.error("Supabase error while fetching evacuee records", { error });
         return next(new ApiError("Failed to fetch evacuee records.", 500));
       }
 
       rows = data || [];
       evacueeCache = rows;
       cacheTimestamp = now;
+      logger.debug("Evacuee cache refreshed", { count: rows.length });
     }
 
     // Client sends "name", we filter locally from cached rows.
@@ -148,7 +151,7 @@ exports.searchEvacueeByName = async (req, res, next) => {
       .is("decampment_timestamp", null);
 
     if (activeErr) {
-      console.error("Supabase active query error:", activeErr);
+      logger.error("Supabase active query error during evacuee search", { error: activeErr });
       return next(new ApiError("Failed to fetch active registration info.", 500));
     }
 
@@ -220,7 +223,6 @@ exports.searchEvacueeByName = async (req, res, next) => {
 
       const vulnerability_type_ids = hasEventScoped ? regVuln : globalVuln;
 
-
       // Family head display
       const headRes = entry.family_head?.residents;
       const family_head_full_name = headRes
@@ -277,9 +279,10 @@ exports.searchEvacueeByName = async (req, res, next) => {
       };
     });
 
+    logger.info("Evacuee search succeeded", { query: name, resultCount: result.length });
     return res.status(200).json(result);
   } catch (err) {
-    console.error("Evacuee search error:", err);
+    logger.error("Evacuee search fatal error", { error: err });
     return next(new ApiError("Internal server error during evacuee search.", 500));
   }
 };
@@ -295,12 +298,10 @@ exports.searchFamilyHeads = async (req, res, next) => {
   const q = (req.query.q || "").trim();
 
   try {
-    console.log(
-      "[searchFamilyHeads] EventID:",
+    logger.debug("[searchFamilyHeads] incoming params", {
       disasterEvacuationEventId,
-      "| q:",
-      q || "(empty)"
-    );
+      q: q || "(empty)",
+    });
 
     // 1) Pull registrations for the event with family head identity + room
     const { data: rows, error: regErr } = await supabase
@@ -327,14 +328,13 @@ exports.searchFamilyHeads = async (req, res, next) => {
       .eq("disaster_evacuation_event_id", disasterEvacuationEventId);
 
     if (regErr) {
-      console.error("Supabase error (registrations):", regErr);
+      logger.error("Supabase error while loading family heads", { error: regErr });
       return next(new ApiError("Failed to load family heads", 500));
     }
 
-    console.log(
-      "[searchFamilyHeads] Raw registration rows:",
-      JSON.stringify(rows, null, 2)
-    );
+    logger.debug("[searchFamilyHeads] Raw registration rows (truncated)", {
+      count: (rows || []).length,
+    });
 
     // Deduplicate by family_head_id and shape initial items (without purok)
     const seen = new Set();
@@ -371,7 +371,7 @@ exports.searchFamilyHeads = async (req, res, next) => {
       });
     }
 
-    console.log("[searchFamilyHeads] Family head IDs:", familyHeadIds);
+    logger.debug("[searchFamilyHeads] Family head IDs", { idsCount: familyHeadIds.length });
 
     // 2) In one batch, fetch purok from evacuee_residents using family_head_id
     let purokByHeadId = new Map();
@@ -382,13 +382,12 @@ exports.searchFamilyHeads = async (req, res, next) => {
         .in("family_head_id", familyHeadIds);
 
       if (erErr) {
-        console.error("❌ Supabase error (evacuee_residents):", erErr);
-        // We can continue without purok rather than failing the whole endpoint
+        logger.warn("Supabase error (evacuee_residents) while fetching purok; continuing", { error: erErr });
+        // Continue without purok rather than failing the whole endpoint
       } else {
-        console.log(
-          "[searchFamilyHeads] evacuee_residents rows:",
-          JSON.stringify(erows, null, 2)
-        );
+        logger.debug("[searchFamilyHeads] evacuee_residents rows fetched", {
+          count: (erows || []).length,
+        });
         purokByHeadId = new Map(erows.map((r) => [r.family_head_id, r.purok]));
       }
     }
@@ -399,10 +398,9 @@ exports.searchFamilyHeads = async (req, res, next) => {
       purok: purokByHeadId.get(h.family_head_id) ?? null,
     }));
 
-    console.log(
-      "[searchFamilyHeads] Merged result before filter:",
-      JSON.stringify(merged, null, 2)
-    );
+    logger.debug("[searchFamilyHeads] Merged result before filter", {
+      count: merged.length,
+    });
 
     // Optional search filtering (now includes purok & room)
     let result = merged;
@@ -415,18 +413,21 @@ exports.searchFamilyHeads = async (req, res, next) => {
           (h.purok?.toLowerCase?.().includes(qq) ?? false) ||
           (h.evacuation_room?.toLowerCase?.().includes(qq) ?? false)
       );
-      console.log(
-        "[searchFamilyHeads] After filter:",
-        JSON.stringify(result, null, 2)
-      );
+      logger.debug("[searchFamilyHeads] After filter", { count: result.length });
     }
+
+    logger.info("Family head search succeeded", {
+      disasterEvacuationEventId,
+      query: q || "(empty)",
+      resultCount: result.length,
+    });
 
     return res.status(200).json({
       count: result.length,
       data: result,
     });
   } catch (err) {
-    console.error("[searchFamilyHeads] error:", err);
+    logger.error("[searchFamilyHeads] fatal error", { error: err });
     return next(new ApiError("Internal server error", 500));
   }
 };

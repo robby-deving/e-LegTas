@@ -1,5 +1,6 @@
 // server/src/controllers/evacuees.event-details.controller.js
 const { supabase } = require('../config/supabase');
+const logger = require('../utils/logger');
 
 class ApiError extends Error {
   constructor(message, statusCode = 500) {
@@ -31,6 +32,7 @@ exports.getDisasterEvacuationDetails = async (req, res, next) => {
   );
 
   if (!Number.isFinite(disasterEvacuationEventId)) {
+    logger.warn('[event-details] Invalid disaster evacuation event id', { param: req.params.disasterEvacuationEventId ?? req.params.id });
     return next(new ApiError('Invalid disaster evacuation event id.', 400));
   }
 
@@ -61,10 +63,11 @@ exports.getDisasterEvacuationDetails = async (req, res, next) => {
       .maybeSingle();
 
     if (eventError) {
-      console.error('[event-details] supabase error:', eventError);
+      logger.error('[event-details] Supabase error fetching event', { disasterEvacuationEventId, error: eventError.message, details: eventError });
       return next(new ApiError('Failed to fetch disaster evacuation event.', 500));
     }
     if (!eventData) {
+      logger.warn('[event-details] Disaster evacuation event not found', { disasterEvacuationEventId });
       return next(new ApiError('Disaster evacuation event not found.', 404));
     }
 
@@ -79,7 +82,7 @@ exports.getDisasterEvacuationDetails = async (req, res, next) => {
       .maybeSingle();
 
     if (summaryError) {
-      console.error('[event-details] summary error:', summaryError);
+      logger.error('[event-details] Supabase error fetching summary', { disasterEvacuationEventId, error: summaryError.message, details: summaryError });
       return next(new ApiError('Failed to fetch evacuation summary.', 500));
     }
 
@@ -88,6 +91,14 @@ exports.getDisasterEvacuationDetails = async (req, res, next) => {
       total_no_of_individuals: summary?.total_no_of_individuals ?? 0,
       evacuation_center_capacity: ec?.total_capacity ?? 0,
     };
+
+    logger.info('[event-details] Retrieved event details', { disasterEvacuationEventId, hasSummary: !!summary, hasDisaster: !!disasters, hasCenter: !!ec });
+    logger.debug('[event-details] Response payload preview', {
+      eventId: eventData.id,
+      summary: safeSummary,
+      centerId: ec?.id ?? null,
+      disasterId: disasters?.id ?? null,
+    });
 
     return res.status(200).json({
       evacuation_event: {
@@ -113,7 +124,7 @@ exports.getDisasterEvacuationDetails = async (req, res, next) => {
       evacuation_summary: safeSummary,
     });
   } catch (err) {
-    console.error('[event-details] fatal:', err);
+    logger.error('[event-details] Internal server error', { error: err.message, stack: err.stack, disasterEvacuationEventId });
     return next(new ApiError('Internal server error', 500));
   }
 };
