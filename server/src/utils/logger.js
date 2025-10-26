@@ -36,6 +36,7 @@ const customLevels = {
 addColors(customLevels.colors);
 
 const isProduction = process.env.NODE_ENV === 'production';
+const isDevelopment = process.env.NODE_ENV === 'development';
 
 const baseFormat = format.combine(
   format.timestamp(),
@@ -112,7 +113,7 @@ const combinedFileTransport = new DailyRotateFile({
 
 const logger = createLogger({
   levels: customLevels.levels,
-  level: isProduction ? 'info' : 'debug',
+  level: isDevelopment ? 'debug' : 'info',
   format: baseFormat,
   transports: [
     new transports.Console({ format: consoleFormat }),

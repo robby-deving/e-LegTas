@@ -1,6 +1,7 @@
 // evacuation.search.controller.js
 
 const { supabase } = require('../config/supabase');
+const logger = require('../utils/logger');
 
 class ApiError extends Error {
     constructor(message, statusCode = 500) {
@@ -52,7 +53,7 @@ exports.searchEvacuations = async (req, res, next) => {
         const { data, error } = await query;
 
         if (error) {
-            console.error('Error fetching evacuation centers:', error);
+            logger.error('Error fetching evacuation centers:', { error: error.message, details: error });
             return next(new ApiError('Failed to search evacuation centers.', 500));
         }
 
@@ -94,7 +95,7 @@ exports.searchEvacuations = async (req, res, next) => {
         });
 
     } catch (err) {
-        console.error('Unexpected error in searchEvacuations:', err);
+        logger.error('Unexpected error in searchEvacuations:', { error: err.message, stack: err.stack });
         next(new ApiError('Internal server error during evacuation search.', 500));
     }
 };

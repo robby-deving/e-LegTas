@@ -45,9 +45,15 @@ export function EvacuationCenterForm({ formData, onFormChange, errors }: Evacuat
 
   // Filter categories based on permission - users with add_outside_ec can see Private House, others cannot
   const availableCategories = canAddOutsideEC
-    ? CATEGORIES
+    ? CATEGORIES.filter(category => category === 'Private House')
     : CATEGORIES.filter(category => category !== 'Private House');
 
+  // Automatically set category to 'Private House' if canAddOutsideEC is true
+  useEffect(() => {
+    if (canAddOutsideEC && formData.category !== 'Private House') {
+      onFormChange('category', 'Private House');
+    }
+  }, [canAddOutsideEC]);
 
   useEffect(() => {
     const fetchBarangays = async () => {

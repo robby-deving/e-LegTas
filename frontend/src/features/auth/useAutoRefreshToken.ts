@@ -44,11 +44,23 @@ export function useAutoRefreshToken() {
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include', // send httpOnly cookie
       });
+
+      // Check for 500 server error
+      if (response.status === 500) {
+        window.location.href = '/error/500';
+        return;
+      }
+
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || 'Failed to refresh token');
       dispatch(setCredentials({ user: data.user, token: data.token }));
     } catch (err) {
-      dispatch(logout());
+      // Check if it's a network error (server down)
+      if (err instanceof TypeError) {
+        window.location.href = '/error/500';
+      } else {
+        dispatch(logout());
+      }
     }
   }
 }

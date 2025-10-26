@@ -1,6 +1,7 @@
 //dashboard.controller.js
 
 const { supabase } = require('../config/supabase');
+const logger = require('../utils/logger');
 
 // --- Helper for Custom API Errors ---
 class ApiError extends Error {
@@ -43,7 +44,7 @@ exports.getActiveEvacuationCentersByDisaster = async (req, res, next) => {
         const { data, error } = await query;
 
         if (error) {
-            console.error('Supabase Error (getActiveEvacuationCentersByDisaster):', error);
+            logger.error('Supabase Error (getActiveEvacuationCentersByDisaster):', error);
             return next(new ApiError('Failed to retrieve evacuation center data.', 500));
         }
 
@@ -65,7 +66,7 @@ exports.getActiveEvacuationCentersByDisaster = async (req, res, next) => {
         });
 
     } catch (err) {
-        console.error(err);
+        logger.error(err);
         next(new ApiError('Internal server error during evacuation center count.', 500));
     }
 };
@@ -89,7 +90,7 @@ exports.getTotalRegisteredEvacueesByDisaster = async (req, res, next) => {
             .eq('disaster_id', disasterId);
 
         if (eventError) {
-            console.error('Supabase Error (evacuation events):', eventError);
+            logger.error('Supabase Error (evacuation events):', eventError);
             return next(new ApiError('Failed to fetch active evacuation events.', 500));
         }
 
@@ -109,7 +110,7 @@ exports.getTotalRegisteredEvacueesByDisaster = async (req, res, next) => {
             .lte('arrival_timestamp', to);
 
             if (regError) {
-                console.error('Supabase Error (registrations):', regError);
+                logger.error('Supabase Error (registrations):', regError);
                 return next(new ApiError('Failed to fetch filtered registrations.', 500));
             }
 
@@ -135,7 +136,7 @@ exports.getTotalRegisteredEvacueesByDisaster = async (req, res, next) => {
             .in('disaster_evacuation_event_id', activeEventIds);
 
         if (summaryError) {
-            console.error('Supabase Error (evacuation summaries):', summaryError);
+            logger.error('Supabase Error (evacuation summaries):', summaryError);
             return next(new ApiError('Failed to fetch evacuation summaries.', 500));
         }
 
@@ -175,7 +176,7 @@ exports.getTotalRegisteredFamiliesByDisaster = async (req, res, next) => {
             // .is('evacuation_end_date', null);
 
         if (eventError) {
-            console.error('Supabase Error (evacuation events):', eventError);
+            logger.error('Supabase Error (evacuation events):', eventError);
             return next(new ApiError('Failed to fetch active evacuation events.', 500));
         }
 
@@ -195,7 +196,7 @@ exports.getTotalRegisteredFamiliesByDisaster = async (req, res, next) => {
                 .lte('arrival_timestamp', to);
 
             if (regError) {
-                console.error('Supabase Error (registrations):', regError);
+                logger.error('Supabase Error (registrations):', regError);
                 return next(new ApiError('Failed to fetch filtered family registrations.', 500));
             }
 
@@ -224,7 +225,7 @@ exports.getTotalRegisteredFamiliesByDisaster = async (req, res, next) => {
             .in('disaster_evacuation_event_id', activeEventIds);
 
         if (summaryError) {
-            console.error('Supabase Error (evacuation summaries):', summaryError);
+            logger.error('Supabase Error (evacuation summaries):', summaryError);
             return next(new ApiError('Failed to fetch family totals.', 500));
         }
 
@@ -239,7 +240,7 @@ exports.getTotalRegisteredFamiliesByDisaster = async (req, res, next) => {
         });
 
     } catch (err) {
-        console.error(err);
+        logger.error(err);
         next(new ApiError('Internal server error during family count.', 500));
     }
 };
@@ -263,7 +264,7 @@ exports.getFamiliesWithReliefGoodsByDisaster = async (req, res, next) => {
             .eq('disaster_id', disasterId);
 
         if (eventError) {
-            console.error('Supabase Error (evacuation events):', eventError);
+            logger.error('Supabase Error (evacuation events):', eventError);
             return next(new ApiError('Failed to fetch evacuation events.', 500));
         }
 
@@ -283,7 +284,7 @@ exports.getFamiliesWithReliefGoodsByDisaster = async (req, res, next) => {
                 .lte('created_at', to);
 
             if (serviceError) {
-                console.error('Supabase Error (services):', serviceError);
+                logger.error('Supabase Error (services):', serviceError);
                 return next(new ApiError('Failed to fetch filtered relief goods data.', 500));
             }
 
@@ -313,7 +314,7 @@ exports.getFamiliesWithReliefGoodsByDisaster = async (req, res, next) => {
           .is('decampment_timestamp', null); // still active evacuees
 
         if (activeFamiliesError) {
-          console.error('Supabase Error (active families):', activeFamiliesError);
+          logger.error('Supabase Error (active families):', activeFamiliesError);
           return next(new ApiError('Failed to fetch active families.', 500));
         }
 
@@ -331,7 +332,7 @@ exports.getFamiliesWithReliefGoodsByDisaster = async (req, res, next) => {
           .in('family_id', activeFamilyIds);
 
         if (liveError) {
-          console.error('Supabase Error (services live):', liveError);
+          logger.error('Supabase Error (services live):', liveError);
           return next(new ApiError('Failed to fetch live relief goods data.', 500));
         }
 
@@ -343,7 +344,7 @@ exports.getFamiliesWithReliefGoodsByDisaster = async (req, res, next) => {
         });
 
     } catch (err) {
-        console.error(err);
+        logger.error(err);
         next(new ApiError('Internal server error during relief goods family count.', 500));
     }
 };
@@ -367,7 +368,7 @@ exports.getEvacueeStatisticsByDisaster = async (req, res, next) => {
       .eq("disaster_id", disasterId);
 
     if (eventError) {
-      console.error("Supabase Error (evacuation events):", eventError);
+      logger.error("Supabase Error (evacuation events):", eventError);
       return next(new ApiError("Failed to fetch evacuation events.", 500));
     }
 
@@ -394,7 +395,7 @@ exports.getEvacueeStatisticsByDisaster = async (req, res, next) => {
         .lte("arrival_timestamp", to);
 
       if (regError) {
-        console.error("Supabase Error (registrations):", regError);
+        logger.error("Supabase Error (registrations):", regError);
         return next(new ApiError("Failed to fetch filtered registrations.", 500));
       }
 
@@ -493,7 +494,7 @@ exports.getEvacueeStatisticsByDisaster = async (req, res, next) => {
       .in("disaster_evacuation_event_id", activeEventIds);
 
     if (summaryError) {
-      console.error("Supabase Error (evacuation summaries):", summaryError);
+      logger.error("Supabase Error (evacuation summaries):", summaryError);
       return next(new ApiError("Failed to fetch evacuee statistics.", 500));
     }
 
@@ -510,7 +511,7 @@ exports.getEvacueeStatisticsByDisaster = async (req, res, next) => {
     });
 
   } catch (err) {
-    console.error("Internal error:", err);
+    logger.error("Internal error:", err);
     next(new ApiError("Internal server error during evacuee statistics aggregation.", 500));
   }
 };
@@ -523,7 +524,7 @@ exports.getEvacueeStatisticsByDisaster = async (req, res, next) => {
  * @access Public
  */
 exports.getEvacuationCenterCapacityStatus = async (req, res, next) => {
-  console.log("🛰️ getEvacuationCenterCapacityStatus triggered, disasterId =", req.params.disasterId);
+  logger.debug("🛰️ getEvacuationCenterCapacityStatus triggered, disasterId =", req.params.disasterId);
     const { disasterId } = req.params;
     const { from, to } = req.query; // optional date filter
 
@@ -535,7 +536,7 @@ exports.getEvacuationCenterCapacityStatus = async (req, res, next) => {
             .eq('disaster_id', disasterId);
 
         if (eventError) {
-            console.error('Supabase Error (evacuation events):', eventError);
+            logger.error('Supabase Error (evacuation events):', eventError);
             return next(new ApiError('Failed to retrieve evacuation events.', 500));
         }
 
@@ -584,7 +585,7 @@ exports.getEvacuationCenterCapacityStatus = async (req, res, next) => {
                 .lte('arrival_timestamp', to);
 
             if (regError) {
-                console.error('Supabase Error (registrations):', regError);
+                logger.error('Supabase Error (registrations):', regError);
                 return next(new ApiError('Failed to fetch filtered registrations.', 500));
             }
 
@@ -616,7 +617,7 @@ exports.getEvacuationCenterCapacityStatus = async (req, res, next) => {
                 .in('disaster_evacuation_event_id', activeEventIds);
 
             if (summaryError) {
-                console.error('Supabase Error (evacuation_summaries):', summaryError);
+                logger.error('Supabase Error (evacuation_summaries):', summaryError);
                 return next(new ApiError('Failed to retrieve summaries.', 500));
             }
 
@@ -643,7 +644,7 @@ exports.getEvacuationCenterCapacityStatus = async (req, res, next) => {
             .in('id', centerIds);
 
         if (ecError) {
-            console.error('Supabase Error (evacuation_centers):', ecError);
+            logger.error('Supabase Error (evacuation_centers):', ecError);
             return next(new ApiError('Failed to fetch evacuation center info.', 500));
         }
 
@@ -665,7 +666,7 @@ exports.getEvacuationCenterCapacityStatus = async (req, res, next) => {
         });
 
     } catch (err) {
-        console.error('Error:', err);
+        logger.error('Error:', err);
         next(new ApiError('Internal server error during capacity status aggregation.', 500));
     }
 };
@@ -690,7 +691,10 @@ exports.getActiveDisasters = async (req, res) => {
     .is('disaster_end_date', null)           // still ongoing
     .order('disaster_start_date', { ascending: false });
 
-  if (error) return res.status(500).json({ error: error.message });
+  if (error) {
+    logger.error('Error fetching active disasters:', error);
+    return res.status(500).json({ error: error.message });
+  }
 
   res.status(200).json(data);
 };
@@ -723,7 +727,10 @@ exports.getCampManagerDisasters = async (req, res) => {
       .eq("assigned_user_id", userId)
       .is("evacuation_end_date", null);
 
-    if (error) return res.status(500).json({ error: error.message });
+    if (error) {
+      logger.error('Error fetching camp manager disasters:', error);
+      return res.status(500).json({ error: error.message });
+    }
 
     // flatten so that only the disaster details are returned
     const disasters = data
@@ -737,6 +744,7 @@ exports.getCampManagerDisasters = async (req, res) => {
 
     res.status(200).json(disasters);
   } catch (err) {
+    logger.error('Error fetching camp manager disasters:', err);
     res.status(500).json({ error: err.message });
   }
 };
@@ -763,7 +771,10 @@ exports.getCampManagerCenterInfo = async (req, res) => {
       .eq("id", eventId)
       .single();
 
-    if (error) return res.status(500).json({ error: error.message });
+    if (error) {
+      logger.error('Error fetching camp manager center info:', error);
+      return res.status(500).json({ error: error.message });
+    }
 
     if (!data) return res.status(404).json({ error: "Event not found" });
 
@@ -775,6 +786,7 @@ exports.getCampManagerCenterInfo = async (req, res) => {
 
     res.status(200).json(centerInfo);
   } catch (err) {
+    logger.error('Error fetching camp manager center info:', err.message);
     res.status(500).json({ error: err.message });
   }
 };
@@ -807,7 +819,7 @@ exports.getCampManagerDashboardSummary = async (req, res) => {
 
         const { data: services, error: servicesError } = await query;
         if (servicesError) {
-          console.error("Supabase Error (services fetch):", servicesError);
+          logger.error("Supabase Error (services fetch):", servicesError);
           return 0;
         }
 
@@ -824,7 +836,7 @@ exports.getCampManagerDashboardSummary = async (req, res) => {
           .is("decampment_timestamp", null);
 
         if (activeError) {
-          console.error("Supabase Error (active families check):", activeError);
+          logger.error("Supabase Error (active families check):", activeError);
           return 0;
         }
 
@@ -832,7 +844,7 @@ exports.getCampManagerDashboardSummary = async (req, res) => {
         const uniqueActiveFamilies = new Set(activeFamilies.map(f => f.family_head_id));
         return uniqueActiveFamilies.size;
       } catch (error) {
-        console.error("Error counting families with relief goods:", error);
+        logger.error("Error counting families with relief goods:", error);
         return 0;
       }
     };
@@ -856,7 +868,7 @@ exports.getCampManagerDashboardSummary = async (req, res) => {
         .lte("arrival_timestamp", to);
 
       if (regError) {
-        console.error("Supabase Error (filtered registrations):", regError);
+        logger.error("Supabase Error (filtered registrations):", regError);
         return res.status(500).json({
           success: false,
           error: "Failed to fetch filtered registrations.",
@@ -948,7 +960,7 @@ exports.getCampManagerDashboardSummary = async (req, res) => {
         .single();
 
       if (centerError) {
-        console.error("Supabase Error (center fetch):", centerError);
+        logger.error("Supabase Error (center fetch):", centerError);
       }
 
       const totalFamiliesWithReliefGoods = await getFamiliesWithReliefGoods(eventId, from, to);
@@ -1033,7 +1045,7 @@ exports.getCampManagerDashboardSummary = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error fetching Camp Manager Dashboard summary:", error?.message || error);
+    logger.error("Error fetching Camp Manager Dashboard summary:", error?.message || error);
     return res.status(500).json({
       success: false,
       error: error?.message || "Internal server error",
@@ -1049,6 +1061,7 @@ exports.getBarangayActiveDisasters = async (req, res) => {
   try {
     const { barangayId } = req.params;
     if (!barangayId) {
+      logger.warn('barangayId is required');
       return res.status(400).json({ message: 'barangayId is required' });
     }
 
@@ -1076,7 +1089,7 @@ exports.getBarangayActiveDisasters = async (req, res) => {
       .eq('evacuation_centers.barangay_id', barangayId);
 
     if (eventsError) {
-      console.error('Error fetching events:', eventsError);
+      logger.error('Error fetching events:', eventsError);
       return res.status(500).json({ message: 'Database error', error: eventsError.message });
     }
 
@@ -1103,7 +1116,7 @@ exports.getBarangayActiveDisasters = async (req, res) => {
 
     return res.status(200).json({ data: Array.from(uniqueMap.values()) });
   } catch (err) {
-    console.error('Server error getBarangayActiveDisasters:', err);
+    logger.error('Server error getBarangayActiveDisasters:', err);
     return res.status(500).json({ message: 'Server error', error: err.message });
   }
 };
@@ -1126,10 +1139,14 @@ exports.getBarangayDashboard = async (req, res) => {
       .select("id,name")
       .eq("id", barangayId)
       .maybeSingle();
-    if (barangayError)
+    if (barangayError) {
+      logger.error('Error fetching barangay info:', barangayError);
       return res.status(500).json({ message: "DB error (barangay)", error: barangayError.message });
-    if (!barangay) return res.status(404).json({ message: "Barangay not found" });
-
+    }
+    if (!barangay) {
+      logger.warn('Barangay not found:', barangayId);
+      return res.status(404).json({ message: "Barangay not found" });
+    }
     // 2️⃣ Evacuation centers under barangay
     const { data: centers, error: centersError } = await supabase
       .from("evacuation_centers")
@@ -1137,8 +1154,10 @@ exports.getBarangayDashboard = async (req, res) => {
       .eq("barangay_id", barangayId)
       .is("deleted_at", null);
 
-    if (centersError)
+    if (centersError) {
+      logger.error('Error fetching evacuation centers:', centersError);
       return res.status(500).json({ message: "DB error (centers)", error: centersError.message });
+    }
 
     const centerIds = (centers || []).map(c => c.id);
     const centersCount = centerIds.length;
@@ -1166,8 +1185,10 @@ exports.getBarangayDashboard = async (req, res) => {
     if (disasterId) eventsQuery = eventsQuery.eq("disaster_id", disasterId);
 
     const { data: events, error: eventsError } = await eventsQuery;
-    if (eventsError)
+    if (eventsError) {
+      logger.error('Error fetching active evacuation events:', eventsError);
       return res.status(500).json({ message: "DB error (events)", error: eventsError.message });
+    }
 
     const eventIds = (events || []).map(e => e.id);
     const eventsCount = eventIds.length;
@@ -1193,7 +1214,7 @@ exports.getBarangayDashboard = async (req, res) => {
 
         const { data: services, error: servicesError } = await query;
         if (servicesError) {
-          console.error("Supabase Error (services):", servicesError);
+          logger.error("Supabase Error (services):", servicesError);
           return 0;
         }
 
@@ -1208,13 +1229,13 @@ exports.getBarangayDashboard = async (req, res) => {
           .is("decampment_timestamp", null);
 
         if (regsError) {
-          console.error("Supabase Error (active families):", regsError);
+          logger.error("Supabase Error (active families):", regsError);
           return 0;
         }
 
         return new Set((regs || []).map(r => r.family_head_id)).size;
       } catch (err) {
-        console.error("Error counting families with relief goods:", err);
+        logger.error("Error counting families with relief goods:", err);
         return 0;
       }
     };
@@ -1230,8 +1251,10 @@ exports.getBarangayDashboard = async (req, res) => {
         .gte("arrival_timestamp", from)
         .lte("arrival_timestamp", to);
 
-      if (regError)
+      if (regError) {
+        logger.error('Error fetching filtered registrations:', regError);
         return res.status(500).json({ message: "DB error (filtered registrations)", error: regError.message });
+      }
 
       const registeredEvacuees = registrations?.length || 0;
       const uniqueFamilies = new Set(registrations.map(r => r.family_head_id));
@@ -1328,8 +1351,10 @@ exports.getBarangayDashboard = async (req, res) => {
       `)
       .in("disaster_evacuation_event_id", eventIds);
 
-    if (summariesError)
+    if (summariesError) {
+      logger.error('Error fetching evacuation summaries:', summariesError);
       return res.status(500).json({ message: "DB error (summaries)", error: summariesError.message });
+    }
 
     const totals = {
       total_registered_families: 0,
@@ -1382,7 +1407,7 @@ exports.getBarangayDashboard = async (req, res) => {
       message: "Live barangay dashboard summary."
     });
   } catch (err) {
-    console.error("Server error getBarangayDashboard:", err);
+    logger.error("Server error getBarangayDashboard:", err);
     return res.status(500).json({ message: "Server error", error: err.message });
   }
 };

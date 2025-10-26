@@ -1,6 +1,6 @@
 // src/pages/EvacuationCenterDetail.tsx
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { ChevronRight, Calendar } from "lucide-react";
 import { useSelector } from "react-redux";
 
@@ -44,6 +44,10 @@ export default function EvacuationCenterDetail() {
 
   const { hasPermission } = usePermissions();
   const token = useSelector(selectToken);
+
+  // detect if this page was opened from the "outside ec" tab
+  const location = useLocation() as { state?: { isOutsideEc?: boolean } };
+  const openedFromOutside = Boolean(location?.state?.isOutsideEc);
 
   const canViewDashboardSpecific = hasPermission("view_dashboard_specific");
   const canViewFamilyInformation = hasPermission("view_family_information");
@@ -697,7 +701,10 @@ export default function EvacuationCenterDetail() {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <RegisteredFamiliesCard count={familiesCount} />
                         <RegisteredEvacueesCard count={evacueesCount} />
-                        <ECCapacityCard count={capacityCount} />
+                        {/* Hide capacity card when opened from the Outside EC tab or when capacity is not present */}
+                        {!openedFromOutside && capacityCount ? (
+                          <ECCapacityCard count={capacityCount} />
+                        ) : null}
                       </div>
                     </div>
                   )}
