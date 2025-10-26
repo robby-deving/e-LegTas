@@ -153,11 +153,15 @@ export default function DisasterDetail() {
 
 
   // If user doesn't have permission to view active outside ECs, ensure tab is Inside EC
+  // Only react when the permission flag itself changes. If the user loses
+  // the permission, force the tab back to inside-ec. We avoid depending on
+  // `activeTab` here to prevent extra re-renders that could cause flicker
+  // when permissions are still loading.
   useEffect(() => {
-    if (!canViewActiveOutsideEC && activeTab === 'outside-ec') {
+    if (!canViewActiveOutsideEC) {
       setActiveTab('inside-ec');
     }
-  }, [canViewActiveOutsideEC, activeTab]);
+  }, [canViewActiveOutsideEC]);
   useEffect(() => {
     
     const loadDisaster = async () => {
@@ -628,10 +632,27 @@ export default function DisasterDetail() {
 
             <div className="flex gap-8 text-sm text-gray-600 items-center">
               <div className="flex  items-center">
-                <Tabs value={activeTab} onValueChange={(value) => { setActiveTab(value); setCurrentPage(1); }}>
-                  <TabsList className="grid w-fit grid-cols-2">
+                <Tabs
+                  value={activeTab}
+                  onValueChange={(value) => {
+                    // Prevent selecting the outside-ec tab if user lacks permission.
+                    if (value === 'outside-ec' && !canViewActiveOutsideEC) return;
+                    setActiveTab(value);
+                    setCurrentPage(1);
+                  }}
+                >
+                  {/* Adjust number of columns depending on whether Outside EC is shown */}
+                  <TabsList className={`grid w-fit ${canViewActiveOutsideEC ? 'grid-cols-2' : 'grid-cols-1'}`}>
                     <TabsTrigger value="inside-ec" className="px-3 py-1">Inside EC</TabsTrigger>
-                    <TabsTrigger value="outside-ec" className="px-3 py-1">Outside EC</TabsTrigger>
+                    {canViewActiveOutsideEC && (
+                      <TabsTrigger
+                        value="outside-ec"
+                        className="px-3 py-1"
+                        title={!canViewActiveOutsideEC ? 'You do not have permission to view Outside EC' : undefined}
+                      >
+                        Outside EC
+                      </TabsTrigger>
+                    )}
                   </TabsList>
                 </Tabs>
               </div>
@@ -703,12 +724,13 @@ export default function DisasterDetail() {
                         key={center.evacuation_center_id}
                         className="cursor-pointer hover:bg-gray-50"
                         onClick={() =>
-                          navigate(
-                            `/evacuation-information/${encodeId(
-                              disasterId
-                            )}/${encodeId(center.id)}`
-                          )
-                        }
+                              navigate(
+                                `/evacuation-information/${encodeId(
+                                  disasterId
+                                )}/${encodeId(center.id)}`,
+                                { state: { isOutsideEc: activeTab === 'outside-ec' } }
+                              )
+                            }
                       >
                         <TableCell className="text-foreground font-medium">
                           {center.evacuation_center_name}
