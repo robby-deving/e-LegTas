@@ -1,33 +1,59 @@
+
 import { usePageTitle } from '../../hooks/usePageTitle';
 import { Card, CardHeader, CardTitle, CardContent } from "../../components/ui/card";
 import { useState } from 'react';
 import { Calendar } from "lucide-react";
 import EvacueeStatisticsChart from '../../components/EvacueeStatisticsChart';
 import { useCampManagerDashboardData } from '../../hooks/useCampManagerDashboardData';
+import { useBarangayDashboardData } from '../../hooks/useBarangayDashboardData';
 import type { DateRange } from "react-day-picker";
 import DashboardHeader from "./DashboardHeader";
 import { getTypeColor, getTagColor } from "@/constants/disasterTypeColors";
 import { formatDate } from "@/utils/dateFormatter";
 import { EvacuationCenterNameCard } from "../../components/cards/EvacuationCenterNameCard";
+import { BarangayNameCard } from "../../components/cards/BarangayNameCard";
 import { RegisteredFamiliesCard } from "../../components/cards/RegisteredFamiliesCard";
 import { RegisteredEvacueesCard } from "../../components/cards/RegisteredEvacueesCard";
 import { ECCapacityCard } from "../../components/cards/ECCapacityCard";
+import { ReliefGoodsCard } from "../../components/cards/ReliefGoodsCard";
 import { useSelector } from 'react-redux';
 import { selectCurrentUser } from '../../features/auth/authSlice';
 
 export default function CampManagerDashboard() {
   usePageTitle('CampManagerDashboard');
   const currentUser = useSelector(selectCurrentUser);
-  
-  // Use the actual authenticated user's ID instead of hardcoded value
+
+  // Identify role
+  const roleId = currentUser?.role_id;
+  const isCampManager = roleId === 5;
+  const isBarangay = roleId === 7;
+
+  // IDs depending on role
   const campManagerId = currentUser?.user_id;
+  const barangayId = currentUser?.assigned_barangay_id;
 
   const [selectedDateRange, setSelectedDateRange] = useState<DateRange | undefined>(undefined);
 
+  // Pick correct data hook
+  // const {
+  //   disasters,
+  //   selectedDisaster,
+  //   setSelectedDisaster,
+  //   centerInfo,
+  //   familiesCount,
+  //   evacueesCount,
+  //   capacityCount,
+  //   familiesWithReliefGoodsCount,
+  //   chartData,
+  //   loading,
+  // } = isCampManager
+  //   ? useCampManagerDashboardData(campManagerId, selectedDateRange)
+  //   : useBarangayDashboardData(barangayId, selectedDateRange);
 
+  // Determine active ID
+  // const activeId = isCampManager ? campManagerId : barangayId;
 
-  // Don't fetch data if we don't have a valid camp manager ID
-  if (!campManagerId) {
+  if ((isCampManager && !campManagerId) || (isBarangay && !barangayId)) {
     return (
       <div className="text-black p-6 space-y-6">
         <div className="flex items-center justify-center h-64">
@@ -44,16 +70,36 @@ export default function CampManagerDashboard() {
     );
   }
 
-  const { 
-    disasters, 
-    selectedDisaster, 
+  // --- DATA FETCH (unify results) ---
+  const barangayData = isBarangay
+    ? useBarangayDashboardData(barangayId as number, selectedDateRange)
+    : null;
+  const campManagerData = isCampManager
+    ? useCampManagerDashboardData(campManagerId as number, selectedDateRange)
+    : null;
+
+  // Normalize structure so both roles return same keys
+  const {
+    disasters,
+    selectedDisaster,
     setSelectedDisaster,
     centerInfo,
     familiesCount,
     evacueesCount,
     capacityCount,
+    familiesWithReliefGoodsCount,
     chartData,
-    loading,  } = useCampManagerDashboardData(campManagerId, selectedDateRange);
+    loading,
+  } = campManagerData
+    ? campManagerData
+    : {
+        ...barangayData!,
+        centerInfo: {
+          name: undefined,
+          ...(barangayData!.barangayInfo ?? {}),
+        },
+        capacityCount: undefined, // barangay dashboard doesn’t use capacity
+      };
 
   const fromDate = selectedDisaster?.disaster_start_date
     ? new Date(selectedDisaster.disaster_start_date)
@@ -73,74 +119,89 @@ export default function CampManagerDashboard() {
         fromDate={fromDate}
         toDate={toDate}
       />
-    
-    {loading ? (
-      <div className="flex items-center justify-center h-64">
-        <p className="text-lg text-gray-500">Loading dashboard data...</p>
-      </div>
-    ) : selectedDisaster ? (
-      <>
-      {/* Disaster Information Card */}
-      <div className="py-3">
-        <div className="space-y-3">
-          <div
-            className={`inline-block rounded px-3 py-1 text-sm font-semibold ${getTagColor(
-              selectedDisaster?.disaster_types?.name || "default"
-            )}`}
-          >
-            {selectedDisaster?.disaster_types?.name}
-          </div>
-          <h2 
-            className={`text-3xl font-bold ${getTypeColor(
-              selectedDisaster?.disaster_types?.name || "default"
-            )}`}
-          >
-            {selectedDisaster?.disaster_name}
-          </h2>
-          {selectedDisaster?.disaster_start_date && (
-            <div className="flex items-center gap-2 text-gray-600">
-              <Calendar className="w-4 h-4" />
-              <span className="text-sm">
-                {formatDate(selectedDisaster.disaster_start_date)}
-              </span>
-            </div>
-          )}
-        </div>
-      </div>
 
-      {/* Center Summary & Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
-        <div className="md:col-span-1">
-          <EvacuationCenterNameCard
-            name={centerInfo?.name || "Loading..."}
-            barangay={centerInfo?.barangay || ""}
-          />
-          <div className="flex flex-col gap-6 mt-5">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <RegisteredFamiliesCard count={familiesCount} />
-              <RegisteredEvacueesCard count={evacueesCount} />
-              <ECCapacityCard count={capacityCount} />
+      {loading ? (
+        <div className="flex items-center justify-center h-64">
+          <p className="text-lg text-gray-500">Loading dashboard data...</p>
+        </div>
+      ) : selectedDisaster ? (
+        <>
+          {/* Disaster Info */}
+          <div className="py-3">
+            <div className="space-y-3">
+              <div
+                className={`inline-block rounded px-3 py-1 text-sm font-semibold ${getTagColor(
+                  selectedDisaster?.disaster_types?.name || "default"
+                )}`}
+              >
+                {selectedDisaster?.disaster_types?.name}
+              </div>
+              <h2
+                className={`text-3xl font-bold ${getTypeColor(
+                  selectedDisaster?.disaster_types?.name || "default"
+                )}`}
+              >
+                {selectedDisaster?.disaster_name}
+              </h2>
+              {selectedDisaster?.disaster_start_date && (
+                <div className="flex items-center gap-2 text-gray-600">
+                  <Calendar className="w-4 h-4" />
+                  <span className="text-sm">
+                    {formatDate(selectedDisaster.disaster_start_date)}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
-        </div>
-        <Card className="md:col-span-1 shadow-sm border border-border">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xl font-bold leading-tight mb-0">
-              Evacuees Statistics
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <EvacueeStatisticsChart data={chartData} />
-          </CardContent>
-        </Card>
-      </div>
-    </>
+
+          {/* Summary + Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+            <div className="md:col-span-1">
+              {/* Conditional name card */}
+              {isCampManager ? (
+                <EvacuationCenterNameCard
+                  name={centerInfo?.name || "Loading..."}
+                  barangay={centerInfo?.barangay || ""}
+                />
+              ) : (
+                <BarangayNameCard
+                  barangay={centerInfo?.barangay || "Loading..."}
+                />
+              )}
+
+              <div className="flex flex-col gap-6 mt-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Families */}
+                  <RegisteredFamiliesCard count={familiesCount} />
+                  {/* Evacuees */}
+                  <RegisteredEvacueesCard count={evacueesCount} />
+                  {/* Capacity (Camp Manager only) */}
+                  {isCampManager && <ECCapacityCard count={capacityCount ?? 0} />}
+                  {/* Relief Goods */}
+                  <ReliefGoodsCard count={familiesWithReliefGoodsCount} />
+                </div>
+              </div>
+            </div>
+
+            {/* Evacuee Chart */}
+            <Card className="md:col-span-1 shadow-sm border border-border">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xl font-bold leading-tight mb-0">
+                  Evacuees Statistics
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <EvacueeStatisticsChart data={chartData} />
+              </CardContent>
+            </Card>
+          </div>
+        </>
       ) : (
-        // Message if no active disaster
+        // No Active Disaster
         <div className="flex items-center justify-center h-64">
           <div className="flex flex-col items-center justify-center h-[400px] text-center">
             <h2 className="text-2xl font-semibold text-gray-700 mb-2">
-              No Ongoing Disaster
+              No Ongoing Incident
             </h2>
             <p className="text-lg text-gray-500 max-w-2xl">
               Please activate an Evacuation Center to view dashboard data.

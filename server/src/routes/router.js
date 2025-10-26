@@ -42,25 +42,26 @@ router.get(
 );
 
 // Mount routes with appropriate rate limiting
-router.use('/auth', authRateLimit, authRoutes);
-// Apply auth to all /users routes so permission middleware has req.user
-router.use('/users', apiRateLimit, authenticateUser, userRoutes);
-router.use('/permissions', apiRateLimit, permissionRoutes);
-router.use('/roles', apiRateLimit, roleRoutes);
+router.use('/auth', /*authRateLimit,*/ authRoutes);
+// Enable authentication with UUID fix
+router.use('/users', /*apiRateLimit,*/ authenticateUser, userRoutes);
+// router.use('/users', /*apiRateLimit,*/ userRoutes);
+router.use('/permissions', /*apiRateLimit,*/ permissionRoutes);
+router.use('/roles', /*apiRateLimit,*/ roleRoutes);
 // Protect all notifications endpoints so permission checks have req.user
-router.use('/notifications', apiRateLimit, authenticateUser, notificationRoutes);
-router.use('/evacuation-centers', apiRateLimit, evacuationCentersRoutes);
-router.use('/disasters', apiRateLimit, disasterRoutes);
-router.use('/rooms', apiRateLimit, roomRoutes);
-router.use('/disaster-events', apiRateLimit, disasterEventRoutes);
-router.use('/dashboard', authenticateUser, dashboardRateLimit, dashboardRoutes);
-router.use('/evacuees', apiRateLimit, evacueesRoutes);
-router.use('/barangays', apiRateLimit, barangayRoutes);
+router.use('/notifications', /*apiRateLimit,*/ authenticateUser, notificationRoutes);
+router.use('/evacuation-centers', /*apiRateLimit,*/ evacuationCentersRoutes);
+router.use('/disasters', /*apiRateLimit,*/ disasterRoutes);
+router.use('/rooms', /*apiRateLimit,*/ roomRoutes);
+router.use('/disaster-events', /*apiRateLimit,*/ disasterEventRoutes);
+router.use('/dashboard', authenticateUser, /*dashboardRateLimit,*/ dashboardRoutes);
+router.use('/evacuees', /*apiRateLimit,*/ evacueesRoutes);
+router.use('/barangays', /*apiRateLimit,*/ barangayRoutes);
 
-router.use('/profile', apiRateLimit, profileRoutes);
+router.use('/profile', /*apiRateLimit,*/ profileRoutes);
 
-router.use('/reports', authenticateUser, reportRateLimit, reportsRoutes);
-router.use('/mobile', apiRateLimit, mobileRoutes);
+router.use('/reports', authenticateUser, /*reportRateLimit,*/ reportsRoutes);
+router.use('/mobile', /*apiRateLimit,*/ mobileRoutes);
 
 // Role creation route
 router.post(

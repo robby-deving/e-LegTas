@@ -57,6 +57,12 @@ export type FamilyMember = {
   arrival_timestamp: string;
 };
 
+export type ServiceReceived = {
+  service_received: string;
+  created_at: string; // ISO timestamp
+};
+
+
 export type FamilyEvacueeInformation = {
   id: number;
   disaster_evacuation_event_id: string;
@@ -87,7 +93,11 @@ export type FamilyEvacueeInformation = {
   list_of_family_members: {
     family_members: FamilyMember[];
   };
+  // Adding services field here
+  relief_goods_and_services?: ServiceReceived[]; // Array of services received
 };
+
+
 
 export interface Evacuee {
   evacuee_resident_id: number;
@@ -163,7 +173,7 @@ export type RegisterEvacuee = {
   is_pregnant?: boolean;
   is_lactating?: boolean;
 
-  ec_rooms_id: number;
+  ec_rooms_id: number | null;
   disaster_evacuation_event_id: number;
    existing_evacuee_resident_id?: number;
 };

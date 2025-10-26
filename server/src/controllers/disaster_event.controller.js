@@ -1,10 +1,18 @@
 // disaster_event.controller.js
 
 const { supabase } = require('../config/supabase'); // Import the centralized Supabase client
+const logger = require('../utils/logger');
+const { createCache, generateCacheKey, invalidateCacheByPattern } = require('../utils/cache');
 // const { logAudit } = require('../utils/auditLogger'); // REMOVED: Import logAudit for auditing
 
 const TABLE_NAME = 'disaster_evacuation_event'; // Main table for this controller
 const TABLE_NAME_SUMMARY = 'evacuation_summaries'; // New table for summaries
+
+// Initialize LRU cache with 5-minute TTL
+const disasterEventCache = createCache({
+    max: 1000, // Maximum 1000 items in cache (more than disasters due to pagination)
+    ttl: 1000 * 60 * 5, // 5 minutes TTL
+});
 
 // --- Helper for Custom API Errors ---
 class ApiError extends Error {
@@ -25,10 +33,15 @@ class ApiError extends Error {
  */
 exports.getDisasterEventDetailsByDisasterId = async (req, res, next) => {
     const { disasterId } = req.params;
-    const { page = 1, limit = 10, search } = req.query;
+    const { page = 1, limit = 10, search, ec_type, barangay_id } = req.query;
 
     if (!disasterId || isNaN(Number(disasterId))) {
         return next(new ApiError('Invalid Disaster ID provided.', 400));
+    }
+
+    // Validate barangay_id if provided
+    if (barangay_id && isNaN(Number(barangay_id))) {
+        return next(new ApiError('Invalid Barangay ID provided.', 400));
     }
 
     // Validate pagination parameters
@@ -42,16 +55,54 @@ exports.getDisasterEventDetailsByDisasterId = async (req, res, next) => {
     const offset = (pageNum - 1) * limitNum;
 
     try {
-        // Build the base query for counting
+        // Generate cache key based on all query parameters
+        const cacheKey = generateCacheKey('disaster_events:by_disaster', {
+            disasterId,
+            page: pageNum,
+            limit: limitNum,
+            search,
+            ec_type,
+            barangay_id
+        });
+
+        // Check cache first
+        const cachedData = disasterEventCache.get(cacheKey);
+        if (cachedData) {
+            logger.debug('Cache hit for getDisasterEventDetailsByDisasterId', { 
+                cacheKey, 
+                disasterId,
+                recordCount: cachedData.data.length 
+            });
+            return res.status(200).json({
+                ...cachedData,
+                cached: true
+            });
+        }
+
+        logger.debug('Cache miss for getDisasterEventDetailsByDisasterId', { cacheKey, disasterId });
+
+        // Build the base query for counting with EC type filter
         let countQuery = supabase
             .from(TABLE_NAME)
-            .select('*', { count: 'exact', head: true })
+            .select('*, evacuation_centers!inner(category, barangay_id)', { count: 'exact', head: true })
             .eq('disaster_id', disasterId);
+            
+        // Add EC type filter if provided
+        if (ec_type === 'inside') {
+            countQuery = countQuery.in('evacuation_centers.category', ['School', 'Chapel/Church', 'Dedicated Evacuation Center', 'Government Building', 'Commercial Building']);
+        } else if (ec_type === 'outside') {
+            countQuery = countQuery.in('evacuation_centers.category', ['Private House']);
+        }
+
+        // Add barangay filter if provided
+        if (barangay_id) {
+            countQuery = countQuery.eq('evacuation_centers.barangay_id', barangay_id);
+        }
 
         const { count, error: countError } = await countQuery;
 
         if (countError) {
-            console.error('Supabase Error (count query):', countError);
+            logger.error('Supabase Error (count query):', { error: countError });
             return next(new ApiError('Failed to retrieve disaster event count.', 500));
         }
 
@@ -67,9 +118,11 @@ exports.getDisasterEventDetailsByDisasterId = async (req, res, next) => {
                     total_no_of_family,
                     total_no_of_individuals
                 ),
-                evacuation_centers(
+                evacuation_centers!inner(
                     name,
                     total_capacity,
+                    category,
+                    barangay_id,
                     barangays(name)
                 ),
                 users(
@@ -84,6 +137,18 @@ exports.getDisasterEventDetailsByDisasterId = async (req, res, next) => {
                 )
             `)
             .eq('disaster_id', disasterId); // Filter by disaster_id
+            
+        // Add EC type filter if provided
+        if (ec_type === 'inside') {
+            dataQuery = dataQuery.in('evacuation_centers.category', ['School', 'Chapel/Church', 'Dedicated Evacuation Center', 'Government Building']);
+        } else if (ec_type === 'outside') {
+            dataQuery = dataQuery.in('evacuation_centers.category', ['Commercial Building', 'Private House']);
+        }
+
+        // Add barangay filter if provided
+        if (barangay_id) {
+            dataQuery = dataQuery.eq('evacuation_centers.barangay_id', barangay_id);
+        }
 
         // Apply search filter if provided
         // For now, we'll implement a simpler search that works with the current Supabase setup
@@ -95,7 +160,7 @@ exports.getDisasterEventDetailsByDisasterId = async (req, res, next) => {
             const { data: allData, error: allDataError } = await dataQuery;
 
             if (allDataError) {
-                console.error('Supabase Error (data query):', allDataError);
+                logger.error('Supabase Error (data query):', { error: allDataError });
                 return next(new ApiError('Failed to retrieve disaster event data.', 500));
             }
 
@@ -169,12 +234,20 @@ exports.getDisasterEventDetailsByDisasterId = async (req, res, next) => {
                         assigned_user_name: assignedUserName
                     };
                 } catch (transformError) {
-                    console.error('Error transforming event data:', transformError, event);
+                    logger.error('Error transforming event data:', { error: transformError, event });
                     return null;
                 }
             }).filter(item => item !== null);
 
-            return res.status(200).json({
+            logger.debug('Successfully retrieved filtered disaster evacuation events', { 
+                disasterId, 
+                searchTerm,
+                totalRecords: filteredTotalCount, 
+                page: pageNum,
+                limit: limitNum 
+            });
+
+            const responseData = {
                 message: `Successfully retrieved detailed disaster evacuation events for Disaster ID ${disasterId}.`,
                 data: transformedData,
                 pagination: {
@@ -185,14 +258,20 @@ exports.getDisasterEventDetailsByDisasterId = async (req, res, next) => {
                     has_next_page: pageNum < filteredTotalPages,
                     has_prev_page: pageNum > 1
                 }
-            });
+            };
+
+            // Store in cache
+            disasterEventCache.set(cacheKey, responseData);
+            logger.debug('Data cached for getDisasterEventDetailsByDisasterId (filtered)', { cacheKey });
+
+            return res.status(200).json(responseData);
         }
 
         const { data, error } = await dataQuery
             .range(offset, offset + limitNum - 1); // Apply pagination
 
         if (error) {
-            console.error('Supabase Error (getDisasterEventDetailsByDisasterId):', error);
+            logger.error('Supabase Error (getDisasterEventDetailsByDisasterId):', { error });
             return next(new ApiError('Failed to retrieve detailed disaster event data.', 500));
         }
 
@@ -251,14 +330,14 @@ exports.getDisasterEventDetailsByDisasterId = async (req, res, next) => {
                     assigned_user_name: assignedUserName
                 };
             } catch (transformError) {
-                console.error('Error transforming event data:', transformError, event);
+                logger.error('Error transforming event data:', { error: transformError, event });
                 return null;
             }
         }).filter(item => item !== null); // Remove any null items from failed transformations
 
         const totalPages = Math.ceil(totalCount / limitNum);
 
-        res.status(200).json({
+        const responseData = {
             message: `Successfully retrieved detailed disaster evacuation events for Disaster ID ${disasterId}.`,
             data: transformedData,
             pagination: {
@@ -269,9 +348,15 @@ exports.getDisasterEventDetailsByDisasterId = async (req, res, next) => {
                 has_next_page: pageNum < totalPages,
                 has_prev_page: pageNum > 1
             }
-        });
+        };
+
+        // Store in cache
+        disasterEventCache.set(cacheKey, responseData);
+        logger.debug('Data cached for getDisasterEventDetailsByDisasterId', { cacheKey, count: transformedData.length });
+
+        res.status(200).json(responseData);
     } catch (err) {
-        console.error('Unexpected error in getDisasterEventDetailsByDisasterId:', err);
+        logger.error('Unexpected error in getDisasterEventDetailsByDisasterId:', { error: err });
         next(new ApiError('Internal server error during getDisasterEventDetailsByDisasterId.', 500));
     }
 };
@@ -290,6 +375,22 @@ exports.getDisasterEventById = async (req, res, next) => {
     }
 
     try {
+        // Generate cache key for this specific disaster event
+        const cacheKey = generateCacheKey('disaster_events:id', id);
+        
+        // Check cache first
+        const cachedData = disasterEventCache.get(cacheKey);
+        if (cachedData) {
+            logger.debug('Cache hit for getDisasterEventById', { cacheKey, id });
+            logger.info('Serving getDisasterEventById from cache', { cacheKey, id });
+            return res.status(200).json({
+                ...cachedData,
+                cached: true
+            });
+        }
+        
+        logger.debug('Cache miss for getDisasterEventById', { cacheKey, id });
+
         const { data, error } = await supabase
             .from(TABLE_NAME) // Disaster_Evacuation_Event
             .select(`
@@ -318,14 +419,15 @@ exports.getDisasterEventById = async (req, res, next) => {
             .single(); // Use .single() to expect only one row
 
         if (error) {
-            console.error('Supabase Error (getDisasterEventById):', error);
             // If no row found with .single(), Supabase returns a specific error
             if (error.code === 'PGRST116') { // Supabase error code for no rows found with .single()
+                logger.warn('Disaster event not found:', { id, error });
                 return res.status(404).json({
                     message: `Disaster evacuation event with ID ${id} not found.`,
                     data: null
                 });
             }
+            logger.error('Supabase Error (getDisasterEventById):', { error });
             return next(new ApiError('Failed to retrieve detailed disaster event data.', 500));
         }
 
@@ -369,10 +471,16 @@ exports.getDisasterEventById = async (req, res, next) => {
             assigned_user_name: assignedUserName
         };
 
-        res.status(200).json({
+        const responseData = {
             message: `Successfully retrieved detailed disaster evacuation event with ID ${id}.`,
             data: transformedData
-        });
+        };
+
+        // Store in cache
+        disasterEventCache.set(cacheKey, responseData);
+        logger.debug('Data cached for getDisasterEventById', { cacheKey, id });
+
+        res.status(200).json(responseData);
     } catch (err) {
         next(new ApiError('Internal server error during getDisasterEventById.', 500));
     }
@@ -396,6 +504,29 @@ exports.checkDisasterEventByEvacuationCenter = async (req, res, next) => {
     }
 
     try {
+        // Generate cache key
+        const cacheKey = generateCacheKey('disaster_events:check', { disasterId, evacuationCenterId });
+        
+        // Check cache first
+        const cachedData = disasterEventCache.get(cacheKey);
+        if (cachedData) {
+            logger.debug('Cache hit for checkDisasterEventByEvacuationCenter', { 
+                cacheKey, 
+                disasterId, 
+                evacuationCenterId 
+            });
+            return res.status(200).json({
+                ...cachedData,
+                cached: true
+            });
+        }
+        
+        logger.debug('Cache miss for checkDisasterEventByEvacuationCenter', { 
+            cacheKey, 
+            disasterId, 
+            evacuationCenterId 
+        });
+
         const { data, error } = await supabase
             .from(TABLE_NAME)
             .select('id, disaster_id, evacuation_center_id')
@@ -404,13 +535,19 @@ exports.checkDisasterEventByEvacuationCenter = async (req, res, next) => {
             .maybeSingle(); // Use maybeSingle to avoid error if no row found
 
         if (error) {
-            console.error('Supabase Error (checkDisasterEventByEvacuationCenter):', error);
+            logger.error('Supabase Error (checkDisasterEventByEvacuationCenter):', { error });
             return next(new ApiError('Failed to check disaster event.', 500));
         }
 
+        let responseData;
         if (data) {
             // Disaster event exists
-            res.status(200).json({
+            logger.debug('Disaster event found for evacuation center', { 
+                disasterId, 
+                evacuationCenterId, 
+                eventId: data.id 
+            });
+            responseData = {
                 message: 'Disaster event found.',
                 exists: true,
                 data: {
@@ -418,17 +555,27 @@ exports.checkDisasterEventByEvacuationCenter = async (req, res, next) => {
                     disaster_id: data.disaster_id,
                     evacuation_center_id: data.evacuation_center_id
                 }
-            });
+            };
         } else {
             // No disaster event found
-            res.status(200).json({
+            logger.debug('No disaster event found for evacuation center', { 
+                disasterId, 
+                evacuationCenterId 
+            });
+            responseData = {
                 message: 'No disaster event found for this evacuation center and disaster combination.',
                 exists: false,
                 data: null
-            });
+            };
         }
+
+        // Store in cache
+        disasterEventCache.set(cacheKey, responseData);
+        logger.debug('Data cached for checkDisasterEventByEvacuationCenter', { cacheKey });
+
+        res.status(200).json(responseData);
     } catch (err) {
-        console.error('Unexpected error in checkDisasterEventByEvacuationCenter:', err);
+        logger.error('Unexpected error in checkDisasterEventByEvacuationCenter:', { error: err });
         next(new ApiError('Internal server error during checkDisasterEventByEvacuationCenter.', 500));
     }
 };
@@ -468,17 +615,25 @@ exports.createDisasterEvent = async (req, res, next) => {
             .select(); // Use .select() to get the inserted row, including its ID
 
         if (error) {
-            console.error(
-                'Supabase Error (createDisasterEvent - Event Insert):',
-                'Message:', error.message,
-                'Details:', error.details,
-                'Hint:', error.hint,
-                'Code:', error.code,
-                'Full Error Object:', error
-            );
             if (error.code === '23503') {
+                logger.warn('Foreign key constraint failed in createDisasterEvent:', { 
+                    error: {
+                        message: error.message,
+                        details: error.details,
+                        hint: error.hint,
+                        code: error.code
+                    }
+                });
                 return next(new ApiError('Foreign key constraint failed (e.g., disaster_id, assigned_user_id, or evacuation_center_id does not exist).', 400));
             }
+            logger.error('Supabase Error (createDisasterEvent - Event Insert):', {
+                error: {
+                    message: error.message,
+                    details: error.details,
+                    hint: error.hint,
+                    code: error.code
+                }
+            });
             return next(new ApiError('Failed to create disaster evacuation event entry.', 500));
         }
 
@@ -498,25 +653,39 @@ exports.createDisasterEvent = async (req, res, next) => {
             .insert([newSummaryEntry]);
 
         if (summaryError) {
-            console.error(
-                'Supabase Error (createDisasterEvent - Summary Insert):',
-                'Message:', summaryError.message,
-                'Details:', summaryError.details,
-                'Hint:', summaryError.hint,
-                'Code:', summaryError.code,
-                'Full Error Object:', summaryError
-            );
+            logger.error('Supabase Error (createDisasterEvent - Summary Insert):', {
+                error: {
+                    message: summaryError.message,
+                    details: summaryError.details,
+                    hint: summaryError.hint,
+                    code: summaryError.code
+                }
+            });
             // Decide how to handle this. You might want to delete the just-created event
             // to maintain data consistency, or just log and proceed. For now, we'll
             // return an error indicating the overall operation failed.
             return next(new ApiError('Failed to create corresponding evacuation summary entry.', 500));
         }
 
+        // Invalidate all disaster event related caches since a new event was created
+        invalidateCacheByPattern(disasterEventCache, 'disaster_events:');
+        logger.info('Cache invalidated after disaster event creation', { 
+            eventId: disasterEvacuationEventId,
+            disasterId: disaster_id 
+        });
+
+        logger.debug('Disaster evacuation event created successfully', { 
+            eventId: disasterEvacuationEventId,
+            disasterId: disaster_id,
+            evacuationCenterId: evacuation_center_id 
+        });
+
         res.status(201).json({
             message: 'Disaster evacuation event and associated summary entry created successfully.',
             data: createdEvent // Return the created event data
         });
     } catch (err) {
+        logger.error('Unexpected error in createDisasterEvent:', { error: err });
         next(new ApiError('Internal server error during createDisasterEvent.', 500));
     }
 };

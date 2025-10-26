@@ -7,7 +7,7 @@ const {
   checkDisasterEventByEvacuationCenter,
   createDisasterEvent
 } = require('../controllers/disaster_event.controller');
-const { authenticateUser, requirePermission } = require('../middleware');
+const { authenticateUser, requirePermission, requireAnyPermission } = require('../middleware');
 
 const router = express.Router();
 
@@ -20,7 +20,7 @@ const router = express.Router();
 // @access Private (requires view_disaster permission)
 router.get('/by-disaster/:disasterId/details', 
   authenticateUser, 
-  requirePermission('view_disaster'),
+  requireAnyPermission(['view_disaster', 'view_active_outside_ec']),
   getDisasterEventDetailsByDisasterId
 );
 

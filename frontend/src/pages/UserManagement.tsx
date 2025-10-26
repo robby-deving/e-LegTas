@@ -5,8 +5,11 @@ import { selectCurrentUser, selectToken } from '../features/auth/authSlice';
 import { usePermissions } from '../contexts/PermissionContext';
 import { Search, MoreHorizontal, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Edit, Trash2 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../components/ui/dropdown-menu';
-import { Button } from '../components/ui/button';
+import { Button } from '@/components/ui/button';
 // StatusCodes full-page 403 is now handled at the route level in App.tsx
+
+import { Plus } from 'lucide-react';
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 
 interface User {
     user_id: number; // Numeric users table id
@@ -24,6 +27,8 @@ interface User {
     role_id: number;
     role_name?: string;
     assigned_evacuation_center?: string;
+    assigned_barangay?: string;
+    assigned_barangay_id?: number;
 }
 
 export default function UserManagement(){
@@ -48,7 +53,6 @@ export default function UserManagement(){
     const [editingUser, setEditingUser] = useState<User | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
     const [rowsPerPage, setRowsPerPage] = useState(10);
-    const [selectedRows] = useState(0);
     const [users, setUsers] = useState<User[]>([]);
     const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
@@ -75,7 +79,8 @@ export default function UserManagement(){
         email: '',
         password: '',
         role_id: '',
-        assigned_evacuation_center: ''
+        assigned_evacuation_center: '',
+        assigned_barangay: ''
     });
     
     // Role configuration - Easy to extend for new roles
@@ -87,7 +92,7 @@ export default function UserManagement(){
             canSeeEvacCenter: true,
             canSelectRole: true,
             canManageEvacCenter: true,
-            apiEndpoint: 'https://api.e-legtas.tech/api/v1/users',
+            apiEndpoint: '/api/v1/users',
             allowedRoleIds: "all", // Can see all users - automatically includes new roles
             assignableRoleIds: "all", // Can assign any role - automatically includes new roles
             tableColumns: ['user', 'email', 'role', 'evacuation_center', 'actions']
@@ -97,7 +102,7 @@ export default function UserManagement(){
             canSeeEvacCenter: false,
             canSelectRole: true, // Changed to true - they can assign roles
             canManageEvacCenter: false, // Cannot manage evacuation centers
-            apiEndpoint: 'https://api.e-legtas.tech/api/v1/users',
+            apiEndpoint: '/api/v1/users',
             allowedRoleIds: [2, 3],
             assignableRoleIds: [2, 3], // Can only assign roles 2 & 3
             tableColumns: ['user', 'role', 'actions']
@@ -107,7 +112,7 @@ export default function UserManagement(){
             canSeeEvacCenter: true,
             canSelectRole: true,
             canManageEvacCenter: true,
-            apiEndpoint: 'https://api.e-legtas.tech/api/v1/users/cswdo',
+            apiEndpoint: '/api/v1/users/cswdo',
             allowedRoleIds: [4, 5],
             assignableRoleIds: [4, 5], // Can only assign roles 4 & 5
             tableColumns: ['user', 'role', 'evacuation_center', 'actions']
@@ -130,12 +135,14 @@ export default function UserManagement(){
     
     // Helper function to get role color for borders and text
     const getRoleColor = (roleId: number) => {
+        // Update the role color for Barangay Official (role_id: 7)
         const roleColorMap: { [key: number]: string } = {
             1: '#FBB040', // System Admin
             2: '#038B53', // CDRRMO/Barangay Official
             3: '#038B53', // CDRRMO/Regional Coordinator  
             4: '#0192D4', // CSWDO
-            5: '#F15A29'  // Camp Manager
+            5: '#F15A29', // Camp Manager
+            7: '#9747FF'  // Barangay Official
         };
         
         return roleColorMap[roleId] || '#6B7280'; // Default gray color
@@ -202,7 +209,7 @@ export default function UserManagement(){
     const fetchRoles = async () => {
         try {
             setRolesLoading(true);
-            const response = await fetch('https://api.e-legtas.tech/api/v1/users/data/roles', {
+            const response = await fetch('/api/v1/users/data/roles', {
                 headers: getAuthHeaders(),
             });
             
@@ -223,7 +230,7 @@ export default function UserManagement(){
 
     // Helper function to get appropriate API endpoint based on user role
     const getUsersApiEndpoint = () => {
-        if (!currentRoleConfig) return 'https://api.e-legtas.tech/api/v1/users?limit=100';
+        if (!currentRoleConfig) return '/api/v1/users?limit=100';
         return `${currentRoleConfig.apiEndpoint}?limit=100`;
     };
 
@@ -290,7 +297,7 @@ export default function UserManagement(){
     useEffect(() => {
         const fetchBarangays = async () => {
             try {
-                const response = await fetch('https://api.e-legtas.tech/api/v1/users/data/barangays', {
+                const response = await fetch('/api/v1/users/data/barangays', {
                     headers: getAuthHeaders(),
                 });
                 
@@ -302,12 +309,8 @@ export default function UserManagement(){
                 setBarangays(data.barangays || []);
             } catch (err) {
                 console.error('Error fetching barangays:', err);
-                // Set some default barangays if fetch fails
-                setBarangays([
-                    { id: 1, name: 'Barangay 1' },
-                    { id: 2, name: 'Barangay 2' },
-                    { id: 3, name: 'Barangay 3' }
-                ]);
+                // Set empty array if fetch fails - user will see "Select barangay" option only
+                setBarangays([]);
             }
         };
 
@@ -319,7 +322,7 @@ export default function UserManagement(){
         const fetchEvacuationCenters = async () => {
             try {
                 // Add query parameter to only fetch active evacuation centers (where deleted_at IS NULL)
-                const response = await fetch('https://api.e-legtas.tech/api/v1/users/data/evacuation-centers?active=true', {
+                const response = await fetch('/api/v1/users/data/evacuation-centers?active=true', {
                     headers: getAuthHeaders(),
                 });
                 
@@ -447,41 +450,41 @@ export default function UserManagement(){
         
         if (columns.includes('user')) {
             headers.push(
-                <th key="user" className='px-6 py-3 text-left text-base font-medium text-gray-500'>
+                <TableHead key="user" className="text-left">
                     User
-                </th>
+                </TableHead>
             );
         }
         
         if (columns.includes('email')) {
             headers.push(
-                <th key="email" className='px-6 py-3 text-left text-base font-medium text-gray-500'>
+                <TableHead key="email" className="text-left">
                     Email
-                </th>
+                </TableHead>
             );
         }
         
         if (columns.includes('role')) {
             headers.push(
-                <th key="role" className='px-6 py-3 text-left text-base font-medium text-gray-500'>
+                <TableHead key="role" className="text-left">
                     Role
-                </th>
+                </TableHead>
             );
         }
         
         if (columns.includes('evacuation_center')) {
             headers.push(
-                <th key="evacuation_center" className='px-6 py-3 text-left text-base font-medium text-gray-500'>
-                    Assigned Evacuation Center
-                </th>
+                <TableHead key="evacuation_center" className="text-left">
+                    Assigned Evacuation Center/Barangay
+                </TableHead>
             );
         }
         
         if (columns.includes('actions')) {
             headers.push(
-                <th key="actions" className='px-6 py-3 text-right text-base font-medium text-gray-500'>
+                <TableHead key="actions" className="text-center w-12">
                     {/* Empty header for actions column */}
-                </th>
+                </TableHead>
             );
         }
         
@@ -496,30 +499,26 @@ export default function UserManagement(){
         
         if (columns.includes('user')) {
             cells.push(
-                <td key="user" className='px-6 py-4 whitespace-nowrap'>
-                    <div className='text-base font-medium text-gray-900'>
-                        {getDisplayName(user)}
-                    </div>
-                </td>
+                <TableCell key="user" className="text-foreground font-medium">
+                    {getDisplayName(user)}
+                </TableCell>
             );
         }
         
         if (columns.includes('email')) {
             cells.push(
-                <td key="email" className='px-6 py-4 whitespace-nowrap'>
-                    <div className='text-base text-gray-900'>
-                        {user.email}
-                    </div>
-                </td>
+                <TableCell key="email" className="text-foreground">
+                    {user.email}
+                </TableCell>
             );
         }
         
         if (columns.includes('role')) {
             const roleColor = getRoleColor(user.role_id);
             cells.push(
-                <td key="role" className='px-6 py-4 whitespace-nowrap'>
+                <TableCell key="role">
                     <span 
-                        className='inline-flex px-4.5 py-1 text-base font-extrabold rounded-lg border'
+                        className='inline-flex px-4.5 py-1 text-sm font-extrabold rounded-lg border'
                         style={{
                             color: roleColor,
                             backgroundColor: '#FFFFFF',
@@ -528,51 +527,55 @@ export default function UserManagement(){
                     >
                         {getRoleDisplayName(user.role_id, user.role_name)}
                     </span>
-                </td>
+                </TableCell>
             );
         }
         
         if (columns.includes('evacuation_center')) {
             cells.push(
-                <td key="evacuation_center" className='px-6 py-4 whitespace-nowrap text-base text-gray-900'>
-                    {user.assigned_evacuation_center || 'N/A'}
-                </td>
+                <TableCell key="evacuation_center" className="text-foreground">
+                    {user.role_id === 7 ? (user.assigned_barangay || 'N/A') : (user.assigned_evacuation_center || 'N/A')}
+                </TableCell>
             );
         }
         
         if (columns.includes('actions')) {
             cells.push(
-                <td key="actions" className='px-6 py-4 whitespace-nowrap text-right text-base font-medium'>
+                <TableCell key="actions" className="text-center">
                     {(hasUpdateUser || hasDeleteUser) && (
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                                    <MoreHorizontal className="w-4 h-4" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                {hasUpdateUser && (
-                                    <DropdownMenuItem 
-                                        onClick={() => handleEditUser(user)}
-                                        className="cursor-pointer"
-                                    >
-                                        <Edit className="w-4 h-4 mr-2" />
-                                        Edit
-                                    </DropdownMenuItem>
-                                )}
-                                {hasDeleteUser && (
-                                    <DropdownMenuItem 
-                                        onClick={() => setDeleteConfirmUser(user)}
-                                        className="cursor-pointer text-red-600"
-                                    >
-                                        <Trash2 className="w-4 h-4 mr-2" />
-                                        Delete
-                                    </DropdownMenuItem>
-                                )}
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                        <div className="flex justify-end">
+                            <div className="relative">
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                            <MoreHorizontal className="w-4 h-4" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        {hasUpdateUser && (
+                                            <DropdownMenuItem 
+                                                onClick={() => handleEditUser(user)}
+                                                className="cursor-pointer"
+                                            >
+                                                <Edit className="w-4 h-4 mr-2" />
+                                                Edit
+                                            </DropdownMenuItem>
+                                        )}
+                                        {hasDeleteUser && (
+                                            <DropdownMenuItem 
+                                                onClick={() => setDeleteConfirmUser(user)}
+                                                className="cursor-pointer text-red-600"
+                                            >
+                                                <Trash2 className="w-4 h-4 mr-2" />
+                                                Delete
+                                            </DropdownMenuItem>
+                                        )}
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
+                        </div>
                     )}
-                </td>
+                </TableCell>
             );
         }
         
@@ -633,10 +636,11 @@ export default function UserManagement(){
                 email: formData.email,
                 password: formData.password,
                 roleId: targetRoleId,
-                assignedEvacuationCenter: canManageEvacuationCenterForUser(targetRoleId) ? formData.assigned_evacuation_center : ''
+                assignedEvacuationCenter: canManageEvacuationCenterForUser(targetRoleId) ? formData.assigned_evacuation_center : '',
+                assignedBarangay: targetRoleId === 7 ? formData.assigned_barangay : ''
             };
 
-            const response = await fetch('https://api.e-legtas.tech/api/v1/users', {
+            const response = await fetch('/api/v1/users', {
                 method: 'POST',
                 headers: getAuthHeaders(),
                 body: JSON.stringify(submitData)
@@ -660,7 +664,8 @@ export default function UserManagement(){
                 email: '',
                 password: '',
                 role_id: '',
-                assigned_evacuation_center: ''
+                assigned_evacuation_center: '',
+                assigned_barangay: ''
             });
             setIsAddUserModalOpen(false);
 
@@ -702,7 +707,8 @@ export default function UserManagement(){
             email: '',
             password: '',
             role_id: '',
-            assigned_evacuation_center: ''
+            assigned_evacuation_center: '',
+            assigned_barangay: ''
         });
         setIsAddUserModalOpen(false);
         setIsEditUserModalOpen(false);
@@ -727,7 +733,8 @@ export default function UserManagement(){
             email: user.email,
             password: '', // Leave password empty for security
             role_id: user.role_id.toString(),
-            assigned_evacuation_center: user.assigned_evacuation_center || ''
+            assigned_evacuation_center: user.assigned_evacuation_center || '',
+            assigned_barangay: user.assigned_barangay_id ? user.assigned_barangay_id.toString() : ''
         });
         setIsEditUserModalOpen(true);
     };
@@ -759,11 +766,12 @@ export default function UserManagement(){
                 email: formData.email,
                 roleId: targetRoleId,
                 assignedEvacuationCenter: canManageEvacuationCenterForUser(targetRoleId) ? formData.assigned_evacuation_center : editingUser.assigned_evacuation_center,
+                assignedBarangay: targetRoleId === 7 ? formData.assigned_barangay : (editingUser.assigned_barangay || ''),
                 // Only include password if it's provided
                 ...(formData.password && { password: formData.password })
             };
 
-            const response = await fetch(`https://api.e-legtas.tech/api/v1/users/${editingUser.user_id}`, {
+            const response = await fetch(`/api/v1/users/${editingUser.user_id}`, {
                 method: 'PUT',
                 headers: getAuthHeaders(),
                 body: JSON.stringify(submitData)
@@ -806,7 +814,7 @@ export default function UserManagement(){
     // Handle delete user
     const handleDeleteUser = async (userId: number) => {
         try {
-            const response = await fetch(`https://api.e-legtas.tech/api/v1/users/${userId}`, {
+            const response = await fetch(`/api/v1/users/${userId}`, {
                 method: 'DELETE',
                 headers: getAuthHeaders(),
             });
@@ -838,6 +846,87 @@ export default function UserManagement(){
         } catch (err) {
             console.error('Error deleting user:', err);
             setError(err instanceof Error ? err.message : 'Failed to delete user');
+        }
+    };
+
+    // Update the role filter dropdown to exclude System Administrator (role_id: 1)
+    const renderRoleFilterDropdown = () => {
+        return (
+            <select
+                value={selectedRoleFilter}
+                onChange={(e) => setSelectedRoleFilter(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E]"
+                style={{
+                    background: '#FFF',
+                    minWidth: '160px'
+                }}
+            >
+                <option value="all">All Roles</option>
+                {!rolesLoading && roles
+                    .filter(role => currentRoleConfig?.allowedRoleIds === "all" || (Array.isArray(currentRoleConfig?.allowedRoleIds) && currentRoleConfig.allowedRoleIds.includes(role.id)))
+                    .filter(role => role.id !== 1) // Exclude System Administrator
+                    .map(role => (
+                        <option key={role.id} value={role.id}>
+                            {role.name.toUpperCase()}
+                        </option>
+                    ))
+                }
+                {rolesLoading && (
+                    <option disabled>Loading roles...</option>
+                )}
+            </select>
+        );
+    };
+
+    const renderAssignedField = () => {
+        // Determine target role ID for the user being added/edited
+        const targetRoleId = isEditUserModalOpen 
+            ? (currentRoleConfig?.canSelectRole ? parseInt(formData.role_id) || editingUser?.role_id : editingUser?.role_id)
+            : (currentRoleConfig?.canSelectRole ? parseInt(formData.role_id) : currentUser?.role_id);
+        
+        // Show barangay field if target role is 7 (Barangay Official)
+        if (targetRoleId === 7) {
+            return (
+                <>
+                    <label className='block text-sm font-medium text-black mb-1'>
+                        Assigned Barangay
+                    </label>
+                    <select
+                        name="assigned_barangay"
+                        value={formData.assigned_barangay}
+                        onChange={handleFormChange}
+                        className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E]'
+                    >
+                        <option value="">Select barangay (optional)</option>
+                        {barangays.map(barangay => (
+                            <option key={barangay.id} value={barangay.id}>{barangay.name}</option>
+                        ))}
+                    </select>
+                </>
+            );
+        } else {
+            // Only show evacuation center field if user can manage it
+            if (canManageEvacuationCenterForUser(targetRoleId)) {
+                return (
+                    <>
+                        <label className='block text-sm font-medium text-black mb-1'>
+                            Assigned Evacuation Center
+                        </label>
+                        <select
+                            name="assigned_evacuation_center"
+                            value={formData.assigned_evacuation_center}
+                            onChange={handleFormChange}
+                            className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E]'
+                        >
+                            <option value="">Select evacuation center (optional)</option>
+                            {evacuationCenters.map(center => (
+                                <option key={center.id} value={center.name}>{center.name}</option>
+                            ))}
+                        </select>
+                    </>
+                );
+            }
+            return null;
         }
     };
 
@@ -892,28 +981,7 @@ export default function UserManagement(){
                         {/* Role Filter Dropdown */}
                         <div className='flex items-center gap-2'>
                             <label className='text-sm font-medium text-gray-700'>Filter by Role:</label>
-                            <select
-                                value={selectedRoleFilter}
-                                onChange={(e) => setSelectedRoleFilter(e.target.value)}
-                                className='px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E]'
-                                style={{
-                                    background: '#FFF',
-                                    minWidth: '160px'
-                                }}
-                            >
-                                <option value="all">All Roles</option>
-                                {!rolesLoading && roles
-                                    .filter(role => role.id !== 1) // Exclude System Admin (role_id 1)
-                                    .map(role => (
-                                        <option key={role.id} value={role.id}>
-                                            {role.name.toUpperCase()}
-                                        </option>
-                                    ))
-                                }
-                                {rolesLoading && (
-                                    <option disabled>Loading roles...</option>
-                                )}
-                            </select>
+                            {renderRoleFilterDropdown()}
                             
                             {/* Clear Filters Button */}
                             {(searchTerm || selectedRoleFilter !== 'all') && (
@@ -929,27 +997,13 @@ export default function UserManagement(){
                     
                     {/* Add User Button - Show for users with add_user permission (independent of role group) */}
                     {hasAddUser && (
-                        <button
+                        <Button
                             onClick={() => setIsAddUserModalOpen(true)}
-                            className='inline-flex items-center gap-2 px-4 py-2 text-white font-medium text-base rounded-md hover:opacity-90 transition-opacity focus:outline-none'
-                            style={{
-                                backgroundColor: '#00824E'
-                            }}
+                            className="bg-green-700 hover:bg-green-800 text-white px-6 flex gap-2 items-center disabled:opacity-50"
                         >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14 14" fill="none">
-                                <g clipPath="url(#clip0_876_48038)">
-                                    <path d="M7.0013 12.8327C10.223 12.8327 12.8346 10.221 12.8346 6.99935C12.8346 3.77769 10.223 1.16602 7.0013 1.16602C3.77964 1.16602 1.16797 3.77769 1.16797 6.99935C1.16797 10.221 3.77964 12.8327 7.0013 12.8327Z" stroke="#F8FAFC" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"/>
-                                    <path d="M7 4.66602V9.33268" stroke="#F8FAFC" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"/>
-                                    <path d="M4.66797 7H9.33464" stroke="#F8FAFC" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"/>
-                                </g>
-                                <defs>
-                                    <clipPath id="clip0_876_48038">
-                                        <rect width="14" height="14" fill="white"/>
-                                    </clipPath>
-                                </defs>
-                            </svg>
+                            <Plus className="w-4 h-4" />
                             Add User
-                        </button>
+                        </Button>
                     )}
                 </div>
                 
@@ -998,66 +1052,52 @@ export default function UserManagement(){
                     </div>
                 )}
                 
-                <div 
-                    className='overflow-x-auto rounded-md'
-                    style={{
-                        border: '1px solid #E4E4E7'
-                    }}
-                >
-                    <table className='min-w-full'>
-                            <thead className='bg-white border-b border-gray-200'>
-                                <tr>
+                <div className="rounded-md border border-input overflow-hidden">
+                    <div className="relative w-full overflow-x-auto">
+                        <Table>
+                            <TableHeader className="bg-gray-50">
+                                <TableRow>
                                     {renderTableHeaders()}
-                                </tr>
-                            </thead>
-                            <tbody className='bg-white'>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
                                 {loading ? (
-                                    <tr>
-                                        <td colSpan={getColumnCount()} className='px-6 py-8 text-center text-gray-500'>
+                                    <TableRow>
+                                        <TableCell colSpan={getColumnCount()} className="text-center py-4 text-gray-500">
                                             Loading users...
-                                        </td>
-                                    </tr>
+                                        </TableCell>
+                                    </TableRow>
                                 ) : paginatedUsers.length === 0 ? (
-                                    <tr>
-                                        <td colSpan={getColumnCount()} className='px-6 py-8 text-center text-gray-500'>
+                                    <TableRow>
+                                        <TableCell colSpan={getColumnCount()} className="text-center py-4 text-gray-500">
                                             {searchTerm ? 'No users found matching your search.' : 'No users found.'}
-                                        </td>
-                                    </tr>
+                                        </TableCell>
+                                    </TableRow>
                                 ) : (
-                                    paginatedUsers.map((user, index) => (
-                                        <tr 
+                                    paginatedUsers.map((user) => (
+                                        <TableRow 
                                             key={user.user_id} 
-                                            className={`hover:bg-gray-50 ${index !== paginatedUsers.length - 1 ? 'border-b border-gray-200' : ''}`}
+                                            className="hover:bg-gray-50"
                                         >
                                             {renderTableCells(user)}
-                                        </tr>
+                                        </TableRow>
                                     ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>                {/* Pagination */}
-                <div 
-                    className='flex items-center justify-between px-6 py-3 pt-5 bg-white'
-                    style={{
-                        border: '1px solid #E4E4E7',
-                        borderTop: 'none',
-                        borderBottomLeftRadius: '6px',
-                        borderBottomRightRadius: '6px'
-                    }}
-                >
-                    <div className='flex items-center gap-4'>
-                        <span className='text-base text-gray-500'>
-                            {selectedRows} of {totalRows} row(s) selected.
-                        </span>
+                                )}
+                            </TableBody>
+                        </Table>
                     </div>
-                    
-                    <div className='flex items-center gap-6'>
-                        <div className='flex items-center gap-2'>
-                            <span className='text-base text-gray-700'>Rows per page</span>
+                </div>                {/* Pagination */}
+                <div className="mt-4 flex items-center justify-between px-2">
+                    <div className="flex-1 text-sm text-muted-foreground">
+                        {paginatedUsers.length} of {totalRows} row(s) shown.
+                    </div>
+                    <div className="flex items-center space-x-6 lg:space-x-8">
+                        <div className="flex items-center space-x-2">
+                            <p className="text-sm font-medium">Rows per page</p>
                             <select
                                 value={rowsPerPage}
                                 onChange={(e) => setRowsPerPage(Number(e.target.value))}
-                                className='border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E] gap-20 mr-10'
+                                className="h-8 w-[70px] rounded-md border border-input bg-transparent px-2 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                             >
                                 <option value={5}>5</option>
                                 <option value={10}>10</option>
@@ -1065,38 +1105,46 @@ export default function UserManagement(){
                                 <option value={50}>50</option>
                             </select>
                         </div>
-                        <span className='text-base text-gray-700'>
+                        <div className="flex w-[100px] items-center justify-center text-sm font-medium">
                             Page {currentPage} of {totalPages}
-                        </span>
-                        <div className='flex items-center gap-1'>
-                            <button
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <Button
+                                variant="outline"
+                                className="hidden h-8 w-8 p-0 lg:flex"
                                 onClick={() => setCurrentPage(1)}
                                 disabled={currentPage === 1}
-                                className='p-1 rounded border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed'
                             >
-                                <ChevronsLeft className='h-4 w-4' />
-                            </button>
-                            <button
-                                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                                <span className="sr-only">Go to first page</span>
+                                <ChevronsLeft className="h-4 w-4" />
+                            </Button>
+                            <Button
+                                variant="outline"
+                                className="h-8 w-8 p-0"
+                                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                                 disabled={currentPage === 1}
-                                className='p-1 rounded border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed'
                             >
-                                <ChevronLeft className='h-4 w-4' />
-                            </button>
-                            <button
-                                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                                <span className="sr-only">Go to previous page</span>
+                                <ChevronLeft className="h-4 w-4" />
+                            </Button>
+                            <Button
+                                variant="outline"
+                                className="h-8 w-8 p-0"
+                                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                                 disabled={currentPage === totalPages}
-                                className='p-1 rounded border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed'
                             >
-                                <ChevronRight className='h-4 w-4' />
-                            </button>
-                            <button
+                                <span className="sr-only">Go to next page</span>
+                                <ChevronRight className="h-4 w-4" />
+                            </Button>
+                            <Button
+                                variant="outline"
+                                className="hidden h-8 w-8 p-0 lg:flex"
                                 onClick={() => setCurrentPage(totalPages)}
                                 disabled={currentPage === totalPages}
-                                className='p-1 rounded border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed'
                             >
-                                <ChevronsRight className='h-4 w-4' />
-                            </button>
+                                <span className="sr-only">Go to last page</span>
+                                <ChevronsRight className="h-4 w-4" />
+                            </Button>
                         </div>
                     </div>
                 </div>
@@ -1337,34 +1385,10 @@ export default function UserManagement(){
                                     <p className='text-xs text-gray-500'>You don't have permission to assign roles.</p>
                                 )}
 
-                                {/* Assigned Evacuation Center - Show based on role configuration and target user */}
-                                {(() => {
-                                    // Determine target role ID for the user being added/edited
-                                    const targetRoleId = isEditUserModalOpen 
-                                        ? (currentRoleConfig?.canSelectRole ? parseInt(formData.role_id) || editingUser?.role_id : editingUser?.role_id)
-                                        : (currentRoleConfig?.canSelectRole ? parseInt(formData.role_id) : currentUser?.role_id);
-                                    
-                                    return canManageEvacuationCenterForUser(targetRoleId);
-                                })() && (
-                                    <div>
-                                        <label className='block text-sm font-medium text-black mb-1'>
-                                            Assigned Evacuation Center
-                                        </label>
-                                        <select
-                                            name='assigned_evacuation_center'
-                                            value={formData.assigned_evacuation_center}
-                                            onChange={handleFormChange}
-                                            className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E]'
-                                        >
-                                            <option value=''>Select evacuation center (optional)</option>
-                                            {evacuationCenters.map((center) => (
-                                                <option key={center.id} value={center.name}>
-                                                    {center.name}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                )}
+                                {/* Use the renderAssignedField function to dynamically show the appropriate field */}
+                                <div>
+                                    {renderAssignedField()}
+                                </div>
 
                                 {/* Modal Footer - Inside Form */}
                                 <div className='flex justify-end gap-3 mt-6 pt-4'>

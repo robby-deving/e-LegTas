@@ -1,6 +1,7 @@
 // RegisterEvacueeModal.tsx
 import { useState, useEffect, useRef } from "react";
 import axios from "axios";
+import { SearchEvacuation } from "./SearchEvacuation";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "../ui/dialog";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
@@ -19,7 +20,7 @@ import { DateTimePicker } from "../ui/date-time-picker";
 import { toISODateLocal } from "@/utils/dateInput.ts";
 import BirthdayMaskedInput from '../EvacuationCenterDetail/BirthdayMaskedInput';
 import { RegisterBlockDialog } from "@/components/modals/RegisterBlockDialog";
-
+import searchIcon from "@/assets/search.svg";
 
 export const RegisterEvacueeModal = ({
   isOpen,
@@ -41,15 +42,20 @@ export const RegisterEvacueeModal = ({
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showBlockDialog, setShowBlockDialog] = useState(false);
+  const [showSearchEvacuationModal, setShowSearchEvacuationModal] = useState(false);
+  const [selectedEvacuation, setSelectedEvacuation] = useState<{ id: number; name: string; event_id: number | null; } | null>(null);
+
 
   const handleClickSave = async () => {
     if (formRef.current && !formRef.current.reportValidity()) return;
     try {
+      console.log('saving');
       setErrorMsg(null);
       setShowBlockDialog(false);
       setSaving(true);
       await Promise.resolve(onSave());
     } catch (err) {
+      console.log('error');
       setErrorMsg(mapRegisterError(err));
       setShowBlockDialog(true); // 👈 open the popup
     } finally {
@@ -72,7 +78,7 @@ export const RegisterEvacueeModal = ({
     const fetchBarangays = async () => {
       try {
         const { data } = await axios.get<{ data: Barangay[] }>(
-          "https://api.e-legtas.tech/api/v1/evacuees/barangays"
+          "/api/v1/evacuees/barangays"
         );
         setBarangays(data.data || []);
       } catch (e) {
@@ -92,7 +98,7 @@ export const RegisterEvacueeModal = ({
         const res = await axios.get<{
           data: RoomOption[];
           all_full?: boolean;
-        }>(`https://api.e-legtas.tech/api/v1/evacuees/${centerId}/rooms?only_available=1`);
+        }>(`/api/v1/evacuees/${centerId}/rooms?only_available=1`);
 
         const rows = res.data?.data ?? [];
         setRooms(rows);
@@ -676,84 +682,126 @@ export const RegisterEvacueeModal = ({
                     </>
                   )}
                 </div>
+                <div>
+                  {centerId ? (
+                    <>
+                      {/* Evacuation Room * */}
+                      <div className="relative">
+                        <label className="block text-sm font-medium mb-2">
+                          Evacuation Room:<span className="text-red-500">*</span>
+                        </label>
 
-                {/* Evacuation Room * */}
-                <div className="relative">
-                  <label className="block text-sm font-medium mb-2">
-                    Evacuation Room:<span className="text-red-500">*</span>
-                  </label>
+                        <Select
+                          value={formData.searchEvacuationRoom}
+                          onValueChange={(v) => onFormChange("searchEvacuationRoom", v)}
+                          disabled={roomsLoading || !!roomsError || allRoomsFull}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue
+                              placeholder={
+                                roomsLoading
+                                  ? "Loading rooms..."
+                                  : roomsError
+                                  ? roomsError
+                                  : allRoomsFull
+                                  ? "All rooms are full"
+                                  : "Select a room"
+                              }
+                            />
+                          </SelectTrigger>
 
-                  <Select
-                    value={formData.searchEvacuationRoom}
-                    onValueChange={(v) => onFormChange("searchEvacuationRoom", v)}
-                    disabled={roomsLoading || !!roomsError || allRoomsFull}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue
-                        placeholder={
-                          roomsLoading
-                            ? "Loading rooms..."
-                            : roomsError
-                            ? roomsError
-                            : allRoomsFull
-                            ? "All rooms are full"
-                            : "Select a room"
-                        }
+                          <SelectContent>
+                            {rooms.map((r) => (
+                              <SelectItem key={r.id} value={String(r.id)}>
+                                {r.room_name}
+                                {typeof r.available === "number" && typeof r.capacity === "number"
+                                  ? ` (${r.available}/${r.capacity} left)`
+                                  : typeof r.available === "number"
+                                  ? ` (${r.available} left)`
+                                  : ""}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+
+                        {/* Hidden native select to keep HTML5 required validation */}
+                        <select
+                          value={formData.searchEvacuationRoom || ""}
+                          onChange={() => {}}
+                          required={!roomsLoading && !roomsError && !allRoomsFull}
+                          disabled={roomsLoading || !!roomsError || allRoomsFull}
+                          className="absolute inset-0 w-full h-10 opacity-0"
+                          style={{ pointerEvents: "none" }}
+                          aria-hidden="true"
+                          tabIndex={-1}
+                        >
+                          <option value="">
+                            {roomsLoading
+                              ? "Loading rooms..."
+                              : roomsError
+                              ? roomsError
+                              : allRoomsFull
+                              ? "All rooms are full"
+                              : "Select a room"}
+                          </option>
+                          {rooms.map((r) => (
+                            <option key={r.id} value={String(r.id)}>
+                              {r.room_name}
+                              {typeof r.available === "number" && typeof r.capacity === "number"
+                                ? ` (${r.available}/${r.capacity} left)`
+                                : typeof r.available === "number"
+                                ? ` (${r.available} left)`
+                                : ""}
+                            </option>
+                          ))}
+                        </select>
+
+                        {/* Optional helper when full */}
+                        {!roomsLoading && !roomsError && allRoomsFull && (
+                          <p className="mt-1 text-xs text-red-600">All rooms are full.</p>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="relative">
+                      <label className="block text-sm font-medium mb-2">
+                        Assign Evacuation<span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <button 
+                          onClick={() => setShowSearchEvacuationModal(true)} 
+                          className="border border-gray-300 rounded-md px-2 py-2 text-gray-500 text-sm cursor-pointer flex items-center gap-2 w-full"
+                        > 
+                          <img src={searchIcon} alt="Search" className="w-4 h-4" /> 
+                          {selectedEvacuation ? selectedEvacuation.name : "Search Evacuation"}
+                        </button>
+                        {selectedEvacuation && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedEvacuation(null);
+                              onFormChange("disasterId", "");
+                            }}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                          >
+                            <XIcon className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+                      {/* Hidden input for HTML5 validation */}
+                      <input
+                        type="text"
+                        value={selectedEvacuation ? selectedEvacuation.id.toString() : ""}
+                        onChange={() => {}}
+                        required
+                        className="absolute inset-0 w-full h-10 opacity-0 pointer-events-none"
+                        tabIndex={-1}
                       />
-                    </SelectTrigger>
-
-                    <SelectContent>
-                      {rooms.map((r) => (
-                        <SelectItem key={r.id} value={String(r.id)}>
-                          {r.room_name}
-                          {typeof r.available === "number" && typeof r.capacity === "number"
-                            ? ` (${r.available}/${r.capacity} left)`
-                            : typeof r.available === "number"
-                            ? ` (${r.available} left)`
-                            : ""}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-
-                  {/* Hidden native select to keep HTML5 required validation */}
-                  <select
-                    value={formData.searchEvacuationRoom || ""}
-                    onChange={() => {}}
-                    required={!roomsLoading && !roomsError && !allRoomsFull}
-                    disabled={roomsLoading || !!roomsError || allRoomsFull}
-                    className="absolute inset-0 w-full h-10 opacity-0"
-                    style={{ pointerEvents: "none" }}
-                    aria-hidden="true"
-                    tabIndex={-1}
-                  >
-                    <option value="">
-                      {roomsLoading
-                        ? "Loading rooms..."
-                        : roomsError
-                        ? roomsError
-                        : allRoomsFull
-                        ? "All rooms are full"
-                        : "Select a room"}
-                    </option>
-                    {rooms.map((r) => (
-                      <option key={r.id} value={String(r.id)}>
-                        {r.room_name}
-                        {typeof r.available === "number" && typeof r.capacity === "number"
-                          ? ` (${r.available}/${r.capacity} left)`
-                          : typeof r.available === "number"
-                          ? ` (${r.available} left)`
-                          : ""}
-                      </option>
-                    ))}
-                  </select>
-
-                  {/* Optional helper when full */}
-                  {!roomsLoading && !roomsError && allRoomsFull && (
-                    <p className="mt-1 text-xs text-red-600">All rooms are full.</p>
+                    </div>
                   )}
                 </div>
-                </div>
+              </div>
 
               {/* --- Vulnerability Classification (all optional) --- */}
               <div className="space-y-4">
@@ -806,7 +854,11 @@ export const RegisterEvacueeModal = ({
 
                 <Button
                   type="button"                 
-                  onClick={handleClickSave}
+                  onClick={() => {
+                    handleClickSave();
+                    console.log('clicked');
+                  }}
+                  
                   disabled={saving}
                   className="bg-green-700 hover:bg-green-800 text-white px-6 cursor-pointer disabled:opacity-90"
                   aria-busy={saving}
@@ -840,6 +892,21 @@ export const RegisterEvacueeModal = ({
           message={errorMsg || "This evacuee is already registered."}
         />
       )}
+
+      <SearchEvacuation
+        isOpen={showSearchEvacuationModal}
+        onClose={() => setShowSearchEvacuationModal(false)}
+        disasterId={formData.disasterId}
+        onSelectEvacuation={(evacuation) => {
+          setSelectedEvacuation({ 
+            id: evacuation.id, 
+            name: evacuation.name,
+            event_id: evacuation.event_id
+          });
+          onFormChange("centerId", evacuation.event_id?.toString() || "");
+          setShowSearchEvacuationModal(false);
+        }}
+      />
     </>
   );
 };

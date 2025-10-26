@@ -25,6 +25,7 @@ export default function TopNav() {
       const formattedTime = now.toLocaleTimeString('en-US', {
         hour: '2-digit',
         minute: '2-digit',
+        second: '2-digit',
         hour12: true,
       });
 
@@ -40,10 +41,10 @@ export default function TopNav() {
   }, []);
 
   return (
-    <div className="w-full h-16 border-b-2 border-gray-200 bg-white px-8 flex items-center justify-end">
+    <div className="w-full h-16 border-b-2 border-gray-200 bg-white px-10 flex items-center justify-end">
       <div className="text-black text-sm flex items-center gap-2">
-        <img src={calendar} alt="" /> {date} | {day} 
-        <img src={clock} alt="" /> {time}
+        <img src={calendar} alt="" /> {date} <span>|</span> {day} 
+        <img src={clock} alt="" className="ml-3" /> {time}
       </div>
     </div>
   );

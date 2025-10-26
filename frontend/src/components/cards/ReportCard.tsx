@@ -1,25 +1,31 @@
+// components/cards/ReportCard.tsx
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Download, FileText, Trash2 } from 'lucide-react';
 import calendarIcon from '@/assets/calendar-days.svg';
 
-type Report = {
+// Replace the old Report type with this and export it so the list page can reuse it
+export type ReportCardItem = {
   id: string;
   name: string;
   type: string;
   disaster: string;
-  format: string;
+  format: 'PDF' | 'CSV' | 'XLSX';
   date: string;
   size: string;
-  icon: 'PDF' | 'CSV' | 'XLSX';
+  icon?: 'PDF' | 'CSV' | 'XLSX';
+  publicUrl?: string | null;
+  asOfISO?: string;
 };
 
 type Props = {
-  report: Report;
-  onDownload: (r: Report) => void;
-  onDelete: (r: Report) => void;
+  report: ReportCardItem;
+  // Allow async handlers, too
+  onDownload: (r: ReportCardItem) => void | Promise<void>;
+  onDelete: (r: ReportCardItem) => void | Promise<void>;
   canDelete?: boolean;
   canDownload?: boolean;
 };
+
 
 const getFileIcon = (format: string) => {
   const iconProps = 'w-10 h-6';

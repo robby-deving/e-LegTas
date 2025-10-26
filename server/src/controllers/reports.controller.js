@@ -1,13 +1,8 @@
 // server/src/controllers/reports.controller.js
 const { supabase } = require('../config/supabase');
 const { uploadReportFile } = require('../services/storage.service');
-const {
-  NotImplementedError,
-  generateReportFile,
-  buildStoragePath,
-} = require('../services/report-file.service');
+const { NotImplementedError, generateReportFile, buildStoragePath, } = require('../services/report-file.service');
 
-// --- Helper for Custom API Errors ---
 class ApiError extends Error {
   constructor(message, statusCode = 500) {
     super(message);
@@ -15,6 +10,124 @@ class ApiError extends Error {
     this.statusCode = statusCode;
   }
 }
+
+// Normalize disaggregated modal fields into a consistent shape
+function normalizeDisaggFields(input) {
+  const src = (input && typeof input === 'object') ? input : {};
+
+  const toNum = (v) => {
+    if (v === '' || v == null) return null;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  };
+
+  // infant.min, min.infant, infant_min, ageInfantMin, age_infant_min, etc.
+  function deepFind(obj, bucket, bound) {
+    const re1 = new RegExp(`${bucket}.*${bound}`, 'i');
+    const re2 = new RegExp(`${bound}.*${bucket}`, 'i');
+    let out = null;
+
+    (function walk(o) {
+      if (!o || typeof o !== 'object') return;
+      for (const [k, v] of Object.entries(o)) {
+        if (out != null) return;
+        if (v && typeof v === 'object' && !Array.isArray(v)) {
+          walk(v);
+          continue;
+        }
+        if (typeof v === 'number' || typeof v === 'string') {
+          if (re1.test(k) || re2.test(k)) {
+            const n = toNum(v);
+            if (n != null) { out = n; return; }
+          }
+        }
+      }
+    })(obj);
+
+    return out;
+  }
+
+  const ensureBuckets = (b) => ({
+    male:   !!(b && b.male),
+    female: !!(b && b.female),
+    total:  !!(b && b.total),
+  });
+
+  function normBucket(key) {
+    const direct  = src[key] || {};
+    const age     = direct.age || {};
+    const grouped = (src.age && src.age[key]) || {};
+
+    // read age min/max from common places
+    let min = toNum(
+      age.min ?? direct.min ?? direct.age_min ??
+      grouped.min ?? grouped.age_min ??
+      src[`${key}Min`] ?? src[`age_${key}_min`]
+    );
+    let max = toNum(
+      age.max ?? direct.max ?? direct.age_max ??
+      grouped.max ?? grouped.age_max ??
+      src[`${key}Max`] ?? src[`age_${key}_max`]
+    );
+
+    if (min == null) min = deepFind(src, key, 'min');
+    if (max == null) max = deepFind(src, key, 'max');
+
+    const buckets = ensureBuckets(direct.buckets || grouped.buckets || {});
+
+    // enabled if explicitly true OR any bucket is selected OR an age bound is provided
+    const enabled =
+      !!(direct.enabled ?? grouped.enabled) ||
+      buckets.male || buckets.female || buckets.total ||
+      min != null || max != null;
+
+    return {
+      enabled,
+      age: { min, max },
+      buckets,
+    };
+  }
+
+  const out = {
+    ...src,  // keep other flags (e.g., top-level column toggles)
+    infant:   normBucket('infant'),
+    children: normBucket('children'),
+    youth:    normBucket('youth'),
+    adult:    normBucket('adult'),
+    seniors:  normBucket('seniors'),
+
+    // Normalize PWD group, if present
+    pwd: {
+      enabled: !!(src?.pwd?.enabled),
+      buckets: ensureBuckets(src?.pwd?.buckets || {}),
+    },
+
+    // Coerce top-level toggles to booleans (if provided)
+    barangayName:         !!src.barangayName,
+    evacuationCenterSite: !!src.evacuationCenterSite,
+    family:               !!src.family,
+    totalMale:            !!src.totalMale,
+    totalFemale:          !!src.totalFemale,
+    totalIndividuals:     !!src.totalIndividuals,
+    reliefServices:       !!src.reliefServices, 
+  };
+
+  return out;
+}
+
+function mergeECMaps(primary = {}, secondary = {}, onlyKeys /* Set<string> | undefined */) {
+  const out = {};
+  const keys = new Set([...Object.keys(primary || {}), ...Object.keys(secondary || {})]);
+  for (const k of keys) {
+    if (onlyKeys && !onlyKeys.has(k)) continue;
+    const s = new Set();
+    (primary[k]   || []).forEach(n => s.add(n));
+    (secondary[k] || []).forEach(n => s.add(n));
+    out[k] = Array.from(s).sort((a, b) => a.localeCompare(b));
+  }
+  return out;
+}
+
 
 function humanFileSize(bytes) {
   if (!bytes || bytes <= 0) return '0 B';
@@ -26,9 +139,7 @@ function humanFileSize(bytes) {
 
 const isoNow = () => new Date().toISOString();
 
-/* ---------------------------------- *
- * Scope helpers
- * ---------------------------------- */
+// Scope helpers
 async function resolveEventIds({ disaster_evacuation_event_id, disaster_id }) {
   if (disaster_evacuation_event_id) return [Number(disaster_evacuation_event_id)];
 
@@ -86,6 +197,7 @@ async function fetchRegistrationsForEvents(eventIds = []) {
       decampment_timestamp,
       ec_rooms_id,
       family_head_id,
+      reported_age_at_arrival,
       disaster_evacuation_event_id,
       evacuee_resident_id,
       profile_snapshot,
@@ -106,10 +218,8 @@ async function fetchRegistrationsForEvents(eventIds = []) {
         id,
         room_name,
         evacuation_centers:evacuation_center_id (
-          id,
-          name,
-          address,
-          barangay_id,
+        id, name, address, category, barangay_id,
+
           barangays:barangay_id ( id, name )
         )
       )
@@ -122,7 +232,6 @@ async function fetchRegistrationsForEvents(eventIds = []) {
   }
   return data || [];
 }
-
 
 // Vulnerability type map (PWD / Pregnant / Lactating)
 async function fetchVulnerabilityTypeMap() {
@@ -160,6 +269,114 @@ async function fetchBarangayMap() {
   }
 }
 
+// Build { "<Barangay Name>": ["EC A","EC B", ...] } from active registrations
+function ecNamesByOriginFromRegs(regs = [], barangayMap) {
+  const tmp = Object.create(null); // { "<Barangay Name>": Set<ecName> }
+
+  for (const r of regs) {
+    const originId = r?.evacuee_residents?.residents?.barangay_of_origin;
+    const originName = barangayMap.get(Number(originId));
+    const ecName = r?.evacuation_center_rooms?.evacuation_centers?.name;
+    if (!originName || !ecName) continue;
+
+    const key = String(originName).trim();
+    if (!tmp[key]) tmp[key] = new Set();
+    tmp[key].add(ecName);
+  }
+
+  const out = {};
+  for (const k of Object.keys(tmp)) {
+    out[k] = Array.from(tmp[k]).sort((a, b) => a.localeCompare(b));
+  }
+  return out;
+}
+// Evacuation Center names grouped by barangay label (using barangays table names)
+async function fetchEvacuationCenterNamesByBarangay(barangayMap) {
+  // normalize: collapse spaces, normalize unicode, unify dashes
+  const norm = (s) =>
+    String(s || '')
+      .normalize('NFKC')
+      .replace(/[–—]/g, '-')   // em/en dashes -> hyphen
+      .replace(/\s+/g, ' ')    // collapse multiple spaces (handles your "3 whitespaces")
+      .trim();
+
+  try {
+    const { data, error } = await supabase
+      .from('evacuation_centers')
+      .select('name, barangay_id, category');
+
+    if (error) {
+      console.warn('[reports] fetchEvacuationCenterNamesByBarangay warn:', error);
+      return {};
+    }
+    // barangayName -> Map<canonName, displayName>
+    const outMap = new Map();
+
+    for (const ec of data || []) {
+      const bname = barangayMap.get(Number(ec?.barangay_id));
+      const raw = ec?.name;
+      if (!bname || !raw) continue;
+
+      const display = norm(raw);
+      if (!display) continue;
+      const canon = display.toLowerCase();
+
+      const key = String(bname).trim();
+      if (!outMap.has(key)) outMap.set(key, new Map());
+      const bucket = outMap.get(key);
+
+      if (!bucket.has(canon)) bucket.set(canon, display);
+    }
+
+    // convert to plain object of sorted arrays
+    const out = {};
+    for (const [k, bucket] of outMap.entries()) {
+      out[k] = Array.from(bucket.values()).sort((a, b) => a.localeCompare(b));
+    }
+    return out;
+  } catch (e) {
+    console.warn('[reports] fetchEvacuationCenterNamesByBarangay exception:', e);
+    return {};
+  }
+}
+
+// All EC names for a given category, grouped by barangay label
+async function fetchECNamesByBarangayCategory(barangayMap, category = 'Private House') {
+  try {
+    const { data, error } = await supabase
+      .from('evacuation_centers')
+      .select('name, barangay_id, category');
+
+    if (error) {
+      console.warn('[reports] fetchECNamesByBarangayCategory warn:', error);
+      return {};
+    }
+
+    const want = String(category).toLowerCase();
+    const tmp = Object.create(null);
+
+    for (const ec of data || []) {
+      if (!ec?.name) continue;
+      const cat = String(ec?.category || '').toLowerCase();
+      if (cat !== want) continue;
+
+      const bname = barangayMap.get(Number(ec.barangay_id));
+      if (!bname) continue;
+
+      const key = String(bname).trim();
+      if (!tmp[key]) tmp[key] = new Set();
+      tmp[key].add(ec.name);
+    }
+
+    const out = {};
+    for (const k of Object.keys(tmp)) out[k] = Array.from(tmp[k]).sort((a, b) => a.localeCompare(b));
+    return out;
+  } catch (e) {
+    console.warn('[reports] fetchECNamesByBarangayCategory exception:', e);
+    return {};
+  }
+}
+
 // “Active as of”: arrival <= asOf && (decamp is null || decamp > asOf)
 function filterActiveAsOf(rows, asOf) {
   const t = new Date(asOf).getTime();
@@ -171,33 +388,98 @@ function filterActiveAsOf(rows, asOf) {
   });
 }
 
+// Build Map<family_id, string[]> of relief service names (ordered by created_at)
+async function fetchReliefByFamilyIndex(regs = [], eventIds = []) {
+  // Unique family ids present in the registration rows
+  const famSeen = new Set();
+  const famIds = [];
+  for (const r of regs) {
+    const id = Number(r?.family_head_id);
+    if (Number.isFinite(id) && id > 0 && !famSeen.has(id)) {
+      famSeen.add(id);
+      famIds.push(id);
+    }
+  }
+  if (famIds.length === 0) return new Map();
+
+  // Fetch services for these families; restrict to the current scope's events
+  let q = supabase
+    .from('services')
+    .select('family_id, service_received, disaster_evacuation_event_id, created_at')
+    .in('family_id', famIds);
+
+  if (Array.isArray(eventIds) && eventIds.length) {
+    q = q.in('disaster_evacuation_event_id', eventIds);
+  }
+
+  const { data, error } = await q;
+  if (error) {
+    console.warn('[reports] fetchReliefByFamilyIndex warn:', error);
+    return new Map();
+  }
+
+  // Sort by created_at so output matches timeline order, and dedupe per family
+  const rows = Array.isArray(data) ? data.slice().sort(
+    (a, b) => new Date(a.created_at) - new Date(b.created_at)
+  ) : [];
+
+  const out = new Map(); // family_id(string) -> string[]
+  for (const r of rows) {
+    const key = String(r.family_id);
+    if (!out.has(key)) out.set(key, []);
+    const name = (r?.service_received ?? '').toString().trim();
+    if (!name) continue;
+    // keep order, but avoid duplicates
+    const arr = out.get(key);
+    if (!arr.includes(name)) arr.push(name);
+  }
+  return out;
+}
+
 /**
- * @desc Generate a report, upload to Storage, and record in generated_reports
- * @route POST /api/v1/reports/generate
- * @body {
- *   report_name,
- *   report_type_id,
- *   disaster_id?,                    // XOR with disaster_evacuation_event_id
- *   disaster_evacuation_event_id?,   // XOR with disaster_id
- *   as_of,                           // ISO timestamp boundary
- *   file_format,                     // 'CSV' | 'PDF' | 'XLSX'
- *   generated_by_user_id?            // OPTIONAL fallback (legacy/dev). Prefer req.user.id.
- *   barangay_id?                     // required only for Per Barangay
- * }
+ *   @desc Generate a report for either a whole disaster or a specific event,
+ *       upload the file to Supabase Storage, and record a row in `generated_reports`.
+ *   @route POST /api/v1/reports/generate
+ *   @access Private (requires authenticated user; permission depends on your middleware)
  */
 exports.generateReport = async (req, res, next) => {
   try {
-    const {
-      report_name,
-      report_type_id,
-      disaster_id,
-      disaster_evacuation_event_id,
-      as_of,
-      file_format,
-      generated_by_user_id, // optional fallback from client
-      barangay_id,          // required for Per Barangay
-    } = req.body || {};
+const {
+  report_name,
+  report_type_id,
+  disaster_id,
+  disaster_evacuation_event_id,
+  as_of,
+  file_format,
+  generated_by_user_id, // optional fallback from client
+  barangay_id,          // required for Per Barangay
+  fields = null,        // UI fields (contains custom age ranges & visibility)
+} = req.body || {};
 
+// Debug: see raw payload from the client before any transformation
+console.log('[reports.generate] fields (raw from client):', fields ? JSON.stringify(fields) : null);
+
+let normalizedFields = normalizeDisaggFields(fields);
+// After: let normalizedFields = normalizeDisaggFields(fields);
+console.log('[reports.generate] per-bgy fields (raw from client):', fields ? JSON.stringify(fields) : null);
+console.log('[reports.generate] per-bgy fields (normalized):', JSON.stringify(normalizedFields));
+
+// If the UI didn't send fields, DON'T apply custom visibility (keep all main cols visible)
+if (!fields) {
+  normalizedFields.customVisibility = false; // critical: prevents hiding everything
+  normalizedFields.barangayName = true;
+  normalizedFields.evacuationCenterSite = true;
+  normalizedFields.family = true;
+  normalizedFields.totalMale = true;
+  normalizedFields.totalFemale = true;
+  normalizedFields.totalIndividuals = true;
+  normalizedFields.reliefServices = true; 
+} else if (normalizedFields.customVisibility == null) {
+  // UI sent fields but no flag; default to honoring custom visibility
+  normalizedFields.customVisibility = true;
+}
+
+console.log('[reports.generate] disagg fields (normalized):', JSON.stringify(normalizedFields));
     // --- required fields ---
     if (!report_name || !report_type_id || !as_of || !file_format) {
       return next(
@@ -217,6 +499,8 @@ exports.generateReport = async (req, res, next) => {
     if (Number.isNaN(asDate.getTime())) {
       return next(new ApiError('Invalid as_of timestamp. Use ISO 8601.', 400));
     }
+    const asOfIso = asDate.toISOString(); // pass full ISO timestamp to SQL func (UTC)
+
 
     // file_format guard
     const fileFormat = String(file_format).toUpperCase();
@@ -286,8 +570,11 @@ exports.generateReport = async (req, res, next) => {
       return next(new ApiError('Invalid report_type_id.', 400));
     }
 
-    // Detect Per Barangay report → require barangay_id
-    const isPerBarangay = /^per\s*barangay/i.test(String(rtype.report_type || ''));
+    const typeLabel = String(rtype.report_type || '');
+    const isPerBarangay = /^per\s*barangay/i.test(typeLabel);
+    const isDisaggregated = /^disaggregated/i.test(typeLabel);
+
+    // Per-Barangay: require barangay_id
     let barangayId = null;
     if (isPerBarangay) {
       barangayId = Number(barangay_id);
@@ -296,13 +583,13 @@ exports.generateReport = async (req, res, next) => {
       }
     }
 
-    // Resolve scope → event ids
+    // Resolve scope → event ids (still used for non-disaggregated flows and for CSV/PDF if needed)
     const eventIds = await resolveEventIds({ disaster_evacuation_event_id, disaster_id });
     if (!eventIds.length) {
       return next(new ApiError('No events found for the provided scope. Check disaster_id / event_id.', 400));
     }
 
-    // Fetch rows in scope and filter "active as of"
+    // Fetch rows in scope and filter "active as of" (kept for non-disaggregated builders)
     const rawRegs = await fetchRegistrationsForEvents(eventIds);
     const regs = filterActiveAsOf(rawRegs, as_of);
 
@@ -315,22 +602,81 @@ exports.generateReport = async (req, res, next) => {
       fetchBarangayMap(),
     ]);
 
-    const barangayName = isPerBarangay ? (barangayMap.get(barangayId) || '') : '';
+    const barangayName = isPerBarangay ? (barangayMap.get(Number(barangayId)) || '') : '';
 
-    // Build file content by report type via service
+    // --------- NEW: Disaggregated via SQL function (by disaster_id) ----------
+    let disaggSqlRows = null;
+    if (isDisaggregated) {
+      console.log('[reports.generate] disagg fields (normalized):', JSON.stringify(normalizedFields));
+      // We want p_disaster_id; if only event was given, resolve the containing disaster_id
+      let disId = Number(disaster_id);
+      if (!(Number.isInteger(disId) && disId > 0) && hasEvent) {
+        const { data: dee, error: deeErr } = await supabase
+          .from('disaster_evacuation_event')
+          .select('disaster_id')
+          .eq('id', Number(disaster_evacuation_event_id))
+          .single();
+        if (deeErr || !dee) {
+          return next(new ApiError('Unable to resolve disaster_id from the event.', 400));
+        }
+        disId = Number(dee.disaster_id);
+      }
+      if (!(Number.isInteger(disId) && disId > 0)) {
+        return next(new ApiError('A valid disaster_id is required for Disaggregated reports.', 400));
+      }
+
+const infant   = normalizedFields.infant.age;
+const children = normalizedFields.children.age;
+const youth    = normalizedFields.youth.age;
+const adult    = normalizedFields.adult.age;
+const seniors  = normalizedFields.seniors.age;
+
+const rpcArgs = {
+  p_disaster_id: disId,
+  p_as_of_ts: asOfIso,
+  p_infant_min:   infant.min,   p_infant_max:   infant.max,
+  p_children_min: children.min, p_children_max: children.max,
+  p_youth_min:    youth.min,    p_youth_max:    youth.max,
+  p_adult_min:    adult.min,    p_adult_max:    adult.max,
+  p_senior_min:   seniors.min,  // open-ended ≥ min
+};
+
+      console.log('[reports.generate] Calling RPC(report_disagg_by_barangay_disaster) with args:', rpcArgs);
+
+      const { data: rows, error: rpcErr } = await supabase.rpc('report_disagg_by_barangay_disaster', rpcArgs);
+      if (rpcErr) {
+        console.error('[reports.generate] RPC(report_disagg_by_barangay_disaster) error:', rpcErr);
+        return next(new ApiError('Failed to build disaggregated data from database.', 500));
+      }
+      disaggSqlRows = Array.isArray(rows) ? rows : [];
+    }
+// ---- Build EC name list by EC barangay (authoritative; includes Private House) ----
+const ecNamesByBarangay = await fetchEvacuationCenterNamesByBarangay(barangayMap);
+
+// Build Relief index (Per Barangay only)
+let reliefByFamily = new Map();
+if (isPerBarangay) {
+  reliefByFamily = await fetchReliefByFamilyIndex(regs, eventIds);
+}
+
+    // ---------------- Build file content via service ----------------
     let buffer, contentType, ext, filenameBase;
     try {
       const gen = await generateReportFile({
-        reportTypeName: rtype.report_type, // "Aggregated...", "Disaggregated...", "Per Barangay..."
+        reportTypeName: rtype.report_type, 
         fileFormat,
-        regs,
+        regs,                  
+        sqlRows: disaggSqlRows, 
         reportName: report_name,
         disasterName,
         asOf: as_of,
-        vulnMap,       
-        barangayMap,  
-        barangayId,    
-        barangayName,  
+        vulnMap,
+        barangayMap,
+        barangayId,
+        barangayName,
+        fields: normalizedFields,
+        ecNamesByBarangay,
+        reliefByFamily,
       });
       ({ buffer, contentType, ext, filenameBase } = gen);
     } catch (e) {
@@ -340,7 +686,7 @@ exports.generateReport = async (req, res, next) => {
       throw e;
     }
 
-    // Build storage path via service
+    // ---------------- Storage path & upload ----------------
     const pathInBucket = buildStoragePath({
       asOf: as_of,
       disaster_evacuation_event_id,
@@ -349,8 +695,20 @@ exports.generateReport = async (req, res, next) => {
       ext,
     });
 
-    // Upload to Storage
     const { path, url } = await uploadReportFile(buffer, pathInBucket, contentType);
+
+    // Force the browser download name to match exactly what the user typed
+    const ensureExt = (name, ext) => {
+      const e = String(ext || '').toLowerCase().replace(/^\./, '');
+      return new RegExp(`\\.${e}$`, 'i').test(name) ? name : `${name}.${e}`;
+    };
+    const prettyDownloadName = ensureExt(String(report_name), ext);
+    const { data: dl } = supabase
+      .storage
+      .from('reports')
+      .getPublicUrl(path, { download: prettyDownloadName });
+    const downloadUrl = dl?.publicUrl || url;
+
     const fileSizeBytes = Buffer.isBuffer(buffer) ? buffer.length : (buffer?.byteLength ?? 0);
 
     // Insert metadata row
@@ -360,7 +718,7 @@ exports.generateReport = async (req, res, next) => {
       report_type_id: Number(report_type_id),
       disaster_id: hasDisaster ? Number(disaster_id) : null,
       disaster_evacuation_event_id: hasEvent ? Number(disaster_evacuation_event_id) : null,
-       generation_timestamp: new Date(as_of).toISOString(),
+      generation_timestamp: new Date(as_of).toISOString(),
       generated_by_user_id: generatedBy,
       file_path: path,
       file_format: fileFormat,
@@ -385,7 +743,7 @@ exports.generateReport = async (req, res, next) => {
       message: 'Report generated successfully.',
       data: {
         ...ins,
-        public_url: url,
+        public_url: downloadUrl, 
         file_size_bytes: fileSizeBytes,
         file_size_human: humanFileSize(fileSizeBytes),
       },
@@ -454,15 +812,14 @@ async function resolveSizesForPaths(paths = []) {
       result.set(full, sizeByName.get(n) ?? null);
     }
   }
-
   return result; // Map(path -> bytes|null)
 }
 
 /**
  * @desc Get all generated reports (pretty fields)
  * @route GET /api/v1/reports/getAllReports
- * @query (optional) disaster_id, disaster_evacuation_event_id, report_type_id, file_format, search, sort_by, sort_dir
- */
+ * @access Private (requires 'view_reports' permission)
+*/
 exports.getAllReports = async (req, res, next) => {
   try {
     const {
@@ -533,7 +890,15 @@ exports.getAllReports = async (req, res, next) => {
         r?.disaster_evacuation_event?.disasters?.disaster_name ||
         null;
 
-      const { data: pub } = supabase.storage.from('reports').getPublicUrl(r.file_path || '');
+  const ensureExt = (name, fmt) => {
+  const e = String(fmt || '').toLowerCase();
+  return new RegExp(`\\.${e}$`, 'i').test(name) ? name : `${name}.${e}`;
+};
+const desiredName = ensureExt(r.report_name || 'report', (r.file_format || '').toLowerCase());
+const { data: pub } = supabase
+  .storage
+  .from('reports')
+  .getPublicUrl(r.file_path || '', { download: desiredName });
 
       // Prefer saved size; else fallback to listing
       const savedHuman = r.file_size_human ?? null;
@@ -567,6 +932,7 @@ exports.getAllReports = async (req, res, next) => {
 /**
  * @desc Soft delete a generated report by id (sets deleted_at)
  * @route DELETE /api/v1/reports/:id
+ * @access Private
  */
 exports.deleteReport = async (req, res, next) => {
   try {
@@ -623,6 +989,11 @@ function uiReportType(label = '') {
   return label || '';
 }
 
+/**
+ * @desc Return available report types with human-friendly labels for the UI.
+ * @route GET /api/v1/reports/types
+ * @access Private
+ */
 exports.getReportTypes = async (req, res, next) => {
   try {
     const { data, error } = await supabase
@@ -650,13 +1021,10 @@ exports.getReportTypes = async (req, res, next) => {
 };
 
 /**
- * GET /api/v1/reports/options
- * Query:
- *  - search: string (barangay name contains)
- *  - disaster_search: string (disaster name contains)  <-- NEW
- *  - barangay_limit: number (default 70)
- *  - disaster_limit: number (default 100)
- *  - status: 'all' | 'active' | 'ended'   (default 'all')
+ * @desc Provide dropdown options for the Report Generator UI:
+ *       report types, barangay list (optionally filtered), and disasters (by status).
+ * @route GET /api/v1/reports/options
+ * @access Private 
  */
 exports.getReportOptions = async (req, res, next) => {
   try {

@@ -13,16 +13,109 @@ import { usePageTitle } from "../hooks/usePageTitle";
 import { formatDate } from "@/utils/dateFormatter";
 import { getTypeColor, getTagColor } from "@/constants/disasterTypeColors";
 import { encodeId } from "@/utils/secureId";
-import { selectToken } from "../features/auth/authSlice";
+import { selectToken, selectAssignedBarangayId } from "../features/auth/authSlice";
 import { disasterService } from "@/services/disasterService";
 import LoadingSpinner from "@/components/loadingSpinner";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SearchEvacueeModal } from "@/components/modals/SearchEvacueeModal";
+import { RegisterEvacueeModal } from "@/components/modals/RegisterEvacueeModal";
+import { FamilyHeadSearchModal } from "@/components/modals/FamilyHeadSearchModal";
+import { RegisterBlockDialog } from "@/components/modals/RegisterBlockDialog";
+import { usePermissions } from "@/contexts/PermissionContext";
+import { evacueesApi } from "@/services/evacuees";
+import type { Evacuee, FamilyHeadResult } from "@/types/EvacuationCenterDetails";
+
+interface EvacueeFormData {
+  firstName: string;
+  middleName: string;
+  lastName: string;
+  suffix: string;
+  sex: string;
+  maritalStatus: string;
+  birthday: string;
+  educationalAttainment: string;
+  schoolOfOrigin: string;
+  occupation: string;
+  purok: string;
+  barangayOfOrigin: string;
+  isFamilyHead: "Yes" | "No";
+  familyHead: string;
+  familyHeadId: number | null;
+  relationshipToFamilyHead: string;
+  searchEvacuationRoom: string;
+  evacuationRoomName: string;
+  vulnerabilities: {
+    pwd: boolean;
+    pregnant: boolean;
+    lactatingMother: boolean;
+  };
+  existingEvacueeResidentId: number | null;
+  disasterId: number;
+  centerId: string;
+}
+import { differenceInYears } from "date-fns";
 
 export default function DisasterDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
   const token = useSelector(selectToken);
+  const assignedBarangayId = useSelector(selectAssignedBarangayId);
+  const { hasPermission } = usePermissions();
+  const canCreateFamilyInformation = hasPermission("create_family_information");
+  const canRegisterOutsideEC = hasPermission('register_outside_ec');
+  const canViewActiveOutsideEC = hasPermission('view_active_outside_ec');
 
+  // Registration state
+  const [showSearchModal, setShowSearchModal] = useState(false);
+  const [showRegisterModal, setShowRegisterModal] = useState(false);
+  const [showFamilyHeadSearchModal, setShowFamilyHeadSearchModal] = useState(false);
+  const [regBlockOpen, setRegBlockOpen] = useState(false);
+  const [regBlockName, setRegBlockName] = useState<string | undefined>();
+  const [regBlockEcName, setRegBlockEcName] = useState<string | undefined>();
+
+  // Search state
+  const [searchEvacueeName, setSearchEvacueeName] = useState("");
+  const [searchResults, setSearchResults] = useState<Evacuee[]>([]);
+  const [familyHeadSearchTerm, setFamilyHeadSearchTerm] = useState("");
+  const [familyHeadSearchResults, setFamilyHeadSearchResults] = useState<FamilyHeadResult[]>([]);
+  const [fhLoading, setFhLoading] = useState(false);
+
+  const rawDisasterId = id?.split("-")[0] || "";
+  const disasterId = decodeId(rawDisasterId);
+
+  // Form state
+  const [formData, setFormData] = useState<EvacueeFormData>({
+    firstName: "",
+    middleName: "",
+    lastName: "",
+    suffix: "",
+    sex: "",
+    maritalStatus: "",
+    birthday: "",
+    educationalAttainment: "",
+    schoolOfOrigin: "",
+    occupation: "",
+    purok: "",
+    barangayOfOrigin: "",
+    isFamilyHead: "Yes",
+    familyHead: "",
+    familyHeadId: null as number | null,
+    relationshipToFamilyHead: "",
+    searchEvacuationRoom: "",
+    evacuationRoomName: "",
+    vulnerabilities: {
+      pwd: false,
+      pregnant: false,
+      lactatingMother: false,
+    },
+    existingEvacueeResidentId: null as number | null,
+    disasterId: disasterId,
+    centerId: "",
+  });
+
+  // Table search state
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [evacuationCenters, setCenters] = useState<ActiveEvacuation[]>([]);
@@ -36,6 +129,10 @@ export default function DisasterDetail() {
   const [hasError, setHasError] = useState(false);
   const [tableLoading, setTableLoading] = useState(false);
 
+  /**
+   * Note: While the UI displays "Incident", we use "Disaster" in our
+   * codebase for consistency with our data models and APIs.
+   */
   // Get auth headers for API calls
   const getAuthHeaders = () => {
     const headers: Record<string, string> = {
@@ -49,9 +146,22 @@ export default function DisasterDetail() {
     return headers;
   };
 
-  const rawDisasterId = id?.split("-")[0] || "";
-  const disasterId = decodeId(rawDisasterId);
 
+
+
+  const [activeTab, setActiveTab] = useState('inside-ec');
+
+
+  // If user doesn't have permission to view active outside ECs, ensure tab is Inside EC
+  // Only react when the permission flag itself changes. If the user loses
+  // the permission, force the tab back to inside-ec. We avoid depending on
+  // `activeTab` here to prevent extra re-renders that could cause flicker
+  // when permissions are still loading.
+  useEffect(() => {
+    if (!canViewActiveOutsideEC) {
+      setActiveTab('inside-ec');
+    }
+  }, [canViewActiveOutsideEC]);
   useEffect(() => {
     
     const loadDisaster = async () => {
@@ -112,15 +222,17 @@ export default function DisasterDetail() {
 
   usePageTitle(disaster?.name ?? "");
 
-  const fetchEvacuationCenters = async (page = currentPage, limit = rowsPerPage, searchTerm = debouncedSearchTerm) => {
+  const fetchEvacuationCenters = async (page = currentPage, limit = rowsPerPage, searchTerm = debouncedSearchTerm, barangayId?: number) => {
     if (!disasterId || isNaN(disasterId)) return;
 
     setTableLoading(true);
     try {
+      console.log('Fetching with barangayId:', barangayId);
       // Build query parameters
       const params = new URLSearchParams({
         page: page.toString(),
-        limit: limit.toString()
+        limit: limit.toString(),
+        ec_type: activeTab === 'inside-ec' ? 'inside' : 'outside'
       });
 
       // Add search parameter if provided
@@ -128,10 +240,19 @@ export default function DisasterDetail() {
         params.append('search', searchTerm.trim());
       }
 
-      const res = await axios.get(
-        `https://api.e-legtas.tech/api/v1/disaster-events/by-disaster/${disasterId}/details?${params.toString()}`,
-        { headers: getAuthHeaders() }
-      );
+      console.log(assignedBarangayId);
+      
+
+      // Add barangay filter if provided
+      if (barangayId !== undefined && barangayId !== null && !isNaN(Number(barangayId))) {
+        const numBarangayId = Number(barangayId);
+        if (numBarangayId > 0) {
+          params.append('barangay_id', numBarangayId.toString());
+        }
+      }
+
+      const url = `/api/v1/disaster-events/by-disaster/${disasterId}/details?${params.toString()}`;
+      const res = await axios.get(url, { headers: getAuthHeaders() });
 
       // Type-safe data extraction with pagination
       const responseData = res.data as {
@@ -160,25 +281,241 @@ export default function DisasterDetail() {
   };
 
   useEffect(() => {
-    fetchEvacuationCenters();
-  }, [disasterId, token]);
+    fetchEvacuationCenters(currentPage, rowsPerPage, debouncedSearchTerm, assignedBarangayId);
+  }, [disasterId, token, assignedBarangayId]);
 
   useEffect(() => {
     if (disasterId && !disasterLoading) {
-      fetchEvacuationCenters(currentPage, rowsPerPage, debouncedSearchTerm);
+      fetchEvacuationCenters(currentPage, rowsPerPage, debouncedSearchTerm, assignedBarangayId);
     }
-  }, [currentPage, rowsPerPage, debouncedSearchTerm]);
+  }, [currentPage, rowsPerPage, debouncedSearchTerm, activeTab, assignedBarangayId]);
 
   const handleRowsPerPageChange = (value: string) => {
     setRowsPerPage(Number(value));
     setCurrentPage(1);
-    fetchEvacuationCenters(1, Number(value), debouncedSearchTerm);
+    fetchEvacuationCenters(1, Number(value), debouncedSearchTerm, assignedBarangayId);
   };
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
-    fetchEvacuationCenters(page, rowsPerPage, debouncedSearchTerm);
+    fetchEvacuationCenters(page, rowsPerPage, debouncedSearchTerm, assignedBarangayId);
   };
+
+  // Registration handlers
+  const handleSearchChange = async (value: string) => {
+    setSearchEvacueeName(value);
+    if (value.trim() === "") {
+      setSearchResults([]);
+      return;
+    }
+    try {
+      const { data } = await evacueesApi.searchEvacuees(value, token!);
+      setSearchResults(Array.isArray(data) ? data : []);
+    } catch {
+      setSearchResults([]);
+    }
+  };
+
+  const handleFamilyHeadSearchChange = (v: string) => setFamilyHeadSearchTerm(v);
+
+  const handleFamilyHeadSearchClick = () => {
+    if (!canCreateFamilyInformation) return;
+    setFamilyHeadSearchTerm("");
+    setFamilyHeadSearchResults([]);
+    setShowFamilyHeadSearchModal(true);
+  };
+
+  const handleFamilyHeadSelect = (fh: FamilyHeadResult) => {
+    if (!canCreateFamilyInformation) return;
+
+    setFormData((prev) => ({
+      ...prev,
+      familyHead: fh.family_head_full_name,
+      familyHeadId: fh.family_head_id,
+      barangayOfOrigin: fh.barangay_id != null ? String(fh.barangay_id) : prev.barangayOfOrigin,
+      purok: fh.purok ?? prev.purok,
+      evacuationRoomName: fh.evacuation_room ?? "",
+    }));
+    setShowFamilyHeadSearchModal(false);
+  };
+
+  const handleSelectEvacuee = (evacuee: any) => {
+    if (evacuee?.is_active) {
+      const fullName = [evacuee?.first_name, evacuee?.middle_name, evacuee?.last_name, evacuee?.suffix]
+        .filter(Boolean)
+        .join(" ")
+        .replace(/\s+/g, " ")
+        .trim();
+
+      setRegBlockName(fullName || undefined);
+      setRegBlockEcName(evacuee?.active_ec_name || undefined);
+      setRegBlockOpen(true);
+      return;
+    }
+
+    // Map the search result to form data
+    setFormData((prev) => ({
+      ...prev,
+      firstName: evacuee.first_name || "",
+      middleName: evacuee.middle_name || "",
+      lastName: evacuee.last_name || "",
+      suffix: evacuee.suffix || "",
+      sex: evacuee.sex || "",
+      maritalStatus: evacuee.marital_status || "",
+      birthday: evacuee.birthdate || "",
+      educationalAttainment: evacuee.educational_attainment || "",
+      schoolOfOrigin: evacuee.school_of_origin || "",
+      occupation: evacuee.occupation || "",
+      purok: evacuee.purok || "",
+      barangayOfOrigin: String(evacuee.barangay_of_origin || ""),
+      existingEvacueeResidentId: Number(evacuee?.evacuee_resident_id) || null,
+      disasterId: disasterId,
+    }));
+
+    setShowSearchModal(false);
+    setShowRegisterModal(true);
+  };
+
+  const handleManualRegister = () => {
+    setFormData({
+      firstName: "",
+      middleName: "",
+      lastName: "",
+      suffix: "",
+      sex: "",
+      maritalStatus: "",
+      birthday: "",
+      educationalAttainment: "",
+      schoolOfOrigin: "",
+      occupation: "",
+      purok: "",
+      barangayOfOrigin: "",
+      isFamilyHead: "Yes",
+      familyHead: "",
+      familyHeadId: null,
+      relationshipToFamilyHead: "",
+      searchEvacuationRoom: "",
+      evacuationRoomName: "",
+      vulnerabilities: {
+        pwd: false,
+        pregnant: false,
+        lactatingMother: false,
+      },
+      existingEvacueeResidentId: null,
+      disasterId: disasterId,
+      centerId: "",
+    });
+
+    setShowSearchModal(false);
+    setShowRegisterModal(true);
+  };
+
+  const handleFormInputChange = (field: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleVulnerabilityChange = (vulnerability: string, checked: boolean) => {
+    setFormData((prev) => ({
+      ...prev,
+      vulnerabilities: { ...prev.vulnerabilities, [vulnerability]: checked },
+    }));
+  };
+
+  function getVulnerabilityFlags(age: number) {
+    return {
+      is_infant: age < 1,
+      is_children: age >= 1 && age <= 12,
+      is_youth: age >= 13 && age <= 17,
+      is_adult: age >= 18 && age <= 59,
+      is_senior: age >= 60,
+    };
+  }
+
+  const handleRegisterEvacuee = async () => {
+    try {
+      console.log('registering');
+      const birthdate = new Date(formData.birthday);
+      const age = differenceInYears(new Date(), birthdate);
+      const vulnerabilityFlags = getVulnerabilityFlags(age);
+      const relationship = formData.isFamilyHead === "Yes" ? "Head" : formData.relationshipToFamilyHead;
+
+      if (formData.isFamilyHead === "No" && !formData.familyHeadId) return;
+
+
+      const payload = {
+        first_name: formData.firstName,
+        middle_name: formData.middleName,
+        last_name: formData.lastName,
+        suffix: formData.suffix && formData.suffix.trim() !== "" ? formData.suffix.trim() : null,
+        birthdate: formData.birthday,
+        sex: formData.sex,
+        barangay_of_origin: Number(formData.barangayOfOrigin),
+        marital_status: formData.maritalStatus,
+        educational_attainment: formData.educationalAttainment,
+        school_of_origin: formData.schoolOfOrigin || "",
+        occupation: formData.occupation || "",
+        purok: formData.purok || "",
+        relationship_to_family_head: relationship,
+        family_head_id: formData.isFamilyHead === "No" ? formData.familyHeadId! : undefined,
+        date_registered: new Date().toISOString(),
+        ...vulnerabilityFlags,
+        is_pwd: formData.vulnerabilities.pwd,
+        is_pregnant: formData.vulnerabilities.pregnant,
+        is_lactating: formData.vulnerabilities.lactatingMother,
+        disaster_evacuation_event_id: Number(formData.centerId),
+        ec_rooms_id: null,
+        ...(formData.existingEvacueeResidentId
+          ? { existing_evacuee_resident_id: formData.existingEvacueeResidentId }
+          : {}),
+      };
+      console.log('payload', payload);
+      await evacueesApi.postEvacuee(payload, token!);
+      setShowRegisterModal(false);
+      fetchEvacuationCenters(); // Refresh the list
+    } catch (error: any) {
+      const status = error?.response?.status;
+      const server = error?.response?.data;
+      const msg = server?.message || "Failed to register evacuee.";
+
+      const fullName = [formData.firstName, formData.middleName, formData.lastName, formData.suffix]
+        .filter(Boolean)
+        .join(" ")
+        .replace(/\s+/g, " ")
+        .trim();
+
+      if (status === 409) {
+        setRegBlockName(fullName || undefined);
+        setRegBlockEcName(server?.active_ec_name || server?.active_ec || undefined);
+        setRegBlockOpen(true);
+      } else if (status === 400) {
+        alert(msg);
+      }
+    }
+  };
+
+  // Family head search effect
+  useEffect(() => {
+    const q = familyHeadSearchTerm.trim();
+    if (!showFamilyHeadSearchModal) return;
+    if (!q) {
+      setFamilyHeadSearchResults([]);
+      return;
+    }
+
+    const t = setTimeout(async () => {
+      try {
+        setFhLoading(true);
+        const { data } = await evacueesApi.getFamilyHeads(disasterId, q, token!);
+        setFamilyHeadSearchResults(data?.data || []);
+      } catch {
+        setFamilyHeadSearchResults([]);
+      } finally {
+        setFhLoading(false);
+      }
+    }, 250);
+
+    return () => clearTimeout(t);
+  }, [familyHeadSearchTerm, showFamilyHeadSearchModal, token]);
 
   // Reset to page 1 when search term changes
   useEffect(() => {
@@ -246,7 +583,7 @@ export default function DisasterDetail() {
             onClick={() => navigate("/evacuation-information")}
             className="hover:text-green-700 font-bold transition-colors cursor-pointer"
           >
-            Disaster
+            Incident
           </button>
           <ChevronRight className="w-4 h-4 mx-2" />
           <span className="text-gray-900 font-semibold">{disaster!.name}</span>
@@ -273,12 +610,12 @@ export default function DisasterDetail() {
       </div>
 
       <div className="py-1 flex flex-col flex-1">
-        <div className="flex flex-col space-y-4 flex-1">
+        <div className="w-full flex flex-col space-y-4 flex-1">
           <div className="flex items-center justify-between">
             <h3 className="text-2xl font-bold">List of Evacuation Centers</h3>
           </div>
 
-          <div className="w-full max-w-xs">
+          <div className="w-full flex justify-between items-center">
             <div className="relative">
               <Input
                 placeholder="Search evacuation centers or barangays"
@@ -290,6 +627,42 @@ export default function DisasterDetail() {
                 <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
                   <div className="w-4 h-4 border-2 border-gray-300 border-t-green-600 rounded-full animate-spin"></div>
                 </div>
+              )}
+            </div>
+
+            <div className="flex gap-8 text-sm text-gray-600 items-center">
+              <div className="flex  items-center">
+                <Tabs
+                  value={activeTab}
+                  onValueChange={(value) => {
+                    // Prevent selecting the outside-ec tab if user lacks permission.
+                    if (value === 'outside-ec' && !canViewActiveOutsideEC) return;
+                    setActiveTab(value);
+                    setCurrentPage(1);
+                  }}
+                >
+                  {/* Adjust number of columns depending on whether Outside EC is shown */}
+                  <TabsList className={`grid w-fit ${canViewActiveOutsideEC ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                    <TabsTrigger value="inside-ec" className="px-3 py-1">Inside EC</TabsTrigger>
+                    {canViewActiveOutsideEC && (
+                      <TabsTrigger
+                        value="outside-ec"
+                        className="px-3 py-1"
+                        title={!canViewActiveOutsideEC ? 'You do not have permission to view Outside EC' : undefined}
+                      >
+                        Outside EC
+                      </TabsTrigger>
+                    )}
+                  </TabsList>
+                </Tabs>
+              </div>
+              {canRegisterOutsideEC && (
+                <Button
+                  className="bg-green-700 hover:bg-green-800 text-white px-6 flex gap-2 items-center cursor-pointer"
+                  onClick={() => setShowSearchModal(true)}
+                >
+                  Register Evacuee
+                </Button>
               )}
             </div>
           </div>
@@ -351,12 +724,13 @@ export default function DisasterDetail() {
                         key={center.evacuation_center_id}
                         className="cursor-pointer hover:bg-gray-50"
                         onClick={() =>
-                          navigate(
-                            `/evacuation-information/${encodeId(
-                              disasterId
-                            )}/${encodeId(center.id)}`
-                          )
-                        }
+                              navigate(
+                                `/evacuation-information/${encodeId(
+                                  disasterId
+                                )}/${encodeId(center.id)}`,
+                                { state: { isOutsideEc: activeTab === 'outside-ec' } }
+                              )
+                            }
                       >
                         <TableCell className="text-foreground font-medium">
                           {center.evacuation_center_name}
@@ -368,8 +742,10 @@ export default function DisasterDetail() {
                           {center.total_no_of_family} Family
                         </TableCell>
                         <TableCell className="text-foreground">
-                          {center.total_no_of_individuals} /{" "}
-                          {center.evacuation_center_total_capacity} Persons
+                        {activeTab === 'inside-ec'
+                          ? `${center.total_no_of_individuals} / ${center.evacuation_center_total_capacity} Persons`
+                          : `${center.total_no_of_individuals} Persons`
+                        }
                         </TableCell>
                         <TableCell className="flex items-center justify-between text-foreground">
                           {center.assigned_user_name}
@@ -398,6 +774,53 @@ export default function DisasterDetail() {
           </div>
         </div>
       </div>
+
+      {/* Registration Modals */}
+      <SearchEvacueeModal
+        isOpen={showSearchModal}
+        onClose={() => setShowSearchModal(false)}
+        searchName={searchEvacueeName}
+        onSearchChange={(e: any) => handleSearchChange(e.target ? e.target.value : e)}
+        searchResults={searchResults}
+        onSelectEvacuee={handleSelectEvacuee}
+        onManualRegister={handleManualRegister}
+        canCreateFamilyInformation={canCreateFamilyInformation}
+        currentEventId={disasterId}
+        currentEcId={null}
+        currentDisasterId={disasterId}
+      />
+
+      <RegisterEvacueeModal
+        isOpen={showRegisterModal}
+        onClose={() => setShowRegisterModal(false)}
+        mode="register"
+        formData={formData}
+        onFormChange={handleFormInputChange}
+        onVulnerabilityChange={handleVulnerabilityChange}
+        onSave={handleRegisterEvacuee}
+        onFamilyHeadSearch={handleFamilyHeadSearchClick}
+        centerId={0}
+        canCreateFamilyInformation={canCreateFamilyInformation}
+      />
+
+      {canCreateFamilyInformation && (
+        <FamilyHeadSearchModal
+          isOpen={showFamilyHeadSearchModal}
+          onClose={() => setShowFamilyHeadSearchModal(false)}
+          searchTerm={familyHeadSearchTerm}
+          onSearchChange={handleFamilyHeadSearchChange}
+          searchResults={familyHeadSearchResults}
+          onSelectFamilyHead={handleFamilyHeadSelect}
+          loading={fhLoading}
+        />
+      )}
+
+      <RegisterBlockDialog
+        open={regBlockOpen}
+        onOpenChange={setRegBlockOpen}
+        personName={regBlockName}
+        ecName={regBlockEcName}
+      />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { selectIsAuthenticated } from './features/auth/authSlice';
+import { Toaster } from 'react-hot-toast';
 import { PermissionProvider } from './contexts/PermissionContext';
 import { useAutoLogoutOnTokenExpiry } from './features/auth/useAutoLogoutOnTokenExpiry';
 import { useAutoRefreshToken } from './features/auth/useAutoRefreshToken';
@@ -8,6 +9,7 @@ import TopNav from './components/TopNav';
 import SideNav from './components/SideNav';
 import { PermissionGate } from './components/PermissionGate';
 import StatusCodes from './components/StatusCodes';
+import ErrorBoundary from './components/ErrorBoundary';
 import Dashboard from './pages/Dashboard';
 import Map from './pages/Map';
 import EvacuationCenters from './pages/EvacuationCenters';
@@ -50,7 +52,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
       <SideNav />
       <div className="flex flex-col flex-1 overflow-hidden">
         <TopNav />
-        <div className="flex-1 p-4 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto">
           {children}
         </div>
       </div>
@@ -65,16 +67,18 @@ function App() {
 
   return (
     <PermissionProvider>
-      <Routes>
-        {/* Redirect root to appropriate page based on auth status */}
-        <Route 
-          path="/" 
-          element={
-            isAuthenticated ? 
-              <Navigate to="/dashboard" replace /> : 
-              <Navigate to="/login" replace />
-          } 
-        />
+      <Toaster position="top-center" />
+      <ErrorBoundary>
+        <Routes>
+          {/* Redirect root to appropriate page based on auth status */}
+          <Route 
+            path="/" 
+            element={
+              isAuthenticated ? 
+                <Navigate to="/dashboard" replace /> : 
+                <Navigate to="/login" replace />
+            } 
+          />
         
         {/* Login routes - redirect to dashboard if already authenticated */}
         <Route 
@@ -222,26 +226,14 @@ function App() {
         
 
         <Route path="/print" element={<PrintReport />} />
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+        
+        {/* Error routes */}
+        <Route path="/error/500" element={<StatusCodes code={500} />} />
+        
+        {/* 404 Catch-all route - must be last */}
+        <Route path="*" element={<StatusCodes code={404} />} />
       </Routes>
+      </ErrorBoundary>
     </PermissionProvider>
   );
 }

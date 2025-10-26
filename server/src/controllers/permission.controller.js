@@ -1,5 +1,6 @@
 const { createClient } = require('@supabase/supabase-js');
 const dotenv = require('dotenv');
+const logger = require('../utils/logger');
 
 dotenv.config();
 
@@ -26,14 +27,14 @@ const getPermissions = async (req, res) => {
       .order('permission_name');
 
     if (error) {
-      console.error('Error fetching permissions:', error);
+      logger.error('Error fetching permissions:', error);
       return res.status(500).json({ message: 'Failed to fetch permissions' });
     }
 
     res.status(200).json({ permissions });
 
   } catch (error) {
-    console.error('Get permissions error:', error);
+    logger.error('Get permissions error:', { error: error.message, stack: error.stack });
     res.status(500).json({ 
       message: 'Internal server error',
       error: error.message
@@ -62,14 +63,15 @@ const getRolePermissions = async (req, res) => {
         permissions!permission_id (
           id,
           permission_name,
-          label
+          label,
+          description
         )
       `)
       .eq('role_id', parseInt(roleId))
       .is('deleted_at', null);
 
     if (error) {
-      console.error('Error fetching role permissions:', error);
+      logger.error('Error fetching role permissions:', { error: error.message, stack: error.stack });
       return res.status(500).json({ 
         message: 'Failed to fetch role permissions',
         error: error.message 
@@ -85,7 +87,7 @@ const getRolePermissions = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Get role permissions error:', error);
+    logger.error('Get role permissions error:', { error: error.message, stack: error.stack });
     res.status(500).json({ 
       message: 'Internal server error',
       error: error.message
@@ -99,8 +101,8 @@ const updateRolePermissions = async (req, res) => {
     const { roleId } = req.params;
     const { permissionIds } = req.body;
 
-    console.log('Updating role permissions for role:', roleId);
-    console.log('Received permission IDs:', permissionIds);
+    logger.debug('Updating role permissions for role:', { roleId });
+    logger.debug('Received permission IDs:', { permissionIds });
 
     if (!roleId || isNaN(parseInt(roleId))) {
       return res.status(400).json({ 
@@ -110,6 +112,7 @@ const updateRolePermissions = async (req, res) => {
     }
 
     if (!Array.isArray(permissionIds)) {
+      logger.warn('Invalid permission IDs format:', { permissionIds });
       return res.status(400).json({ 
         message: 'Permission IDs must be an array'
       });
@@ -125,7 +128,7 @@ const updateRolePermissions = async (req, res) => {
       .is('deleted_at', null);
 
     if (fetchError) {
-      console.error('Error fetching current permissions:', fetchError);
+      logger.error('Error fetching current permissions:', { error: fetchError.message, stack: fetchError.stack });
       return res.status(500).json({ 
         message: 'Failed to fetch current permissions',
         error: fetchError.message
@@ -135,16 +138,16 @@ const updateRolePermissions = async (req, res) => {
     const currentPermissionIds = (currentPermissions || []).map(p => p.permission_id);
     const newPermissionIds = permissionIds.map(id => parseInt(id));
 
-    console.log('Current active permissions:', currentPermissionIds);
-    console.log('New permissions:', newPermissionIds);
+    logger.debug('Current active permissions:', { currentPermissionIds });
+    logger.debug('New permissions:', { newPermissionIds });
 
     // Find permissions to remove (soft delete)
     const permissionsToRemove = currentPermissionIds.filter(id => !newPermissionIds.includes(id));
-    console.log('Permissions to remove:', permissionsToRemove);
+    logger.debug('Permissions to remove:', { permissionsToRemove });
 
     // Find permissions to add
     const permissionsToAdd = newPermissionIds.filter(id => !currentPermissionIds.includes(id));
-    console.log('Permissions to add:', permissionsToAdd);
+    logger.debug('Permissions to add:', { permissionsToAdd });
 
     // Remove permissions that are no longer selected
     if (permissionsToRemove.length > 0) {
@@ -156,7 +159,7 @@ const updateRolePermissions = async (req, res) => {
         .is('deleted_at', null);
 
       if (deleteError) {
-        console.error('Error removing permissions:', deleteError);
+        logger.error('Error removing permissions:', { error: deleteError.message, stack: deleteError.stack });
         return res.status(500).json({ 
           message: 'Failed to remove permissions',
           error: deleteError.message
@@ -177,7 +180,7 @@ const updateRolePermissions = async (req, res) => {
 
         if (checkError && checkError.code !== 'PGRST116') {
           // PGRST116 is "not found" error, which is expected for new permissions
-          console.error('Error checking existing permission record:', checkError);
+          logger.error('Error checking existing permission record:', { error: checkError.message, stack: checkError.stack });
           return res.status(500).json({ 
             message: 'Failed to check existing permissions',
             error: checkError.message
@@ -186,7 +189,7 @@ const updateRolePermissions = async (req, res) => {
 
         if (existingRecord && existingRecord.deleted_at) {
           // Restore soft-deleted permission by setting deleted_at to null
-          console.log(`Restoring soft-deleted permission: role ${roleIdInt}, permission ${permissionId}`);
+          logger.debug(`Restoring soft-deleted permission: role ${roleIdInt}, permission ${permissionId}`);
           
           const { error: restoreError } = await supabaseAdmin
             .from('role_permission')
@@ -195,7 +198,7 @@ const updateRolePermissions = async (req, res) => {
             .eq('permission_id', permissionId);
 
           if (restoreError) {
-            console.error('Error restoring soft-deleted permission:', restoreError);
+            logger.error('Error restoring soft-deleted permission:', { error: restoreError.message, stack: restoreError.stack });
             return res.status(500).json({ 
               message: 'Failed to restore permission',
               error: restoreError.message
@@ -203,7 +206,7 @@ const updateRolePermissions = async (req, res) => {
           }
         } else if (!existingRecord) {
           // Create new permission record
-          console.log(`Creating new permission: role ${roleIdInt}, permission ${permissionId}`);
+          logger.debug(`Creating new permission: role ${roleIdInt}, permission ${permissionId}`);
           
           const { error: insertError } = await supabaseAdmin
             .from('role_permission')
@@ -213,7 +216,7 @@ const updateRolePermissions = async (req, res) => {
             });
 
           if (insertError) {
-            console.error('Error inserting new role permission:', insertError);
+            logger.error('Error inserting new role permission:', { error: insertError.message, stack: insertError.stack });
             return res.status(500).json({ 
               message: 'Failed to add new permission',
               error: insertError.message
@@ -233,7 +236,7 @@ const updateRolePermissions = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Update role permissions error:', error);
+    logger.error('Update role permissions error:', { error: error.message, stack: error.stack });
     res.status(500).json({ 
       message: 'Internal server error',
       error: error.message
@@ -282,14 +285,15 @@ const getUserPermissions = async (req, res) => {
         permissions!permission_id (
           id,
           permission_name,
-          label
+          label,
+          description
         )
       `)
       .eq('role_id', roleId)
       .is('deleted_at', null);
 
     if (permError) {
-      console.error('Error fetching user permissions:', permError);
+      logger.error('Error fetching user permissions:', { error: permError.message, stack: permError.stack });
       return res.status(500).json({ 
         message: 'Failed to fetch user permissions',
         error: permError.message 
@@ -305,7 +309,7 @@ const getUserPermissions = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Get user permissions error:', error);
+    logger.error('Get user permissions error:', { error: error.message, stack: error.stack });
     res.status(500).json({ 
       message: 'Internal server error',
       error: error.message

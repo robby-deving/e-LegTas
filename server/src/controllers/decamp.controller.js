@@ -1,5 +1,7 @@
-// decamp.controller.js
+// server/src/controllers/decamp.controller.js
 const { supabase } = require('../config/supabase');
+const { invalidateEvacueeSearchCache } = require('./evacuees.search.controller'); // NEW
+const logger = require('../utils/logger');
 
 class ApiError extends Error {
   constructor(message, statusCode = 500) {
@@ -39,14 +41,16 @@ exports.decampFamily = async (req, res, next) => {
 
   try {
     if (!eventId || !familyHeadId) {
+      logger.warn("[decampFamily][ERROR] Missing required parameters", { eventId, familyHeadId });
       return res
         .status(400)
         .json({ message: "disasterEvacuationEventId and familyHeadId are required path params." });
     }
-      // Block any write when the event is already ended
-  if (await isEventEnded(eventId)) {
-    return next(new ApiError("Evacuation operation already ended.", 409));
-  }
+
+    // Block any write when the event is already ended
+    if (await isEventEnded(eventId)) {
+      return next(new ApiError("Evacuation operation already ended.", 409));
+    }
 
     const { data: eventRow, error: eventErr } = await supabase
       .from("disaster_evacuation_event")
@@ -55,9 +59,11 @@ exports.decampFamily = async (req, res, next) => {
       .single();
 
     if (eventErr || !eventRow) {
+      logger.warn("[decampFamily][ERROR] Event not found", { eventId });
       return res.status(404).json({ message: "Disaster evacuation event not found." });
     }
 
+    // --- CLEAR decampment branch ---
     if (rawTs === null || (typeof rawTs === "string" && rawTs.trim() === "")) {
       const { data: othersActive, error: othersErr } = await supabase
         .from("evacuation_registrations")
@@ -75,6 +81,7 @@ exports.decampFamily = async (req, res, next) => {
         .is("decampment_timestamp", null);
 
       if (othersErr) {
+        logger.error("[decampFamily][ERROR] Failed to check active registrations", { othersErr });
         return res.status(500).json({ message: "Failed to check active registrations." });
       }
 
@@ -120,7 +127,7 @@ exports.decampFamily = async (req, res, next) => {
         }
 
         const payload = {
-          allowed: false, 
+          allowed: false,
           code: "UndecampConflict",
           ec_name: ecName || undefined,
           disaster_id: disasterId || undefined,
@@ -130,7 +137,7 @@ exports.decampFamily = async (req, res, next) => {
         };
 
         if (dryRun) return res.status(200).json(payload);
-
+        logger.warn("[decampFamily][ERROR] Decampment conflict", payload);
         return res.status(409).json(payload);
       }
 
@@ -147,9 +154,12 @@ exports.decampFamily = async (req, res, next) => {
         .select();
 
       if (clearErr) {
-        console.error("[decampFamily][ERROR] Failed to clear decampment", { clearErr });
+        logger.error("[decampFamily][ERROR] Failed to clear decampment", { clearErr });
         return res.status(500).json({ message: `Failed to clear decampment: ${clearErr.message}` });
       }
+
+      // NEW: clear cached search so decampment shows correctly
+      try { invalidateEvacueeSearchCache(); } catch {}
 
       return res.json({
         message: "Decampment cleared for the family.",
@@ -158,6 +168,7 @@ exports.decampFamily = async (req, res, next) => {
       });
     }
 
+    // --- SET/UPDATE decampment branch ---
     if (typeof rawTs !== "string") {
       return res.status(400).json({ message: "decampment_timestamp must be ISO string or null." });
     }
@@ -193,7 +204,7 @@ exports.decampFamily = async (req, res, next) => {
       .maybeSingle();
 
     if (eaErr) {
-      console.error("[decampFamily][ERROR] Failed earliestActive", { eaErr });
+      logger.error("[decampFamily][ERROR] Failed earliestActive", { eaErr });
       return res.status(500).json({ message: `Failed to read registrations: ${eaErr.message}` });
     }
 
@@ -211,7 +222,7 @@ exports.decampFamily = async (req, res, next) => {
         .maybeSingle();
 
       if (eAnyErr) {
-        console.error("[decampFamily][ERROR] Failed earliestAny", { eAnyErr });
+        logger.error("[decampFamily][ERROR] Failed earliestAny", { eAnyErr });
         return res.status(500).json({ message: `Failed to read registrations: ${eAnyErr.message}` });
       }
       earliest = earliestAny;
@@ -245,17 +256,20 @@ exports.decampFamily = async (req, res, next) => {
           .status(400)
           .json({ message: "Decampment must be later than arrival (CHECK constraint failed)." });
       }
-      console.error("[decampFamily][ERROR] Failed to update decampment", { updateErr });
+      logger.error("[decampFamily][ERROR] Failed to update decampment", { updateErr });
       return res.status(500).json({ message: `Failed to update decampment: ${updateErr.message}` });
     }
 
     if (earliestSource === "any") {
-      console.log("[decampFamily] success edit decampment time and date", {
+      logger.debug("[decampFamily] success edit decampment time and date", {
         eventId,
         familyHeadId,
         decampment_timestamp: decampDate.toISOString(),
       });
     }
+
+    // NEW: invalidate after successful update
+    try { invalidateEvacueeSearchCache(); } catch {}
 
     return res.json({
       message: "Decampment saved for the family.",
@@ -263,7 +277,7 @@ exports.decampFamily = async (req, res, next) => {
       rows: updatedRows ?? [],
     });
   } catch (err) {
-    console.error("[decampFamily][ERROR] Unhandled exception", { error: err?.message, stack: err?.stack });
+    logger.error("[decampFamily][ERROR] Unhandled exception", { error: err?.message, stack: err?.stack });
     return next(new ApiError(`Internal error during decampFamily. ${err?.message || ""}`, 500));
   }
 };
@@ -279,7 +293,11 @@ exports.undecampedCountInEvent = async (req, res) => {
     .eq('disaster_evacuation_event_id', eventId)
     .is('decampment_timestamp', null);
 
-  if (error) return res.status(500).json({ message: error.message });
+  if (error) {
+    logger.error("[undecampedCountInEvent] Failed to count undecamped evacuees", { error });
+    return res.status(500).json({ message: error.message });
+  }
+
   return res.json({ count: count ?? 0 });
 };
 
@@ -320,6 +338,9 @@ exports.decampAllFamiliesInEvent = async (req, res) => {
     .select('id');
 
   if (upErr) return res.status(500).json({ message: upErr.message });
+
+  // NEW: invalidate after bulk change (even if 0 rows, harmless)
+  try { invalidateEvacueeSearchCache(); } catch {}
 
   // Count what remains (if user chose a timestamp earlier than some arrivals)
   const { count: remain, error: remainErr } = await supabase
@@ -382,14 +403,17 @@ exports.endEvacuationOperation = async (req, res) => {
       .maybeSingle();
 
     if (endErr) {
-      console.error("[endEvacuationOperation] update error:", endErr);
+      logger.error("[endEvacuationOperation] update error:", endErr);
       return res.status(500).json({ message: endErr.message });
     }
     if (!data) return res.status(404).json({ message: "Event not found or not updated." });
 
+    // NEW: optional invalidate (keeps UI consistent around event state)
+    try { invalidateEvacueeSearchCache(); } catch {}
+
     return res.json({ message: "Evacuation operation ended.", event: data });
   } catch (err) {
-    console.error("[endEvacuationOperation] Unhandled exception", err);
+    logger.error("[endEvacuationOperation] Unhandled exception", err);
     return res.status(500).json({ message: "Internal error during endEvacuationOperation." });
   }
 };
