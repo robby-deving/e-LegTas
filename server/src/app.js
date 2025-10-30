@@ -22,6 +22,7 @@ logger.info('SUPABASE_URL status', { present: !!process.env.SUPABASE_URL });
 logger.info('SUPABASE_SERVICE_ROLE_KEY status', { present: !!process.env.SUPABASE_SERVICE_ROLE_KEY });
 logger.info('SMTP_USER status', { present: !!process.env.SMTP_USER });
 logger.info('SMTP_PASS status', { present: !!process.env.SMTP_PASS });
+logger.info('NODE_ENV', { value: process.env.NODE_ENV || 'not set' });
 
 // Middleware
 app.use(cors({

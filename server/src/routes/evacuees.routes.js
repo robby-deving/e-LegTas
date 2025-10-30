@@ -12,6 +12,7 @@ const { getEvacueeStatisticsByDisasterEvacuationEventId } = require('../controll
 const { getEvacueesInformationbyDisasterEvacuationEventId } = require('../controllers/evacuees.event-evacuees-information.controller');
 const { updateEvacuee } = require('../controllers/evacuees.update-registration.controller');
 const { authenticateUser, requirePermission, requireAnyPermission } = require('../middleware');
+const { validateParams, validateQuery, validateBody } = require('../middleware/inputValidation');
 const { decampFamily, undecampedCountInEvent, decampAllFamiliesInEvent, endEvacuationOperation, } = require('../controllers/decamp.controller');
 const { addService } = require('../controllers/evacuees.services.controller');
 
@@ -41,34 +42,105 @@ router.get('/barangays', getAllBarangays);
 router.post('/:disasterEvacuationEventId/transfer-head', authenticateUser, requirePermission('update_family_information'), transferHead);
 
 // Decamp a whole family for a specific event
-router.post('/:disasterEvacuationEventId/families/:familyHeadId/decamp', decampFamily);
+router.post('/:disasterEvacuationEventId/families/:familyHeadId/decamp',
+  validateParams({
+    disasterEvacuationEventId: { validator: 'integer' },
+    familyHeadId: { validator: 'integer' }
+  }),
+  validateQuery({
+    dry_run: { validator: 'string', required: false, options: { maxLength: 10 } }
+  }),
+  validateBody({
+    decampment_timestamp: { 
+      validator: 'string', 
+      required: false, 
+      options: { maxLength: 50, allowSpecialChars: true } 
+    }
+  }),
+  decampFamily
+);
 
 // Count currently active (undecamped) families in this event
-router.get('/:disasterEvacuationEventId/undecamped-count', authenticateUser, undecampedCountInEvent);
+router.get('/:disasterEvacuationEventId/undecamped-count',
+  authenticateUser,
+  validateParams({
+    disasterEvacuationEventId: { validator: 'integer' }
+  }),
+  undecampedCountInEvent
+);
 
 // Decamp all active families using a chosen timestamp
-router.post('/:disasterEvacuationEventId/decamp-all', authenticateUser, decampAllFamiliesInEvent);
+router.post('/:disasterEvacuationEventId/decamp-all',
+  authenticateUser,
+  validateParams({
+    disasterEvacuationEventId: { validator: 'integer' }
+  }),
+  validateBody({
+    decampment_timestamp: { 
+      validator: 'string', 
+      required: true, 
+      options: { maxLength: 50, allowSpecialChars: true } 
+    }
+  }),
+  decampAllFamiliesInEvent
+);
 
 // Mark the event as ended (sets evacuation_end_date)
-router.post('/:disasterEvacuationEventId/end', authenticateUser, endEvacuationOperation);
+router.post('/:disasterEvacuationEventId/end',
+  authenticateUser,
+  validateParams({
+    disasterEvacuationEventId: { validator: 'integer' }
+  }),
+  validateBody({
+    evacuation_end_date: { 
+      validator: 'string', 
+      required: false, 
+      options: { maxLength: 50, allowSpecialChars: true } 
+    }
+  }),
+  endEvacuationOperation
+);
 
 // Update an evacuee's details by ID
 router.put('/:id', authenticateUser, requirePermission('update_family_information'), updateEvacuee);
 
 // Get detailed evacuee data filtered by disaster evacuation event ID
-router.get('/:disasterEvacuationEventId/evacuees-information', authenticateUser, requirePermission('view_family_information'), getEvacueesInformationbyDisasterEvacuationEventId);
+router.get(
+  '/:disasterEvacuationEventId/evacuees-information',
+  authenticateUser,
+  requirePermission('view_family_information'),
+  validateParams({
+    disasterEvacuationEventId: { validator: 'integer' }
+  }),
+  getEvacueesInformationbyDisasterEvacuationEventId
+);
 
 // Get evacuee demographic statistics by disaster evacuation event ID
 router.get('/:disasterEvacuationEventId/evacuee-statistics', authenticateUser, requirePermission('view_evacuee_information'), getEvacueeStatisticsByDisasterEvacuationEventId);
 
 // Get disaster and evacuation center information for a disaster evacuation event
-router.get('/:disasterEvacuationEventId/details', getDisasterEvacuationDetails);
+router.get(
+  '/:disasterEvacuationEventId/details',
+  validateParams({
+    disasterEvacuationEventId: { validator: 'integer' }
+  }),
+  getDisasterEvacuationDetails
+);
 
 // Get evacuation center rooms for a disaster evacuation event
 router.get('/:disasterEvacuationEventId/rooms', getAllRoomsForDisasterEvacuationEventId);
 
 // Get full evacuee details for editing (includes resident info, evacuee info, registration, and vulnerabilities)
-router.get( '/:disasterEvacuationEventId/:evacueeResidentId/edit', authenticateUser, requirePermission('view_evacuee_information'), getEvacueeDetailsForEdit );
+router.get(
+  '/:disasterEvacuationEventId/:evacueeResidentId/edit',
+  authenticateUser,
+  requirePermission('view_evacuee_information'),
+  validateParams({
+    disasterEvacuationEventId: { validator: 'integer' },
+    evacueeResidentId: { validator: 'integer' }
+  }),
+  getEvacueeDetailsForEdit
+);
 
 // Export the router
 module.exports = router;

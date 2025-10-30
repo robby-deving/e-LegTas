@@ -32,9 +32,11 @@ class ApiError extends Error {
  * @access Public (for now, apply auth middleware later if needed)
  */
 exports.getDisasterEventDetailsByDisasterId = async (req, res, next) => {
-    const { disasterId } = req.params;
-    const { page = 1, limit = 10, search, ec_type, barangay_id } = req.query;
+    // Use validated params and query
+    const { disasterId } = req.validatedParams || req.params;
+    const { page = 1, limit = 10, search, ec_type, barangay_id } = req.validatedQuery || req.query;
 
+    // Validation is handled by middleware, but keep basic checks for backward compatibility
     if (!disasterId || isNaN(Number(disasterId))) {
         return next(new ApiError('Invalid Disaster ID provided.', 400));
     }
@@ -368,7 +370,8 @@ exports.getDisasterEventDetailsByDisasterId = async (req, res, next) => {
  * @access Public (for now, apply auth middleware later if needed)
  */
 exports.getDisasterEventById = async (req, res, next) => {
-    const { id } = req.params;
+    // Use validated params
+    const { id } = req.validatedParams || req.params;
 
     if (!id || isNaN(Number(id))) {
         return next(new ApiError('Invalid Disaster Event ID provided.', 400));
@@ -493,7 +496,8 @@ exports.getDisasterEventById = async (req, res, next) => {
  * @access Private (requires view_disaster permission)
  */
 exports.checkDisasterEventByEvacuationCenter = async (req, res, next) => {
-    const { disasterId, evacuationCenterId } = req.params;
+    // Use validated params
+    const { disasterId, evacuationCenterId } = req.validatedParams || req.params;
 
     if (!disasterId || isNaN(Number(disasterId))) {
         return next(new ApiError('Invalid Disaster ID provided.', 400));
@@ -586,13 +590,14 @@ exports.checkDisasterEventByEvacuationCenter = async (req, res, next) => {
  * @access Private (requires authentication/authorization, but public for now)
  */
 exports.createDisasterEvent = async (req, res, next) => {
+    // Use validated body
     const {
         disaster_id,
         assigned_user_id, // This should come from authenticated user in a real app
         evacuation_center_id,
         evacuation_start_date,
         evacuation_end_date // Optional
-    } = req.body;
+    } = req.validatedBody || req.body;
 
     // Basic input validation
     if (!disaster_id || !assigned_user_id || !evacuation_center_id || !evacuation_start_date) {

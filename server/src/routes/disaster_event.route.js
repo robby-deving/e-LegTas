@@ -8,6 +8,7 @@ const {
   createDisasterEvent
 } = require('../controllers/disaster_event.controller');
 const { authenticateUser, requirePermission, requireAnyPermission } = require('../middleware');
+const { validateParams, validateQuery, validateBody } = require('../middleware/inputValidation');
 
 const router = express.Router();
 
@@ -21,6 +22,16 @@ const router = express.Router();
 router.get('/by-disaster/:disasterId/details', 
   authenticateUser, 
   requireAnyPermission(['view_disaster', 'view_active_outside_ec']),
+  validateParams({
+    disasterId: { validator: 'integer' }
+  }),
+  validateQuery({
+    page: { validator: 'integer', required: false, options: { min: 1 } },
+    limit: { validator: 'integer', required: false, options: { min: 1, max: 100 } },
+    search: { validator: 'string', required: false, options: { maxLength: 100 } },
+    ec_type: { validator: 'string', required: false, options: { maxLength: 20 } },
+    barangay_id: { validator: 'integer', required: false }
+  }),
   getDisasterEventDetailsByDisasterId
 );
 
@@ -32,6 +43,9 @@ router.get('/by-disaster/:disasterId/details',
 router.get('/:id',
   authenticateUser,
   requirePermission('view_disaster'),
+  validateParams({
+    id: { validator: 'integer' }
+  }),
   getDisasterEventById
 );
 
@@ -43,6 +57,10 @@ router.get('/:id',
 router.get('/check/:disasterId/:evacuationCenterId',
   authenticateUser,
   requirePermission('view_disaster'),
+  validateParams({
+    disasterId: { validator: 'integer' },
+    evacuationCenterId: { validator: 'integer' }
+  }),
   checkDisasterEventByEvacuationCenter
 );
 
@@ -54,6 +72,13 @@ router.get('/check/:disasterId/:evacuationCenterId',
 router.post('/', 
   authenticateUser, 
   requirePermission('create_evacuation_event'),
+  validateBody({
+    disaster_id: { validator: 'integer', required: true },
+    assigned_user_id: { validator: 'integer', required: true },
+    evacuation_center_id: { validator: 'integer', required: true },
+    evacuation_start_date: { validator: 'string', required: true, options: { maxLength: 50, allowSpecialChars: true } },
+    evacuation_end_date: { validator: 'string', required: false, options: { maxLength: 50, allowSpecialChars: true } }
+  }),
   createDisasterEvent
 );
 

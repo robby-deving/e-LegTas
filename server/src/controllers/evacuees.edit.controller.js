@@ -28,7 +28,8 @@ function buildFullName({ first_name, middle_name, last_name, suffix }) {
  * @access Private (Camp Manager only)
  */
 exports.getEvacueeDetailsForEdit = async (req, res, next) => {
-  const { disasterEvacuationEventId, evacueeResidentId } = req.params;
+  // Use validated params
+  const { disasterEvacuationEventId, evacueeResidentId } = req.validatedParams || req.params;
 
   const parseJsonMaybe = (v) => {
     if (v == null) return null;
