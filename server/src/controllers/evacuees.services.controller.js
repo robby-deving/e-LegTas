@@ -21,12 +21,15 @@ class ApiError extends Error {
  * @access Private (requires authentication/authorization)
  */
 exports.addService = async (req, res, next) => {
+  // Use validated body from middleware if available
+  const validatedData = req.validatedBody || req.body;
+  
   const {
     disaster_evacuation_event_id,
     family_id,
     service_received,
     added_by,
-  } = req.body;
+  } = validatedData;
 
   // Check required fields
   if (!disaster_evacuation_event_id || !family_id || !service_received) {

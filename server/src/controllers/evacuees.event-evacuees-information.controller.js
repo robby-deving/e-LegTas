@@ -29,21 +29,26 @@ function buildFullName({ first_name, middle_name, last_name, suffix }) {
  * @access Private (Camp Manager only)
  */
 exports.getEvacueesInformationbyDisasterEvacuationEventId = async (req, res, next) => {
-  // Validate the disaster evacuation event ID parameter
-  const rawId = req.params.disasterEvacuationEventId ?? req.params.id;
-  const idValidation = validateId(rawId, 'integer');
+  // Use validated params from middleware if available, otherwise validate manually
+  let eventId = req.validatedParams?.disasterEvacuationEventId;
+  
+  if (!eventId) {
+    // Fallback validation if middleware not used
+    const rawId = req.params.disasterEvacuationEventId ?? req.params.id;
+    const idValidation = validateId(rawId, 'integer');
 
-  if (!idValidation.isValid) {
-    logger.warn('Invalid disaster evacuation event ID provided for evacuees information', {
-      path: req.path,
-      providedId: rawId,
-      error: idValidation.error,
-      ip: req.ip
-    });
-    return next(new ApiError(idValidation.error, 400));
+    if (!idValidation.isValid) {
+      logger.warn('Invalid disaster evacuation event ID provided for evacuees information', {
+        path: req.path,
+        providedId: rawId,
+        error: idValidation.error,
+        ip: req.ip
+      });
+      return next(new ApiError(idValidation.error, 400));
+    }
+
+    eventId = idValidation.sanitized;
   }
-
-  const eventId = idValidation.sanitized;
 
   logger.info('Fetching evacuees information for disaster evacuation event', {
     disasterEvacuationEventId: eventId,

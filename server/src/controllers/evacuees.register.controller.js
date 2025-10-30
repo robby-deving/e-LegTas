@@ -19,6 +19,9 @@ class ApiError extends Error {
  * @access Private (Camp Manager only)
  */
 exports.registerEvacuee = async (req, res, next) => {
+  // Use validated body from middleware if available, otherwise fallback to req.body
+  const validatedData = req.validatedBody || req.body;
+  
   const {
     first_name,
     middle_name,
@@ -49,7 +52,7 @@ exports.registerEvacuee = async (req, res, next) => {
     disaster_evacuation_event_id,
 
     existing_evacuee_resident_id,
-  } = req.body;
+  } = validatedData;
 
   let resident_id = null;
   let evacuee_id = null;

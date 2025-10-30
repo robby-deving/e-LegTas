@@ -12,7 +12,9 @@ class ApiError extends Error {
 }
 
 exports.updateEvacuee = async (req, res, next) => {
-  const { id } = req.params;
+  // Use validated params and body from middleware if available
+  const id = req.validatedParams?.id || req.params.id;
+  const validatedData = req.validatedBody || req.body;
 
   const {
     first_name, middle_name, last_name, suffix, birthdate, sex,
@@ -25,7 +27,7 @@ exports.updateEvacuee = async (req, res, next) => {
     is_pwd, is_pregnant, is_lactating,
     
     ec_rooms_id, disaster_evacuation_event_id,
-  } = req.body;
+  } = validatedData;
 
   if (!disaster_evacuation_event_id) {
     logger.warn('Missing disaster_evacuation_event_id for updateEvacuee', { id, bodyKeys: Object.keys(req.body || {}) });

@@ -20,12 +20,15 @@ class ApiError extends Error {
  * @access Private (Camp Manager only)
  */
 exports.transferHead = async (req, res, next) => {
-  const { disasterEvacuationEventId } = req.params;
+  // Use validated params and body from middleware if available
+  const disasterEvacuationEventId = req.validatedParams?.disasterEvacuationEventId || req.params.disasterEvacuationEventId;
+  const validatedData = req.validatedBody || req.body || {};
+  
   const {
     from_family_head_id,
     to_evacuee_resident_id,
     old_head_new_relationship = 'Spouse',
-  } = req.body || {};
+  } = validatedData;
 
   const eventIdNum = Number(disasterEvacuationEventId);
   const fromFH = Number(from_family_head_id);

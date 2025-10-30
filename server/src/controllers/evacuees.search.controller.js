@@ -29,7 +29,9 @@ exports.invalidateEvacueeSearchCache = () => {
  * @access Public
  */
 exports.searchEvacueeByName = async (req, res, next) => {
-  const { name } = req.query;
+  // Use validated query from middleware if available
+  const name = req.validatedQuery?.name || req.query.name;
+  
   if (!name || String(name).trim() === "") {
     logger.warn("Name query is required for evacuee search");
     return next(new ApiError("Name query is required.", 400));
@@ -294,8 +296,10 @@ exports.searchEvacueeByName = async (req, res, next) => {
  * @access Private (Camp Manager only)
  */
 exports.searchFamilyHeads = async (req, res, next) => {
-  const { disasterEvacuationEventId } = req.params;
-  const q = (req.query.q || "").trim();
+  // Use validated params and query from middleware if available
+  const disasterEvacuationEventId = req.validatedParams?.disasterEvacuationEventId || req.params.disasterEvacuationEventId;
+  const name = req.validatedQuery?.name || req.query.name || req.query.q || "";
+  const q = String(name).trim();
 
   try {
     logger.debug("[searchFamilyHeads] incoming params", {

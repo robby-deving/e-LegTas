@@ -17,9 +17,12 @@ class ApiError extends Error {
  * @access Public
  */
 exports.getAllRoomsForDisasterEvacuationEventId = async (req, res, next) => {
-  const disasterEvacuationEventId = Number(req.params.disasterEvacuationEventId);
-  const onlyAvailable = String(req.query.only_available ?? '1') !== '0'; // default: only rooms with space
+  // Use validated and sanitized values from middleware
+  const disasterEvacuationEventId = req.validatedParams?.disasterEvacuationEventId || Number(req.params.disasterEvacuationEventId);
+  const onlyAvailableQuery = req.validatedQuery?.only_available || req.query.only_available || '1';
+  const onlyAvailable = String(onlyAvailableQuery) !== '0'; // default: only rooms with space
 
+  // Additional validation check (middleware should handle this, but keep as fallback)
   if (!Number.isFinite(disasterEvacuationEventId)) {
     logger.warn('[rooms] Invalid disaster evacuation event id', { disasterEvacuationEventId, query: req.query });
     return next(new ApiError('Invalid disaster evacuation event id.', 400));

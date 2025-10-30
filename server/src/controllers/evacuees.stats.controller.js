@@ -15,7 +15,9 @@ class ApiError extends Error {
  * @route GET /api/v1/evacuees/:disasterEvacuationEventId/evacuee-statistics
  */
 exports.getEvacueeStatisticsByDisasterEvacuationEventId = async (req, res, next) => {
-  const eventId = Number(req.params.disasterEvacuationEventId ?? req.params.id);
+  // Use validated params from middleware if available
+  const eventId = req.validatedParams?.disasterEvacuationEventId || Number(req.params.disasterEvacuationEventId ?? req.params.id);
+  
   if (!Number.isFinite(eventId)) {
     logger.warn('Invalid disaster evacuation event id for statistics', { eventId: req.params.disasterEvacuationEventId ?? req.params.id });
     return next(new ApiError('Invalid disaster evacuation event id.', 400));
