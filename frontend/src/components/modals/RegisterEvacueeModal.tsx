@@ -269,7 +269,7 @@ useEffect(() => {
   return () => { cancelled = true; };
 }, [isOpen, centerId, token]);
 
-onst handleClickSave = async () => {
+const handleClickSave = async () => {
   if (formRef.current && !formRef.current.reportValidity()) return;
 
   // Clear previous errors
