@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { setCredentials } from '../features/auth/authSlice';
 import { usePageTitle } from '../hooks/usePageTitle';
+import { validateEmployeeNumber } from '../utils/validateInput'; // Remove validatePassword
 import loginContainer from '../assets/loginContainer.svg';
 import legTasLogo from '../assets/LegTas-Logo.png';
 import { Eye, EyeOff } from 'lucide-react';
@@ -18,13 +19,26 @@ export default function Login(){
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [fieldErrors, setFieldErrors] = useState<{employeeNumber?: string}>({}); // Only employee number errors
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
+        setFieldErrors({}); // Clear previous field errors
+        
+        // Client-side validation for employee number only
+        const employeeValidation = validateEmployeeNumber(employeeNumber);
+        
+        if (!employeeValidation.isValid) {
+            setFieldErrors({ employeeNumber: 'Invalid employee number or password' });
+            return;
+        }
         
         try {
             setLoading(true);
+            
+            // Use validated/sanitized employee number, keep password as-is
+            const sanitizedEmployeeNumber = employeeValidation.sanitized!;
             
             // Call server API for login
             const response = await fetch('/api/v1/auth/login', {
@@ -34,8 +48,8 @@ export default function Login(){
                 },
                 credentials: 'include', // Allow cookies to be set by backend
                 body: JSON.stringify({
-                    employeeNumber,
-                    password,
+                    employeeNumber: sanitizedEmployeeNumber,
+                    password, // Use raw password without validation
                 }),
             });
 
@@ -105,9 +119,15 @@ export default function Login(){
                         </div>
                         
                         {/* Error Message */}
-                        {error && (
+                        {(error || Object.values(fieldErrors).some(Boolean)) && (
                             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded-md text-center text-sm">
                                 {error}
+                                {Object.entries(fieldErrors).map(
+                                    ([field, message]) =>
+                                        message && (
+                                            <p key={field} >{message}</p>
+                                        )
+                                )}
                             </div>
                         )}
                         
@@ -119,12 +139,18 @@ export default function Login(){
                                 <label className='block text-xs sm:text-sm md:text-sm font-medium text-gray-800'>
                                     Employee Number
                                 </label>
-                                <Input 
-                                    type='text' 
+                                <Input
+                                    type='text'
                                     placeholder="Enter your employee number"
                                     value={employeeNumber}
-                                    onChange={(e) => setEmployeeNumber(e.target.value)}
-                                    className='text-xs sm:text-sm bg-white'
+                                    onChange={(e) => {
+                                        setEmployeeNumber(e.target.value);
+                                        // Clear field error when user starts typing
+                                        if (fieldErrors.employeeNumber) {
+                                            setFieldErrors({});
+                                        }
+                                    }}
+                                    className={`text-xs sm:text-sm bg-white ${fieldErrors.employeeNumber ? 'border-red-500' : ''}`}
                                     required
                                 />
                             </div>
