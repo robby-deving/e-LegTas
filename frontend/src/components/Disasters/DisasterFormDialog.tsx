@@ -25,6 +25,7 @@ import {
 import { Button } from "../ui/button";
 import { CalendarIcon } from "lucide-react";
 import type { Disaster, DisasterPayload, DisasterTypeWithId } from "@/types/disaster";
+import { validateString, validateDate, validateNumeric } from "@/utils/validateInput";
 
 /**
  * Note: While the UI displays "Incident", we use "Disaster" in our
@@ -54,6 +55,12 @@ export default function DisasterFormDialog({
   const [typeId, setTypeId] = useState<number | undefined>(undefined); // Stores the actual ID of the type
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<{
+    name?: string;
+    typeId?: string;
+    startDate?: string;
+    endDate?: string;
+  }>({});
 
   useEffect(() => {
     if (mode === "edit" && disaster) {
@@ -69,19 +76,66 @@ export default function DisasterFormDialog({
       setStartDate(new Date().toISOString());
       setEndDate("");
     }
+    setFieldErrors({}); // Clear field errors when mode changes
   }, [mode, disaster]);
 
   const handleSave = () => {
-    // Replaced alert with a console.error or a custom message box if you have one
-    if (!name || typeId === undefined || !startDate) {
-      console.error("Please fill in all required fields: Disaster Name, Type, and Start Date.");
-      // You might want to display a user-friendly message here, e.g., using a toast or a modal
+    setFieldErrors({}); // Clear previous errors
+
+    // Validate all fields
+    const errors: {
+      name?: string;
+      typeId?: string;
+      startDate?: string;
+      endDate?: string;
+    } = {};
+
+    // Validate disaster name
+    const nameValidation = validateString(name, { minLength: 1, maxLength: 100 });
+    if (!nameValidation.isValid) {
+      errors.name ='Invalid incident name';
+    }
+
+    // Validate type ID
+    if (typeId === undefined) {
+      errors.typeId = "Please select an incident type";
+    } else {
+      const typeIdValidation = validateNumeric(typeId, { min: 1 });
+      if (!typeIdValidation.isValid) {
+        errors.typeId = "Invalid incident type selected";
+      }
+    }
+
+    // Validate start date
+    if (!startDate) {
+      errors.startDate = "Start date is required";
+    } else {
+      const startDateValidation = validateDate(startDate);
+      if (!startDateValidation.isValid) {
+        errors.startDate = startDateValidation.error;
+      }
+    }
+
+    // Validate end date (only in edit mode and if provided)
+    if (mode === "edit" && endDate) {
+      const endDateValidation = validateDate(endDate);
+      if (!endDateValidation.isValid) {
+        errors.endDate = endDateValidation.error;
+      } else if (startDate && new Date(endDate) <= new Date(startDate)) {
+        errors.endDate = "End date must be after the start date";
+      }
+    }
+
+    // If there are validation errors, display them and stop
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
       return;
     }
 
+    // All validation passed, create payload with sanitized data
     const payload: DisasterPayload = {
-      disaster_name: name,
-      disaster_type_id: typeId, // Use the stored typeId
+      disaster_name: nameValidation.sanitized!,
+      disaster_type_id: typeId!,
       disaster_start_date: startDate,
       disaster_end_date: mode === "edit" ? endDate || null : null,
     };
@@ -105,10 +159,19 @@ export default function DisasterFormDialog({
             </label>
             <Input
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => {
+                setName(e.target.value);
+                // Clear name error when user starts typing
+                if (fieldErrors.name) {
+                  setFieldErrors(prev => ({ ...prev, name: undefined }));
+                }
+              }}
               placeholder="Incident Name"
-              className="w-full"
+              className={`w-full ${fieldErrors.name ? 'border-red-500' : ''}`}
             />
+            {fieldErrors.name && (
+              <p className="text-red-500 text-xs mt-1">{fieldErrors.name}</p>
+            )}
           </div>
 
           {/* Type */}
@@ -128,10 +191,14 @@ export default function DisasterFormDialog({
                 if (selectedType) {
                   setType(selectedType.name); // Update display name
                   setTypeId(Number(selectedType.id)); // Update actual ID
+                  // Clear type error when user makes a selection
+                  if (fieldErrors.typeId) {
+                    setFieldErrors(prev => ({ ...prev, typeId: undefined }));
+                  }
                 }
               }}
             >
-              <SelectTrigger className="w-full">
+              <SelectTrigger className={`w-full ${fieldErrors.typeId ? 'border-red-500' : ''}`}>
                 <SelectValue placeholder="Select category">
                   {typeId !== undefined && type ? type : "Select category"}
                 </SelectValue>
@@ -144,6 +211,9 @@ export default function DisasterFormDialog({
                 ))}
               </SelectContent>
             </Select>
+            {fieldErrors.typeId && (
+              <p className="text-red-500 text-xs mt-1">{fieldErrors.typeId}</p>
+            )}
           </div>
 
           {/* Start Date */}
@@ -155,7 +225,7 @@ export default function DisasterFormDialog({
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
-                  className="w-full justify-start text-left font-normal"
+                  className={`w-full justify-start text-left font-normal ${fieldErrors.startDate ? 'border-red-500' : ''}`}
                 >
                   {startDate
                     ? format(new Date(startDate), "MMMM dd, yyyy")
@@ -167,13 +237,22 @@ export default function DisasterFormDialog({
                 <Calendar
                   mode="single"
                   selected={startDate ? new Date(startDate) : undefined}
-                  onSelect={(date) =>
-                    date && setStartDate(date.toISOString())
-                  }
+                  onSelect={(date) => {
+                    if (date) {
+                      setStartDate(date.toISOString());
+                      // Clear start date error when user selects a date
+                      if (fieldErrors.startDate) {
+                        setFieldErrors(prev => ({ ...prev, startDate: undefined }));
+                      }
+                    }
+                  }}
                   initialFocus
                 />
               </PopoverContent>
             </Popover>
+            {fieldErrors.startDate && (
+              <p className="text-red-500 text-xs mt-1">{fieldErrors.startDate}</p>
+            )}
           </div>
 
           {/* End Date - only in edit mode */}
@@ -186,7 +265,7 @@ export default function DisasterFormDialog({
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className="w-full justify-start text-left font-normal"
+                    className={`w-full justify-start text-left font-normal ${fieldErrors.endDate ? 'border-red-500' : ''}`}
                   >
                     {endDate
                       ? format(new Date(endDate), "MMMM dd, yyyy")
@@ -198,13 +277,22 @@ export default function DisasterFormDialog({
                   <Calendar
                     mode="single"
                     selected={endDate ? new Date(endDate) : undefined}
-                    onSelect={(date) =>
-                      date && setEndDate(date.toISOString())
-                    }
+                    onSelect={(date) => {
+                      if (date) {
+                        setEndDate(date.toISOString());
+                        // Clear end date error when user selects a date
+                        if (fieldErrors.endDate) {
+                          setFieldErrors(prev => ({ ...prev, endDate: undefined }));
+                        }
+                      }
+                    }}
                     initialFocus
                   />
                 </PopoverContent>
               </Popover>
+              {fieldErrors.endDate && (
+                <p className="text-red-500 text-xs mt-1">{fieldErrors.endDate}</p>
+              )}
             </div>
           )}
         </form>
