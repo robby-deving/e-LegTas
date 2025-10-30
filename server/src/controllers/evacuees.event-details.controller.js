@@ -117,6 +117,14 @@ exports.getDisasterEvacuationDetails = async (req, res, next) => {
       evacuation_center_capacity: ec?.total_capacity ?? 0,
     };
 
+    logger.info('[event-details] Retrieved event details', { disasterEvacuationEventId, hasSummary: !!summary, hasDisaster: !!disasters, hasCenter: !!ec });
+    logger.debug('[event-details] Response payload preview', {
+      eventId: eventData.id,
+      summary: safeSummary,
+      centerId: ec?.id ?? null,
+      disasterId: disasters?.id ?? null,
+    });
+
     const responseData = {
       evacuation_event: {
         id: eventData.id,
@@ -154,6 +162,7 @@ exports.getDisasterEvacuationDetails = async (req, res, next) => {
       stack: err.stack,
       path: req.path
     });
+    logger.error('[event-details] Internal server error', { error: err.message, stack: err.stack, disasterEvacuationEventId });
     return next(new ApiError('Internal server error', 500));
   }
 };

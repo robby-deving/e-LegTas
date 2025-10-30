@@ -1,6 +1,7 @@
 // server/src/controllers/evacuees.transferhead.controller.js
 const { supabase } = require('../config/supabase');
 const { invalidateEvacueeSearchCache } = require('./evacuees.search.controller');
+const logger = require('../utils/logger');
 
 class ApiError extends Error {
   constructor(message, statusCode = 500) {
@@ -37,6 +38,12 @@ exports.transferHead = async (req, res, next) => {
     typeof old_head_new_relationship !== 'string' ||
     !old_head_new_relationship.trim()
   ) {
+    logger.warn('Missing or invalid fields for transfer', {
+      disasterEvacuationEventId,
+      from_family_head_id,
+      to_evacuee_resident_id,
+      old_head_new_relationship,
+    });
     return next(new ApiError('Missing or invalid fields for transfer.', 400));
   }
 
@@ -51,8 +58,21 @@ exports.transferHead = async (req, res, next) => {
       .eq('family_head_id', fromFH)
       .eq('disaster_evacuation_event_id', eventIdNum);
 
-    if (memberCheckErr) throw new ApiError('Failed to validate family membership.', 500);
+    if (memberCheckErr) {
+      logger.error('Failed to validate family membership', {
+        eventIdNum,
+        toEvac,
+        fromFH,
+        error: memberCheckErr,
+      });
+      throw new ApiError('Failed to validate family membership.', 500);
+    }
     if ((membershipCount ?? 0) === 0) {
+      logger.warn('Target member not part of this family for event', {
+        eventIdNum,
+        toEvac,
+        fromFH,
+      });
       return next(
         new ApiError(
           'Target member is not part of this family for the specified event.',
@@ -68,8 +88,10 @@ exports.transferHead = async (req, res, next) => {
       .eq('id', toEvac)
       .single();
     if (promoteErr || !promoteRow) {
+      logger.warn('Member to promote not found', { toEvac, error: promoteErr });
       return next(new ApiError('Member to promote not found.', 404));
     }
+    logger.debug('Promote row resolved', { toEvac, promoteRow });
 
     // C) Old head's resident_id
     const { data: oldFHRow, error: oldFHErr } = await supabase
@@ -78,6 +100,7 @@ exports.transferHead = async (req, res, next) => {
       .eq('id', fromFH)
       .single();
     if (oldFHErr || !oldFHRow) {
+      logger.warn('Old family head record not found', { fromFH, error: oldFHErr });
       throw new ApiError('Old family head record not found.', 404);
     }
 
@@ -88,6 +111,10 @@ exports.transferHead = async (req, res, next) => {
       .eq('resident_id', oldFHRow.resident_id)
       .single();
     if (oldHeadEvacErr || !oldHeadEvacueeRow) {
+      logger.warn("Could not locate old head's evacuee record", {
+        resident_id: oldFHRow.resident_id,
+        error: oldHeadEvacErr,
+      });
       throw new ApiError("Could not locate old head's evacuee record.", 404);
     }
 
@@ -98,7 +125,10 @@ exports.transferHead = async (req, res, next) => {
       .select('id')
       .eq('resident_id', promoteRow.resident_id)
       .maybeSingle();
-    if (headFindErr) throw new ApiError('Failed to resolve family head record.', 500);
+    if (headFindErr) {
+      logger.error('Failed to resolve family head record', { error: headFindErr });
+      throw new ApiError('Failed to resolve family head record.', 500);
+    }
 
     if (existingHead?.id) {
       new_family_head_id = existingHead.id;
@@ -110,11 +140,13 @@ exports.transferHead = async (req, res, next) => {
         .single();
       if (headInsertErr) {
         if (headInsertErr.code === '23505') {
+          logger.error('Duplicate key when creating new family head', { error: headInsertErr });
           throw new ApiError(
             `Duplicate key on 'family_head.id'. Run: SELECT setval(pg_get_serial_sequence('family_head','id'), (SELECT MAX(id) FROM family_head)+1);`,
             500
           );
         }
+        logger.error('Failed to create new family head record', { error: headInsertErr });
         throw new ApiError('Failed to create new family head record.', 500);
       }
       new_family_head_id = insertedHead.id;
@@ -133,7 +165,10 @@ exports.transferHead = async (req, res, next) => {
           updated_at: nowIso,
         })
         .eq('id', toEvac);
-      if (promoteRelErr) throw new ApiError('Failed to set promoted member as head.', 500);
+      if (promoteRelErr) {
+        logger.error('Failed to set promoted member as head', { toEvac, error: promoteRelErr });
+        throw new ApiError('Failed to set promoted member as head.', 500);
+      }
       mutated = true;
     }
 
@@ -148,7 +183,10 @@ exports.transferHead = async (req, res, next) => {
         })
         .eq('resident_id', oldFHRow.resident_id)
         .eq('relationship_to_family_head', 'Head');
-      if (oldHeadDemoteErr) throw new ApiError('Failed to update old head relationship.', 500);
+      if (oldHeadDemoteErr) {
+        logger.error('Failed to update old head relationship', { oldFH: oldFHRow.id, error: oldHeadDemoteErr });
+        throw new ApiError('Failed to update old head relationship.', 500);
+      }
       mutated = true;
     }
 
@@ -158,7 +196,10 @@ exports.transferHead = async (req, res, next) => {
         .from('evacuee_residents')
         .update({ family_head_id: new_family_head_id, updated_at: nowIso })
         .eq('family_head_id', fromFH);
-      if (allMembersRepointErr) throw new ApiError('Failed to reassign family members to new head.', 500);
+      if (allMembersRepointErr) {
+        logger.error('Failed to reassign family members to new head', { fromFH, error: allMembersRepointErr });
+        throw new ApiError('Failed to reassign family members to new head.', 500);
+      }
       mutated = true;
     }
 
@@ -168,7 +209,10 @@ exports.transferHead = async (req, res, next) => {
         .from('evacuation_registrations')
         .update({ family_head_id: new_family_head_id, updated_at: nowIso })
         .eq('family_head_id', fromFH);
-      if (regRepointErr) throw new ApiError('Failed to update registrations to new head.', 500);
+      if (regRepointErr) {
+        logger.error('Failed to update registrations to new head', { fromFH, error: regRepointErr });
+        throw new ApiError('Failed to update registrations to new head.', 500);
+      }
       mutated = true;
     }
 
@@ -181,14 +225,20 @@ exports.transferHead = async (req, res, next) => {
         .eq('evacuee_resident_id', toEvac)
         .eq('disaster_evacuation_event_id', eventIdNum)
         .maybeSingle();
-      if (promoteRegErr) throw new ApiError('Failed to load promoted member registration.', 500);
+      if (promoteRegErr) {
+        logger.error('Failed to load promoted member registration', { toEvac, eventIdNum, error: promoteRegErr });
+        throw new ApiError('Failed to load promoted member registration.', 500);
+      }
       if (promoteReg?.id) {
         const patched = { ...(promoteReg.profile_snapshot || {}), relationship_to_family_head: 'Head' };
         const { error } = await supabase
           .from('evacuation_registrations')
           .update({ profile_snapshot: patched, updated_at: nowIso })
           .eq('id', promoteReg.id);
-        if (error) throw new ApiError('Failed to update promoted member event snapshot.', 500);
+        if (error) {
+          logger.error('Failed to update promoted member event snapshot', { registration_id: promoteReg.id, error });
+          throw new ApiError('Failed to update promoted member event snapshot.', 500);
+        }
         mutated = true;
       }
     }
@@ -202,27 +252,51 @@ exports.transferHead = async (req, res, next) => {
         .eq('evacuee_resident_id', oldEvacId)
         .eq('disaster_evacuation_event_id', eventIdNum)
         .maybeSingle();
-      if (oldRegErr) throw new ApiError('Failed to load old head registration.', 500);
+      if (oldRegErr) {
+        logger.error('Failed to load old head registration', { oldEvacId, eventIdNum, error: oldRegErr });
+        throw new ApiError('Failed to load old head registration.', 500);
+      }
       if (oldReg?.id) {
         const patched = { ...(oldReg.profile_snapshot || {}), relationship_to_family_head: old_head_new_relationship };
         const { error } = await supabase
           .from('evacuation_registrations')
           .update({ profile_snapshot: patched, updated_at: nowIso })
           .eq('id', oldReg.id);
-        if (error) throw new ApiError('Failed to update old head event snapshot.', 500);
+        if (error) {
+          logger.error('Failed to update old head event snapshot', { registration_id: oldReg.id, error });
+          throw new ApiError('Failed to update old head event snapshot.', 500);
+        }
         mutated = true;
       }
     }
+
+    logger.info('Family head transferred successfully', {
+      eventId: eventIdNum,
+      from_family_head_id: fromFH,
+      to_evacuee_resident_id: toEvac,
+      new_family_head_id,
+    });
 
     return res.status(200).json({
       message: 'Family head transferred successfully.',
       data: { new_family_head_id },
     });
   } catch (err) {
-    console.error('transferHead error:', err);
+    logger.error('transferHead failed', {
+      eventId: eventIdNum,
+      from_family_head_id: fromFH,
+      to_evacuee_resident_id: toEvac,
+      message: err?.message,
+      stack: err?.stack,
+    });
     return next(err instanceof ApiError ? err : new ApiError('Internal error during head transfer.', 500));
   } finally {
     if (mutated) {
+      logger.debug('Invalidating evacuee search cache after transferHead', {
+        eventId: eventIdNum,
+        from_family_head_id: fromFH,
+        to_evacuee_resident_id: toEvac,
+      });
       invalidateEvacueeSearchCache();
     }
   }

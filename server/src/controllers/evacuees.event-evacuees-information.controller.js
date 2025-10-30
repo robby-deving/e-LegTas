@@ -1,4 +1,4 @@
-//evacuees.event-evacuees-information.controller.js
+// evacuees.event-evacuees-information.controller.js
 
 const { supabase } = require('../config/supabase');
 const { validateId } = require('../utils/validateInput');
@@ -79,24 +79,24 @@ exports.getEvacueesInformationbyDisasterEvacuationEventId = async (req, res, nex
     return residentJoinName || 'Unknown';
   };
 
-try {
-// --- Fallback: get the event's EC name (works for Private House too)
-let fallbackEventLocationName = null;
+  try {
+    // --- Fallback: get the event's EC name (works for Private House too)
+    let fallbackEventLocationName = null;
 
-try {
-  const { data: eventRow, error: evtErr } = await supabase
-    .from('disaster_evacuation_event')       // your table name
-    .select(`
-      id,
-      evacuation_center_id,
-      evacuation_centers:evacuation_center_id (
-        id,
-        name,
-        category
-      )
-    `)
-    .eq('id', eventId)
-    .maybeSingle();
+    try {
+      const { data: eventRow, error: evtErr } = await supabase
+        .from('disaster_evacuation_event')
+        .select(`
+          id,
+          evacuation_center_id,
+          evacuation_centers:evacuation_center_id (
+            id,
+            name,
+            category
+          )
+        `)
+        .eq('id', eventId)
+        .maybeSingle();
 
   if (evtErr) {
     logger.warn('Event fetch failed', {
@@ -109,16 +109,16 @@ try {
     hasEvacuationCenter: !!eventRow?.evacuation_centers
   });
 
-  // Primary: name from joined center
-  fallbackEventLocationName = eventRow?.evacuation_centers?.name ?? null;
+      // Primary: name from joined center
+      fallbackEventLocationName = eventRow?.evacuation_centers?.name ?? null;
 
-  // Safety net: direct fetch by id if the join didn't hydrate
-  if (!fallbackEventLocationName && eventRow?.evacuation_center_id) {
-    const { data: ecRow, error: ecErr } = await supabase
-      .from('evacuation_centers')
-      .select('id, name, category')
-      .eq('id', eventRow.evacuation_center_id)
-      .maybeSingle();
+      // Safety net: direct fetch by id if the join didn't hydrate
+      if (!fallbackEventLocationName && eventRow?.evacuation_center_id) {
+        const { data: ecRow, error: ecErr } = await supabase
+          .from('evacuation_centers')
+          .select('id, name, category')
+          .eq('id', eventRow.evacuation_center_id)
+          .maybeSingle();
 
     if (ecErr) {
       logger.warn('Evacuation center fetch by id failed', {
@@ -131,8 +131,8 @@ try {
       centerName: ecRow?.name
     });
 
-    fallbackEventLocationName = ecRow?.name ?? null;
-  }
+        fallbackEventLocationName = ecRow?.name ?? null;
+      }
 
   logger.debug('Fallback event location name determined', {
     disasterEvacuationEventId: eventId,
@@ -244,17 +244,17 @@ try {
       familyGroups.get(fhId).push(r);
     }
 
-// --- Bulk fetch services for all visible families in this event ---
-const familyHeadIds = Array.from(familyGroups.keys()).filter((x) => Number.isFinite(x));
-let servicesByFamilyId = new Map();
+    // --- Bulk fetch services for all visible families in this event ---
+    const familyHeadIds = Array.from(familyGroups.keys()).filter((x) => Number.isFinite(x));
+    let servicesByFamilyId = new Map();
 
-if (familyHeadIds.length > 0) {
-  const { data: serviceRows, error: svcErr } = await supabase
-    .from('services')
-    .select('family_id, service_received, created_at') // <-- include created_at
-    .in('family_id', familyHeadIds)
-    .eq('disaster_evacuation_event_id', eventId)
-    .order('created_at', { ascending: false });
+    if (familyHeadIds.length > 0) {
+      const { data: serviceRows, error: svcErr } = await supabase
+        .from('services')
+        .select('family_id, service_received, created_at')
+        .in('family_id', familyHeadIds)
+        .eq('disaster_evacuation_event_id', eventId)
+        .order('created_at', { ascending: false });
 
   if (svcErr) {
     logger.warn('Failed to fetch services for families', {
@@ -416,7 +416,7 @@ if (familyHeadIds.length > 0) {
         room_name: first?.ec_rooms?.room_name || 'Unknown',
         decampment_timestamp: first?.decampment_timestamp || null,
         view_family: {
-          evacuation_center_name: first?.ec_rooms?.evacuation_centers?.name || fallbackEventLocationName ||'Unknown',
+          evacuation_center_name: first?.ec_rooms?.evacuation_centers?.name || fallbackEventLocationName || 'Unknown',
           head_of_family: family_head_full_name,
           decampment: first?.decampment_timestamp || null,
           summary_per_family: summary,

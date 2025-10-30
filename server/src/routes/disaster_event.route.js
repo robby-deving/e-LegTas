@@ -5,7 +5,8 @@ const {
   getDisasterEventDetailsByDisasterId,
   getDisasterEventById,
   checkDisasterEventByEvacuationCenter,
-  createDisasterEvent
+  createDisasterEvent,
+  getEventCenterCategory
 } = require('../controllers/disaster_event.controller');
 const { authenticateUser, requirePermission, requireAnyPermission } = require('../middleware');
 const { validateParams, validateQuery, validateBody } = require('../middleware/inputValidation');
@@ -81,6 +82,15 @@ router.post('/',
   }),
   createDisasterEvent
 );
+
+// GET the evacuation center category for a disaster_evacuation_event
+// Example: GET /api/v1/disaster-events/13/center-category
+router.get('/:id/center-category',
+  authenticateUser,
+  requireAnyPermission(['view_disaster', 'view_active_outside_ec']),
+  getEventCenterCategory
+);
+
 
 // Export the router
 module.exports = router;

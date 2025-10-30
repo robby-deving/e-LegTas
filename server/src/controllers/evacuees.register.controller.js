@@ -1,6 +1,8 @@
 // evacuee.controller.js
 const { supabase } = require('../config/supabase');
 const { invalidateEvacueeSearchCache } = require('./evacuees.search.controller');
+const logger = require('../utils/logger');
+
 class ApiError extends Error {
   constructor(message, statusCode = 500) {
     super(message);
@@ -30,8 +32,8 @@ exports.registerEvacuee = async (req, res, next) => {
     school_of_origin,
     occupation,
     purok,
-    family_head_id,                 
-    relationship_to_family_head,    
+    family_head_id,
+    relationship_to_family_head,
     date_registered,
 
     is_infant,
@@ -93,7 +95,7 @@ exports.registerEvacuee = async (req, res, next) => {
     educational_attainment: src.educational_attainment ?? null,
     occupation: src.occupation ?? null,
     school_of_origin: src.school_of_origin ?? null,
-    relationship_to_family_head: relForThisEvent, 
+    relationship_to_family_head: relForThisEvent,
   });
 
   const normalizedSuffix =
@@ -129,6 +131,7 @@ exports.registerEvacuee = async (req, res, next) => {
         .single();
 
       if (evacRowErr || !evacRow) {
+        logger.warn('[registerEvacuee] Existing evacuee not found', { existing_evacuee_resident_id, error: evacRowErr?.message });
         return next(new ApiError("Existing evacuee not found.", 404));
       }
 
@@ -143,12 +146,13 @@ exports.registerEvacuee = async (req, res, next) => {
         .single();
 
       if (targetEventErr || !targetEvent) {
+        logger.warn('[registerEvacuee] Target disaster event not found', { disaster_evacuation_event_id, error: targetEventErr?.message });
         return next(new ApiError("Target disaster evacuation event not found.", 404));
       }
 
       // 2) Fetch the target room to get EC id
       let targetRoom = null;
-      
+
       if (ec_rooms_id) {
         const { data: room, error: roomErr } = await supabase
           .from("evacuation_center_rooms")
@@ -157,6 +161,7 @@ exports.registerEvacuee = async (req, res, next) => {
           .single();
 
         if (roomErr || !room) {
+          logger.warn('[registerEvacuee] Target EC room not found', { ec_rooms_id, error: roomErr?.message });
           return next(new ApiError("Target EC room not found.", 404));
         }
         targetRoom = room;
@@ -179,6 +184,7 @@ exports.registerEvacuee = async (req, res, next) => {
         .is("decampment_timestamp", null);
 
       if (activeRegsErr) {
+        logger.error('[registerEvacuee] Failed to verify active registration state', { existing_evacuee_resident_id, error: activeRegsErr.message, details: activeRegsErr });
         return next(new ApiError("Failed to verify active registration state.", 500));
       }
 
@@ -191,6 +197,7 @@ exports.registerEvacuee = async (req, res, next) => {
           const ecName =
             alreadyInTarget?.disaster_evacuation_event?.evacuation_centers?.name ||
             "this evacuation center";
+          logger.warn('[registerEvacuee] Evacuee already active in this event', { existing_evacuee_resident_id, disaster_evacuation_event_id, ecName });
           return next(
             new ApiError(
               `This evacuee is already actively registered in this event (${ecName}). Use Edit to update the existing record.`,
@@ -204,6 +211,7 @@ exports.registerEvacuee = async (req, res, next) => {
         const ecName =
           first?.disaster_evacuation_event?.evacuation_centers?.name ||
           "another evacuation center";
+        logger.warn('[registerEvacuee] Evacuee active in another event', { existing_evacuee_resident_id, otherEventId: first?.disaster_evacuation_event_id, ecName });
         return next(
           new ApiError(
             `This evacuee is still actively registered in another event (${ecName}). Please decamp them first before registering here.`,
@@ -231,6 +239,7 @@ exports.registerEvacuee = async (req, res, next) => {
             .eq("resident_id", resident_id)
             .maybeSingle();
           if (existingHeadErr) {
+            logger.error('[registerEvacuee] Failed to look up head record', { resident_id, error: existingHeadErr.message, details: existingHeadErr });
             return next(new ApiError("Failed to look up head record.", 500));
           }
           if (existingHead?.id) {
@@ -243,6 +252,7 @@ exports.registerEvacuee = async (req, res, next) => {
               .single();
             if (newHeadErr) {
               if (newHeadErr.code === "23505") {
+                logger.error('[registerEvacuee] Duplicate key creating family head', { resident_id, code: newHeadErr.code });
                 return next(
                   new ApiError(
                     `Failed to create family head. Duplicate key on 'family_head.id'. Run: SELECT setval(pg_get_serial_sequence('family_head','id'), (SELECT MAX(id) FROM family_head)+1);`,
@@ -250,6 +260,7 @@ exports.registerEvacuee = async (req, res, next) => {
                   )
                 );
               }
+              logger.error('[registerEvacuee] Failed to create family head', { resident_id, error: newHeadErr.message, details: newHeadErr });
               return next(new ApiError("Failed to create family head.", 500));
             }
             family_head_inserted_id = newHead.id;
@@ -257,6 +268,7 @@ exports.registerEvacuee = async (req, res, next) => {
         }
       } else {
         if (!family_head_id) {
+          logger.warn('[registerEvacuee] Missing family_head_id when not Head', { existing_evacuee_resident_id });
           return next(
             new ApiError(
               'Missing family_head_id. When the evacuee is not the head, a valid family_head_id must be provided.',
@@ -290,6 +302,7 @@ exports.registerEvacuee = async (req, res, next) => {
         .single();
 
       if (registrationError) {
+        logger.error('[registerEvacuee] Failed to insert registration (reuse branch)', { evacuee_id, disaster_evacuation_event_id, error: registrationError.message, details: registrationError });
         return next(
           new ApiError(
             `Failed to register evacuation: ${registrationError.message}`,
@@ -334,7 +347,7 @@ exports.registerEvacuee = async (req, res, next) => {
             : evacRow?.school_of_origin,
       };
 
-      const relForThisEvent = desiredRel; 
+      const relForThisEvent = desiredRel;
       const snapshot = buildSnapshot(snapshotSrc, relForThisEvent);
 
       const { error: regEventStateErr } = await supabase
@@ -347,11 +360,14 @@ exports.registerEvacuee = async (req, res, next) => {
         .eq("id", registration_id);
 
       if (regEventStateErr) {
+        logger.error('[registerEvacuee] Failed to save event-scoped data (reuse branch)', { registration_id, error: regEventStateErr.message, details: regEventStateErr });
         return next(new ApiError("Failed to save event-scoped data.", 500));
       }
 
       // 7) Invalidate cache so new state is visible in search
       invalidateEvacueeSearchCache();
+      logger.info('[registerEvacuee] Registered evacuee (existing person reused)', { evacuee_id, registration_id, disaster_evacuation_event_id });
+      logger.debug('[registerEvacuee] registration snapshot (reuse)', { snapshot, vulnerability_type_ids: vulnIds });
 
       return res.status(201).json({
         message: "Evacuee registered successfully (existing person reused).",
@@ -377,7 +393,7 @@ exports.registerEvacuee = async (req, res, next) => {
           last_name,
           suffix: normalizedSuffix,
           birthdate,
-          sex, 
+          sex,
           barangay_of_origin,
         },
       ])
@@ -386,11 +402,13 @@ exports.registerEvacuee = async (req, res, next) => {
 
     if (residentError) {
       if (residentError.code === "23505") {
+        logger.error('[registerEvacuee] Duplicate key on residents.id (sequence mismatch?)', { code: residentError.code });
         throw new ApiError(
           `Failed to register resident. Duplicate key error on 'residents.id'. Likely sequence mismatch. Run: SELECT setval(pg_get_serial_sequence('residents','id'), (SELECT MAX(id) FROM residents)+1);`,
           500
         );
       }
+      logger.error('[registerEvacuee] Supabase error on residents insert', { error: residentError.message, details: residentError });
       throw new ApiError(
         `Failed to register resident. Supabase error: ${residentError.message}`,
         500
@@ -410,12 +428,14 @@ exports.registerEvacuee = async (req, res, next) => {
 
       if (familyHeadError) {
         if (familyHeadError.code === "23505") {
+          logger.error('[registerEvacuee] Duplicate key on family_head.id (sequence mismatch?)', { code: familyHeadError.code });
           throw new ApiError(
             `Failed to register family head. Duplicate key error on 'family_head.id'. Run: SELECT setval(pg_get_serial_sequence('family_head','id'), (SELECT MAX(id) FROM family_head)+1);`,
             500
           );
         }
         await supabase.from("residents").delete().eq("id", resident_id);
+        logger.error('[registerEvacuee] Failed to register family head', { resident_id, error: familyHeadError.message, details: familyHeadError });
         throw new ApiError(
           `Failed to register family head. ${familyHeadError.message}`,
           500
@@ -425,6 +445,7 @@ exports.registerEvacuee = async (req, res, next) => {
     } else {
       if (!family_head_id) {
         await supabase.from("residents").delete().eq("id", resident_id);
+        logger.warn('[registerEvacuee] Missing family_head_id when creating non-head', { resident_id });
         throw new ApiError(
           `Missing family_head_id. When the evacuee is not the head, a valid family_head_id must be provided.`,
           400
@@ -454,12 +475,14 @@ exports.registerEvacuee = async (req, res, next) => {
 
     if (evacueeError) {
       if (evacueeError.code === "23505") {
+        logger.error('[registerEvacuee] Duplicate key on evacuee_residents.id (sequence mismatch?)', { code: evacueeError.code });
         throw new ApiError(
           `Failed to register evacuee. Duplicate key error on 'evacuee_residents.id'. Run: SELECT setval(pg_get_serial_sequence('evacuee_residents','id'), (SELECT MAX(id) FROM evacuee_residents)+1);`,
           500
         );
       }
       await supabase.from("residents").delete().eq("id", resident_id);
+      logger.error('[registerEvacuee] Failed to register evacuee', { resident_id, error: evacueeError.message, details: evacueeError });
       throw new ApiError(`Failed to register evacuee. ${evacueeError.message}`, 500);
     }
     evacuee_id = evacueeData.id;
@@ -487,6 +510,7 @@ exports.registerEvacuee = async (req, res, next) => {
 
     if (registrationError) {
       if (registrationError.code === "23505") {
+        logger.error('[registerEvacuee] Duplicate key on evacuation_registrations.id (sequence mismatch?)', { code: registrationError.code });
         throw new ApiError(
           `Failed to register evacuation. Duplicate key error on 'evacuation_registrations.id'. Run: SELECT setval(pg_get_serial_sequence('evacuation_registrations','id'), (SELECT MAX(id) FROM evacuation_registrations)+1);`,
           500
@@ -494,6 +518,7 @@ exports.registerEvacuee = async (req, res, next) => {
       }
       await supabase.from("evacuee_residents").delete().eq("id", evacuee_id);
       await supabase.from("residents").delete().eq("id", resident_id);
+      logger.error('[registerEvacuee] Failed to register evacuation (create branch)', { evacuee_id, disaster_evacuation_event_id, error: registrationError.message, details: registrationError });
       throw new ApiError(
         `Failed to register evacuation. ${registrationError.message}`,
         500
@@ -535,11 +560,14 @@ exports.registerEvacuee = async (req, res, next) => {
       await supabase.from("evacuation_registrations").delete().eq("id", registration_id);
       await supabase.from("evacuee_residents").delete().eq("id", evacuee_id);
       await supabase.from("residents").delete().eq("id", resident_id);
+      logger.error('[registerEvacuee] Failed to save event-scoped data (create branch)', { registration_id, error: regEventStateErr.message, details: regEventStateErr });
       throw new ApiError("Failed to save event-scoped data.", 500);
     }
 
     // Invalidate cache so searches reflect the new registration
     invalidateEvacueeSearchCache();
+    logger.info('[registerEvacuee] Evacuee registered successfully', { evacuee_id, registration_id, disaster_evacuation_event_id });
+    logger.debug('[registerEvacuee] registration snapshot (create)', { snapshot, vulnerability_type_ids: vulnerabilities });
 
     return res.status(201).json({
       message: "Evacuee registered successfully.",
@@ -553,7 +581,7 @@ exports.registerEvacuee = async (req, res, next) => {
       },
     });
   } catch (err) {
-    console.error("RegisterEvacuee Error:", err);
+    logger.error('RegisterEvacuee Error', { error: err?.message, stack: err?.stack });
 
     // best-effort rollback for CREATE-NEW branch
     if (!existing_evacuee_resident_id) {

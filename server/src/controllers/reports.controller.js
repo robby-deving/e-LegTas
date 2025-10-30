@@ -1,7 +1,8 @@
 // server/src/controllers/reports.controller.js
 const { supabase } = require('../config/supabase');
 const { uploadReportFile } = require('../services/storage.service');
-const { NotImplementedError, generateReportFile, buildStoragePath, } = require('../services/report-file.service');
+const { NotImplementedError, generateReportFile, buildStoragePath } = require('../services/report-file.service');
+const logger = require('../utils/logger');
 
 class ApiError extends Error {
   constructor(message, statusCode = 500) {
@@ -150,7 +151,7 @@ async function resolveEventIds({ disaster_evacuation_event_id, disaster_id }) {
     .eq('disaster_id', Number(disaster_id));
 
   if (error) {
-    console.error('[reports] resolveEventIds error:', error);
+    logger.error('[reports] resolveEventIds error:', { error });
     throw new ApiError('Failed to resolve events for disaster.', 500);
   }
   return (evs || []).map((e) => e.id);
@@ -165,7 +166,7 @@ async function resolveDisasterName({ disaster_id, disaster_evacuation_event_id }
       .eq('id', Number(disaster_evacuation_event_id))
       .single();
     if (error) {
-      console.error('[reports] resolveDisasterName(error via event):', error);
+      logger.error('[reports] resolveDisasterName(error via event):', { error });
       return null;
     }
     return data?.disasters?.disaster_name || null;
@@ -177,7 +178,7 @@ async function resolveDisasterName({ disaster_id, disaster_evacuation_event_id }
       .eq('id', Number(disaster_id))
       .single();
     if (error) {
-      console.error('[reports] resolveDisasterName(error via disaster):', error);
+      logger.error('[reports] resolveDisasterName(error via disaster):', { error });
       return null;
     }
     return data?.disaster_name || null;
@@ -227,7 +228,7 @@ async function fetchRegistrationsForEvents(eventIds = []) {
     .in('disaster_evacuation_event_id', eventIds);
 
   if (error) {
-    console.error('[reports] fetchRegistrationsForEvents error:', error);
+    logger.error('[reports] fetchRegistrationsForEvents error:', { error });
     throw new ApiError('Failed to fetch registrations.', 500);
   }
   return data || [];
@@ -240,7 +241,7 @@ async function fetchVulnerabilityTypeMap() {
     .select('id, name');
 
   if (error) {
-    console.error('[reports] fetchVulnerabilityTypeMap error:', error);
+    logger.error('[reports] fetchVulnerabilityTypeMap error:', { error });
     throw new ApiError('Failed to fetch vulnerability types.', 500);
   }
   const norm = (s) => String(s || '').toLowerCase();
@@ -259,12 +260,12 @@ async function fetchBarangayMap() {
   try {
     const { data, error } = await supabase.from('barangays').select('id, name');
     if (error) {
-      console.warn('[reports] fetchBarangayMap warn:', error);
+      logger.warn('[reports] fetchBarangayMap warn:', { error });
       return new Map();
     }
     return new Map((data || []).map((b) => [Number(b.id), b.name]));
   } catch (e) {
-    console.warn('[reports] fetchBarangayMap exception:', e);
+    logger.warn('[reports] fetchBarangayMap exception:', { error: e });
     return new Map();
   }
 }
@@ -306,7 +307,7 @@ async function fetchEvacuationCenterNamesByBarangay(barangayMap) {
       .select('name, barangay_id, category');
 
     if (error) {
-      console.warn('[reports] fetchEvacuationCenterNamesByBarangay warn:', error);
+      logger.warn('[reports] fetchEvacuationCenterNamesByBarangay warn:', { error });
       return {};
     }
     // barangayName -> Map<canonName, displayName>
@@ -335,7 +336,7 @@ async function fetchEvacuationCenterNamesByBarangay(barangayMap) {
     }
     return out;
   } catch (e) {
-    console.warn('[reports] fetchEvacuationCenterNamesByBarangay exception:', e);
+    logger.warn('[reports] fetchEvacuationCenterNamesByBarangay exception:', { error: e });
     return {};
   }
 }
@@ -348,7 +349,7 @@ async function fetchECNamesByBarangayCategory(barangayMap, category = 'Private H
       .select('name, barangay_id, category');
 
     if (error) {
-      console.warn('[reports] fetchECNamesByBarangayCategory warn:', error);
+      logger.warn('[reports] fetchECNamesByBarangayCategory warn:', { error });
       return {};
     }
 
@@ -372,7 +373,7 @@ async function fetchECNamesByBarangayCategory(barangayMap, category = 'Private H
     for (const k of Object.keys(tmp)) out[k] = Array.from(tmp[k]).sort((a, b) => a.localeCompare(b));
     return out;
   } catch (e) {
-    console.warn('[reports] fetchECNamesByBarangayCategory exception:', e);
+    logger.warn('[reports] fetchECNamesByBarangayCategory exception:', { error: e });
     return {};
   }
 }
@@ -414,7 +415,7 @@ async function fetchReliefByFamilyIndex(regs = [], eventIds = []) {
 
   const { data, error } = await q;
   if (error) {
-    console.warn('[reports] fetchReliefByFamilyIndex warn:', error);
+    logger.warn('[reports] fetchReliefByFamilyIndex warn:', { error });
     return new Map();
   }
 
@@ -444,42 +445,42 @@ async function fetchReliefByFamilyIndex(regs = [], eventIds = []) {
  */
 exports.generateReport = async (req, res, next) => {
   try {
-const {
-  report_name,
-  report_type_id,
-  disaster_id,
-  disaster_evacuation_event_id,
-  as_of,
-  file_format,
-  generated_by_user_id, // optional fallback from client
-  barangay_id,          // required for Per Barangay
-  fields = null,        // UI fields (contains custom age ranges & visibility)
-} = req.body || {};
+    const {
+      report_name,
+      report_type_id,
+      disaster_id,
+      disaster_evacuation_event_id,
+      as_of,
+      file_format,
+      generated_by_user_id, // optional fallback from client
+      barangay_id,          // required for Per Barangay
+      fields = null,        // UI fields (contains custom age ranges & visibility)
+    } = req.body || {};
 
-// Debug: see raw payload from the client before any transformation
-console.log('[reports.generate] fields (raw from client):', fields ? JSON.stringify(fields) : null);
+    // Debug: see raw payload from the client before any transformation
+    logger.debug('[reports.generate] fields (raw from client):', { fields: fields ? JSON.stringify(fields) : null });
 
-let normalizedFields = normalizeDisaggFields(fields);
-// After: let normalizedFields = normalizeDisaggFields(fields);
-console.log('[reports.generate] per-bgy fields (raw from client):', fields ? JSON.stringify(fields) : null);
-console.log('[reports.generate] per-bgy fields (normalized):', JSON.stringify(normalizedFields));
+    let normalizedFields = normalizeDisaggFields(fields);
+    // After: let normalizedFields = normalizeDisaggFields(fields);
+    logger.debug('[reports.generate] per-bgy fields (raw from client):', { fields: fields ? JSON.stringify(fields) : null });
+    logger.debug('[reports.generate] per-bgy fields (normalized):', { normalizedFields: JSON.stringify(normalizedFields) });
 
-// If the UI didn't send fields, DON'T apply custom visibility (keep all main cols visible)
-if (!fields) {
-  normalizedFields.customVisibility = false; // critical: prevents hiding everything
-  normalizedFields.barangayName = true;
-  normalizedFields.evacuationCenterSite = true;
-  normalizedFields.family = true;
-  normalizedFields.totalMale = true;
-  normalizedFields.totalFemale = true;
-  normalizedFields.totalIndividuals = true;
-  normalizedFields.reliefServices = true; 
-} else if (normalizedFields.customVisibility == null) {
-  // UI sent fields but no flag; default to honoring custom visibility
-  normalizedFields.customVisibility = true;
-}
+    // If the UI didn't send fields, DON'T apply custom visibility (keep all main cols visible)
+    if (!fields) {
+      normalizedFields.customVisibility = false; // critical: prevents hiding everything
+      normalizedFields.barangayName = true;
+      normalizedFields.evacuationCenterSite = true;
+      normalizedFields.family = true;
+      normalizedFields.totalMale = true;
+      normalizedFields.totalFemale = true;
+      normalizedFields.totalIndividuals = true;
+      normalizedFields.reliefServices = true; 
+    } else if (normalizedFields.customVisibility == null) {
+      // UI sent fields but no flag; default to honoring custom visibility
+      normalizedFields.customVisibility = true;
+    }
 
-console.log('[reports.generate] disagg fields (normalized):', JSON.stringify(normalizedFields));
+    logger.debug('[reports.generate] disagg fields (normalized):', { normalizedFields: JSON.stringify(normalizedFields) });
     // --- required fields ---
     if (!report_name || !report_type_id || !as_of || !file_format) {
       return next(
@@ -524,7 +525,7 @@ console.log('[reports.generate] disagg fields (normalized):', JSON.stringify(nor
     // FINAL hard fallback to 2 (CDRRMO)
     if (!Number.isInteger(generatedBy) || generatedBy <= 0) {
       generatedBy = 2;
-      console.warn('[reports.generate] Falling back to default generated_by_user_id=2');
+      logger.warn('[reports.generate] Falling back to default generated_by_user_id=2');
     }
 
     // Ensure user exists in either 'users' or 'users_profile'
@@ -607,7 +608,7 @@ console.log('[reports.generate] disagg fields (normalized):', JSON.stringify(nor
     // --------- NEW: Disaggregated via SQL function (by disaster_id) ----------
     let disaggSqlRows = null;
     if (isDisaggregated) {
-      console.log('[reports.generate] disagg fields (normalized):', JSON.stringify(normalizedFields));
+      logger.debug('[reports.generate] disagg fields (normalized):', { normalizedFields: JSON.stringify(normalizedFields) });
       // We want p_disaster_id; if only event was given, resolve the containing disaster_id
       let disId = Number(disaster_id);
       if (!(Number.isInteger(disId) && disId > 0) && hasEvent) {
@@ -625,39 +626,40 @@ console.log('[reports.generate] disagg fields (normalized):', JSON.stringify(nor
         return next(new ApiError('A valid disaster_id is required for Disaggregated reports.', 400));
       }
 
-const infant   = normalizedFields.infant.age;
-const children = normalizedFields.children.age;
-const youth    = normalizedFields.youth.age;
-const adult    = normalizedFields.adult.age;
-const seniors  = normalizedFields.seniors.age;
+      const infant   = normalizedFields.infant.age;
+      const children = normalizedFields.children.age;
+      const youth    = normalizedFields.youth.age;
+      const adult    = normalizedFields.adult.age;
+      const seniors  = normalizedFields.seniors.age;
 
-const rpcArgs = {
-  p_disaster_id: disId,
-  p_as_of_ts: asOfIso,
-  p_infant_min:   infant.min,   p_infant_max:   infant.max,
-  p_children_min: children.min, p_children_max: children.max,
-  p_youth_min:    youth.min,    p_youth_max:    youth.max,
-  p_adult_min:    adult.min,    p_adult_max:    adult.max,
-  p_senior_min:   seniors.min,  // open-ended ≥ min
-};
+      const rpcArgs = {
+        p_disaster_id: disId,
+        p_as_of_ts: asOfIso,
+        p_infant_min:   infant.min,   p_infant_max:   infant.max,
+        p_children_min: children.min, p_children_max: children.max,
+        p_youth_min:    youth.min,    p_youth_max:    youth.max,
+        p_adult_min:    adult.min,    p_adult_max:    adult.max,
+        p_senior_min:   seniors.min,  // open-ended ≥ min
+      };
 
-      console.log('[reports.generate] Calling RPC(report_disagg_by_barangay_disaster) with args:', rpcArgs);
+      logger.debug('[reports.generate] Calling RPC(report_disagg_by_barangay_disaster) with args:', { rpcArgs });
 
       const { data: rows, error: rpcErr } = await supabase.rpc('report_disagg_by_barangay_disaster', rpcArgs);
       if (rpcErr) {
-        console.error('[reports.generate] RPC(report_disagg_by_barangay_disaster) error:', rpcErr);
+        logger.error('[reports.generate] RPC(report_disagg_by_barangay_disaster) error:', { error: rpcErr });
         return next(new ApiError('Failed to build disaggregated data from database.', 500));
       }
       disaggSqlRows = Array.isArray(rows) ? rows : [];
     }
-// ---- Build EC name list by EC barangay (authoritative; includes Private House) ----
-const ecNamesByBarangay = await fetchEvacuationCenterNamesByBarangay(barangayMap);
 
-// Build Relief index (Per Barangay only)
-let reliefByFamily = new Map();
-if (isPerBarangay) {
-  reliefByFamily = await fetchReliefByFamilyIndex(regs, eventIds);
-}
+    // ---- Build EC name list by EC barangay (authoritative; includes Private House) ----
+    const ecNamesByBarangay = await fetchEvacuationCenterNamesByBarangay(barangayMap);
+
+    // Build Relief index (Per Barangay only)
+    let reliefByFamily = new Map();
+    if (isPerBarangay) {
+      reliefByFamily = await fetchReliefByFamilyIndex(regs, eventIds);
+    }
 
     // ---------------- Build file content via service ----------------
     let buffer, contentType, ext, filenameBase;
@@ -735,7 +737,7 @@ if (isPerBarangay) {
       .single();
 
     if (insErr) {
-      console.error('[reports] failed to insert generated_reports:', insErr);
+      logger.error('[reports] failed to insert generated_reports:', { error: insErr });
       return next(new ApiError('File uploaded but failed to record metadata.', 500));
     }
 
@@ -749,7 +751,7 @@ if (isPerBarangay) {
       },
     });
   } catch (err) {
-    console.error('[reports.generate] error:', err);
+    logger.error('[reports.generate] error:', { error: err });
     const status = err instanceof ApiError ? err.statusCode : 500;
     return next(new ApiError(err.message || 'Failed to generate report.', status));
   }
@@ -875,7 +877,7 @@ exports.getAllReports = async (req, res, next) => {
 
     const { data, error } = await q;
     if (error) {
-      console.error('[reports.getAllReports] supabase error:', error);
+      logger.error('[reports.getAllReports] supabase error:', { error });
       return next(new ApiError('Failed to fetch reports.', 500));
     }
 
@@ -890,15 +892,15 @@ exports.getAllReports = async (req, res, next) => {
         r?.disaster_evacuation_event?.disasters?.disaster_name ||
         null;
 
-  const ensureExt = (name, fmt) => {
-  const e = String(fmt || '').toLowerCase();
-  return new RegExp(`\\.${e}$`, 'i').test(name) ? name : `${name}.${e}`;
-};
-const desiredName = ensureExt(r.report_name || 'report', (r.file_format || '').toLowerCase());
-const { data: pub } = supabase
-  .storage
-  .from('reports')
-  .getPublicUrl(r.file_path || '', { download: desiredName });
+      const ensureExt = (name, fmt) => {
+        const e = String(fmt || '').toLowerCase();
+        return new RegExp(`\\.${e}$`, 'i').test(name) ? name : `${name}.${e}`;
+      };
+      const desiredName = ensureExt(r.report_name || 'report', (r.file_format || '').toLowerCase());
+      const { data: pub } = supabase
+        .storage
+        .from('reports')
+        .getPublicUrl(r.file_path || '', { download: desiredName });
 
       // Prefer saved size; else fallback to listing
       const savedHuman = r.file_size_human ?? null;
@@ -924,7 +926,7 @@ const { data: pub } = supabase
 
     return res.status(200).json({ message: 'Fetched reports.', data: out });
   } catch (err) {
-    console.error('[reports.getAllReports] error:', err);
+    logger.error('[reports.getAllReports] error:', { error: err });
     return next(new ApiError('Failed to fetch reports.', 500));
   }
 };
@@ -965,7 +967,7 @@ exports.deleteReport = async (req, res, next) => {
       .single();
 
     if (updErr) {
-      console.error('[reports.deleteReport] supabase error:', updErr);
+      logger.error('[reports.deleteReport] supabase error:', { error: updErr });
       return next(new ApiError('Failed to delete report.', 500));
     }
 
@@ -974,7 +976,7 @@ exports.deleteReport = async (req, res, next) => {
       data: { id: updated.id, deleted_at: updated.deleted_at }
     });
   } catch (err) {
-    console.error('[reports.deleteReport] error:', err);
+    logger.error('[reports.deleteReport] error:', { error: err });
     return next(new ApiError('Failed to delete report.', 500));
   }
 };
@@ -1002,7 +1004,7 @@ exports.getReportTypes = async (req, res, next) => {
       .order('id', { ascending: true });
 
     if (error) {
-      console.error('[reports.getReportTypes] supabase error:', error);
+      logger.error('[reports.getReportTypes] supabase error:', { error });
       return next(new ApiError('Failed to fetch report types.', 500));
     }
 
@@ -1015,7 +1017,7 @@ exports.getReportTypes = async (req, res, next) => {
 
     return res.status(200).json({ message: 'Fetched report types.', data: out });
   } catch (err) {
-    console.error('[reports.getReportTypes] error:', err);
+    logger.error('[reports.getReportTypes] error:', { error: err });
     return next(new ApiError('Failed to fetch report types.', 500));
   }
 };
@@ -1116,7 +1118,7 @@ exports.getReportOptions = async (req, res, next) => {
       },
     });
   } catch (err) {
-    console.error('[reports.getReportOptions] error:', err);
+    logger.error('[reports.getReportOptions] error:', { error: err });
     return next(new ApiError('Failed to fetch report options.', 500));
   }
 };

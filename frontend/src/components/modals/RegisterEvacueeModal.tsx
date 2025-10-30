@@ -21,6 +21,9 @@ import { toISODateLocal } from "@/utils/dateInput.ts";
 import BirthdayMaskedInput from '../EvacuationCenterDetail/BirthdayMaskedInput';
 import { RegisterBlockDialog } from "@/components/modals/RegisterBlockDialog";
 import searchIcon from "@/assets/search.svg";
+import { useSelector } from "react-redux";
+import { selectToken } from "@/features/auth/authSlice";
+
 import { validateString, validateDate } from '../../utils/validateInput';
 
 // Validation function for evacuee registration form
@@ -178,7 +181,9 @@ export const RegisterEvacueeModal = ({
   onSave,
   onFamilyHeadSearch,
   centerId,
-  canCreateFamilyInformation = true, // Default to true for backward compatibility
+  canCreateFamilyInformation = true,
+  hideRoomField = false,
+  isPrivateHouse = false,
 }: RegisterEvacueeModalProps) => {
   const formRef = useRef<HTMLFormElement>(null);
   const [barangays, setBarangays] = useState<Barangay[]>([]);
@@ -191,37 +196,108 @@ export const RegisterEvacueeModal = ({
   const [showBlockDialog, setShowBlockDialog] = useState(false);
   const [showSearchEvacuationModal, setShowSearchEvacuationModal] = useState(false);
   const [selectedEvacuation, setSelectedEvacuation] = useState<{ id: number; name: string; event_id: number | null; } | null>(null);
+  const [ecCategory, setEcCategory] = useState<string | null>(null);
+  const token = useSelector(selectToken);
 
+  const isPrivate = isPrivateHouse || (ecCategory?.toLowerCase?.() === "private house");
+  const hideWhileUnknown = !centerId && !!selectedEvacuation?.id && ecCategory === null;
+  const shouldHideRoom = hideRoomField || isPrivate || hideWhileUnknown;
 
-  const handleClickSave = async () => {
-    if (formRef.current && !formRef.current.reportValidity()) return;
-
-    // Clear previous errors
-    setFieldErrors({});
-    setErrorMsg(null);
-    setShowBlockDialog(false);
-
-    // Validate form data
-    const validationErrors = validateEvacueeForm(formData, centerId);
-
-    // If there are validation errors, display them and stop
-    if (Object.keys(validationErrors).length > 0) {
-      setFieldErrors(validationErrors);
-      return;
+  const openedOnceRef = useRef(false);
+  useEffect(() => {
+    if (isOpen && !openedOnceRef.current) {
+      openedOnceRef.current = true;
+      console.log("[RegisterEvacueeModal OPENED]", {
+        centerId,
+        isPrivateHouseProp: isPrivateHouse,
+        ecCategory,
+        computed_isPrivate: isPrivate,
+        shouldHideRoom,
+      });
     }
+  if (!isOpen && openedOnceRef.current) {
+    openedOnceRef.current = false;
+  }
+}, [isOpen, centerId, isPrivateHouse, ecCategory, isPrivate, shouldHideRoom]);
 
+  useEffect(() => {
+    if (shouldHideRoom && formData.searchEvacuationRoom) {
+      onFormChange("searchEvacuationRoom", "");
+    }
+  }, [shouldHideRoom]);
+
+useEffect(() => {
+  if (!selectedEvacuation?.id || !token) {
+    setEcCategory(null);
+    return;
+  }
+  let cancelled = false;
+  (async () => {
     try {
-      console.log('saving');
-      setSaving(true);
-      await Promise.resolve(onSave());
-    } catch (err) {
-      console.log('error');
-      setErrorMsg(mapRegisterError(err));
-      setShowBlockDialog(true); // 👈 open the popup
-    } finally {
-      setSaving(false);
+      const res = await axios.get<{ data: { category?: string | null } }>(
+        `/api/v1/evacuation-centers/${selectedEvacuation.id}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const raw = res?.data?.data?.category ?? null;
+      if (!cancelled) setEcCategory(raw);
+    } catch (e) {
+      console.error("getEvacuationCenter failed", e);
+      if (!cancelled) setEcCategory(null);
     }
-  };
+  })();
+  return () => { cancelled = true; };
+}, [selectedEvacuation?.id, token]);
+
+useEffect(() => {
+  if (!isOpen || !centerId || !token) return;
+
+  let cancelled = false;
+  (async () => {
+    try {
+      const res = await axios.get<{ data: { category?: string | null } }>(
+        `/api/v1/disaster-events/${centerId}/center-category`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const cat = res?.data?.data?.category ?? null;
+      if (!cancelled) setEcCategory(cat);
+    } catch (e) {
+      console.error("getEventCenterCategory failed", e);
+      if (!cancelled) setEcCategory(null);
+    }
+  })();
+
+  return () => { cancelled = true; };
+}, [isOpen, centerId, token]);
+
+onst handleClickSave = async () => {
+  if (formRef.current && !formRef.current.reportValidity()) return;
+
+  // Clear previous errors
+  setFieldErrors({});
+  setErrorMsg(null);
+  setShowBlockDialog(false);
+
+  // Validate form data
+  const validationErrors = validateEvacueeForm(formData, centerId);
+
+  // If there are validation errors, display them and stop
+  if (Object.keys(validationErrors).length > 0) {
+    setFieldErrors(validationErrors);
+    return;
+  }
+
+  try {
+    console.log('saving');
+    setSaving(true);
+    await Promise.resolve(onSave({ shouldHideRoom }));
+  } catch (err) {
+    console.log('error');
+    setErrorMsg(mapRegisterError(err));
+    setShowBlockDialog(true); // 👈 open the popup
+  } finally {
+    setSaving(false);
+  }
+};
 
   const suffixOptions = ["Jr.", "Sr.", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
   const sexOptions = ["Male", "Female"];
@@ -249,7 +325,7 @@ export const RegisterEvacueeModal = ({
   }, []);
 
   useEffect(() => {
-    if (!isOpen || !centerId) return;
+    if (!isOpen || !centerId || shouldHideRoom) return; // 👈 added shouldHideRoom
     const fetchRooms = async () => {
       try {
         setRoomsLoading(true);
@@ -273,7 +349,7 @@ export const RegisterEvacueeModal = ({
       }
     };
     fetchRooms();
-  }, [isOpen, centerId]);
+  }, [isOpen, centerId, shouldHideRoom]);
 
   useEffect(() => {
     if (
@@ -892,8 +968,9 @@ export const RegisterEvacueeModal = ({
                     </>
                   )}
                 </div>
-                <div>
-                  {centerId ? (
+              <div>
+                {centerId ? (
+                  !shouldHideRoom ? (
                     <>
                       {/* Evacuation Room * */}
                       <div className="relative">
@@ -976,45 +1053,46 @@ export const RegisterEvacueeModal = ({
                         )}
                       </div>
                     </>
-                  ) : (
+                  ) : null
+                ) : (
+                  <div className="relative">
+                    <label className="block text-sm font-medium mb-2">
+                      Assign Evacuation<span className="text-red-500">*</span>
+                    </label>
                     <div className="relative">
-                      <label className="block text-sm font-medium mb-2">
-                        Assign Evacuation<span className="text-red-500">*</span>
-                      </label>
-                      <div className="relative">
-                        <button 
-                          onClick={() => setShowSearchEvacuationModal(true)} 
-                          className="border border-gray-300 rounded-md px-2 py-2 text-gray-500 text-sm cursor-pointer flex items-center gap-2 w-full"
-                        > 
-                          <img src={searchIcon} alt="Search" className="w-4 h-4" /> 
-                          {selectedEvacuation ? selectedEvacuation.name : "Search Evacuation"}
+                      <button
+                        onClick={() => setShowSearchEvacuationModal(true)}
+                        className="border border-gray-300 rounded-md px-2 py-2 text-gray-500 text-sm cursor-pointer flex items-center gap-2 w-full"
+                      >
+                        <img src={searchIcon} alt="Search" className="w-4 h-4" />
+                        {selectedEvacuation ? selectedEvacuation.name : "Search Evacuation"}
+                      </button>
+                      {selectedEvacuation && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedEvacuation(null);
+                            onFormChange("disasterId", "");
+                          }}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                          <XIcon className="h-4 w-4" />
                         </button>
-                        {selectedEvacuation && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedEvacuation(null);
-                              onFormChange("disasterId", "");
-                            }}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                          >
-                            <XIcon className="h-4 w-4" />
-                          </button>
-                        )}
-                      </div>
-                      {/* Hidden input for HTML5 validation */}
-                      <input
-                        type="text"
-                        value={selectedEvacuation ? selectedEvacuation.id.toString() : ""}
-                        onChange={() => {}}
-                        required
-                        className="absolute inset-0 w-full h-10 opacity-0 pointer-events-none"
-                        tabIndex={-1}
-                      />
+                      )}
                     </div>
-                  )}
-                </div>
+                    {/* Hidden input for HTML5 validation */}
+                    <input
+                      type="text"
+                      value={selectedEvacuation ? selectedEvacuation.id.toString() : ""}
+                      onChange={() => {}}
+                      required
+                      className="absolute inset-0 w-full h-10 opacity-0 pointer-events-none"
+                      tabIndex={-1}
+                    />
+                  </div>
+                )}
+              </div>
               </div>
 
               {/* --- Vulnerability Classification (all optional) --- */}

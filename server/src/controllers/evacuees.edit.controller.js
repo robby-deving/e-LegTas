@@ -1,5 +1,6 @@
 // server/src/controllers/evacuees.edit.controller.js
 const { supabase } = require('../config/supabase');
+const logger = require('../utils/logger');
 
 class ApiError extends Error {
   constructor(message, statusCode = 500) {
@@ -40,7 +41,7 @@ exports.getEvacueeDetailsForEdit = async (req, res, next) => {
     return null;
   };
 
-  const buildFullName = ({ first_name, middle_name, last_name, suffix }) => {
+  const buildFullNameLocal = ({ first_name, middle_name, last_name, suffix }) => {
     const parts = [first_name, middle_name, last_name].filter(Boolean);
     const full = parts.join(' ');
     return suffix ? `${full} ${suffix}` : full;
@@ -103,6 +104,7 @@ exports.getEvacueeDetailsForEdit = async (req, res, next) => {
       .single();
 
     if (evacueeErr || !evacuee) {
+      logger.warn('[edit] Evacuee not found', { evacueeResidentId, disasterEvacuationEventId, error: evacueeErr?.message });
       return next(new ApiError('Evacuee not found.', 404));
     }
 
@@ -123,6 +125,12 @@ exports.getEvacueeDetailsForEdit = async (req, res, next) => {
       .maybeSingle();
 
     if (regErr) {
+      logger.error('[edit] Failed to load registration for this event', {
+        evacueeResidentId,
+        disasterEvacuationEventId,
+        error: regErr.message,
+        details: regErr,
+      });
       return next(new ApiError('Failed to load registration for this event.', 500));
     }
 
@@ -180,6 +188,13 @@ exports.getEvacueeDetailsForEdit = async (req, res, next) => {
       }
     }
 
+    logger.info('[edit] Retrieved evacuee details for edit', {
+      evacueeResidentId,
+      disasterEvacuationEventId,
+      hasRegistration: !!registration,
+    });
+    logger.debug('[edit] Evacuee edit payload snapshot', { snap, vulnIds, registrationId: registration?.id });
+
     return res.status(200).json({
       id: evacuee.id,
 
@@ -220,7 +235,7 @@ exports.getEvacueeDetailsForEdit = async (req, res, next) => {
       profile_snapshot: snap,
     });
   } catch (err) {
-    console.error('[edit] getEvacueeDetailsForEdit error:', err);
+    logger.error('[edit] getEvacueeDetailsForEdit internal error', { error: err.message, stack: err.stack, evacueeResidentId, disasterEvacuationEventId });
     return next(new ApiError('Internal server error.', 500));
   }
 };
