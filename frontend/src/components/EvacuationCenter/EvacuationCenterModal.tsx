@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "../ui/dialog";
 import { Button } from "../ui/button";
-import { EvacuationCenterForm } from './EvacuationCenterForm';
-import { RoomForm } from './RoomForm';
+import { EvacuationCenterForm, validateEvacuationCenterForm } from './EvacuationCenterForm';
+import { RoomForm, validateRoomForm } from './RoomForm';
 import type { EvacuationCenter, EvacuationRoom, EvacuationCenterCategory, EvacuationCenterStatus } from '../../types/evacuation';
 import { useEvacuationCenterMutations } from '../../hooks/useEvacuationCenterMutations';
 import { useRoomMutations } from '../../hooks/useRoomsMutations';
@@ -153,48 +153,11 @@ export function EvacuationCenterModal({ isOpen, onClose, mode, center, onSuccess
     const newErrors: FormErrors = { center: {}, rooms: {} };
     let hasErrors = false;
 
-    // Validate center form
-    if (!formData.name.trim()) {
-      newErrors.center!.name = 'Name is required';
+    // Use the new validation function for center form
+    const centerErrors = validateEvacuationCenterForm(formData);
+    if (Object.keys(centerErrors).length > 0) {
+      newErrors.center = centerErrors;
       hasErrors = true;
-    }
-
-    if (!formData.category) {
-      newErrors.center!.category = 'Category is required';
-      hasErrors = true;
-    }
-
-    if (!formData.streetName.trim()) {
-      newErrors.center!.streetName = 'Street name is required';
-      hasErrors = true;
-    }
-
-    if (!formData.barangay.trim()) {
-      newErrors.center!.barangay = 'Barangay is required';
-      hasErrors = true;
-    }
-
-    if (!formData.barangayId) {
-      newErrors.center!.barangayId = 'Barangay ID is required';
-      hasErrors = true;
-    }
-
-    // Only validate lat/long if not Private House
-    if (formData.category !== 'Private House') {
-      if (!formData.latitude || isNaN(Number(formData.latitude))) {
-        newErrors.center!.latitude = 'Valid latitude is required';
-        hasErrors = true;
-      }
-
-      if (!formData.longitude || isNaN(Number(formData.longitude))) {
-        newErrors.center!.longitude = 'Valid longitude is required';
-        hasErrors = true;
-      }
-
-      if (formData.total_capacity && isNaN(Number(formData.total_capacity))) {
-        newErrors.center!.total_capacity = 'Capacity must be a number';
-        hasErrors = true;
-      }
     }
 
     // Validate rooms only for non-Private House categories
@@ -204,33 +167,14 @@ export function EvacuationCenterModal({ isOpen, onClose, mode, center, onSuccess
       if (activeRooms.length === 0) {
         newErrors.center!.total_capacity = 'At least one room is required';
         hasErrors = true;
-      }
-
-      rooms.forEach(room => {
-        // Skip validation for rooms marked for deletion
-        if (room.markedForDeletion) return;
-
-        const roomErrors: Partial<Record<keyof EvacuationRoom, string>> = {};
-        
-        if (!room.roomName.trim()) {
-          roomErrors.roomName = 'Room name is required';
-          hasErrors = true;
-        }
-
-        if (!room.type) {
-          roomErrors.type = 'Room type is required';
-          hasErrors = true;
-        }
-
-        if (!room.capacity || room.capacity <= 0) {
-          roomErrors.capacity = 'Valid capacity is required';
-          hasErrors = true;
-        }
-
+      } else {
+        // Use the new room validation function
+        const roomErrors = validateRoomForm(rooms);
         if (Object.keys(roomErrors).length > 0) {
-          newErrors.rooms![room.id] = roomErrors;
+          newErrors.rooms = roomErrors;
+          hasErrors = true;
         }
-      });
+      }
     }
 
     setErrors(newErrors);
