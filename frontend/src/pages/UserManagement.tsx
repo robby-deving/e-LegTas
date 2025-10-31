@@ -3,13 +3,21 @@ import { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { selectCurrentUser, selectToken } from '../features/auth/authSlice';
 import { usePermissions } from '../contexts/PermissionContext';
-import { Search, MoreHorizontal, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Edit, Trash2 } from 'lucide-react';
+import { Search, MoreHorizontal, Edit, Trash2 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { AddUserModal } from '@/components/modals/AddUserModal';
+import { EditUserModal } from '@/components/modals/EditUserModal';
+import { DeleteUserModal } from '@/components/modals/DeleteUserModal';
+import type { UserFormData } from '@/components/modals/AddUserModal';
 // StatusCodes full-page 403 is now handled at the route level in App.tsx
 
 import { Plus } from 'lucide-react';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
+import { Pagination } from '@/components/ui/pagination';
+import LoadingSpinner from '../components/loadingSpinner';
 
 interface User {
     user_id: number; // Numeric users table id
@@ -57,7 +65,6 @@ export default function UserManagement(){
     const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [formLoading, setFormLoading] = useState(false);
     const [barangays, setBarangays] = useState<{id: number; name: string}[]>([]);
     const [evacuationCenters, setEvacuationCenters] = useState<{id: number; name: string}[]>([]);
 
@@ -65,23 +72,6 @@ export default function UserManagement(){
     const [roles, setRoles] = useState<{id: number; name: string}[]>([]);
     const [rolesLoading, setRolesLoading] = useState(true);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
-    
-    // Form state
-    const [formData, setFormData] = useState({
-        first_name: '',
-        middle_name: '',
-        last_name: '',
-        suffix: '',
-        sex: '',
-        barangay_of_origin: '',
-        employee_number: '',
-        birthdate: '',
-        email: '',
-        password: '',
-        role_id: '',
-        assigned_evacuation_center: '',
-        assigned_barangay: ''
-    });
     
     // Role configuration - Easy to extend for new roles
     // Use "all" for allowedRoleIds/assignableRoleIds to automatically include all roles
@@ -432,11 +422,11 @@ export default function UserManagement(){
         
         // Final fallback to role ID based mapping (for backward compatibility)
         const roleMap: { [key: number]: string } = {
-            1: 'SYSTEM ADMIN',
-            2: 'BARANGAY OFFICIAL',
-            3: 'REGIONAL COORDINATOR',
+            1: 'System Admin',
+            2: 'Barangay Official',
+            3: 'Regional Coordinator',
             4: 'CSWDO',
-            5: 'CAMP MANAGER'
+            5: 'Camp Manager'
         };
         
         return roleMap[roleId] || 'UNKNOWN ROLE';
@@ -450,7 +440,7 @@ export default function UserManagement(){
         
         if (columns.includes('user')) {
             headers.push(
-                <TableHead key="user" className="text-left">
+                <TableHead key="user" className="text-left whitespace-nowrap">
                     User
                 </TableHead>
             );
@@ -458,7 +448,7 @@ export default function UserManagement(){
         
         if (columns.includes('email')) {
             headers.push(
-                <TableHead key="email" className="text-left">
+                <TableHead key="email" className="text-left whitespace-nowrap">
                     Email
                 </TableHead>
             );
@@ -466,7 +456,7 @@ export default function UserManagement(){
         
         if (columns.includes('role')) {
             headers.push(
-                <TableHead key="role" className="text-left">
+                <TableHead key="role" className="text-left whitespace-nowrap">
                     Role
                 </TableHead>
             );
@@ -474,7 +464,7 @@ export default function UserManagement(){
         
         if (columns.includes('evacuation_center')) {
             headers.push(
-                <TableHead key="evacuation_center" className="text-left">
+                <TableHead key="evacuation_center" className="text-left whitespace-nowrap">
                     Assigned Evacuation Center/Barangay
                 </TableHead>
             );
@@ -482,7 +472,7 @@ export default function UserManagement(){
         
         if (columns.includes('actions')) {
             headers.push(
-                <TableHead key="actions" className="text-center w-12">
+                <TableHead key="actions" className="text-center w-12 whitespace-nowrap">
                     {/* Empty header for actions column */}
                 </TableHead>
             );
@@ -518,7 +508,7 @@ export default function UserManagement(){
             cells.push(
                 <TableCell key="role">
                     <span 
-                        className='inline-flex px-4.5 py-1 text-sm font-extrabold rounded-lg border'
+                        className='inline-flex px-3 py-1 text-xs font-extrabold rounded-xl border'
                         style={{
                             color: roleColor,
                             backgroundColor: '#FFFFFF',
@@ -602,19 +592,8 @@ export default function UserManagement(){
         setCurrentPage(1);
     };
 
-    // Handle form input changes
-    const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({
-            ...prev,
-            [name]: value
-        }));
-    };
-
     // Handle form submission
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setFormLoading(true);
+    const handleSubmit = async (formData: UserFormData) => {
         setError(null); // Clear any previous errors
         setSuccessMessage(null); // Clear any previous success messages
         
@@ -651,22 +630,7 @@ export default function UserManagement(){
                 throw new Error(errorData.message || 'Failed to create user');
             }
 
-            // Reset form and close modal
-            setFormData({
-                first_name: '',
-                middle_name: '',
-                last_name: '',
-                suffix: '',
-                sex: '',
-                barangay_of_origin: '',
-                employee_number: '',
-                birthdate: '',
-                email: '',
-                password: '',
-                role_id: '',
-                assigned_evacuation_center: '',
-                assigned_barangay: ''
-            });
+            // Close modal
             setIsAddUserModalOpen(false);
 
             // Refresh users list with role-based filtering
@@ -688,63 +652,20 @@ export default function UserManagement(){
         } catch (err) {
             console.error('Error creating user:', err);
             setError(err instanceof Error ? err.message : 'Failed to create user');
-        } finally {
-            setFormLoading(false);
+            throw err; // Re-throw to let modal handle the error
         }
-    };
-
-    // Reset form when modal is closed
-    const handleCloseModal = () => {
-        setFormData({
-            first_name: '',
-            middle_name: '',
-            last_name: '',
-            suffix: '',
-            sex: '',
-            barangay_of_origin: '',
-            employee_number: '',
-            birthdate: '',
-            email: '',
-            password: '',
-            role_id: '',
-            assigned_evacuation_center: '',
-            assigned_barangay: ''
-        });
-        setIsAddUserModalOpen(false);
-        setIsEditUserModalOpen(false);
-        setEditingUser(null);
-        setError(null); // Clear any previous errors
-        setSuccessMessage(null); // Clear any previous success messages
-        setSelectedRoleFilter('all'); // Reset role filter to show all users
     };
 
     // Handle opening edit modal
     const handleEditUser = (user: User) => {
         setEditingUser(user);
-        setFormData({
-            first_name: user.first_name,
-            middle_name: user.middle_name || '',
-            last_name: user.last_name,
-            suffix: user.suffix || '',
-            sex: user.sex,
-            barangay_of_origin: user.barangay_of_origin_id ? user.barangay_of_origin_id.toString() : '',
-            employee_number: user.employee_number,
-            birthdate: user.birthdate,
-            email: user.email,
-            password: '', // Leave password empty for security
-            role_id: user.role_id.toString(),
-            assigned_evacuation_center: user.assigned_evacuation_center || '',
-            assigned_barangay: user.assigned_barangay_id ? user.assigned_barangay_id.toString() : ''
-        });
         setIsEditUserModalOpen(true);
     };
 
     // Handle edit form submission
-    const handleEditSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleEditSubmit = async (formData: UserFormData) => {
         if (!editingUser) return;
         
-        setFormLoading(true);
         setError(null); // Clear any previous errors
         setSuccessMessage(null); // Clear any previous success messages
         
@@ -782,8 +703,9 @@ export default function UserManagement(){
                 throw new Error(errorData.message || 'Failed to update user');
             }
 
-            // Reset form and close modal
-            handleCloseModal();
+            // Close modal
+            setIsEditUserModalOpen(false);
+            setEditingUser(null);
             
             // Refresh users list with role-based filtering
             const endpoint = getUsersApiEndpoint();
@@ -804,8 +726,7 @@ export default function UserManagement(){
         } catch (err) {
             console.error('Error updating user:', err);
             setError(err instanceof Error ? err.message : 'Failed to update user');
-        } finally {
-            setFormLoading(false);
+            throw err; // Re-throw to let modal handle the error
         }
     };
 
@@ -852,89 +773,37 @@ export default function UserManagement(){
     // Update the role filter dropdown to exclude System Administrator (role_id: 1)
     const renderRoleFilterDropdown = () => {
         return (
-            <select
+            <Select
                 value={selectedRoleFilter}
-                onChange={(e) => setSelectedRoleFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E]"
-                style={{
-                    background: '#FFF',
-                    minWidth: '160px'
-                }}
+                onValueChange={(value) => setSelectedRoleFilter(value)}
             >
-                <option value="all">All Roles</option>
-                {!rolesLoading && roles
-                    .filter(role => currentRoleConfig?.allowedRoleIds === "all" || (Array.isArray(currentRoleConfig?.allowedRoleIds) && currentRoleConfig.allowedRoleIds.includes(role.id)))
-                    .filter(role => role.id !== 1) // Exclude System Administrator
-                    .map(role => (
-                        <option key={role.id} value={role.id}>
-                            {role.name.toUpperCase()}
-                        </option>
-                    ))
-                }
-                {rolesLoading && (
-                    <option disabled>Loading roles...</option>
-                )}
-            </select>
+                <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="All Roles" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">All Roles</SelectItem>
+                    {!rolesLoading && roles
+                        .filter(role => currentRoleConfig?.allowedRoleIds === "all" || (Array.isArray(currentRoleConfig?.allowedRoleIds) && currentRoleConfig.allowedRoleIds.includes(role.id)))
+                        .filter(role => role.id !== 1) // Exclude System Administrator
+                        .map(role => (
+                            <SelectItem key={role.id} value={role.id.toString()}>
+                                {role.name.toUpperCase()}
+                            </SelectItem>
+                        ))
+                    }
+                    {rolesLoading && (
+                        <SelectItem value="loading" disabled>Loading roles...</SelectItem>
+                    )}
+                </SelectContent>
+            </Select>
         );
     };
 
-    const renderAssignedField = () => {
-        // Determine target role ID for the user being added/edited
-        const targetRoleId = isEditUserModalOpen 
-            ? (currentRoleConfig?.canSelectRole ? parseInt(formData.role_id) || editingUser?.role_id : editingUser?.role_id)
-            : (currentRoleConfig?.canSelectRole ? parseInt(formData.role_id) : currentUser?.role_id);
-        
-        // Show barangay field if target role is 7 (Barangay Official)
-        if (targetRoleId === 7) {
-            return (
-                <>
-                    <label className='block text-sm font-medium text-black mb-1'>
-                        Assigned Barangay
-                    </label>
-                    <select
-                        name="assigned_barangay"
-                        value={formData.assigned_barangay}
-                        onChange={handleFormChange}
-                        className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E]'
-                    >
-                        <option value="">Select barangay (optional)</option>
-                        {barangays.map(barangay => (
-                            <option key={barangay.id} value={barangay.id}>{barangay.name}</option>
-                        ))}
-                    </select>
-                </>
-            );
-        } else {
-            // Only show evacuation center field if user can manage it
-            if (canManageEvacuationCenterForUser(targetRoleId)) {
-                return (
-                    <>
-                        <label className='block text-sm font-medium text-black mb-1'>
-                            Assigned Evacuation Center
-                        </label>
-                        <select
-                            name="assigned_evacuation_center"
-                            value={formData.assigned_evacuation_center}
-                            onChange={handleFormChange}
-                            className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E]'
-                        >
-                            <option value="">Select evacuation center (optional)</option>
-                            {evacuationCenters.map(center => (
-                                <option key={center.id} value={center.name}>{center.name}</option>
-                            ))}
-                        </select>
-                    </>
-                );
-            }
-            return null;
-        }
-    };
-
     return(
-        <div className='p-6'>
+        <div className='h-full flex flex-col text-black px-6 pt-6 pb-6'>
             {/* Title */}
             <h1 
-                className='font-bold mb-6'
+                className='font-bold mb-6 flex-shrink-0'
                 style={{ 
                     color: '#00824E', 
                     fontSize: '32px' 
@@ -944,53 +813,38 @@ export default function UserManagement(){
             </h1>
             
             {/* Accounts Tab */}
-            <div>
-                <div className='border-b border-gray-200'>
-                    <nav className='-mb-px flex'>
-                        <button 
-                            className='py-2 px-4 border-b-2 border-[#00824E] text-[#00824E] font-medium text-base focus:outline-none'
-                        >
-                            Accounts
-                        </button>
-                    </nav>
-                </div>
-                
+            <div className="flex-1 min-h-0 flex flex-col">    
                 {/* Search Box and Add User Button */}
-                <div className='mt-4 mb-4 flex justify-between items-center'>
+                <div className='mt-4 mb-4 flex justify-between items-center flex-shrink-0'>
                     <div className='flex items-center gap-4'>
                         {/* Search Box */}
                         <div className='relative w-72'>
                             <div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none'>
                                 <Search className='h-5 w-5 text-gray-400' />
                             </div>
-                            <input
+                            <Input
                                 type='text'
-                                placeholder='Search'
+                                placeholder='Search users...'
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className='block w-full pl-10 pr-3 py-2 leading-5 placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E] sm:text-sm'
-                                style={{
-                                    borderRadius: '6px',
-                                    border: '1px solid #E4E4E7',
-                                    background: '#FFF',
-                                    boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)'
-                                }}
+                                className='pl-10 w-full'
                             />
                         </div>
                         
                         {/* Role Filter Dropdown */}
                         <div className='flex items-center gap-2'>
-                            <label className='text-sm font-medium text-gray-700'>Filter by Role:</label>
+                            <label className='text-sm font-medium text-gray-700 whitespace-nowrap'>Filter by Role:</label>
                             {renderRoleFilterDropdown()}
                             
                             {/* Clear Filters Button */}
                             {(searchTerm || selectedRoleFilter !== 'all') && (
-                                <button
+                                <Button
                                     onClick={clearAllFilters}
-                                    className='px-3 py-2 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E] transition-colors'
+                                    variant="outline"
+                                    className='whitespace-nowrap'
                                 >
                                     Clear Filters
-                                </button>
+                                </Button>
                             )}
                         </div>
                     </div>
@@ -1010,7 +864,7 @@ export default function UserManagement(){
                 {/* Users Table */}
                 {/* Success Message - Show above table if there's a success message */}
                 {successMessage && (
-                    <div className='mb-4 p-4 bg-green-50 border border-green-200 rounded-md'>
+                    <div className='mb-4 p-4 bg-green-50 border border-green-200 rounded-md flex-shrink-0'>
                         <div className='flex items-center justify-between'>
                             <div className='flex items-center'>
                                 <svg className='w-5 h-5 text-green-400 mr-2' fill='currentColor' viewBox='0 0 20 20'>
@@ -1032,7 +886,7 @@ export default function UserManagement(){
                 
                 {/* Error Message - Show above table if there's an error */}
                 {error && (
-                    <div className='mb-4 p-4 bg-red-50 border border-red-200 rounded-md'>
+                    <div className='mb-4 p-4 bg-red-50 border border-red-200 rounded-md flex-shrink-0'>
                         <div className='flex items-center justify-between'>
                             <div className='flex items-center'>
                                 <svg className='w-5 h-5 text-red-400 mr-2' fill='currentColor' viewBox='0 0 20 20'>
@@ -1052,8 +906,9 @@ export default function UserManagement(){
                     </div>
                 )}
                 
-                <div className="rounded-md border border-input overflow-hidden">
-                    <div className="relative w-full overflow-x-auto">
+                {/* Table Container */}
+                <div className="rounded-md border border-input overflow-hidden max-h-[600px] flex flex-col my-2">
+                    <div className="relative w-full overflow-auto flex-1">
                         <Table>
                             <TableHeader className="bg-gray-50">
                                 <TableRow>
@@ -1062,15 +917,27 @@ export default function UserManagement(){
                             </TableHeader>
                             <TableBody>
                                 {loading ? (
-                                    <TableRow>
-                                        <TableCell colSpan={getColumnCount()} className="text-center py-4 text-gray-500">
-                                            Loading users...
-                                        </TableCell>
-                                    </TableRow>
+                                    Array.from({ length: rowsPerPage }, (_, index) => (
+                                        <TableRow key={`loading-${index}`}>
+                                            {Array.from({ length: getColumnCount() }, (_, colIndex) => (
+                                                <TableCell key={`loading-cell-${colIndex}`} className="py-4">
+                                                    <div className="flex items-center space-x-2">
+                                                        {colIndex === 0 && <LoadingSpinner size="sm" />}
+                                                        <div className="h-4 bg-gray-200 rounded animate-pulse w-32"></div>
+                                                    </div>
+                                                </TableCell>
+                                            ))}
+                                        </TableRow>
+                                    ))
                                 ) : paginatedUsers.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={getColumnCount()} className="text-center py-4 text-gray-500">
-                                            {searchTerm ? 'No users found matching your search.' : 'No users found.'}
+                                        <TableCell colSpan={getColumnCount()} className="text-center py-8">
+                                            <div className="text-gray-500 text-lg font-medium mb-2">
+                                                {searchTerm ? 'No users found matching your search.' : 'No users found.'}
+                                            </div>
+                                            <p className="text-gray-400 text-sm">
+                                                {searchTerm ? 'Try adjusting your search criteria' : 'Add users to get started'}
+                                            </p>
                                         </TableCell>
                                     </TableRow>
                                 ) : (
@@ -1086,402 +953,73 @@ export default function UserManagement(){
                             </TableBody>
                         </Table>
                     </div>
-                </div>                {/* Pagination */}
-                <div className="mt-4 flex items-center justify-between px-2">
-                    <div className="flex-1 text-sm text-muted-foreground">
-                        {paginatedUsers.length} of {totalRows} row(s) shown.
-                    </div>
-                    <div className="flex items-center space-x-6 lg:space-x-8">
-                        <div className="flex items-center space-x-2">
-                            <p className="text-sm font-medium">Rows per page</p>
-                            <select
-                                value={rowsPerPage}
-                                onChange={(e) => setRowsPerPage(Number(e.target.value))}
-                                className="h-8 w-[70px] rounded-md border border-input bg-transparent px-2 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                            >
-                                <option value={5}>5</option>
-                                <option value={10}>10</option>
-                                <option value={20}>20</option>
-                                <option value={50}>50</option>
-                            </select>
-                        </div>
-                        <div className="flex w-[100px] items-center justify-center text-sm font-medium">
-                            Page {currentPage} of {totalPages}
-                        </div>
-                        <div className="flex items-center space-x-2">
-                            <Button
-                                variant="outline"
-                                className="hidden h-8 w-8 p-0 lg:flex"
-                                onClick={() => setCurrentPage(1)}
-                                disabled={currentPage === 1}
-                            >
-                                <span className="sr-only">Go to first page</span>
-                                <ChevronsLeft className="h-4 w-4" />
-                            </Button>
-                            <Button
-                                variant="outline"
-                                className="h-8 w-8 p-0"
-                                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                                disabled={currentPage === 1}
-                            >
-                                <span className="sr-only">Go to previous page</span>
-                                <ChevronLeft className="h-4 w-4" />
-                            </Button>
-                            <Button
-                                variant="outline"
-                                className="h-8 w-8 p-0"
-                                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                                disabled={currentPage === totalPages}
-                            >
-                                <span className="sr-only">Go to next page</span>
-                                <ChevronRight className="h-4 w-4" />
-                            </Button>
-                            <Button
-                                variant="outline"
-                                className="hidden h-8 w-8 p-0 lg:flex"
-                                onClick={() => setCurrentPage(totalPages)}
-                                disabled={currentPage === totalPages}
-                            >
-                                <span className="sr-only">Go to last page</span>
-                                <ChevronsRight className="h-4 w-4" />
-                            </Button>
-                        </div>
-                    </div>
                 </div>
-
-                {/* Add/Edit User Modal */}
-                {(isAddUserModalOpen || isEditUserModalOpen) && (
-                    <div 
-                        className='fixed inset-0 flex items-center justify-center z-50'
-                        style={{
-                            background: 'rgba(211, 211, 211, 0.80)'
-                        }}
-                    >
-                        <div className='bg-white rounded-lg p-6 w-[700px] shadow-lg max-h-[90vh] overflow-y-auto'>
-                            {/* Modal Header */}
-                            <div className='flex items-center justify-between mb-6'>
-                                <h2 
-                                    className='text-xl font-bold'
-                                    style={{ color: '#0C955B' }}
-                                >
-                                    {isEditUserModalOpen ? 'Edit User' : 'Add User'}
-                                </h2>
-                                <button
-                                    onClick={handleCloseModal}
-                                    className='hover:bg-gray-100 p-1 rounded'
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="17" viewBox="0 0 16 17" fill="none">
-                                        <g opacity="0.7">
-                                            <path d="M12 4.5L4 12.5" stroke="#020617" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"/>
-                                            <path d="M4 4.5L12 12.5" stroke="#020617" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"/>
-                                        </g>
-                                    </svg>
-                                </button>
-                            </div>
-                            
-                            {/* Form */}
-                            <form className='space-y-4' onSubmit={isEditUserModalOpen ? handleEditSubmit : handleSubmit}>
-                                {/* Row 1: First Name | Middle Name */}
-                                <div className='grid grid-cols-2 gap-4'>
-                                    <div>
-                                        <label className='block text-sm font-semibold text-black mb-1'>
-                                            First Name
-                                        </label>
-                                        <input
-                                            type='text'
-                                            name='first_name'
-                                            value={formData.first_name}
-                                            onChange={handleFormChange}
-                                            className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E]'
-                                            placeholder='Enter first name'
-                                            required
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className='block text-sm font-medium text-black mb-1'>
-                                            Middle Name
-                                        </label>
-                                        <input
-                                            type='text'
-                                            name='middle_name'
-                                            value={formData.middle_name}
-                                            onChange={handleFormChange}
-                                            className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E]'
-                                            placeholder='Enter middle name'
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Row 2: Last Name | Suffix */}
-                                <div className='grid grid-cols-2 gap-4'>
-                                    <div>
-                                        <label className='block text-sm font-medium text-black mb-1'>
-                                            Last Name
-                                        </label>
-                                        <input
-                                            type='text'
-                                            name='last_name'
-                                            value={formData.last_name}
-                                            onChange={handleFormChange}
-                                            className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E]'
-                                            placeholder='Enter last name'
-                                            required
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className='block text-sm font-medium text-black mb-1'>
-                                            Suffix
-                                        </label>
-                                        <input
-                                            type='text'
-                                            name='suffix'
-                                            value={formData.suffix}
-                                            onChange={handleFormChange}
-                                            className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E]'
-                                            placeholder='Enter suffix (optional)'
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Row 3: Sex | Barangay of Origin */}
-                                <div className='grid grid-cols-2 gap-4'>
-                                    <div>
-                                        <label className='block text-sm font-medium text-black mb-1'>
-                                            Sex
-                                        </label>
-                                        <select
-                                            name='sex'
-                                            value={formData.sex}
-                                            onChange={handleFormChange}
-                                            className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E]'
-                                            required
-                                        >
-                                            <option value=''>Select sex</option>
-                                            <option value='Male'>Male</option>
-                                            <option value='Female'>Female</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className='block text-sm font-medium text-black mb-1'>
-                                            Barangay of Origin
-                                        </label>
-                                        <select
-                                            name='barangay_of_origin'
-                                            value={formData.barangay_of_origin}
-                                            onChange={handleFormChange}
-                                            className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E]'
-                                            required
-                                        >
-                                            <option value=''>Select barangay</option>
-                                            {barangays.map((barangay) => (
-                                                <option key={barangay.id} value={barangay.id}>
-                                                    {barangay.name}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                </div>
-
-                                {/* Row 4: Employee Number | Birthdate */}
-                                <div className='grid grid-cols-2 gap-4'>
-                                    <div>
-                                        <label className='block text-sm font-medium text-black mb-1'>
-                                            Employee Number
-                                        </label>
-                                        <input
-                                            type='text'
-                                            name='employee_number'
-                                            value={formData.employee_number}
-                                            onChange={handleFormChange}
-                                            className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E]'
-                                            placeholder='Enter employee number'
-                                            required
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className='block text-sm font-medium text-black mb-1'>
-                                            Birthdate
-                                        </label>
-                                        <input
-                                            type='date'
-                                            name='birthdate'
-                                            value={formData.birthdate}
-                                            onChange={handleFormChange}
-                                            className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E]'
-                                            required
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Email */}
-                                <div>
-                                    <label className='block text-sm font-medium text-black mb-1'>
-                                        Email
-                                    </label>
-                                    <input
-                                        type='email'
-                                        name='email'
-                                        value={formData.email}
-                                        onChange={handleFormChange}
-                                        className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E]'
-                                        placeholder='Enter email address'
-                                        required
-                                    />
-                                </div>
-
-                                {/* Password */}
-                                <div>
-                                    <label className='block text-sm font-medium text-black mb-1'>
-                                        Password {isEditUserModalOpen && <span className='text-sm text-gray-500'>(leave empty to keep current password)</span>}
-                                    </label>
-                                    <input
-                                        type='password'
-                                        name='password'
-                                        value={formData.password}
-                                        onChange={handleFormChange}
-                                        className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E]'
-                                        placeholder={isEditUserModalOpen ? 'Enter new password (optional)' : 'Enter password'}
-                                        required={!isEditUserModalOpen}
-                                    />
-                                </div>
-
-                                {/* Role - Show only when allowed by role config AND permission */}
-                                {currentRoleConfig?.canSelectRole && hasAssignRole && (
-                                    <div>
-                                        <label className='block text-sm font-medium text-black mb-1'>
-                                            Role
-                                        </label>
-                                        <select
-                                            name='role_id'
-                                            value={formData.role_id}
-                                            onChange={handleFormChange}
-                                            className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E]'
-                                            required
-                                        >
-                                            <option value=''>Select a role</option>
-                                            {!rolesLoading && getAssignableRoles().map(role => (
-                                                <option key={role.id} value={role.id}>
-                                                    {role.name.toUpperCase()}
-                                                </option>
-                                            ))}
-                                            {rolesLoading && (
-                                                <option disabled>Loading roles...</option>
-                                            )}
-                                        </select>
-                                    </div>
-                                )}
-
-                                {/* When not allowed to assign roles, fix role_id via hidden input */}
-                                {!(currentRoleConfig?.canSelectRole && hasAssignRole) && (
-                                    <input
-                                        type='hidden'
-                                        name='role_id'
-                                        value={isEditUserModalOpen ? (editingUser?.role_id || '') : (currentUser?.role_id || 3)}
-                                    />
-                                )}
-
-                                {/* Optional note when assignment is restricted */}
-                                {currentRoleConfig?.canSelectRole && !hasAssignRole && (
-                                    <p className='text-xs text-gray-500'>You don't have permission to assign roles.</p>
-                                )}
-
-                                {/* Use the renderAssignedField function to dynamically show the appropriate field */}
-                                <div>
-                                    {renderAssignedField()}
-                                </div>
-
-                                {/* Modal Footer - Inside Form */}
-                                <div className='flex justify-end gap-3 mt-6 pt-4'>
-                                    <button
-                                        type='button'
-                                        onClick={handleCloseModal}
-                                        className='px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none'
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        type='submit'
-                                        disabled={formLoading}
-                                        className='px-4 py-2 text-white rounded-md hover:opacity-90 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed'
-                                        style={{ backgroundColor: '#00824E' }}
-                                    >
-                                        {formLoading 
-                                            ? (isEditUserModalOpen ? 'Updating...' : 'Adding...') 
-                                            : (isEditUserModalOpen ? 'Edit User' : 'Add User')
-                                        }
-                                    </button>
-                                </div>
-                            </form>
+                
+                {/* Pagination */}
+                {!loading && totalRows > 0 && (
+                    <div className="flex items-center justify-between">
+                        <div className="flex-1 text-sm text-muted-foreground">
+                            <span>
+                                {(currentPage - 1) * rowsPerPage + 1}-
+                                {Math.min(currentPage * rowsPerPage, totalRows)} of {totalRows} row(s) shown.
+                            </span>
                         </div>
+                        <Pagination
+                            currentPage={currentPage}
+                            totalPages={totalPages}
+                            onPageChange={(page) => setCurrentPage(page)}
+                            rowsPerPage={rowsPerPage}
+                            totalRows={totalRows}
+                            onRowsPerPageChange={(value: string) => {
+                                setRowsPerPage(Number(value));
+                                setCurrentPage(1);
+                            }}
+                        />
                     </div>
                 )}
+
+                {/* Add User Modal */}
+                <AddUserModal
+                    isOpen={isAddUserModalOpen}
+                    onClose={() => setIsAddUserModalOpen(false)}
+                    onSubmit={handleSubmit}
+                    barangays={barangays}
+                    evacuationCenters={evacuationCenters}
+                    roles={roles}
+                    rolesLoading={rolesLoading}
+                    canSelectRole={currentRoleConfig?.canSelectRole || false}
+                    hasAssignRole={hasAssignRole}
+                    currentUserRoleId={currentUser?.role_id}
+                    getAssignableRoles={getAssignableRoles}
+                    canManageEvacuationCenterForUser={canManageEvacuationCenterForUser}
+                />
+
+                {/* Edit User Modal */}
+                <EditUserModal
+                    isOpen={isEditUserModalOpen}
+                    onClose={() => {
+                        setIsEditUserModalOpen(false);
+                        setEditingUser(null);
+                    }}
+                    onSubmit={handleEditSubmit}
+                    user={editingUser}
+                    barangays={barangays}
+                    evacuationCenters={evacuationCenters}
+                    roles={roles}
+                    rolesLoading={rolesLoading}
+                    canSelectRole={currentRoleConfig?.canSelectRole || false}
+                    hasAssignRole={hasAssignRole}
+                    getAssignableRoles={getAssignableRoles}
+                    canManageEvacuationCenterForUser={canManageEvacuationCenterForUser}
+                />
 
                 {/* Delete Confirmation Modal */}
-                {deleteConfirmUser && (
-                    <div 
-                        className='fixed inset-0 flex items-center justify-center z-50'
-                        style={{
-                            background: 'rgba(211, 211, 211, 0.80)'
-                        }}
-                    >
-                        <div className='bg-white rounded-lg p-6 w-[400px] shadow-lg'>
-                            {/* Modal Header */}
-                            <div className='flex items-center justify-between mb-4'>
-                                <h2 
-                                    className='text-xl font-bold'
-                                    style={{ color: '#DC2626' }}
-                                >
-                                    Delete User
-                                </h2>
-                                <button
-                                    onClick={() => setDeleteConfirmUser(null)}
-                                    className='hover:bg-gray-100 p-1 rounded'
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="17" viewBox="0 0 16 17" fill="none">
-                                        <g opacity="0.7">
-                                            <path d="M12 4.5L4 12.5" stroke="#020617" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"/>
-                                            <path d="M4 4.5L12 12.5" stroke="#020617" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"/>
-                                        </g>
-                                    </svg>
-                                </button>
-                            </div>
-                            
-                            {/* Modal Content */}
-                            <div className='mb-6'>
-                                <p className='text-gray-700 mb-2'>
-                                    Are you sure you want to delete this user?
-                                </p>
-                                <div className='bg-gray-50 p-3 rounded-md'>
-                                    <p className='font-medium text-gray-900'>
-                                        {getDisplayName(deleteConfirmUser)}
-                                    </p>
-                                    <p className='text-sm text-gray-600'>
-                                        {deleteConfirmUser.email}
-                                    </p>
-                                </div>
-                                <p className='text-sm text-red-600 mt-2'>
-                                    This action cannot be undone. The user will no longer be able to access the system.
-                                </p>
-                            </div>
-                            
-                            {/* Modal Footer */}
-                            <div className='flex justify-end gap-3'>
-                                <button
-                                    onClick={() => setDeleteConfirmUser(null)}
-                                    className='px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none'
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={() => handleDeleteUser(deleteConfirmUser.user_id)}
-                                    className='px-4 py-2 text-white bg-red-600 rounded-md hover:bg-red-700 focus:outline-none'
-                                >
-                                    Delete User
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )}
+                <DeleteUserModal
+                    isOpen={!!deleteConfirmUser}
+                    onClose={() => setDeleteConfirmUser(null)}
+                    onConfirm={() => deleteConfirmUser && handleDeleteUser(deleteConfirmUser.user_id)}
+                    user={deleteConfirmUser}
+                />
             </div>
         </div>
     );
