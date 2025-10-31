@@ -4,8 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { selectToken } from '../features/auth/authSlice';
 import StatCard from './StatCard';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from './ui/table';
-import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { Pagination } from './ui/pagination';
+import LoadingSpinner from './loadingSpinner';
 
 interface UserStats {
     cdrrmo: number;
@@ -144,7 +144,7 @@ export default function SystemAdminDashboard() {
     };
 
     return (
-        <div className='h-full flex flex-col text-black px-6 pt-6 pb-6'>
+        <div className='h-full flex flex-col text-black p-10'>
             <h1 
                 className='font-bold mb-6'
                 style={{ 
@@ -210,7 +210,7 @@ export default function SystemAdminDashboard() {
             </div>
 
             {/* Title Header - Outside the table container */}
-            <div className="flex justify-between items-center mb-4 flex-shrink-0">
+            <div className="flex justify-between items-center mb-4 flex-shrink-0 pt-4">
                 <h2 className="text-gray-900 text-lg font-bold leading-6 tracking-tight">
                     Recently Added Users
                 </h2>
@@ -225,31 +225,68 @@ export default function SystemAdminDashboard() {
                 </div>
             </div>
 
-            {/* Recently Added Users Table Container - Now with flex-1 and min-h-0 */}
-            <div className="flex-1 min-h-0 flex flex-col">
-                <div 
-                    className='rounded-md border border-input overflow-hidden flex-1 min-h-0 flex flex-col'
-                >
-                    <div className="relative flex-1 min-h-0 overflow-x-auto overflow-y-auto">
+            {/* Recently Added Users Table */}
+            <div className="rounded-md border border-input overflow-hidden max-h-[600px] flex flex-col mb-2">
+                <div className="relative w-full overflow-auto flex-1">
+                    {loading ? (
+                        // Loading rows with skeleton animation
                         <Table>
                             <TableHeader className="bg-gray-50">
                                 <TableRow>
-                                <TableHead className="text-left whitespace-nowrap">Name</TableHead>
-                                <TableHead className="text-left whitespace-nowrap">Email</TableHead>
-                                <TableHead className="text-left whitespace-nowrap">Role</TableHead>
-                                <TableHead className="text-left whitespace-nowrap">Barangay</TableHead>
-                                <TableHead className="text-left whitespace-nowrap">Status</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {displayedUsers.length === 0 ? (
-                                <TableRow>
-                                    <TableCell colSpan={5} className='text-center py-4 text-gray-500'>
-                                        {loading ? 'Loading...' : 'No recent users'}
-                                    </TableCell>
+                                    <TableHead className="text-left whitespace-nowrap">Name</TableHead>
+                                    <TableHead className="text-left whitespace-nowrap">Email</TableHead>
+                                    <TableHead className="text-left whitespace-nowrap">Role</TableHead>
+                                    <TableHead className="text-left whitespace-nowrap">Barangay</TableHead>
+                                    <TableHead className="text-left whitespace-nowrap">Status</TableHead>
                                 </TableRow>
-                            ) : (
-                                displayedUsers.map((user: RecentUser, index: number) => {
+                            </TableHeader>
+                            <TableBody>
+                                {Array.from({ length: rowsPerPage }, (_, index) => (
+                                    <TableRow key={`loading-${index}`}>
+                                        <TableCell className="py-4">
+                                            <div className="flex items-center space-x-2">
+                                                <LoadingSpinner size="sm" />
+                                                <div className="h-4 bg-gray-200 rounded animate-pulse w-32"></div>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="h-4 bg-gray-200 rounded animate-pulse w-48"></div>
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="h-6 bg-gray-200 rounded-xl animate-pulse w-24"></div>
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="h-4 bg-gray-200 rounded animate-pulse w-32"></div>
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="h-4 bg-gray-200 rounded animate-pulse w-16"></div>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    ) : displayedUsers.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center p-8 text-center">
+                            <div className="text-gray-500 text-lg font-medium mb-2">
+                                No recent users found
+                            </div>
+                            <p className="text-gray-400 text-sm">
+                                Recent users will appear here when they are added to the system
+                            </p>
+                        </div>
+                    ) : (
+                        <Table>
+                            <TableHeader className="bg-gray-50">
+                                <TableRow>
+                                    <TableHead className="text-left whitespace-nowrap">Name</TableHead>
+                                    <TableHead className="text-left whitespace-nowrap">Email</TableHead>
+                                    <TableHead className="text-left whitespace-nowrap">Role</TableHead>
+                                    <TableHead className="text-left whitespace-nowrap">Barangay</TableHead>
+                                    <TableHead className="text-left whitespace-nowrap">Status</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {displayedUsers.map((user: RecentUser, index: number) => {
                                     const roleColor = getRoleColor(user.role_id);
                                     return (
                                         <TableRow 
@@ -264,7 +301,7 @@ export default function SystemAdminDashboard() {
                                             </TableCell>
                                             <TableCell>
                                                 <span 
-                                                    className='inline-flex px-3 py-1 text-xs font-extrabold rounded-xl border'
+                                                    className='inline-flex px-3 py-0.5 text-xs font-extrabold rounded-xl border'
                                                     style={{
                                                         color: roleColor,
                                                         backgroundColor: '#FFFFFF',
@@ -277,84 +314,48 @@ export default function SystemAdminDashboard() {
                                             <TableCell className="text-foreground">
                                                 {user.barangay && user.barangay !== 'Unknown' ? user.barangay : 'N/A'}
                                             </TableCell>
-                                            <TableCell className="text-foreground">
-                                                Active
+                                            <TableCell>
+                                                <span 
+                                                    className='inline-flex px-2 py-0.5 text-xs font-bold rounded-xl border'
+                                                    style={{
+                                                        color: '#00824E',
+                                                        backgroundColor: '#FFFFFF',
+                                                        borderColor: '#00824E'
+                                                    }}
+                                                >
+                                                    Active
+                                                </span>
                                             </TableCell>
                                         </TableRow>
                                     );
-                                })
-                            )}
-                        </TableBody>
-                    </Table>
+                                })}
+                            </TableBody>
+                        </Table>
+                    )}
                 </div>
             </div>
 
             {/* Pagination Controls */}
-            {totalUsers > 0 && (
-                <div className="mt-4 flex items-center justify-between px-2">
+            {!loading && totalUsers > 0 && (
+                <div className="flex items-center justify-between">
                     <div className="flex-1 text-sm text-muted-foreground">
-                        {displayedUsers.length} of {totalUsers} row(s) shown.
+                        {totalUsers > 0 && (
+                            <span>
+                                {(currentPage - 1) * rowsPerPage + 1}-
+                                {Math.min(currentPage * rowsPerPage, totalUsers)} of {totalUsers} row(s) shown.
+                            </span>
+                        )}
                     </div>
-                    <div className="flex items-center space-x-6 lg:space-x-8">
-                        <div className="flex items-center space-x-2">
-                            <p className="text-sm font-medium">Rows per page</p>
-                            <select
-                                value={rowsPerPage}
-                                onChange={(e) => handleRowsPerPageChange(Number(e.target.value))}
-                                className="h-8 w-[70px] rounded-md border border-input bg-transparent px-2 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                            >
-                                <option value={5}>5</option>
-                                <option value={10}>10</option>
-                                <option value={20}>20</option>
-                                <option value={50}>50</option>
-                            </select>
-                        </div>
-                        <div className="flex w-[100px] items-center justify-center text-sm font-medium">
-                            Page {currentPage} of {totalPages}
-                        </div>
-                        <div className="flex items-center space-x-2">
-                            <Button
-                                variant="outline"
-                                className="hidden h-8 w-8 p-0 lg:flex"
-                                onClick={() => handlePageChange(1)}
-                                disabled={currentPage === 1}
-                            >
-                                <span className="sr-only">Go to first page</span>
-                                <ChevronsLeft className="h-4 w-4" />
-                            </Button>
-                            <Button
-                                variant="outline"
-                                className="h-8 w-8 p-0"
-                                onClick={() => handlePageChange(currentPage - 1)}
-                                disabled={currentPage === 1}
-                            >
-                                <span className="sr-only">Go to previous page</span>
-                                <ChevronLeft className="h-4 w-4" />
-                            </Button>
-                            <Button
-                                variant="outline"
-                                className="h-8 w-8 p-0"
-                                onClick={() => handlePageChange(currentPage + 1)}
-                                disabled={currentPage === totalPages}
-                            >
-                                <span className="sr-only">Go to next page</span>
-                                <ChevronRight className="h-4 w-4" />
-                            </Button>
-                            <Button
-                                variant="outline"
-                                className="hidden h-8 w-8 p-0 lg:flex"
-                                onClick={() => handlePageChange(totalPages)}
-                                disabled={currentPage === totalPages}
-                            >
-                                <span className="sr-only">Go to last page</span>
-                                <ChevronsRight className="h-4 w-4" />
-                            </Button>
-                        </div>
-                    </div>
+                    <Pagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        onPageChange={handlePageChange}
+                        rowsPerPage={rowsPerPage}
+                        totalRows={totalUsers}
+                        onRowsPerPageChange={(value: string) => handleRowsPerPageChange(Number(value))}
+                    />
                 </div>
             )}
-            </div>
-
         </div>
     );
 }
