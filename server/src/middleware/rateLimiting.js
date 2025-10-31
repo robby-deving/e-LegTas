@@ -22,7 +22,7 @@ const keyGenerator = (req) => {
 // Custom skip function for authenticated users with higher privileges
 const skipSuccessfulRequests = (req, res) => {
   // Skip rate limiting for successful requests from admin users
-  if (req.user && req.user.role === 'admin' && res.statusCode < 400) {
+  if (req.user && req.user.role_id === 1 && res.statusCode < 400) {
     return true;
   }
   return false;
@@ -154,7 +154,7 @@ const apiRateLimit = rateLimit({
 const uploadRateLimit = rateLimit({
   windowMs: config.upload.windowMs,
   max: (req) => {
-    if (req.user && req.user.role === 'admin') {
+    if (req.user && req.user.role_id === 1) {
       return config.upload.maxAdmin;
     }
     if (req.user && req.user.id) {
@@ -179,7 +179,7 @@ const uploadRateLimit = rateLimit({
 const reportRateLimit = rateLimit({
   windowMs: config.report.windowMs,
   max: (req) => {
-    if (req.user && req.user.role === 'admin') {
+    if (req.user && req.user.role_id === 1) {
       return config.report.maxAdmin;
     }
     if (req.user && req.user.id) {
@@ -226,7 +226,7 @@ const searchRateLimit = rateLimit({
 const dashboardRateLimit = rateLimit({
   windowMs: config.dashboard.windowMs,
   max: (req) => {
-    if (req.user && req.user.role === 'admin') {
+    if (req.user && req.user.role_id === 1) {
       return config.dashboard.maxAdmin;
     }
     if (req.user && req.user.id) {
