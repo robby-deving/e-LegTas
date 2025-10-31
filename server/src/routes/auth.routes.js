@@ -9,10 +9,10 @@ const router = express.Router();
 
 // Login endpoint - validate email and password
 router.post('/login', 
-  validateBody({
-    email: { validator: 'email', required: true },
-    password: { validator: 'password', required: true }
-  }),
+    validateBody({
+        employeeNumber: { validator: 'employeeNumber', required: true },
+        password: { validator: 'password', required: true }
+      }),
   login
 );
 
@@ -36,16 +36,6 @@ router.post('/send-otp',
   sendOTP
 );
 
-// Refresh token endpoint - validate refresh token
-router.post('/refresh', 
-  validateBody({
-    refresh_token: { 
-      validator: 'string', 
-      required: true,
-      options: { minLength: 20, maxLength: 1000, allowSpecialChars: true }
-    }
-  }),
-  refresh
-);
+router.post('/refresh', refresh);
 
 module.exports = router;
