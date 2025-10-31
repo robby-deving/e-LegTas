@@ -197,7 +197,7 @@ const displayCenterName =
         setOldHeadNewRel(rel);
       }
 
-      const url = `https://api.e-legtas.tech/api/v1/evacuees/${Number(evacuee.disaster_evacuation_event_id)}/transfer-head`;
+      const url = `/api/v1/evacuees/${Number(evacuee.disaster_evacuation_event_id)}/transfer-head`;
 
       const body = {
         from_family_head_id: Number(evacuee.id),
@@ -232,7 +232,7 @@ const displayCenterName =
       return;
     }
 
-    const url = `https://api.e-legtas.tech/api/v1/evacuees/${eventId}/families/${familyHeadId}/decamp`;
+    const url = `/api/v1/evacuees/${eventId}/families/${familyHeadId}/decamp`;
 
     if (!decampDate) {
       setSavingDecamp(true);
