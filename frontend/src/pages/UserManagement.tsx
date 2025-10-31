@@ -800,7 +800,7 @@ export default function UserManagement(){
     };
 
     return(
-        <div className='h-full flex flex-col text-black px-6 pt-6 pb-6'>
+        <div className='h-full flex flex-col text-black p-10'>
             {/* Title */}
             <h1 
                 className='font-bold mb-6 flex-shrink-0'
