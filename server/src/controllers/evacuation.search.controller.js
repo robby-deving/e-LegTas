@@ -17,7 +17,8 @@ class ApiError extends Error {
  * @access Public
  */
 exports.searchEvacuations = async (req, res, next) => {
-    const { disasterId, search } = req.query;
+    // Use validated query
+    const { disasterId, search } = req.validatedQuery || req.query;
 
     if (!disasterId || isNaN(Number(disasterId))) {
         return next(new ApiError('Invalid Disaster ID provided.', 400));

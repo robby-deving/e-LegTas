@@ -16,6 +16,7 @@ interface AddServiceProps {
   token: string;
   addedBy: number;
   onSuccess?: () => void;
+  evacuationOperationStatus?: boolean;
   placeholder?: string;
   className?: string;
   showLabel?: boolean;
@@ -33,6 +34,7 @@ export const AddService: React.FC<AddServiceProps> = ({
   placeholder = "Enter service name",
   className,
   showLabel = true,
+  evacuationOperationStatus = false,
 }) => {
   const [inputValue, setInputValue] = useState('');
   const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -244,9 +246,9 @@ export const AddService: React.FC<AddServiceProps> = ({
             )}
           </div>
           <div className="flex gap-2 shrink-0">
-            <Button 
+            <Button
               onClick={handleSubmit}
-              disabled={!inputValue.trim() || isSubmitting}
+              disabled={!inputValue.trim() || isSubmitting || (evacuationOperationStatus ?? false)}
               className="bg-green-700 hover:bg-green-800 text-white shrink-0"
             >
               {isSubmitting ? (

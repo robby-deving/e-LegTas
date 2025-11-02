@@ -72,7 +72,7 @@ export function useDashboardData(selectedDateRange?: DateRange) {
     if (!effectiveToken) return; // wait for auth token
     const fetchDisasters = async () => {
       try {
-        const res = await fetch('https://api.e-legtas.tech/api/v1/dashboard/disasters', {
+        const res = await fetch('/api/v1/dashboard/disasters', {
           headers: getAuthHeaders(),
         });
         const data: Disaster[] = await res.json();
@@ -117,7 +117,7 @@ export function useDashboardData(selectedDateRange?: DateRange) {
 
       try {
       if (!isRealtimeUpdate) setLoading(true);
-        let url = `https://api.e-legtas.tech/api/v1/dashboard/active-evacuation-centers/${selectedDisaster.id}`;
+        let url = `/api/v1/dashboard/active-evacuation-centers/${selectedDisaster.id}`;
 
         if (selectedDateRange?.from) {
           const timeZone = "Asia/Manila";
@@ -191,7 +191,7 @@ export function useDashboardData(selectedDateRange?: DateRange) {
 
       try {
         if (!isRealtimeUpdate) setLoading(true);
-        let url = `https://api.e-legtas.tech/api/v1/dashboard/registered-evacuees/${selectedDisaster.id}`;
+        let url = `/api/v1/dashboard/registered-evacuees/${selectedDisaster.id}`;
 
         // If date filter applied, add query params with Manila → UTC conversion
         if (selectedDateRange?.from) {
@@ -273,7 +273,7 @@ export function useDashboardData(selectedDateRange?: DateRange) {
 
       try {
         if (!isRealtimeUpdate) setLoading(true);
-        let url = `https://api.e-legtas.tech/api/v1/dashboard/registered-families/${selectedDisaster.id}`;
+        let url = `/api/v1/dashboard/registered-families/${selectedDisaster.id}`;
 
         // If date filter applied, add query params with Manila → UTC conversion
         if (selectedDateRange?.from) {
@@ -460,7 +460,7 @@ useEffect(() => {
 
       try {
         if (!isRealtimeUpdate) setLoading(true);
-        let url = `https://api.e-legtas.tech/api/v1/dashboard/evacuee-statistics/${selectedDisaster.id}`;
+        let url = `/api/v1/dashboard/evacuee-statistics/${selectedDisaster.id}`;
 
         // If date filter applied, add query params (Manila → UTC conversion)
         if (selectedDateRange?.from) {

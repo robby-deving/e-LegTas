@@ -128,7 +128,9 @@ const generateEmployeeNumber = () => {
 
 const createUser = async (req, res) => {
   try {
-    logger.debug('Create user request received:', req.body);
+    // Use validated body from middleware if available
+    const validatedData = req.validatedBody || req.body;
+    logger.debug('Create user request received:', validatedData);
     
     const {
       firstName,
@@ -144,7 +146,7 @@ const createUser = async (req, res) => {
       roleId,
       assignedEvacuationCenter,
       assignedBarangay
-    } = req.body;
+    } = validatedData;
 
     // Validate required fields
     if (!firstName || !lastName || !sex || !birthdate || !email || !password || !roleId) {
@@ -553,7 +555,11 @@ const createUser = async (req, res) => {
 
 const getUsers = async (req, res) => {
   try {
-    const { page = 1, limit = 10, search = '' } = req.query;
+    // Use validated query params from middleware if available
+    const validatedQuery = req.validatedQuery || {};
+    const page = validatedQuery.page || req.query.page || 1;
+    const limit = validatedQuery.limit || req.query.limit || 10;
+    const search = validatedQuery.search || req.query.search || '';
     const offset = (page - 1) * limit;
 
     let query = supabaseAdmin
@@ -703,7 +709,8 @@ const getUsers = async (req, res) => {
 
 const getUserById = async (req, res) => {
   try {
-    const { id } = req.params;
+    // Use validated params from middleware if available
+    const id = req.validatedParams?.id || req.params.id;
 
     const { data: user, error } = await supabaseAdmin
       .from('users')
@@ -800,9 +807,11 @@ const getUserById = async (req, res) => {
 
 const updateUser = async (req, res) => {
   try {
-    logger.debug('Update user request received:', req.body);
+    // Use validated params and body from middleware if available
+    const id = req.validatedParams?.id || req.params.id;
+    const validatedData = req.validatedBody || req.body;
+    logger.debug('Update user request received:', validatedData);
     
-    const { id } = req.params;
     const {
       firstName,
       middleName,
@@ -817,7 +826,7 @@ const updateUser = async (req, res) => {
       roleId,
       assignedEvacuationCenter,
       assignedBarangay
-    } = req.body;
+    } = validatedData;
 
     // Validate required fields
     if (!firstName || !lastName || !sex || !birthdate || !email || !roleId) {
@@ -1845,8 +1854,12 @@ const completeUserProfile = async (req, res) => {
 // Get users by role_id
 const getUsersByRole = async (req, res) => {
   try {
-    const { roleId } = req.params;
-    const { page = 1, limit = 10, search = '' } = req.query;
+    // Use validated params and query from middleware if available
+    const roleId = req.validatedParams?.roleId || req.params.roleId;
+    const validatedQuery = req.validatedQuery || {};
+    const page = validatedQuery.page || req.query.page || 1;
+    const limit = validatedQuery.limit || req.query.limit || 10;
+    const search = validatedQuery.search || req.query.search || '';
     const offset = (page - 1) * limit;
 
     // Validate roleId
@@ -1979,7 +1992,11 @@ const getUsersByRole = async (req, res) => {
 // Get users with role_id 4 and 5 (for role-based restrictions)
 const getUsersWithRoleFourAndFive = async (req, res) => {
   try {
-    const { page = 1, limit = 10, search = '' } = req.query;
+    // Use validated query from middleware if available
+    const validatedQuery = req.validatedQuery || {};
+    const page = validatedQuery.page || req.query.page || 1;
+    const limit = validatedQuery.limit || req.query.limit || 10;
+    const search = validatedQuery.search || req.query.search || '';
     const offset = (page - 1) * limit;
 
     // Role IDs 4 and 5
@@ -2125,7 +2142,8 @@ const getUsersWithRoleFourAndFive = async (req, res) => {
 // Soft delete user
 const deleteUser = async (req, res) => {
   try {
-    const { id } = req.params;
+    // Use validated params from middleware if available
+    const id = req.validatedParams?.id || req.params.id;
 
     if (!id) {
       return res.status(400).json({ message: 'User ID is required' });
@@ -2259,7 +2277,9 @@ const deleteUser = async (req, res) => {
 // Check if user can login (not soft deleted)
 const checkUserCanLogin = async (req, res) => {
   try {
-    const { email } = req.body;
+    // Use validated body from middleware if available
+    const validatedData = req.validatedBody || req.body;
+    const { email } = validatedData;
 
     if (!email) {
       return res.status(400).json({ message: 'Email is required' });
@@ -2407,8 +2427,9 @@ const getRecentUsers = async (req, res) => {
   try {
     logger.debug('Getting recently added users...');
 
-    // Get limit from query, default to 7
-    const limit = parseInt(req.query.limit, 10) || 7;
+    // Use validated query from middleware if available
+    const validatedQuery = req.validatedQuery || {};
+    const limit = validatedQuery.limit || parseInt(req.query.limit, 10) || 7;
 
     // Get recently added users with their profile and resident data
     const { data: users, error } = await supabaseAdmin

@@ -48,7 +48,7 @@ export const PermissionProvider: React.FC<PermissionProviderProps> = ({ children
       setError(null);
 
       try {
-        const response = await fetch(`https://api.e-legtas.tech/api/v1/permissions/role/${currentUser.role_id}`, {
+        const response = await fetch(`/api/v1/permissions/role/${currentUser.role_id}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'

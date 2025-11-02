@@ -16,11 +16,11 @@ interface UseDisastersReturn {
   createDisaster: (disasterData: DisasterPayload) => Promise<void>;
   updateDisaster: (disasterId: number, disasterData: DisasterPayload) => Promise<void>;
   deleteDisaster: (disasterId: number) => Promise<void>;
-  invalidateCache: (month: number | null, year: number) => void;
   refetchCurrentData: () => Promise<void>;
+  refreshDisasters: () => Promise<void>;
 }
 
-const CACHE_DURATION = 1000 * 60 * 5; // 5 minutes
+const CACHE_DURATION = 1000 * 60 * 5; // 5 minutes for better UX
 
 export const useDisasters = (): UseDisastersReturn => {
   const [disasters, setDisasters] = useState<Disaster[]>([]);
@@ -36,16 +36,8 @@ export const useDisasters = (): UseDisastersReturn => {
   const [currentMonth, setCurrentMonth] = useState<number | null>(null);
   const [currentYear, setCurrentYear] = useState<number>(new Date().getFullYear());
 
-  const getCacheKey = (month: number | null, year: number): string => {
-    return `disasters_${month}_${year}`;
-  };
-
-  const getCacheTimeKey = (month: number | null, year: number): string => {
-    return `disasters_time_${month}_${year}`;
-  };
-
   const fetchDisastersByMonthYear = useCallback(
-    async (month: number | null, year: number) => {
+    async (month: number | null, year: number, bypassCache = false) => {
       if (!token) return;
 
       // Track current month/year
@@ -55,36 +47,36 @@ export const useDisasters = (): UseDisastersReturn => {
       setLoading(true);
       setError(null);
 
-      const cacheKey = getCacheKey(month, year);
-      const cacheTimeKey = getCacheTimeKey(month, year);
+      const cacheKey = `disasters_${month}_${year}`;
+      const cacheTimeKey = `disasters_time_${month}_${year}`;
 
       try {
-        const cachedDisasters = localStorage.getItem(cacheKey);
-        const cachedDisastersTime = localStorage.getItem(cacheTimeKey);
+        // Check cache first unless bypassing
+        if (!bypassCache) {
+          const cachedDisasters = localStorage.getItem(cacheKey);
+          const cachedDisastersTime = localStorage.getItem(cacheTimeKey);
 
-        console.log(`fetchDisastersByMonthYear called for ${month}/${year}`);
-        console.log("Cached disasters:", cachedDisasters ? "exists" : "none");
-        console.log("Cache time:", cachedDisastersTime);
-
-        if (
-          cachedDisasters &&
-          cachedDisastersTime &&
-          Date.now() - Number(cachedDisastersTime) < CACHE_DURATION
-        ) {
-          // Use cached data if less than 5 minutes old
-          console.log("Using cached disasters");
-          const parsed = JSON.parse(cachedDisasters);
-          console.log("Parsed cached disasters count:", parsed.length);
-          setDisasters(parsed);
-        } else {
-          console.log("Fetching fresh disasters from API...");
-          const data = await disasterService.fetchDisastersByMonthYear(month, year, token);
-          console.log("API response disasters count:", data.length);
-          setDisasters(data);
-          localStorage.setItem(cacheKey, JSON.stringify(data));
-          localStorage.setItem(cacheTimeKey, String(Date.now()));
-          console.log("Fresh disasters cached");
+          if (
+            cachedDisasters &&
+            cachedDisastersTime &&
+            Date.now() - Number(cachedDisastersTime) < CACHE_DURATION
+          ) {
+            console.log("Using cached disasters");
+            const parsed = JSON.parse(cachedDisasters);
+            setDisasters(parsed);
+            setLoading(false);
+            return;
+          }
         }
+
+        console.log(`Fetching disasters from API for ${month}/${year}`);
+        const data = await disasterService.fetchDisastersByMonthYear(month, year, token);
+        console.log("API response disasters count:", data.length);
+        setDisasters(data);
+
+        // Cache the fresh data
+        localStorage.setItem(cacheKey, JSON.stringify(data));
+        localStorage.setItem(cacheTimeKey, String(Date.now()));
       } catch (err) {
         console.error("Failed to fetch disasters:", err);
         setError("Failed to fetch disasters");
@@ -99,23 +91,8 @@ export const useDisasters = (): UseDisastersReturn => {
     if (!token) return;
 
     try {
-      const cachedTypes = localStorage.getItem("disaster_types_with_id");
-      const cachedTypesTime = localStorage.getItem("disaster_types_time");
-
-      if (
-        cachedTypes &&
-        cachedTypesTime &&
-        Date.now() - Number(cachedTypesTime) < CACHE_DURATION
-      ) {
-        // Parse as DisasterTypeWithId[]
-        const parsedCachedTypes: DisasterTypeWithId[] = JSON.parse(cachedTypes);
-        setDisasterTypes([{ id: null, name: "All" }, ...parsedCachedTypes]);
-      } else {
-        const types = await disasterService.fetchAllDisasterTypes(token);
-        setDisasterTypes([{ id: null, name: "All" }, ...types]);
-        localStorage.setItem("disaster_types_with_id", JSON.stringify(types));
-        localStorage.setItem("disaster_types_time", String(Date.now()));
-      }
+      const types = await disasterService.fetchAllDisasterTypes(token);
+      setDisasterTypes([{ id: null, name: "All" }, ...types]);
     } catch (err) {
       console.error("Failed to fetch disaster types:", err);
       setError("Failed to fetch disaster types");
@@ -131,8 +108,6 @@ export const useDisasters = (): UseDisastersReturn => {
       try {
         await disasterService.createDisaster(disasterData, token);
         console.log("Disaster created successfully:", disasterData);
-        // Invalidate all caches since we don't know which month/year this affects
-        invalidateAllCaches();
       } catch (error) {
         console.error("Error creating disaster:", error);
         setError("Failed to create disaster");
@@ -153,8 +128,6 @@ export const useDisasters = (): UseDisastersReturn => {
       try {
         await disasterService.updateDisaster(disasterId, disasterData, token);
         console.log("Disaster updated successfully:", disasterData);
-        // Invalidate all caches since we don't know which month/year this affects
-        invalidateAllCaches();
       } catch (error) {
         console.error("Error updating disaster:", error);
         setError("Failed to update disaster");
@@ -172,6 +145,10 @@ export const useDisasters = (): UseDisastersReturn => {
     }
   }, [currentMonth, currentYear, fetchDisastersByMonthYear]);
 
+  const refreshDisasters = useCallback(async () => {
+    await fetchDisastersByMonthYear(currentMonth, currentYear, true); // bypass cache
+  }, [currentMonth, currentYear, fetchDisastersByMonthYear]);
+
   const deleteDisaster = useCallback(
     async (disasterId: number) => {
       if (!token) return;
@@ -181,8 +158,6 @@ export const useDisasters = (): UseDisastersReturn => {
       try {
         await disasterService.deleteDisaster(disasterId, token);
         console.log("Disaster deleted successfully:", disasterId);
-        // Invalidate all caches and refetch current data
-        invalidateAllCaches();
         await refetchCurrentData();
       } catch (error) {
         console.error("Error deleting disaster:", error);
@@ -195,22 +170,6 @@ export const useDisasters = (): UseDisastersReturn => {
     [token, refetchCurrentData]
   );
 
-  const invalidateCache = useCallback((month: number | null, year: number) => {
-    const cacheKey = getCacheKey(month, year);
-    const cacheTimeKey = getCacheTimeKey(month, year);
-    localStorage.removeItem(cacheKey);
-    localStorage.removeItem(cacheTimeKey);
-  }, []);
-
-  const invalidateAllCaches = useCallback(() => {
-    // Remove all disaster caches
-    const keys = Object.keys(localStorage);
-    keys.forEach((key) => {
-      if (key.startsWith("disasters_")) {
-        localStorage.removeItem(key);
-      }
-    });
-  }, []);
 
   // Initial fetch for disaster types
   useEffect(() => {
@@ -229,7 +188,7 @@ export const useDisasters = (): UseDisastersReturn => {
     createDisaster,
     updateDisaster,
     deleteDisaster,
-    invalidateCache,
     refetchCurrentData,
+    refreshDisasters,
   };
 };

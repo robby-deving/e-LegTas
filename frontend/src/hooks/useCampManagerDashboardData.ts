@@ -45,7 +45,7 @@ export function useCampManagerDashboardData(campManagerId: number, selectedDateR
       try {
         const headers = getAuthHeaders();
         const res = await fetch(
-          `https://api.e-legtas.tech/api/v1/dashboard/camp-manager/disasters/${campManagerId}`,
+          `/api/v1/dashboard/camp-manager/disasters/${campManagerId}`,
           { headers }
         );
         
@@ -81,7 +81,7 @@ export function useCampManagerDashboardData(campManagerId: number, selectedDateR
       try {
         const headers = getAuthHeaders();
         const res = await fetch(
-          `https://api.e-legtas.tech/api/v1/dashboard/camp-manager/center/${selectedDisaster.disaster_evacuation_event_id}`,
+          `h/api/v1/dashboard/camp-manager/center/${selectedDisaster.disaster_evacuation_event_id}`,
           { headers }
         );
         

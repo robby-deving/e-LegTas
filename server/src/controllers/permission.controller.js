@@ -45,7 +45,8 @@ const getPermissions = async (req, res) => {
 // Get permissions for a specific role
 const getRolePermissions = async (req, res) => {
   try {
-    const { roleId } = req.params;
+    // Use validated params from middleware if available
+    const roleId = req.validatedParams?.roleId || req.params.roleId;
 
     if (!roleId || isNaN(parseInt(roleId))) {
       return res.status(400).json({ 
@@ -98,8 +99,10 @@ const getRolePermissions = async (req, res) => {
 // Update permissions for a role
 const updateRolePermissions = async (req, res) => {
   try {
-    const { roleId } = req.params;
-    const { permissionIds } = req.body;
+    // Use validated params and body from middleware if available
+    const roleId = req.validatedParams?.roleId || req.params.roleId;
+    const validatedData = req.validatedBody || req.body;
+    const permissionIds = validatedData.permissionIds;
 
     logger.debug('Updating role permissions for role:', { roleId });
     logger.debug('Received permission IDs:', { permissionIds });
@@ -247,7 +250,8 @@ const updateRolePermissions = async (req, res) => {
 // Get permissions for a user based on their role
 const getUserPermissions = async (req, res) => {
   try {
-    const { userId } = req.params;
+    // Use validated params from middleware if available
+    const userId = req.validatedParams?.userId || req.params.userId;
 
     if (!userId || isNaN(parseInt(userId))) {
       return res.status(400).json({ 

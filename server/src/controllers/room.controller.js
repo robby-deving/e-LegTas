@@ -54,7 +54,8 @@ exports.getAllRooms = async (req, res, next) => {
  * @access Public
  */
 exports.getRoomById = async (req, res, next) => {
-    const { id } = req.params;
+    // Use validated params from middleware if available
+    const id = req.validatedParams?.id || req.params.id;
 
     if (!id || isNaN(Number(id))) {
         return next(new ApiError('Invalid room ID provided.', 400));
@@ -96,14 +97,17 @@ exports.getRoomById = async (req, res, next) => {
  * @access Private (requires authentication/authorization, but public for now)
  */
 exports.createRoom = async (req, res, next) => {
+    // Use validated body from middleware if available
+    const validatedData = req.validatedBody || req.body;
+    
     const {
         evacuation_center_id,
         room_name,
         individual_room_capacity,
         room_type
-    } = req.body;
+    } = validatedData;
 
-    // Basic input validation
+    // Basic input validation (middleware should handle this, but keep as fallback)
     if (!evacuation_center_id || !room_name || !individual_room_capacity || !room_type) {
         return next(new ApiError('Missing required fields for evacuation room.', 400));
     }
@@ -147,8 +151,9 @@ exports.createRoom = async (req, res, next) => {
  * @access Private (requires authentication/authorization, but public for now)
  */
 exports.updateRoom = async (req, res, next) => {
-    const { id } = req.params;
-    const updates = req.body;
+    // Use validated params and body from middleware if available
+    const id = req.validatedParams?.id || req.params.id;
+    const updates = req.validatedBody || req.body;
 
     if (!id || isNaN(Number(id))) {
         return next(new ApiError('Invalid room ID provided.', 400));
@@ -201,7 +206,8 @@ exports.updateRoom = async (req, res, next) => {
  * @access Private (requires authentication/authorization, but public for now)
  */
 exports.deleteRoom = async (req, res, next) => {
-    const { id } = req.params;
+    // Use validated params from middleware if available
+    const id = req.validatedParams?.id || req.params.id;
 
     if (!id || isNaN(Number(id))) {
         return next(new ApiError('Invalid room ID provided.', 400));
@@ -238,7 +244,8 @@ exports.deleteRoom = async (req, res, next) => {
  * @access Private (requires authentication/authorization, but public for now)
  */
 exports.softDeleteRoom = async (req, res, next) => {
-    const { id } = req.params;
+    // Use validated params from middleware if available
+    const id = req.validatedParams?.id || req.params.id;
 
     if (!id || isNaN(Number(id))) {
         return next(new ApiError('Invalid room ID provided for soft delete.', 400));
@@ -280,7 +287,8 @@ exports.softDeleteRoom = async (req, res, next) => {
  * @access Public
  */
 exports.getRoomsByEvacuationCenterId = async (req, res, next) => {
-    const { evacuationCenterId } = req.params;
+    // Use validated params from middleware if available
+    const evacuationCenterId = req.validatedParams?.evacuationCenterId || req.params.evacuationCenterId;
 
     if (!evacuationCenterId || isNaN(Number(evacuationCenterId))) {
         return next(new ApiError('Invalid evacuation center ID provided.', 400));

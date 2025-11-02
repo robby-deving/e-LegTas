@@ -1,5 +1,6 @@
 // server/src/controllers/evacuees.rooms.controller.js
 const { supabase } = require('../config/supabase');
+const logger = require('../utils/logger');
 
 class ApiError extends Error {
   constructor(message, statusCode = 500) {
@@ -16,10 +17,14 @@ class ApiError extends Error {
  * @access Public
  */
 exports.getAllRoomsForDisasterEvacuationEventId = async (req, res, next) => {
-  const disasterEvacuationEventId = Number(req.params.disasterEvacuationEventId);
-  const onlyAvailable = String(req.query.only_available ?? '1') !== '0'; // default: only rooms with space
+  // Use validated and sanitized values from middleware
+  const disasterEvacuationEventId = req.validatedParams?.disasterEvacuationEventId || Number(req.params.disasterEvacuationEventId);
+  const onlyAvailableQuery = req.validatedQuery?.only_available || req.query.only_available || '1';
+  const onlyAvailable = String(onlyAvailableQuery) !== '0'; // default: only rooms with space
 
+  // Additional validation check (middleware should handle this, but keep as fallback)
   if (!Number.isFinite(disasterEvacuationEventId)) {
+    logger.warn('[rooms] Invalid disaster evacuation event id', { disasterEvacuationEventId, query: req.query });
     return next(new ApiError('Invalid disaster evacuation event id.', 400));
   }
 
@@ -32,6 +37,8 @@ exports.getAllRoomsForDisasterEvacuationEventId = async (req, res, next) => {
       .single();
 
     if (eventErr || !eventRow) {
+      if (eventErr) logger.error('[rooms] Supabase error resolving event center', { error: eventErr.message, details: eventErr, disasterEvacuationEventId });
+      logger.warn('[rooms] Disaster evacuation event not found', { disasterEvacuationEventId });
       return next(new ApiError('Disaster evacuation event not found.', 404));
     }
 
@@ -43,6 +50,7 @@ exports.getAllRoomsForDisasterEvacuationEventId = async (req, res, next) => {
       .order('room_name', { ascending: true });
 
     if (roomsErr) {
+      logger.error('[rooms] Supabase error fetching rooms', { error: roomsErr.message, details: roomsErr, evacuation_center_id: eventRow.evacuation_center_id });
       return next(new ApiError('Failed to fetch evacuation center rooms.', 500));
     }
 
@@ -54,6 +62,7 @@ exports.getAllRoomsForDisasterEvacuationEventId = async (req, res, next) => {
       .is('decampment_timestamp', null);
 
     if (occErr) {
+      logger.error('[rooms] Supabase error fetching occupancy', { error: occErr.message, details: occErr, disasterEvacuationEventId });
       return next(new ApiError('Failed to fetch room occupancy.', 500));
     }
 
@@ -64,6 +73,7 @@ exports.getAllRoomsForDisasterEvacuationEventId = async (req, res, next) => {
       if (!rid) continue;
       occMap.set(rid, (occMap.get(rid) || 0) + 1);
     }
+    logger.debug('[rooms] Occupancy map built', { size: occMap.size });
 
     // 5) Compose rooms with availability
     const withAvailability = (rooms || []).map((r) => {
@@ -81,6 +91,14 @@ exports.getAllRoomsForDisasterEvacuationEventId = async (req, res, next) => {
       ? withAvailability.filter((r) => r.available > 0)
       : withAvailability;
 
+    logger.info('[rooms] Rooms fetched successfully', {
+      eventId: disasterEvacuationEventId,
+      onlyAvailable,
+      totalRooms: withAvailability.length,
+      returned: filtered.length,
+    });
+    logger.debug('[rooms] Rooms payload (sample)', { sample: filtered.slice(0, 5) });
+
     return res.status(200).json({
       message: 'Rooms fetched successfully.',
       count: filtered.length,
@@ -88,7 +106,7 @@ exports.getAllRoomsForDisasterEvacuationEventId = async (req, res, next) => {
       all_full: onlyAvailable && filtered.length === 0,
     });
   } catch (err) {
-    console.error('[rooms] getAllRoomsForDisasterEvacuationEventId error:', err);
+    logger.error('[rooms] getAllRoomsForDisasterEvacuationEventId fatal', { error: err.message, stack: err.stack, disasterEvacuationEventId });
     return next(new ApiError('Internal server error.', 500));
   }
 };
