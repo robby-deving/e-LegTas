@@ -31,8 +31,8 @@ export default function AnnouncementsTable({
   rowsPerPage = 10,
 }: AnnouncementsTableProps) {
   return (
-    <div className="rounded-md border border-input overflow-hidden">
-      <div className="relative w-full overflow-x-auto">
+    <div className="rounded-md border border-input overflow-hidden max-h-[600px] flex flex-col my-2">
+      <div className="relative w-full overflow-auto flex-1">
         {loading ? (
           // Loading rows with skeleton animation
           <Table>
