@@ -30,7 +30,6 @@ export function DuplicateInOtherECDialog({
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      {/* force true center & higher z-index */}
       <AlertDialogContent className="relative fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transform z-[60]">
         {/* Top-right close “x” */}
         <button

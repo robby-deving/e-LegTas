@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux'; 
 import { logout as logoutAction, selectCurrentUser } from '../features/auth/authSlice'; 
 import { supabase } from '../lib/supabase';
@@ -21,6 +21,21 @@ import { usePermissions } from '../contexts/PermissionContext';
 
 export default function SideNav() {
   const [collapsed, setCollapsed] = useState(false);
+
+  // Auto-collapse when screen is less than lg, auto-open when more than lg
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 1024) {
+        setCollapsed(true); // Auto-collapse on small screens
+      } else {
+        setCollapsed(false); // Auto-open on large screens
+      }
+    };
+
+    handleResize(); // Check on mount
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   const dispatch = useDispatch();
   const navigate = useNavigate(); 
   
@@ -163,7 +178,7 @@ export default function SideNav() {
               {getUserInitials()}
             </span>
           </div>
-          <div className={`transition-all duration-500 ease-in-out ${collapsed ? 'max-w-00 opacity-0' : 'max-w-xs opacity-100'}`}>
+          <div className={`transition-all duration-500 ease-in-out ${collapsed ? 'max-w-0 opacity-0' : 'max-w-xs opacity-100'}`}>
             <h2 className="text-sm text-black font-bold whitespace-nowrap">{getDisplayName()}</h2>
             <p className="text-xs text-gray-500 whitespace-nowrap">{getDisplayEmail()}</p>
           </div>

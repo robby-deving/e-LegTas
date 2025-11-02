@@ -27,7 +27,11 @@ class ApiError extends Error {
  */
 exports.getAllAnnouncements = async (req, res, next) => {
     try {
-        const { limit = 10, offset = 0, search } = req.query;
+        // Use validated query params from middleware if available
+        const validatedQuery = req.validatedQuery || {};
+        const limit = validatedQuery.limit || req.query.limit || 10;
+        const offset = validatedQuery.offset || req.query.offset || 0;
+        const search = validatedQuery.search || req.query.search;
 
         let query = supabase
             .from(ANNOUNCEMENTS_TABLE)
@@ -77,7 +81,9 @@ exports.getAllAnnouncements = async (req, res, next) => {
  */
 exports.registerDeviceToken = async (req, res, next) => {
     try {
-        const { token } = req.body;
+        // Use validated body from middleware if available
+        const validatedData = req.validatedBody || req.body;
+        const { token } = validatedData;
 
         if (!token) {
             return next(new ApiError('Device token is required.', 400));
@@ -128,7 +134,9 @@ exports.registerDeviceToken = async (req, res, next) => {
  */
 exports.sendAnnouncementNotification = async (req, res, next) => {
     try {
-        const { title, content } = req.body;
+        // Use validated body from middleware if available
+        const validatedData = req.validatedBody || req.body;
+        const { title, content, created_by } = validatedData;
 
         if (!title || !content) {
             return next(new ApiError('Title and content are required for the announcement.', 400));
@@ -141,7 +149,7 @@ exports.sendAnnouncementNotification = async (req, res, next) => {
                 title,
                 content,
                 date_posted: new Date().toISOString(), // Use current date for date_posted
-                created_by: req.body.created_by // <-- Add this line
+                created_by: created_by || null
             })
             .select(); // Return the newly created row
 
@@ -200,7 +208,8 @@ exports.sendAnnouncementNotification = async (req, res, next) => {
  */
 exports.deleteAnnouncement = async (req, res, next) => {
     try {
-        const { id } = req.params;
+        // Use validated params from middleware if available
+        const id = req.validatedParams?.id || req.params.id;
 
         // Ensure the ID is provided
         if (!id) {

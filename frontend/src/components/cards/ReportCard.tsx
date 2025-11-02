@@ -3,7 +3,6 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Download, FileText, Trash2 } from 'lucide-react';
 import calendarIcon from '@/assets/calendar-days.svg';
 
-// Replace the old Report type with this and export it so the list page can reuse it
 export type ReportCardItem = {
   id: string;
   name: string;
@@ -19,7 +18,6 @@ export type ReportCardItem = {
 
 type Props = {
   report: ReportCardItem;
-  // Allow async handlers, too
   onDownload: (r: ReportCardItem) => void | Promise<void>;
   onDelete: (r: ReportCardItem) => void | Promise<void>;
   canDelete?: boolean;

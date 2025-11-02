@@ -21,8 +21,6 @@ export default function MapSearch({ searchQuery, onSearchChange, evacuationCente
     onSearchChange('');
   };
 
-  // Use the filtered centers passed from parent (GISMap)
-  // No need for additional filtering since it's already filtered
 
   return (
     <div className={`relative ${className}`}>

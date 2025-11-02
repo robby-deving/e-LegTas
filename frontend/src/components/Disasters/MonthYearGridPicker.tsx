@@ -12,7 +12,7 @@ const monthFull = [
 ];
 
 interface Props {
-  month: number | null; // allow null = "All Months"
+  month: number | null; 
   year: number ;
   onMonthYearChange: (month: number | null, year: number) => void;
 }
@@ -58,7 +58,7 @@ export default function MonthYearGridPicker({ month, year, onMonthYearChange }: 
           <Button
             variant="ghost"
             className="flex items-center gap-2 px-2 py-2 h-auto cursor-pointer"
-            onClick={() => setOpen(true)} // optional: toggle popover manually
+            onClick={() => setOpen(true)} 
           >
             <CalendarIcon className="h-4 w-4" />
               <span>

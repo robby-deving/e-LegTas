@@ -31,13 +31,13 @@ async function isEventEnded(eventId) {
  * @access Private (Camp Manager)
  */
 exports.decampFamily = async (req, res, next) => {
-  const eventId = Number(req.params.disasterEvacuationEventId);
-  const familyHeadId = Number(req.params.familyHeadId);
-  const rawTs = req.body?.decampment_timestamp;
+  // Use validated params, query, and body
+  const eventId = (req.validatedParams || req.params).disasterEvacuationEventId;
+  const familyHeadId = (req.validatedParams || req.params).familyHeadId;
+  const rawTs = (req.validatedBody || req.body)?.decampment_timestamp;
 
-  const dryRun =
-    String(req.query?.dry_run ?? "").toLowerCase() === "1" ||
-    String(req.query?.dry_run ?? "").toLowerCase() === "true";
+  const dryRunStr = (req.validatedQuery || req.query)?.dry_run ?? "";
+  const dryRun = dryRunStr.toLowerCase() === "1" || dryRunStr.toLowerCase() === "true";
 
   try {
     if (!eventId || !familyHeadId) {
@@ -284,7 +284,8 @@ exports.decampFamily = async (req, res, next) => {
 
 // GET /evacuees/:disasterEvacuationEventId/undecamped-count
 exports.undecampedCountInEvent = async (req, res) => {
-  const eventId = Number(req.params.disasterEvacuationEventId);
+  // Use validated params
+  const eventId = (req.validatedParams || req.params).disasterEvacuationEventId;
   if (!eventId) return res.status(400).json({ message: "Invalid event id." });
 
   const { count, error } = await supabase
@@ -303,8 +304,9 @@ exports.undecampedCountInEvent = async (req, res) => {
 
 // POST /evacuees/:disasterEvacuationEventId/decamp-all { decampment_timestamp }
 exports.decampAllFamiliesInEvent = async (req, res) => {
-  const eventId = Number(req.params.disasterEvacuationEventId);
-  const rawTs = req.body?.decampment_timestamp;
+  // Use validated params and body
+  const eventId = (req.validatedParams || req.params).disasterEvacuationEventId;
+  const rawTs = (req.validatedBody || req.body)?.decampment_timestamp;
 
   if (!eventId) return res.status(400).json({ message: "Invalid event id." });
   if (!rawTs || typeof rawTs !== 'string') {
@@ -360,8 +362,9 @@ exports.decampAllFamiliesInEvent = async (req, res) => {
 
 // POST /evacuees/:disasterEvacuationEventId/end { evacuation_end_date }
 exports.endEvacuationOperation = async (req, res) => {
-  const eventId = Number(req.params.disasterEvacuationEventId);
-  const rawTs = req.body?.evacuation_end_date;
+  // Use validated params and body
+  const eventId = (req.validatedParams || req.params).disasterEvacuationEventId;
+  const rawTs = (req.validatedBody || req.body)?.evacuation_end_date;
 
   if (!eventId) return res.status(400).json({ message: "Invalid event id." });
 

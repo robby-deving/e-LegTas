@@ -1,5 +1,6 @@
 // server/src/controllers/evacuees.stats.controller.js
 const { supabase } = require('../config/supabase');
+const logger = require('../utils/logger');
 
 class ApiError extends Error {
   constructor(message, statusCode = 500) {
@@ -14,8 +15,11 @@ class ApiError extends Error {
  * @route GET /api/v1/evacuees/:disasterEvacuationEventId/evacuee-statistics
  */
 exports.getEvacueeStatisticsByDisasterEvacuationEventId = async (req, res, next) => {
-  const eventId = Number(req.params.disasterEvacuationEventId ?? req.params.id);
+  // Use validated params from middleware if available
+  const eventId = req.validatedParams?.disasterEvacuationEventId || Number(req.params.disasterEvacuationEventId ?? req.params.id);
+  
   if (!Number.isFinite(eventId)) {
+    logger.warn('Invalid disaster evacuation event id for statistics', { eventId: req.params.disasterEvacuationEventId ?? req.params.id });
     return next(new ApiError('Invalid disaster evacuation event id.', 400));
   }
 
@@ -38,7 +42,7 @@ exports.getEvacueeStatisticsByDisasterEvacuationEventId = async (req, res, next)
       .maybeSingle();
 
     if (error) {
-      console.error('[ERROR] fetching evacuee statistics:', error);
+      logger.error('Supabase error fetching evacuee statistics', { eventId, error });
       return next(new ApiError('Failed to fetch evacuee statistics.', 500));
     }
 
@@ -55,9 +59,12 @@ exports.getEvacueeStatisticsByDisasterEvacuationEventId = async (req, res, next)
       total_no_of_lactating_women: data?.total_no_of_lactating_women ?? 0,
     };
 
+    logger.info('Evacuee statistics fetched successfully', { eventId });
+    logger.debug('Evacuee statistics summary', { eventId, summary });
+
     return res.status(200).json({ title: 'Evacuees Statistics', summary });
   } catch (err) {
-    console.error('[FATAL] evacuee-statistics:', err);
+    logger.error('Internal server error during evacuee statistics fetch', { eventId, message: err?.message, stack: err?.stack });
     return next(new ApiError('Internal server error.', 500));
   }
 };

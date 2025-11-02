@@ -34,24 +34,6 @@ export default function CampManagerDashboard() {
 
   const [selectedDateRange, setSelectedDateRange] = useState<DateRange | undefined>(undefined);
 
-  // Pick correct data hook
-  // const {
-  //   disasters,
-  //   selectedDisaster,
-  //   setSelectedDisaster,
-  //   centerInfo,
-  //   familiesCount,
-  //   evacueesCount,
-  //   capacityCount,
-  //   familiesWithReliefGoodsCount,
-  //   chartData,
-  //   loading,
-  // } = isCampManager
-  //   ? useCampManagerDashboardData(campManagerId, selectedDateRange)
-  //   : useBarangayDashboardData(barangayId, selectedDateRange);
-
-  // Determine active ID
-  // const activeId = isCampManager ? campManagerId : barangayId;
 
   if ((isCampManager && !campManagerId) || (isBarangay && !barangayId)) {
     return (

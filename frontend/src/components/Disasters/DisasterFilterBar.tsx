@@ -12,9 +12,11 @@ interface Props {
   typeFilter: string;
   setTypeFilter: (t: string) => void;
   onRecordNew: () => void;
-  month: number | null; 
+  month: number | null;
   year: number;
   onMonthYearChange: (month: number | null, year: number) => void;
+  onRefresh: () => void;
+  refreshing: boolean;
 }
 
 export default function DisasterFilterBar({
@@ -23,9 +25,11 @@ export default function DisasterFilterBar({
   setTypeFilter,
 
   onRecordNew,
-  month, 
-  year,  
-  onMonthYearChange, 
+  month,
+  year,
+  onMonthYearChange,
+  onRefresh,
+  refreshing,
 }: Props) {
   const { hasPermission } = usePermissions();
   const canCreateDisaster = hasPermission('create_disaster');
@@ -58,6 +62,19 @@ export default function DisasterFilterBar({
         year={year}
         onMonthYearChange={onMonthYearChange}
       />
+
+      {/* Refresh Button */}
+      <Button
+        variant="outline"
+        className="flex gap-2 items-center cursor-pointer"
+        onClick={onRefresh}
+        disabled={refreshing}
+      >
+        <svg className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        </svg>
+        {refreshing ? 'Refreshing...' : 'Refresh'}
+      </Button>
 
       {/* Record New Disaster - Only show if user has permission */}
       {canCreateDisaster && (

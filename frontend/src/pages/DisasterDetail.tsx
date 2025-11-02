@@ -801,6 +801,8 @@ export default function DisasterDetail() {
         onFamilyHeadSearch={handleFamilyHeadSearchClick}
         centerId={0}
         canCreateFamilyInformation={canCreateFamilyInformation}
+        hideRoomField={activeTab === "outside-ec"}
+        isPrivateHouse={activeTab === "outside-ec"}
       />
 
       {canCreateFamilyInformation && (

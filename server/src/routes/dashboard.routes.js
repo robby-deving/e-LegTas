@@ -16,6 +16,7 @@ const {
   getBarangayDashboard
 } = require('../controllers/dashboard.controller');
 const { authenticateUser, requirePermission } = require('../middleware');
+const { validateParams, validateQuery } = require('../middleware/inputValidation');
 
 // Create an Express Router instance
 const router = express.Router();
@@ -27,6 +28,11 @@ const router = express.Router();
 router.get(
   '/active-evacuation-centers/:disasterId',
   requirePermission('view_dashboard'),
+  validateParams({ disasterId: { validator: 'integer' } }),
+  validateQuery({
+    from: { validator: 'string', required: false, options: { maxLength: 50 } },
+    to: { validator: 'string', required: false, options: { maxLength: 50 } }
+  }),
   getActiveEvacuationCentersByDisaster
 );
 // GET total registered evacuees for a specific disaster
@@ -34,6 +40,11 @@ router.get(
 router.get(
   '/registered-evacuees/:disasterId',
   requirePermission('view_dashboard'),
+  validateParams({ disasterId: { validator: 'integer' } }),
+  validateQuery({
+    from: { validator: 'string', required: false, options: { maxLength: 50 } },
+    to: { validator: 'string', required: false, options: { maxLength: 50 } }
+  }),
   getTotalRegisteredEvacueesByDisaster
 );
 // GET total registered families for a specific disaster
@@ -41,6 +52,11 @@ router.get(
 router.get(
   '/registered-families/:disasterId',
   requirePermission('view_dashboard'),
+  validateParams({ disasterId: { validator: 'integer' } }),
+  validateQuery({
+    from: { validator: 'string', required: false, options: { maxLength: 50 } },
+    to: { validator: 'string', required: false, options: { maxLength: 50 } }
+  }),
   getTotalRegisteredFamiliesByDisaster
 );
 // GET total families with relief goods for a specific disaster
@@ -48,6 +64,11 @@ router.get(
 router.get(
   '/families-with-relief-goods/:disasterId',
   requirePermission('view_dashboard'),
+  validateParams({ disasterId: { validator: 'integer' } }),
+  validateQuery({
+    from: { validator: 'string', required: false, options: { maxLength: 50 } },
+    to: { validator: 'string', required: false, options: { maxLength: 50 } }
+  }),
   getFamiliesWithReliefGoodsByDisaster
 );
 // GET evacuee statistics by vulnerability type for a specific disaster
@@ -55,6 +76,11 @@ router.get(
 router.get(
   '/evacuee-statistics/:disasterId',
   requirePermission('view_dashboard'),
+  validateParams({ disasterId: { validator: 'integer' } }),
+  validateQuery({
+    from: { validator: 'string', required: false, options: { maxLength: 50 } },
+    to: { validator: 'string', required: false, options: { maxLength: 50 } }
+  }),
   getEvacueeStatisticsByDisaster
 );
 // GET evacuation center capacity status for a specific disaster
@@ -62,6 +88,11 @@ router.get(
 router.get(
   '/capacity-status/:disasterId',
   requirePermission('view_dashboard'),
+  validateParams({ disasterId: { validator: 'integer' } }),
+  validateQuery({
+    from: { validator: 'string', required: false, options: { maxLength: 50 } },
+    to: { validator: 'string', required: false, options: { maxLength: 50 } }
+  }),
   getEvacuationCenterCapacityStatus
 );
 // GET all active disasters
@@ -75,23 +106,41 @@ router.get(
 // For Camp Manager Dashboard - Protected with view_dashboard_specific permission
 
 router.get('/camp-manager/disasters/:userId', 
-  requirePermission('view_dashboard_specific'), 
+  requirePermission('view_dashboard_specific'),
+  validateParams({ userId: { validator: 'integer' } }),
   getCampManagerDisasters
 );
 
 router.get("/camp-manager/center/:eventId", 
-  requirePermission('view_dashboard_specific'), 
+  requirePermission('view_dashboard_specific'),
+  validateParams({ eventId: { validator: 'integer' } }),
   getCampManagerCenterInfo
 );
 
 router.get("/camp-manager/summary/:eventId", 
-  requirePermission('view_dashboard_specific'), 
+  requirePermission('view_dashboard_specific'),
+  validateParams({ eventId: { validator: 'integer' } }),
+  validateQuery({
+    from: { validator: 'string', required: false, options: { maxLength: 50 } },
+    to: { validator: 'string', required: false, options: { maxLength: 50 } }
+  }),
   getCampManagerDashboardSummary
 );
 
 // For Barangay Official Dashboard
-router.get("/barangay/disasters/:barangayId", getBarangayActiveDisasters);
-router.get('/barangay/summary/:barangayId', getBarangayDashboard);
+router.get("/barangay/disasters/:barangayId",
+  validateParams({ barangayId: { validator: 'integer' } }),
+  getBarangayActiveDisasters
+);
+router.get('/barangay/summary/:barangayId',
+  validateParams({ barangayId: { validator: 'integer' } }),
+  validateQuery({
+    disasterId: { validator: 'integer', required: false },
+    from: { validator: 'string', required: false, options: { maxLength: 50 } },
+    to: { validator: 'string', required: false, options: { maxLength: 50 } }
+  }),
+  getBarangayDashboard
+);
 
 
 // Future dashboard routes can follow this format:

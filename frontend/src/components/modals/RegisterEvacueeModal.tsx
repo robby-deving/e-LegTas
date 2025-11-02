@@ -9,18 +9,162 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Checkbox } from "../ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
 import { X as XIcon, Loader2 } from "lucide-react";
-// import ReactDatePicker from "react-datepicker";
-// import "react-datepicker/dist/react-datepicker.css";
 import type { Barangay, RoomOption } from "@/types/EvacuationCenterDetails";
 import type { RegisterEvacueeModalProps } from "@/types/RegisterEvacueeModal";
-// import { Popover, PopoverTrigger, PopoverContent } from "../ui/popover";
-// import { Calendar as DateCalendar } from "../ui/calendar"; 
-// import { formatMMDDYYYY, parseMMDDYYYY, toISODateLocal } from "@/utils/dateInput";
 import { DateTimePicker } from "../ui/date-time-picker";
 import { toISODateLocal } from "@/utils/dateInput.ts";
 import BirthdayMaskedInput from '../EvacuationCenterDetail/BirthdayMaskedInput';
 import { RegisterBlockDialog } from "@/components/modals/RegisterBlockDialog";
 import searchIcon from "@/assets/search.svg";
+import { useSelector } from "react-redux";
+import { selectToken } from "@/features/auth/authSlice";
+
+import { validateString, validateDate } from '../../utils/validateInput';
+
+// Validation function for evacuee registration form
+export function validateEvacueeForm(formData: any, centerId?: number): Partial<Record<string, string>> {
+  const errors: Partial<Record<string, string>> = {};
+
+  // Validate first name
+  const firstNameValidation = validateString(formData.firstName || '', { minLength: 1, maxLength: 50 });
+  if (!firstNameValidation.isValid) {
+    errors.firstName = firstNameValidation.error;
+  }
+
+  // Validate last name
+  const lastNameValidation = validateString(formData.lastName || '', { minLength: 1, maxLength: 50 });
+  if (!lastNameValidation.isValid) {
+    errors.lastName = lastNameValidation.error;
+  }
+
+  // Validate middle name (optional)
+  if (formData.middleName && formData.middleName.trim()) {
+    const middleNameValidation = validateString(formData.middleName, { minLength: 1, maxLength: 50 });
+    if (!middleNameValidation.isValid) {
+      errors.middleName = middleNameValidation.error;
+    }
+  }
+
+  // Validate suffix (optional)
+  if (formData.suffix && formData.suffix !== SUFFIX_NONE) {
+    const suffixOptions = ["Jr.", "Sr.", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
+    if (!suffixOptions.includes(formData.suffix)) {
+      errors.suffix = 'Invalid suffix selected';
+    }
+  }
+
+  // Validate sex
+  if (!formData.sex) {
+    errors.sex = 'Please select gender';
+  } else if (!["Male", "Female"].includes(formData.sex)) {
+    errors.sex = 'Invalid gender selected';
+  }
+
+  // Validate marital status
+  if (!formData.maritalStatus) {
+    errors.maritalStatus = 'Please select marital status';
+  } else {
+    const maritalStatusOptions = ["Single", "Married", "Widowed", "Separated"];
+    if (!maritalStatusOptions.includes(formData.maritalStatus)) {
+      errors.maritalStatus = 'Invalid marital status selected';
+    }
+  }
+
+  // Validate birthday
+  if (!formData.birthday) {
+    errors.birthday = 'Birthday is required';
+  } else {
+    const birthdayValidation = validateDate(formData.birthday);
+    if (!birthdayValidation.isValid) {
+      errors.birthday = birthdayValidation.error;
+    } else {
+      // Additional validation: not in future and reasonable age range
+      const birthDate = new Date(formData.birthday);
+      const today = new Date();
+      const minAge = 0; // Allow newborn
+      const maxAge = 120; // Maximum reasonable age
+
+      const age = today.getFullYear() - birthDate.getFullYear();
+      if (age < minAge || age > maxAge) {
+        errors.birthday = 'Please enter a valid birth date';
+      }
+    }
+  }
+
+  // Validate educational attainment
+  if (!formData.educationalAttainment) {
+    errors.educationalAttainment = 'Please select educational attainment';
+  } else {
+    const educationalAttainmentOptions = ["No Formal Education", "Elementary Level", "Elementary Graduate", "High School Level", "High School Graduate", "Senior High School Level", "Senior High School Graduate", "Vocational/Technical", "College Level", "College Graduate", "Postgraduate/Master’s Level", "Master’s Graduate", "Doctorate Level", "Doctorate Graduate"];
+    if (!educationalAttainmentOptions.includes(formData.educationalAttainment)) {
+      errors.educationalAttainment = 'Invalid educational attainment selected';
+    }
+  }
+
+  // Validate occupation (optional)
+  if (formData.occupation && formData.occupation.trim()) {
+    const occupationValidation = validateString(formData.occupation, { minLength: 1, maxLength: 100 });
+    if (!occupationValidation.isValid) {
+      errors.occupation = occupationValidation.error;
+    }
+  }
+
+  // Validate school of origin (optional)
+  if (formData.schoolOfOrigin && formData.schoolOfOrigin.trim()) {
+    const schoolValidation = validateString(formData.schoolOfOrigin, { minLength: 1, maxLength: 200 });
+    if (!schoolValidation.isValid) {
+      errors.schoolOfOrigin = schoolValidation.error;
+    }
+  }
+
+  // Validate barangay of origin
+  if (!formData.barangayOfOrigin) {
+    errors.barangayOfOrigin = 'Please select barangay of origin';
+  }
+
+  // Validate purok
+  if (!formData.purok) {
+    errors.purok = 'Please select purok';
+  } else {
+    const purokOptions = Array.from({ length: 20 }, (_, i) => (i + 1).toString());
+    if (!purokOptions.includes(formData.purok)) {
+      errors.purok = 'Invalid purok selected';
+    }
+  }
+
+  // Validate isFamilyHead
+  if (!formData.isFamilyHead) {
+    errors.isFamilyHead = 'Please specify if this person is the family head';
+  } else if (!["Yes", "No"].includes(formData.isFamilyHead)) {
+    errors.isFamilyHead = 'Invalid family head selection';
+  }
+
+  // Validate family head (required if not family head)
+  if (formData.isFamilyHead === "No") {
+    if (!formData.familyHead || !formData.familyHead.trim()) {
+      errors.familyHead = 'Family head is required';
+    }
+    if (!formData.relationshipToFamilyHead) {
+      errors.relationshipToFamilyHead = 'Relationship to family head is required';
+    } else {
+      const relationshipOptions = ["Spouse", "Child", "Parent", "Sibling", "Grandparent", "Grandchild", "In-law", "Relative", "Household Member", "Boarder", "Partner"];
+      if (!relationshipOptions.includes(formData.relationshipToFamilyHead)) {
+        errors.relationshipToFamilyHead = 'Invalid relationship selected';
+      }
+    }
+  }
+
+  // Validate evacuation room (required if centerId exists)
+  if (centerId) {
+    if (!formData.searchEvacuationRoom) {
+      errors.searchEvacuationRoom = 'Please select an evacuation room';
+    }
+  }
+
+  return errors;
+}
+
+const SUFFIX_NONE = "__NULL__";
 
 export const RegisterEvacueeModal = ({
   isOpen,
@@ -32,7 +176,9 @@ export const RegisterEvacueeModal = ({
   onSave,
   onFamilyHeadSearch,
   centerId,
-  canCreateFamilyInformation = true, // Default to true for backward compatibility
+  canCreateFamilyInformation = true,
+  hideRoomField = false,
+  isPrivateHouse = false,
 }: RegisterEvacueeModalProps) => {
   const formRef = useRef<HTMLFormElement>(null);
   const [barangays, setBarangays] = useState<Barangay[]>([]);
@@ -41,27 +187,113 @@ export const RegisterEvacueeModal = ({
   const [roomsError, setRoomsError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<string, string>>>({});
   const [showBlockDialog, setShowBlockDialog] = useState(false);
   const [showSearchEvacuationModal, setShowSearchEvacuationModal] = useState(false);
   const [selectedEvacuation, setSelectedEvacuation] = useState<{ id: number; name: string; event_id: number | null; } | null>(null);
+  const [ecCategory, setEcCategory] = useState<string | null>(null);
+  const token = useSelector(selectToken);
 
+  const isPrivate = isPrivateHouse || (ecCategory?.toLowerCase?.() === "private house");
+  const hideWhileUnknown = !centerId && !!selectedEvacuation?.id && ecCategory === null;
+  const shouldHideRoom = hideRoomField || isPrivate || hideWhileUnknown;
 
-  const handleClickSave = async () => {
-    if (formRef.current && !formRef.current.reportValidity()) return;
-    try {
-      console.log('saving');
-      setErrorMsg(null);
-      setShowBlockDialog(false);
-      setSaving(true);
-      await Promise.resolve(onSave());
-    } catch (err) {
-      console.log('error');
-      setErrorMsg(mapRegisterError(err));
-      setShowBlockDialog(true); // 👈 open the popup
-    } finally {
-      setSaving(false);
+  const openedOnceRef = useRef(false);
+  useEffect(() => {
+    if (isOpen && !openedOnceRef.current) {
+      openedOnceRef.current = true;
+      console.log("[RegisterEvacueeModal OPENED]", {
+        centerId,
+        isPrivateHouseProp: isPrivateHouse,
+        ecCategory,
+        computed_isPrivate: isPrivate,
+        shouldHideRoom,
+      });
     }
-  };
+  if (!isOpen && openedOnceRef.current) {
+    openedOnceRef.current = false;
+  }
+}, [isOpen, centerId, isPrivateHouse, ecCategory, isPrivate, shouldHideRoom]);
+
+  useEffect(() => {
+    if (shouldHideRoom && formData.searchEvacuationRoom) {
+      onFormChange("searchEvacuationRoom", "");
+    }
+  }, [shouldHideRoom]);
+
+useEffect(() => {
+  if (!selectedEvacuation?.id || !token) {
+    setEcCategory(null);
+    return;
+  }
+  let cancelled = false;
+  (async () => {
+    try {
+      const res = await axios.get<{ data: { category?: string | null } }>(
+        `/api/v1/evacuation-centers/${selectedEvacuation.id}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const raw = res?.data?.data?.category ?? null;
+      if (!cancelled) setEcCategory(raw);
+    } catch (e) {
+      console.error("getEvacuationCenter failed", e);
+      if (!cancelled) setEcCategory(null);
+    }
+  })();
+  return () => { cancelled = true; };
+}, [selectedEvacuation?.id, token]);
+
+useEffect(() => {
+  if (!isOpen || !centerId || !token) return;
+
+  let cancelled = false;
+  (async () => {
+    try {
+    const res = await axios.get<{ data: { category?: string | null } }>(
+      `/api/v1/disaster-events/${centerId}/center-category`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+      const cat = res?.data?.data?.category ?? null;
+      if (!cancelled) setEcCategory(cat);
+    } catch (e) {
+      console.error("getEventCenterCategory failed", e);
+      if (!cancelled) setEcCategory(null);
+    }
+  })();
+
+  return () => { cancelled = true; };
+}, [isOpen, centerId, token]);
+
+const handleClickSave = async () => {
+  if (formRef.current && !formRef.current.reportValidity()) return;
+
+  // Clear previous errors
+  setFieldErrors({});
+  setErrorMsg(null);
+  setShowBlockDialog(false);
+
+  // Validate form data
+  //  const validationErrors = validateEvacueeForm(formData, centerId);
+
+  const validationErrors = validateEvacueeForm( formData, shouldHideRoom ? undefined : centerId);
+  // If there are validation errors, display them and stop
+  if (Object.keys(validationErrors).length > 0) {
+    setFieldErrors(validationErrors);
+    return;
+  }
+
+  try {
+    console.log('saving');
+    setSaving(true);
+    await Promise.resolve(onSave({ shouldHideRoom }));
+  } catch (err) {
+    console.log('error');
+    setErrorMsg(mapRegisterError(err));
+    setShowBlockDialog(true); // 👈 open the popup
+  } finally {
+    setSaving(false);
+  }
+};
 
   const suffixOptions = ["Jr.", "Sr.", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
   const sexOptions = ["Male", "Female"];
@@ -89,7 +321,7 @@ export const RegisterEvacueeModal = ({
   }, []);
 
   useEffect(() => {
-    if (!isOpen || !centerId) return;
+    if (!isOpen || !centerId || shouldHideRoom) return; // 👈 added shouldHideRoom
     const fetchRooms = async () => {
       try {
         setRoomsLoading(true);
@@ -113,7 +345,7 @@ export const RegisterEvacueeModal = ({
       }
     };
     fetchRooms();
-  }, [isOpen, centerId]);
+  }, [isOpen, centerId, shouldHideRoom]);
 
   useEffect(() => {
     if (
@@ -150,7 +382,13 @@ export const RegisterEvacueeModal = ({
       <Dialog
         open={isOpen}
         onOpenChange={(open) => {
-          if (!open) onClose();
+          if (!open) {
+            // Clear errors when closing the modal
+            setFieldErrors({});
+            setErrorMsg(null);
+            setShowBlockDialog(false);
+            onClose();
+          }
         }}
       >
         <DialogContent size="xl">
@@ -179,8 +417,12 @@ export const RegisterEvacueeModal = ({
                       placeholder="First Name"
                       value={formData.firstName}
                       onChange={(e) => onFormChange("firstName", e.target.value)}
+                      className={fieldErrors.firstName ? 'border-red-500' : ''}
                       required
                     />
+                    {fieldErrors.firstName && (
+                      <p className="text-red-500 text-xs mt-1">{fieldErrors.firstName}</p>
+                    )}
                   </div>
 
                   {/* Middle Name (optional) */}
@@ -190,7 +432,11 @@ export const RegisterEvacueeModal = ({
                       placeholder="Middle Name"
                       value={formData.middleName}
                       onChange={(e) => onFormChange("middleName", e.target.value)}
+                      className={fieldErrors.middleName ? 'border-red-500' : ''}
                     />
+                    {fieldErrors.middleName && (
+                      <p className="text-red-500 text-xs mt-1">{fieldErrors.middleName}</p>
+                    )}
                   </div>
 
                   {/* Last Name * */}
@@ -200,8 +446,12 @@ export const RegisterEvacueeModal = ({
                       placeholder="Last Name"
                       value={formData.lastName}
                       onChange={(e) => onFormChange("lastName", e.target.value)}
+                      className={fieldErrors.lastName ? 'border-red-500' : ''}
                       required
                     />
+                    {fieldErrors.lastName && (
+                      <p className="text-red-500 text-xs mt-1">{fieldErrors.lastName}</p>
+                    )}
                   </div>
 
                   {/* Suffix (optional) */}
@@ -213,7 +463,7 @@ export const RegisterEvacueeModal = ({
                         onFormChange("suffix", v === SUFFIX_NONE ? "" : v);
                       }}
                     >
-                      <SelectTrigger className="w-full">
+                      <SelectTrigger className={`w-full ${fieldErrors.suffix ? 'border-red-500' : ''}`}>
                         <SelectValue placeholder="Select Suffix" />
                       </SelectTrigger>
                       <SelectContent>
@@ -225,6 +475,9 @@ export const RegisterEvacueeModal = ({
                         ))}
                       </SelectContent>
                     </Select>
+                    {fieldErrors.suffix && (
+                      <p className="text-red-500 text-xs mt-1">{fieldErrors.suffix}</p>
+                    )}
                   </div>
 
                   {/* Sex * */}
@@ -234,7 +487,7 @@ export const RegisterEvacueeModal = ({
                       value={formData.sex}
                       onValueChange={(v) => onFormChange("sex", v)}
                     >
-                      <SelectTrigger className="w-full">
+                      <SelectTrigger className={`w-full ${fieldErrors.sex ? 'border-red-500' : ''}`}>
                         <SelectValue placeholder="Select" />
                       </SelectTrigger>
                       <SelectContent>
@@ -261,6 +514,9 @@ export const RegisterEvacueeModal = ({
                         </option>
                       ))}
                     </select>
+                    {fieldErrors.sex && (
+                      <p className="text-red-500 text-xs mt-1">{fieldErrors.sex}</p>
+                    )}
                   </div>
 
                 {/* Family Head Section - Only visible with create_family_information permission */}
@@ -346,7 +602,7 @@ export const RegisterEvacueeModal = ({
                       value={formData.maritalStatus}
                       onValueChange={(v) => onFormChange("maritalStatus", v)}
                     >
-                      <SelectTrigger className="w-full">
+                      <SelectTrigger className={`w-full ${fieldErrors.maritalStatus ? 'border-red-500' : ''}`}>
                         <SelectValue placeholder="Select" />
                       </SelectTrigger>
                       <SelectContent>
@@ -373,6 +629,9 @@ export const RegisterEvacueeModal = ({
                         </option>
                       ))}
                     </select>
+                    {fieldErrors.maritalStatus && (
+                      <p className="text-red-500 text-xs mt-1">{fieldErrors.maritalStatus}</p>
+                    )}
                   </div>
 
                   {/* Birthday * */}
@@ -387,7 +646,7 @@ export const RegisterEvacueeModal = ({
                         value={formData.birthday}
                         onChange={(iso) => onFormChange("birthday", iso)}
                         required
-                        className="pl-10 pr-10"  
+                        className={`pl-10 pr-10 ${fieldErrors.birthday ? 'border-red-500' : ''}`}
                       />
 
                       {/* LEFT calendar trigger (render this AFTER the input so it’s on top) */}
@@ -410,6 +669,9 @@ export const RegisterEvacueeModal = ({
                         </div>
                       </div>
                     </div>
+                    {fieldErrors.birthday && (
+                      <p className="text-red-500 text-xs mt-1">{fieldErrors.birthday}</p>
+                    )}
                   </div>
 
                   {/* Educational Attainment * */}
@@ -421,7 +683,7 @@ export const RegisterEvacueeModal = ({
                         onFormChange("educationalAttainment", v)
                       }
                     >
-                      <SelectTrigger className="w-full h-10">
+                      <SelectTrigger className={`w-full h-10 ${fieldErrors.educationalAttainment ? 'border-red-500' : ''}`}>
                         <SelectValue placeholder="Select" />
                       </SelectTrigger>
                       <SelectContent>
@@ -448,6 +710,9 @@ export const RegisterEvacueeModal = ({
                         </option>
                       ))}
                     </select>
+                    {fieldErrors.educationalAttainment && (
+                      <p className="text-red-500 text-xs mt-1">{fieldErrors.educationalAttainment}</p>
+                    )}
                   </div>
 
                   {/* Occupation (optional) */}
@@ -457,7 +722,11 @@ export const RegisterEvacueeModal = ({
                       placeholder="Occupation"
                       value={formData.occupation}
                       onChange={(e) => onFormChange("occupation", e.target.value)}
+                      className={fieldErrors.occupation ? 'border-red-500' : ''}
                     />
+                    {fieldErrors.occupation && (
+                      <p className="text-red-500 text-xs mt-1">{fieldErrors.occupation}</p>
+                    )}
                   </div>
 
                   {/* School of Origin (optional) */}
@@ -469,7 +738,11 @@ export const RegisterEvacueeModal = ({
                       onChange={(e) =>
                         onFormChange("schoolOfOrigin", e.target.value)
                       }
+                      className={fieldErrors.schoolOfOrigin ? 'border-red-500' : ''}
                     />
+                    {fieldErrors.schoolOfOrigin && (
+                      <p className="text-red-500 text-xs mt-1">{fieldErrors.schoolOfOrigin}</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -487,7 +760,7 @@ export const RegisterEvacueeModal = ({
                       value={formData.barangayOfOrigin}
                       onValueChange={(v) => onFormChange("barangayOfOrigin", v)}
                     >
-                      <SelectTrigger className="w-full">
+                      <SelectTrigger className={`w-full ${fieldErrors.barangayOfOrigin ? 'border-red-500' : ''}`}>
                         <SelectValue placeholder="Select Barangay" />
                       </SelectTrigger>
                       <SelectContent>
@@ -514,6 +787,9 @@ export const RegisterEvacueeModal = ({
                         </option>
                       ))}
                     </select>
+                    {fieldErrors.barangayOfOrigin && (
+                      <p className="text-red-500 text-xs mt-1">{fieldErrors.barangayOfOrigin}</p>
+                    )}
                   </div>
 
                   {/* Purok * */}
@@ -523,7 +799,7 @@ export const RegisterEvacueeModal = ({
                       value={formData.purok}
                       onValueChange={(v) => onFormChange("purok", v)}
                     >
-                      <SelectTrigger className="w-full">
+                      <SelectTrigger className={`w-full ${fieldErrors.purok ? 'border-red-500' : ''}`}>
                         <SelectValue placeholder="Select Purok" />
                       </SelectTrigger>
                       <SelectContent>
@@ -550,6 +826,9 @@ export const RegisterEvacueeModal = ({
                         </option>
                       ))}
                     </select>
+                    {fieldErrors.purok && (
+                      <p className="text-red-500 text-xs mt-1">{fieldErrors.purok}</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -605,6 +884,9 @@ export const RegisterEvacueeModal = ({
                         disabled={isEdit}
                       />
                     </div>
+                    {fieldErrors.isFamilyHead && (
+                      <p className="text-red-500 text-xs mt-1">{fieldErrors.isFamilyHead}</p>
+                    )}
                   </div>
 
                   {formData.isFamilyHead === "No" && (
@@ -682,8 +964,9 @@ export const RegisterEvacueeModal = ({
                     </>
                   )}
                 </div>
-                <div>
-                  {centerId ? (
+              <div>
+                {centerId ? (
+                  !shouldHideRoom ? (
                     <>
                       {/* Evacuation Room * */}
                       <div className="relative">
@@ -696,7 +979,7 @@ export const RegisterEvacueeModal = ({
                           onValueChange={(v) => onFormChange("searchEvacuationRoom", v)}
                           disabled={roomsLoading || !!roomsError || allRoomsFull}
                         >
-                          <SelectTrigger className="w-full">
+                          <SelectTrigger className={`w-full ${fieldErrors.searchEvacuationRoom ? 'border-red-500' : ''}`}>
                             <SelectValue
                               placeholder={
                                 roomsLoading
@@ -756,51 +1039,56 @@ export const RegisterEvacueeModal = ({
                           ))}
                         </select>
 
+                        {fieldErrors.searchEvacuationRoom && (
+                          <p className="text-red-500 text-xs mt-1">{fieldErrors.searchEvacuationRoom}</p>
+                        )}
+
                         {/* Optional helper when full */}
                         {!roomsLoading && !roomsError && allRoomsFull && (
                           <p className="mt-1 text-xs text-red-600">All rooms are full.</p>
                         )}
                       </div>
                     </>
-                  ) : (
+                  ) : null
+                ) : (
+                  <div className="relative">
+                    <label className="block text-sm font-medium mb-2">
+                      Assign Evacuation<span className="text-red-500">*</span>
+                    </label>
                     <div className="relative">
-                      <label className="block text-sm font-medium mb-2">
-                        Assign Evacuation<span className="text-red-500">*</span>
-                      </label>
-                      <div className="relative">
-                        <button 
-                          onClick={() => setShowSearchEvacuationModal(true)} 
-                          className="border border-gray-300 rounded-md px-2 py-2 text-gray-500 text-sm cursor-pointer flex items-center gap-2 w-full"
-                        > 
-                          <img src={searchIcon} alt="Search" className="w-4 h-4" /> 
-                          {selectedEvacuation ? selectedEvacuation.name : "Search Evacuation"}
+                      <button
+                        onClick={() => setShowSearchEvacuationModal(true)}
+                        className="border border-gray-300 rounded-md px-2 py-2 text-gray-500 text-sm cursor-pointer flex items-center gap-2 w-full"
+                      >
+                        <img src={searchIcon} alt="Search" className="w-4 h-4" />
+                        {selectedEvacuation ? selectedEvacuation.name : "Search Evacuation"}
+                      </button>
+                      {selectedEvacuation && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedEvacuation(null);
+                            onFormChange("disasterId", "");
+                          }}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                          <XIcon className="h-4 w-4" />
                         </button>
-                        {selectedEvacuation && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedEvacuation(null);
-                              onFormChange("disasterId", "");
-                            }}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                          >
-                            <XIcon className="h-4 w-4" />
-                          </button>
-                        )}
-                      </div>
-                      {/* Hidden input for HTML5 validation */}
-                      <input
-                        type="text"
-                        value={selectedEvacuation ? selectedEvacuation.id.toString() : ""}
-                        onChange={() => {}}
-                        required
-                        className="absolute inset-0 w-full h-10 opacity-0 pointer-events-none"
-                        tabIndex={-1}
-                      />
+                      )}
                     </div>
-                  )}
-                </div>
+                    {/* Hidden input for HTML5 validation */}
+                    <input
+                      type="text"
+                      value={selectedEvacuation ? selectedEvacuation.id.toString() : ""}
+                      onChange={() => {}}
+                      required
+                      className="absolute inset-0 w-full h-10 opacity-0 pointer-events-none"
+                      tabIndex={-1}
+                    />
+                  </div>
+                )}
+              </div>
               </div>
 
               {/* --- Vulnerability Classification (all optional) --- */}
@@ -843,9 +1131,15 @@ export const RegisterEvacueeModal = ({
               </div>
               <DialogFooter className="flex justify-end space-x-3 pt-2">
                 <Button
-                  type="button"                 
+                  type="button"
                   variant="outline"
-                  onClick={onClose}
+                  onClick={() => {
+                    // Clear errors when cancelling
+                    setFieldErrors({});
+                    setErrorMsg(null);
+                    setShowBlockDialog(false);
+                    onClose();
+                  }}
                   disabled={saving}
                   className="px-6 cursor-pointer"
                 >

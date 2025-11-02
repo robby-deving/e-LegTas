@@ -3,6 +3,48 @@ import { Input } from "../ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { X } from "lucide-react";
 import type { EvacuationRoom, RoomType } from '../../types/evacuation';
+import { validateString, validateNumeric } from '../../utils/validateInput';
+
+// Validation function for room form - to be used by parent component
+export function validateRoomForm(rooms: EvacuationRoom[]): Record<string, Partial<Record<keyof EvacuationRoom, string>>> {
+  const errors: Record<string, Partial<Record<keyof EvacuationRoom, string>>> = {};
+
+  rooms.forEach(room => {
+    // Skip validation for rooms marked for deletion
+    if (room.markedForDeletion) return;
+
+    const roomErrors: Partial<Record<keyof EvacuationRoom, string>> = {};
+
+    // Validate room name
+    const nameValidation = validateString(room.roomName, { minLength: 1, maxLength: 100 });
+    if (!nameValidation.isValid) {
+      roomErrors.roomName = 'Room name invalid';
+    }
+
+    // Validate room type
+    if (!room.type) {
+      roomErrors.type = 'Please select a room type';
+    } else if (!ROOM_TYPES.includes(room.type as RoomType)) {
+      roomErrors.type = 'Invalid room type selected';
+    }
+
+    // Validate capacity
+    if (!room.capacity || room.capacity <= 0) {
+      roomErrors.capacity = 'Capacity must be greater than 0';
+    } else {
+      const capacityValidation = validateNumeric(room.capacity, { min: 1, max: 1000 });
+      if (!capacityValidation.isValid) {
+        roomErrors.capacity = capacityValidation.error;
+      }
+    }
+
+    if (Object.keys(roomErrors).length > 0) {
+      errors[room.id] = roomErrors;
+    }
+  });
+
+  return errors;
+}
 
 const ROOM_TYPES: RoomType[] = [
   'Temporary',

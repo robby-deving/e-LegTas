@@ -55,10 +55,10 @@ const CACHE_TTL = 15 * 60 * 1000; // 15 minutes in milliseconds
 type GISMapProps = {
   onMarkerClick: (evacuationCenter: EvacuationCenter) => void;
   onLastUpdatedChange?: (timestamp: Date | null) => void;
-  height?: string; // Add this prop
-  searchQuery?: string; // Add search query prop
-  onEvacuationCentersChange?: (centers: EvacuationCenter[]) => void; // Add callback for parent
-  onFilteredCentersChange?: (centers: EvacuationCenter[]) => void; // Add filtered data for parent
+  height?: string; 
+  searchQuery?: string; 
+  onEvacuationCentersChange?: (centers: EvacuationCenter[]) => void; 
+  onFilteredCentersChange?: (centers: EvacuationCenter[]) => void; 
 };
 
 export default function GISMap({ onMarkerClick, onLastUpdatedChange, height = '100vh', searchQuery, onEvacuationCentersChange, onFilteredCentersChange }: GISMapProps) {
@@ -225,43 +225,43 @@ export default function GISMap({ onMarkerClick, onLastUpdatedChange, height = '1
   }, [evacuationCenters]); // Trigger when evacuation centers are loaded
 
   return (
-<MapContainer
-  center={[13.1391, 123.7438]}
-  zoom={15}
-  scrollWheelZoom={true}
-  style={{ height: height, width: '100%' }} // Use the height prop
-  ref={mapRef}
-  className="z-0"
-  zoomControl={false}
->
-  <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-  {filteredEvacuationCenters.map((center: EvacuationCenter) => {
-    // Fallback to default coordinates if latitude/longitude is missing or invalid
-    const lat = center.latitude || 0;  // Default latitude value
-    const lon = center.longitude || 0; // Default longitude value
-    return (
-      <Marker
-        key={center.id}
-        position={[lat, lon]}
-        icon={getMarkerIcon(center)}
-        eventHandlers={{
-          click: () => handleMarkerClick(center),
-        }}
-      >
-        <Tooltip
-          direction="top"
-          offset={[5, -30]}
-          opacity={1}
-          permanent={false}
-        >
-          <div className="px-3 py-1 rounded font-semibold text-sm">
-            {center.name}
-          </div>
-        </Tooltip>
-      </Marker>
-    );
-  })}
-</MapContainer>
+    <MapContainer
+      center={[13.1391, 123.7438]}
+      zoom={15}
+      scrollWheelZoom={true}
+      style={{ height: height, width: '100%' }} // Use the height prop
+      ref={mapRef}
+      className="z-0"
+      zoomControl={false}
+    >
+      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+      {filteredEvacuationCenters.map((center: EvacuationCenter) => {
+        // Fallback to default coordinates if latitude/longitude is missing or invalid
+        const lat = center.latitude || 0;  // Default latitude value
+        const lon = center.longitude || 0; // Default longitude value
+        return (
+          <Marker
+            key={center.id}
+            position={[lat, lon]}
+            icon={getMarkerIcon(center)}
+            eventHandlers={{
+              click: () => handleMarkerClick(center),
+            }}
+          >
+            <Tooltip
+              direction="top"
+              offset={[5, -30]}
+              opacity={1}
+              permanent={false}
+            >
+              <div className="px-3 py-1 rounded font-semibold text-sm">
+                {center.name}
+              </div>
+            </Tooltip>
+          </Marker>
+        );
+      })}
+    </MapContainer>
 
   );
 }

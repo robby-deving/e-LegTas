@@ -1,13 +1,14 @@
-import type { 
-  EvacuationCenter, 
-  EvacuationRoom, 
-  CreateEvacuationCenterRequest, 
+import type {
+  EvacuationCenter,
+  EvacuationRoom,
+  CreateEvacuationCenterRequest,
   UpdateEvacuationCenterRequest,
   CreateRoomRequest,
-  UpdateRoomRequest 
+  UpdateRoomRequest
 } from '../types/evacuation.ts';  // Add .ts extension
 import { store } from '../store';
 import { selectToken, selectUserId } from '../features/auth/authSlice';
+import { validateNumeric, validateString } from '../utils/validateInput';
 
 class EvacuationCenterService {
   private baseUrl = '/api/v1';
@@ -42,6 +43,40 @@ class EvacuationCenterService {
     };
   }> {
     console.log('Service getEvacuationCenters params:', params);
+
+    // Validate query parameters
+    if (params?.limit !== undefined) {
+      const limitValidation = validateNumeric(params.limit, { min: 1, max: 100 });
+      if (!limitValidation.isValid) {
+        throw new Error(`Invalid limit parameter: ${limitValidation.error}`);
+      }
+    }
+
+    if (params?.offset !== undefined) {
+      const offsetValidation = validateNumeric(params.offset, { min: 0 });
+      if (!offsetValidation.isValid) {
+        throw new Error(`Invalid offset parameter: ${offsetValidation.error}`);
+      }
+    }
+
+    if (params?.search !== undefined && params.search.trim()) {
+      const searchValidation = validateString(params.search, { maxLength: 100 });
+      if (!searchValidation.isValid) {
+        throw new Error(`Invalid search parameter: ${searchValidation.error}`);
+      }
+    }
+
+    if (params?.ec_type && !['inside', 'outside'].includes(params.ec_type)) {
+      throw new Error('Invalid ec_type parameter: must be "inside" or "outside"');
+    }
+
+    if (params?.barangay_id !== undefined && params.barangay_id !== null) {
+      const barangayIdValidation = validateNumeric(params.barangay_id, { min: 1 });
+      if (!barangayIdValidation.isValid) {
+        throw new Error(`Invalid barangay_id parameter: ${barangayIdValidation.error}`);
+      }
+    }
+
     const queryParams = new URLSearchParams();
     queryParams.append('limit', (params?.limit || 10).toString());
     if (params?.offset) queryParams.append('offset', params.offset.toString());
@@ -66,6 +101,12 @@ class EvacuationCenterService {
   }
 
   async getEvacuationCenter(id: number): Promise<EvacuationCenter> {
+    // Validate evacuation center ID parameter
+    const idValidation = validateNumeric(id, { min: 1 });
+    if (!idValidation.isValid) {
+      throw new Error(`Invalid evacuation center ID parameter: ${idValidation.error}`);
+    }
+
     const response = await fetch(`${this.baseUrl}/evacuation-centers/${id}/rooms`, {
       headers: this.buildHeaders(),
     });
@@ -94,6 +135,12 @@ class EvacuationCenterService {
   }
 
   async getEvacuationCenterRooms(id: number): Promise<EvacuationRoom[]> {
+    // Validate evacuation center ID parameter
+    const idValidation = validateNumeric(id, { min: 1 });
+    if (!idValidation.isValid) {
+      throw new Error(`Invalid evacuation center ID parameter: ${idValidation.error}`);
+    }
+
     const response = await fetch(`${this.baseUrl}/evacuation-centers/${id}/rooms`, {
       headers: this.buildHeaders(),
     });
@@ -131,6 +178,12 @@ class EvacuationCenterService {
   }
 
   async updateEvacuationCenter(id: number, data: UpdateEvacuationCenterRequest): Promise<EvacuationCenter> {
+    // Validate evacuation center ID parameter
+    const idValidation = validateNumeric(id, { min: 1 });
+    if (!idValidation.isValid) {
+      throw new Error(`Invalid evacuation center ID parameter: ${idValidation.error}`);
+    }
+
     const response = await fetch(`${this.baseUrl}/evacuation-centers/${id}`, {
       method: 'PUT',
       headers: this.buildHeaders({ 'Content-Type': 'application/json' }),
@@ -154,6 +207,12 @@ class EvacuationCenterService {
   }
 
   async deleteEvacuationCenter(id: number): Promise<void> {
+    // Validate evacuation center ID parameter
+    const idValidation = validateNumeric(id, { min: 1 });
+    if (!idValidation.isValid) {
+      throw new Error(`Invalid evacuation center ID parameter: ${idValidation.error}`);
+    }
+
     const response = await fetch(`${this.baseUrl}/evacuation-centers/${id}/soft-delete`, {
       method: 'PUT',
       headers: this.buildHeaders({ 'Content-Type': 'application/json' }),
@@ -181,6 +240,15 @@ class EvacuationCenterService {
   }
 
   async updateRoom(id: string, data: UpdateRoomRequest): Promise<EvacuationRoom> {
+    // Validate room ID parameter
+    if (!id || typeof id !== 'string' || id.trim().length === 0) {
+      throw new Error('Invalid room ID parameter: must be a non-empty string');
+    }
+    const idValidation = validateString(id.trim(), { minLength: 1, maxLength: 50 });
+    if (!idValidation.isValid) {
+      throw new Error(`Invalid room ID parameter: ${idValidation.error}`);
+    }
+
     const response = await fetch(`${this.baseUrl}/rooms/${id}`, {
       method: 'PUT',
       headers: this.buildHeaders({ 'Content-Type': 'application/json' }),
@@ -191,6 +259,15 @@ class EvacuationCenterService {
   }
 
   async deleteRoom(id: string): Promise<void> {
+    // Validate room ID parameter
+    if (!id || typeof id !== 'string' || id.trim().length === 0) {
+      throw new Error('Invalid room ID parameter: must be a non-empty string');
+    }
+    const idValidation = validateString(id.trim(), { minLength: 1, maxLength: 50 });
+    if (!idValidation.isValid) {
+      throw new Error(`Invalid room ID parameter: ${idValidation.error}`);
+    }
+
     const response = await fetch(`${this.baseUrl}/rooms/${id}/soft-delete`, {
       method: 'PATCH',
       headers: this.buildHeaders({ 'Content-Type': 'application/json' }),

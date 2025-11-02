@@ -35,13 +35,14 @@ class ApiError extends Error {
  */
 exports.getAllEvacuationCenters = async (req, res, next) => {
     try {
-        // Parse query parameters
-        const limit = parseInt(req.query.limit) || 10;
-        const offset = parseInt(req.query.offset) || 0;
-        const search = req.query.search || '';
-        const includeSoftDeleted = req.query.include_deleted === 'true';
-        const ecType = req.query.ec_type;
-        const barangayId = req.query.barangay_id ? parseInt(req.query.barangay_id) : null;
+        // Use validated query parameters
+        const queryParams = req.validatedQuery || req.query;
+        const limit = parseInt(queryParams.limit) || 10;
+        const offset = parseInt(queryParams.offset) || 0;
+        const search = queryParams.search || '';
+        const includeSoftDeleted = queryParams.include_deleted === 'true';
+        const ecType = queryParams.ec_type;
+        const barangayId = queryParams.barangay_id ? parseInt(queryParams.barangay_id) : null;
 
         // Generate cache key based on all query parameters
         const cacheKey = generateCacheKey('evacuation_centers:all', {
@@ -180,7 +181,8 @@ exports.getAllEvacuationCenters = async (req, res, next) => {
  * @access Public
  */
 exports.getEvacuationCenterById = async (req, res, next) => {
-    const { id } = req.params;
+    // Use validated params
+    const { id } = req.validatedParams || req.params;
 
     if (!id || isNaN(Number(id))) {
         logger.warn('Invalid evacuation center ID provided', { id });
@@ -249,6 +251,7 @@ exports.getEvacuationCenterById = async (req, res, next) => {
  * @access Private (requires authentication/authorization)
  */
 exports.createEvacuationCenter = async (req, res, next) => {
+    // Use validated body
     const {
         name,
         address,
@@ -259,7 +262,7 @@ exports.createEvacuationCenter = async (req, res, next) => {
         category,
         total_capacity,
         created_by
-    } = req.body;
+    } = req.validatedBody || req.body;
 
     // Check if all required fields are present
     if (!name || !address || !barangay_id || !ec_status || !category || !created_by) {
@@ -334,8 +337,9 @@ exports.createEvacuationCenter = async (req, res, next) => {
  * @access Private (requires authentication/authorization)
  */
 exports.updateEvacuationCenter = async (req, res, next) => {
-    const { id } = req.params;
-    const updates = req.body;
+    // Use validated params and body
+    const { id } = req.validatedParams || req.params;
+    const updates = req.validatedBody || req.body;
 
     if (!id || isNaN(Number(id))) {
         logger.warn('Invalid evacuation center ID provided for update', { id });
@@ -398,7 +402,8 @@ exports.updateEvacuationCenter = async (req, res, next) => {
  * @access Private (requires authentication/authorization)
  */
 exports.deleteEvacuationCenter = async (req, res, next) => {
-    const { id } = req.params;
+    // Use validated params
+    const { id } = req.validatedParams || req.params;
 
     if (!id || isNaN(Number(id))) {
         logger.warn('Invalid evacuation center ID provided for deletion', { id });
@@ -445,7 +450,8 @@ exports.deleteEvacuationCenter = async (req, res, next) => {
  * @access Private (requires authentication/authorization)
  */
 exports.softDeleteEvacuationCenter = async (req, res, next) => {
-    const { id } = req.params;
+    // Use validated params
+    const { id } = req.validatedParams || req.params;
 
     if (!id || isNaN(Number(id))) {
         logger.warn('Invalid evacuation center ID provided for soft delete', { id });
@@ -528,7 +534,8 @@ exports.softDeleteEvacuationCenter = async (req, res, next) => {
  * @access Private (requires authentication/authorization)
  */
 exports.restoreEvacuationCenter = async (req, res, next) => {
-    const { id } = req.params;
+    // Use validated params
+    const { id } = req.validatedParams || req.params;
 
     if (!id || isNaN(Number(id))) {
         logger.warn('Invalid evacuation center ID provided for restore', { id });
@@ -745,7 +752,8 @@ exports.getEvacuationCenterMapData = async (req, res, next) => {
  * @access Public
  */
 exports.getEvacuationCenterWithRooms = async (req, res, next) => {
-    const { id } = req.params;
+    // Use validated params
+    const { id } = req.validatedParams || req.params;
 
     if (!id || isNaN(Number(id))) {
         logger.warn('Invalid evacuation center ID provided for rooms query', { id });
@@ -831,7 +839,8 @@ exports.getEvacuationCenterWithRooms = async (req, res, next) => {
  * @returns {object} Response with evacuation_center_id or null if not assigned
  */
 exports.getAssignedEvacuationCenter = async (req, res, next) => {
-    const { userId } = req.params;
+    // Use validated params
+    const { userId } = req.validatedParams || req.params;
 
     if (!userId || isNaN(Number(userId))) {
         logger.warn('Invalid user ID provided for assigned evacuation center query', { userId });

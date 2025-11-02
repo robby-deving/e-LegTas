@@ -113,7 +113,7 @@ const combinedFileTransport = new DailyRotateFile({
 
 const logger = createLogger({
   levels: customLevels.levels,
-  level: isDevelopment ? 'debug' : 'info',
+  level: isDevelopment ? 'silly' : 'http',
   format: baseFormat,
   transports: [
     new transports.Console({ format: consoleFormat }),

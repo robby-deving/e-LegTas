@@ -5,9 +5,11 @@ export type RegisterEvacueeModalProps = {
   formData: any;
   onFormChange: (field: string, value: string) => void;
   onVulnerabilityChange: (field: string, value: boolean) => void;
-  onSave: () => void;
+  onSave: (opts?: { shouldHideRoom: boolean }) => void | Promise<void>;
   onFamilyHeadSearch: () => void;
   centerId: number;
   canCreateFamilyInformation?: boolean;
+  hideRoomField?: boolean;
+  isPrivateHouse?: boolean; 
 };
 
