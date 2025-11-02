@@ -250,7 +250,7 @@ useEffect(() => {
   (async () => {
     try {
     const res = await axios.get<{ data: { category?: string | null } }>(
-      `http://localhost:3000/api/v1/disaster-events/${centerId}/center-category`,
+      `/api/v1/disaster-events/${centerId}/center-category`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
       const cat = res?.data?.data?.category ?? null;
