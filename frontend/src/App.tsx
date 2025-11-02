@@ -10,6 +10,7 @@ import SideNav from './components/SideNav';
 import { PermissionGate } from './components/PermissionGate';
 import StatusCodes from './components/StatusCodes';
 import ErrorBoundary from './components/ErrorBoundary';
+import UnsupportedScreenSize from './components/UnsupportedScreenSize';
 import Dashboard from './pages/Dashboard';
 import Map from './pages/Map';
 import EvacuationCenters from './pages/EvacuationCenters';
@@ -69,6 +70,13 @@ function App() {
     <PermissionProvider>
       <Toaster position="top-center" />
       <ErrorBoundary>
+        {/* Show UnsupportedScreenSize on small screens, hide on md and above */}
+        <div className="md:hidden">
+          <UnsupportedScreenSize />
+        </div>
+        
+        {/* Show main app content on md screens and above, hide on small screens */}
+        <div className="hidden md:block">
         <Routes>
           {/* Redirect root to appropriate page based on auth status */}
           <Route 
@@ -233,6 +241,7 @@ function App() {
         {/* 404 Catch-all route - must be last */}
         <Route path="*" element={<StatusCodes code={404} />} />
       </Routes>
+        </div>
       </ErrorBoundary>
     </PermissionProvider>
   );
