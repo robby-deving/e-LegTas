@@ -920,7 +920,7 @@ export default function UserManagement(){
                                     Array.from({ length: rowsPerPage }, (_, index) => (
                                         <TableRow key={`loading-${index}`}>
                                             {Array.from({ length: getColumnCount() }, (_, colIndex) => (
-                                                <TableCell key={`loading-cell-${colIndex}`} className="py-4">
+                                                <TableCell key={`loading-cell-${colIndex}`} className="py-4 text-foreground">
                                                     <div className="flex items-center space-x-2">
                                                         {colIndex === 0 && <LoadingSpinner size="sm" />}
                                                         <div className="h-4 bg-gray-200 rounded animate-pulse w-32"></div>
@@ -931,7 +931,7 @@ export default function UserManagement(){
                                     ))
                                 ) : paginatedUsers.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={getColumnCount()} className="text-center py-8">
+                                        <TableCell colSpan={getColumnCount()} className="text-center py-8 text-foreground">
                                             <div className="text-gray-500 text-lg font-medium mb-2">
                                                 {searchTerm ? 'No users found matching your search.' : 'No users found.'}
                                             </div>
