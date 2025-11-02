@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom';
 import { selectToken } from '../features/auth/authSlice';
 import StatCard from './StatCard';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from './ui/table';
-import { Pagination } from './ui/pagination';
 import LoadingSpinner from './loadingSpinner';
 
 interface UserStats {
@@ -56,9 +55,7 @@ export default function SystemAdminDashboard() {
     const [recentUsers, setRecentUsers] = useState<RecentUser[]>([]);
     const [loading, setLoading] = useState(true);
     
-    // Pagination state
-    const [currentPage, setCurrentPage] = useState(1);
-    const [rowsPerPage, setRowsPerPage] = useState(10);
+    // No pagination on this dashboard - show all recent users
     
     // Helper function to get auth headers
     const getAuthHeaders = (): Record<string, string> => {
@@ -127,21 +124,8 @@ export default function SystemAdminDashboard() {
         loadData();
     }, []);
     
-    // Pagination logic
-    const totalUsers = recentUsers.length;
-    const totalPages = Math.ceil(totalUsers / rowsPerPage);
-    const startIndex = (currentPage - 1) * rowsPerPage;
-    const endIndex = startIndex + rowsPerPage;
-    const displayedUsers = recentUsers.slice(startIndex, endIndex);
-    
-    const handlePageChange = (page: number) => {
-        setCurrentPage(page);
-    };
-    
-    const handleRowsPerPageChange = (rows: number) => {
-        setRowsPerPage(rows);
-        setCurrentPage(1); // Reset to first page when changing rows per page
-    };
+    // Show all users (no pagination)
+    const displayedUsers = recentUsers;
 
     return (
         <div className='h-full flex flex-col text-black p-10'>
@@ -241,7 +225,7 @@ export default function SystemAdminDashboard() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {Array.from({ length: rowsPerPage }, (_, index) => (
+                                {Array.from({ length: 10 }, (_, index) => (
                                     <TableRow key={`loading-${index}`}>
                                         <TableCell className="py-4">
                                             <div className="flex items-center space-x-2">
@@ -335,27 +319,7 @@ export default function SystemAdminDashboard() {
                 </div>
             </div>
 
-            {/* Pagination Controls */}
-            {!loading && totalUsers > 0 && (
-                <div className="flex items-center justify-between">
-                    <div className="flex-1 text-sm text-muted-foreground">
-                        {totalUsers > 0 && (
-                            <span>
-                                {(currentPage - 1) * rowsPerPage + 1}-
-                                {Math.min(currentPage * rowsPerPage, totalUsers)} of {totalUsers} row(s) shown.
-                            </span>
-                        )}
-                    </div>
-                    <Pagination
-                        currentPage={currentPage}
-                        totalPages={totalPages}
-                        onPageChange={handlePageChange}
-                        rowsPerPage={rowsPerPage}
-                        totalRows={totalUsers}
-                        onRowsPerPageChange={(value: string) => handleRowsPerPageChange(Number(value))}
-                    />
-                </div>
-            )}
+            {/* Pagination removed for System Admin Dashboard - showing all recent users */}
         </div>
     );
 }
