@@ -246,7 +246,6 @@ export default function EvacuationCentersPage() {
       <h1 
         className="text-3xl font-bold text-green-800"
         style={{ 
-          color: '#00824E', 
           fontSize: '32px' 
         }}
       >

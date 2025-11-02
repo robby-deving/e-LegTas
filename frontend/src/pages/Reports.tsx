@@ -13,7 +13,7 @@ import ReportCard from '@/components/cards/ReportCard';
 import type { ReportCardItem } from '@/components/cards/ReportCard';
 import DeleteReportModal from '@/components/modals/DeleteReportModal';
 import MonthYearGridPicker from '@/components/Disasters/MonthYearGridPicker'; 
-import { Input } from "../components/ui/input";
+import SearchBar from "../components/SearchBar";
 import { usePermissions } from '../contexts/PermissionContext';
 
 // Types 
@@ -530,7 +530,7 @@ const filteredReports = useMemo(() => {
 
   // ------------------------- Render -------------------------
   return (
-    <div className="text-black p-6 space-y-6">
+    <div className="text-black p-10 space-y-2">
       {/* Header */}
        <div className="flex justify-start">
         <h1 className="text-3xl font-bold text-green-800">Reports</h1>
@@ -562,34 +562,33 @@ const filteredReports = useMemo(() => {
           />
 
           {/* Create Report - only if allowed */}
-{canCreateReport && (
-  <Dialog
-    open={createModalOpen}
-    onOpenChange={(open) => {
-      setCreateModalOpen(open);
-      if (!open) setModalKey(k => k + 1); // reset when user closes
-    }}
-  >
-    <DialogTrigger asChild>
-      <Button className="bg-green-700 hover:bg-green-800 text-white px-6 cursor-pointer">
-        <Plus className="w-4 h-4" />
-        Create Report
-      </Button>
-    </DialogTrigger>
-  </Dialog>
-)}
-
+          {canCreateReport && (
+            <Dialog
+              open={createModalOpen}
+              onOpenChange={(open) => {
+                setCreateModalOpen(open);
+                if (!open) setModalKey(k => k + 1); // reset when user closes
+              }}
+            >
+              <DialogTrigger asChild>
+                <Button className="bg-green-700 hover:bg-green-800 text-white px-6 cursor-pointer">
+                  <Plus className="w-4 h-4" />
+                  Create Report
+                </Button>
+              </DialogTrigger>
+            </Dialog>
+          )}
         </div>
 
         {/* List */}
         <div>
           <h2 className="text-lg font-bold text-green-700 mb-4">Generated Reports</h2>
             {/* Search */}
-          <div className="w-full max-w-xs mb-4">
-            <Input
-              placeholder="Search"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+          <div className="w-full max-w-2xs mb-4">
+            <SearchBar
+              placeholder="Search report"
+              searchTerm={searchTerm}
+              onSearchChange={setSearchTerm}
               className="w-full"
             />
           </div>
