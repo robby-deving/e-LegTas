@@ -79,7 +79,7 @@ const globalRateLimit = rateLimit({
     return config.global.maxAnonymous;
   },
   keyGenerator,
-  skipSuccessfulRequests,
+  skip: skipSuccessfulRequests,
   handler: standardHandler,
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
