@@ -51,8 +51,8 @@ export default function DisasterFormDialog({
   loading = false,
 }: Props) {
   const [name, setName] = useState("");
-  const [type, setType] = useState(""); // Stores the display name of the type
-  const [typeId, setTypeId] = useState<number | undefined>(undefined); // Stores the actual ID of the type
+  const [type, setType] = useState(""); 
+  const [typeId, setTypeId] = useState<number | undefined>(undefined); 
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [fieldErrors, setFieldErrors] = useState<{
@@ -65,22 +65,22 @@ export default function DisasterFormDialog({
   useEffect(() => {
     if (mode === "edit" && disaster) {
       setName(disaster.name);
-      setType(disaster.type); // Set display name
-      setTypeId(disaster.type_id); // Set actual ID
+      setType(disaster.type); 
+      setTypeId(disaster.type_id); 
       setStartDate(disaster.start_date);
       setEndDate(disaster.end_date ?? "");
     } else {
       setName("");
-      setType(""); // Clear display name
-      setTypeId(undefined); // Clear ID
+      setType(""); 
+      setTypeId(undefined); 
       setStartDate(new Date().toISOString());
       setEndDate("");
     }
-    setFieldErrors({}); // Clear field errors when mode changes
+    setFieldErrors({});
   }, [mode, disaster]);
 
   const handleSave = () => {
-    setFieldErrors({}); // Clear previous errors
+    setFieldErrors({}); 
 
     // Validate all fields
     const errors: {
@@ -189,8 +189,8 @@ export default function DisasterFormDialog({
                   (t) => String(t.id) === selectedValue
                 );
                 if (selectedType) {
-                  setType(selectedType.name); // Update display name
-                  setTypeId(Number(selectedType.id)); // Update actual ID
+                  setType(selectedType.name); 
+                  setTypeId(Number(selectedType.id)); 
                   // Clear type error when user makes a selection
                   if (fieldErrors.typeId) {
                     setFieldErrors(prev => ({ ...prev, typeId: undefined }));

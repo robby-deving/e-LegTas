@@ -9,13 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Checkbox } from "../ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
 import { X as XIcon, Loader2 } from "lucide-react";
-// import ReactDatePicker from "react-datepicker";
-// import "react-datepicker/dist/react-datepicker.css";
 import type { Barangay, RoomOption } from "@/types/EvacuationCenterDetails";
 import type { RegisterEvacueeModalProps } from "@/types/RegisterEvacueeModal";
-// import { Popover, PopoverTrigger, PopoverContent } from "../ui/popover";
-// import { Calendar as DateCalendar } from "../ui/calendar"; 
-// import { formatMMDDYYYY, parseMMDDYYYY, toISODateLocal } from "@/utils/dateInput";
 import { DateTimePicker } from "../ui/date-time-picker";
 import { toISODateLocal } from "@/utils/dateInput.ts";
 import BirthdayMaskedInput from '../EvacuationCenterDetail/BirthdayMaskedInput';

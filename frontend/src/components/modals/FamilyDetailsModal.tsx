@@ -598,6 +598,7 @@ const displayCenterName =
                       onSuccess={async () => {
                         await onSaved?.();
                       }}
+                      evacuationOperationStatus={eventEnded}
                       placeholder="Add Service(s)"
                       className="w-full"
                       showLabel={false}  
