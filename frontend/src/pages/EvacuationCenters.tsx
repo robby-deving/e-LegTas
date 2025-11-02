@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Input } from "../components/ui/input";
+
+import SearchBar from "../components/SearchBar";
 import { Button } from "../components/ui/button";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "../components/ui/table";
 import { Pagination } from "../components/ui/pagination";
@@ -240,92 +241,98 @@ export default function EvacuationCentersPage() {
   }
 
   return (
-    <div className="text-black p-6 space-y-6 flex flex-col">
-      {/* Page Header */}
-      <div className="space-y-4">
-        <h1 className="text-3xl font-bold text-green-800">
-          Evacuation Centers
-        </h1>
+    <div className="h-full flex flex-col text-black p-10 space-y-6">
+      {/* Title */}
+      <h1 
+        className="text-3xl font-bold text-green-800"
+        style={{ 
+          color: '#00824E', 
+          fontSize: '32px' 
+        }}
+      >
+        Evacuation Centers
+      </h1>
 
-        {/* Search and Add Button */}
-        <div className="flex items-center justify-between">
-          <Input
-            placeholder="Search by name or address..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="max-w-sm"
-          />
-          <div className="flex gap-4">
-             <Tabs
-               defaultValue="Inside EC"
-               value={activeTab}
-               onValueChange={(value) => handleTabChange(value as 'Inside EC' | 'Outside EC')}
-             >
-               <TabsList>
-                   <TabsTrigger value="Inside EC">
-                     Inside EC
-                   </TabsTrigger>
-                   {canViewOutsideEC && (
-                     <TabsTrigger value="Outside EC">
-                       Outside EC
-                     </TabsTrigger>
-                   )}
-                 </TabsList>
-             </Tabs>
-          {activeTab === 'Inside EC' && canCreateCenter && (
-            <Button
-              onClick={handleAddCenter}
-              disabled={isCreating}
-              className="bg-green-700 hover:bg-green-800 text-white px-6 flex gap-2 items-center disabled:opacity-50"
+      {/* Main Content */}
+      <div className="flex-1 min-h-0 flex flex-col">
+        {/* Search, Tabs, and Add Button */}
+        <div className="mt-4 mb-4 flex justify-between items-center flex-shrink-0">
+          <div className="flex items-center gap-4">
+            <SearchBar
+              searchTerm={searchTerm}
+              onSearchChange={setSearchTerm}
+              placeholder="Search EC or address"
+              className="max-w-sm w-2xs"
+            />
+            <Tabs
+              defaultValue="Inside EC"
+              value={activeTab}
+              onValueChange={(value) => handleTabChange(value as 'Inside EC' | 'Outside EC')}
             >
-              {isCreating ? (
-                <>
-                  <LoadingSpinner size="sm" />
-                  <span>Adding...</span>
-                </>
-              ) : (
-                <>
-                  <Plus className="w-4 h-4" />
-                  Add Evacuation Center
-                </>
-              )}
-            </Button>
-          )}
-
-          {activeTab === 'Outside EC' && canAddOutsideEC && (
-            <Button
-              onClick={handleAddCenter}
-              disabled={isCreating}
-              className="bg-green-700 hover:bg-green-800 text-white px-6 flex gap-2 items-center disabled:opacity-50"
-            >
-              {isCreating ? (
-                <>
-                  <LoadingSpinner size="sm" />
-                  <span>Adding...</span>
-                </>
-              ) : (
-                <>
-                  <Plus className="w-4 h-4" />
-                  Add Evacuation Center
-                </>
-              )}
-            </Button>
-          )}
+              <TabsList>
+                <TabsTrigger value="Inside EC">
+                  Inside EC
+                </TabsTrigger>
+                {canViewOutsideEC && (
+                  <TabsTrigger value="Outside EC">
+                    Outside EC
+                  </TabsTrigger>
+                )}
+              </TabsList>
+            </Tabs>
           </div>
-          
+          <div className="flex gap-4">
+            {activeTab === 'Inside EC' && canCreateCenter && (
+              <Button
+                onClick={handleAddCenter}
+                disabled={isCreating}
+                className="bg-green-700 hover:bg-green-800 text-white px-6 flex gap-2 items-center disabled:opacity-50"
+              >
+                {isCreating ? (
+                  <>
+                    <LoadingSpinner size="sm" />
+                    <span>Adding...</span>
+                  </>
+                ) : (
+                  <>
+                    <Plus className="w-4 h-4" />
+                    Add Evacuation Center
+                  </>
+                )}
+              </Button>
+            )}
+            {activeTab === 'Outside EC' && canAddOutsideEC && (
+              <Button
+                onClick={handleAddCenter}
+                disabled={isCreating}
+                className="bg-green-700 hover:bg-green-800 text-white px-6 flex gap-2 items-center disabled:opacity-50"
+              >
+                {isCreating ? (
+                  <>
+                    <LoadingSpinner size="sm" />
+                    <span>Adding...</span>
+                  </>
+                ) : (
+                  <>
+                    <Plus className="w-4 h-4" />
+                    Add Evacuation Center
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* Table */}
-      <div className="rounded-md border border-input overflow-hidden">
-        <div className="relative w-full overflow-x-auto">
+        {/* Table Container */}
+        <div className="rounded-md border border-input overflow-hidden max-h-[600px] flex flex-col my-2">
+          <div className="relative w-full overflow-auto flex-1">
           {loading ? (
             // Loading rows with skeleton animation
             <Table>
               <TableHeader className="bg-gray-50">
                 <TableRow>
-                  <TableHead className="text-left">Evacuation Center</TableHead>
-                  <TableHead className="text-left">Address</TableHead>
+                  <TableHead className="text-left max-w-[180px] truncate">Evacuation Center</TableHead>
+                  <TableHead className="text-left max-w-[220px] truncate">Address</TableHead>
                   <TableHead className="text-left">Category</TableHead>
                   {activeTab === 'Inside EC' && (
                     <>
@@ -408,35 +415,35 @@ export default function EvacuationCentersPage() {
               <TableBody>
                 {currentRows.map((center) => (
                   <TableRow key={center.id} className="hover:bg-gray-50">
-                    <TableCell className="text-foreground font-medium">
+                    <TableCell className="text-foreground font-medium align-baseline max-w-[180px] truncate break-words">
                       {center.name}
                     </TableCell>
-                    <TableCell className="text-foreground">
+                    <TableCell className="text-foreground align-baseline max-w-[220px] truncate break-words">
                       {center.address}
                     </TableCell>
-                    <TableCell className="text-foreground">
+                    <TableCell className="text-foreground align-baseline">
                       {center.category}
                     </TableCell>
                     {activeTab === 'Inside EC' && (
                       <>
-                        <TableCell className="text-foreground">
+                        <TableCell className="text-foreground align-baseline">
                           {center.total_capacity}
                         </TableCell>
-                        <TableCell className="text-foreground">
+                        <TableCell className="text-foreground align-baseline">
                           {center.longitude ? center.longitude.toFixed(4) : 'N/A'}
                         </TableCell>
-                        <TableCell className="text-foreground">
+                        <TableCell className="text-foreground align-baseline">
                           {center.latitude ? center.latitude.toFixed(4) : 'N/A'}
                         </TableCell>
                       </>
                     )}
-                    <TableCell>
+                    <TableCell className="align-baseline">
                       <div className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_COLORS[center.ec_status]}`}>
                         {center.ec_status}
                       </div>
                     </TableCell>
                     {showActions && (
-                      <TableCell className="text-center">
+                      <TableCell className="text-center align-baseline">
                         {((activeTab !== 'Outside EC' && canUpdateCenter) || (activeTab === 'Outside EC' && canEditOutsideEC) || canDeleteCenter) && (
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -502,19 +509,20 @@ export default function EvacuationCentersPage() {
         </div>
       </div>
 
-      {/* Pagination */}
-      <div className="flex items-center justify-between">
-        <div className="flex-1 text-sm text-muted-foreground">
-          {currentRows.length} of {totalRows} row(s) shown.
+        {/* Pagination */}
+        <div className="flex items-center justify-between flex-shrink-0">
+          <div className="flex-1 text-sm text-muted-foreground">
+            {currentRows.length} of {totalRows} row(s) shown.
+          </div>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            rowsPerPage={rowsPerPage}
+            totalRows={totalRows}
+            onRowsPerPageChange={handleRowsPerPageChange}
+          />
         </div>
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={setCurrentPage}
-          rowsPerPage={rowsPerPage}
-          totalRows={totalRows}
-          onRowsPerPageChange={handleRowsPerPageChange}
-        />
       </div>
 
       {/* Add/Edit Evacuation Center Modal */}
