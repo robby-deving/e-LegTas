@@ -16,15 +16,7 @@ export default function Dashboard(){
 			{user?.role_id === 1 ? <SystemAdminDashboard /> : 
 			 user?.role_id === 5 || user?.role_id === 7 ? <CampManagerDashboard /> : 
 			 <MainDashboard />}
-			{/* {user?.role_id === 1 ? <SystemAdminDashboard /> : 
-			user?.role_id === 5 ? <CampManagerDashboard /> : 
-			user?.role_id === 7 ? <BarangayDashboard /> : 
-			<MainDashboard />} */}
-			
-			{/* Other role dashboards can be added here */}
-			{/* {user?.role_id === 2 && <CDRRMODashboard />} */}
-			{/* {user?.role_id === 3 && <CSWDODashboard />} */}
-			{/* {user?.role_id === 4 && <CampManagerDashboard />} */}
+
 		</div>
 	);
 }
