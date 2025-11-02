@@ -22,8 +22,9 @@ class ApiError extends Error {
  * @access Public
  */
 exports.getActiveEvacuationCentersByDisaster = async (req, res, next) => {
-    const { disasterId } = req.params;
-    const { from, to } = req.query;
+    // Use validated params and query
+    const { disasterId } = req.validatedParams || req.params;
+    const { from, to } = req.validatedQuery || req.query;
 
     try {
         let query = supabase
@@ -79,8 +80,9 @@ exports.getActiveEvacuationCentersByDisaster = async (req, res, next) => {
  * @access Public
  */
 exports.getTotalRegisteredEvacueesByDisaster = async (req, res, next) => {
-    const { disasterId } = req.params;
-    const { from, to } = req.query; // optional date filter
+    // Use validated params and query
+    const { disasterId } = req.validatedParams || req.params;
+    const { from, to } = req.validatedQuery || req.query; // optional date filter
 
     try {
         // (1) Get active disaster_evacuation_event IDs
@@ -164,8 +166,9 @@ exports.getTotalRegisteredEvacueesByDisaster = async (req, res, next) => {
  * @access Public
  */
 exports.getTotalRegisteredFamiliesByDisaster = async (req, res, next) => {
-    const { disasterId } = req.params;
-    const { from, to } = req.query; // optional date filter
+    // Use validated params and query
+    const { disasterId } = req.validatedParams || req.params;
+    const { from, to } = req.validatedQuery || req.query; // optional date filter
 
     try {
         // (1) Get active evacuation event IDs
@@ -253,8 +256,9 @@ exports.getTotalRegisteredFamiliesByDisaster = async (req, res, next) => {
  * @access Public
  */
 exports.getFamiliesWithReliefGoodsByDisaster = async (req, res, next) => {
-    const { disasterId } = req.params;
-    const { from, to } = req.query; // optional date filter
+    // Use validated params and query
+    const { disasterId } = req.validatedParams || req.params;
+    const { from, to } = req.validatedQuery || req.query; // optional date filter
 
     try {
         // (1) Get evacuation events for the disaster
@@ -357,8 +361,9 @@ exports.getFamiliesWithReliefGoodsByDisaster = async (req, res, next) => {
  * @access Public
  */
 exports.getEvacueeStatisticsByDisaster = async (req, res, next) => {
-  const { disasterId } = req.params;
-  const { from, to } = req.query; // optional date range
+  // Use validated params and query
+  const { disasterId } = req.validatedParams || req.params;
+  const { from, to } = req.validatedQuery || req.query; // optional date range
 
   try {
     // (1) Get all evacuation events for the disaster
@@ -524,9 +529,10 @@ exports.getEvacueeStatisticsByDisaster = async (req, res, next) => {
  * @access Public
  */
 exports.getEvacuationCenterCapacityStatus = async (req, res, next) => {
-  logger.debug("🛰️ getEvacuationCenterCapacityStatus triggered, disasterId =", req.params.disasterId);
-    const { disasterId } = req.params;
-    const { from, to } = req.query; // optional date filter
+  // Use validated params and query
+  const { disasterId } = req.validatedParams || req.params;
+  logger.debug("🛰️ getEvacuationCenterCapacityStatus triggered, disasterId =", disasterId);
+    const { from, to } = req.validatedQuery || req.query; // optional date filter
 
     try {
         // (1) Get all evacuation events for the disaster
@@ -708,7 +714,8 @@ exports.getActiveDisasters = async (req, res) => {
  */
 exports.getCampManagerDisasters = async (req, res) => {
   try {
-    const { userId } = req.params;
+    // Use validated params
+    const { userId } = req.validatedParams || req.params;
 
     const { data, error } = await supabase
       .from("disaster_evacuation_event")
@@ -756,7 +763,8 @@ exports.getCampManagerDisasters = async (req, res) => {
  */
 exports.getCampManagerCenterInfo = async (req, res) => {
   try {
-    const { eventId } = req.params;
+    // Use validated params
+    const { eventId } = req.validatedParams || req.params;
 
     const { data, error } = await supabase
       .from("disaster_evacuation_event")
@@ -800,8 +808,9 @@ exports.getCampManagerCenterInfo = async (req, res) => {
  */
 exports.getCampManagerDashboardSummary = async (req, res) => {
   try {
-    const { eventId } = req.params;
-    const { from, to } = req.query; // optional date filter (ISO UTC strings)
+    // Use validated params and query
+    const { eventId } = req.validatedParams || req.params;
+    const { from, to } = req.validatedQuery || req.query; // optional date filter (ISO UTC strings)
 
     // Shared function to count families with relief goods
     const getFamiliesWithReliefGoods = async (eventId, from = null, to = null) => {
@@ -1059,7 +1068,8 @@ exports.getCampManagerDashboardSummary = async (req, res) => {
 // GET /api/v1/dashboard/barangay/disasters/:barangayId
 exports.getBarangayActiveDisasters = async (req, res) => {
   try {
-    const { barangayId } = req.params;
+    // Use validated params
+    const { barangayId } = req.validatedParams || req.params;
     if (!barangayId) {
       logger.warn('barangayId is required');
       return res.status(400).json({ message: 'barangayId is required' });
@@ -1128,8 +1138,9 @@ exports.getBarangayActiveDisasters = async (req, res) => {
  */
 exports.getBarangayDashboard = async (req, res) => {
   try {
-    const { barangayId } = req.params;
-    const { disasterId, from, to } = req.query;
+    // Use validated params and query
+    const { barangayId } = req.validatedParams || req.params;
+    const { disasterId, from, to } = req.validatedQuery || req.query;
 
     if (!barangayId) return res.status(400).json({ message: "barangayId is required" });
 

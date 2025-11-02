@@ -3,6 +3,13 @@ const { createClient } = require('@supabase/supabase-js');
 const { sendOTPEmail } = require('../services/emailService');
 const dotenv = require('dotenv');
 const logger = require('../utils/logger');
+const {
+  validateEmail,
+  validateEmployeeNumber,
+  validatePassword,
+  validateId,
+  validateOTP
+} = require('../utils/validateInput');
 
 // Removed unused JWT and crypto utilities
 
@@ -69,6 +76,20 @@ const resetPassword = async (req, res) => {
     if (!userId || !newPassword) {
       logger.warn('Missing fields in reset password request', { userId: !!userId, newPassword: !!newPassword });
       return res.status(400).json({ message: 'Missing required fields' });
+    }
+
+    // Validate userId (UUID format)
+    const userIdValidation = validateId(userId, 'uuid');
+    if (!userIdValidation.isValid) {
+      logger.warn('Invalid userId format in reset password request', { error: userIdValidation.error });
+      return res.status(400).json({ message: userIdValidation.error });
+    }
+
+    // Validate password
+    const passwordValidation = validatePassword(newPassword);
+    if (!passwordValidation.isValid) {
+      logger.warn('Invalid password in reset password request', { error: passwordValidation.error });
+      return res.status(400).json({ message: passwordValidation.error });
     }
 
     logger.debug('Received userId for password reset', { userId });
@@ -159,11 +180,20 @@ const sendOTP = async (req, res) => {
       return res.status(400).json({ message: 'Email is required' });
     }
 
+    // Validate email format
+    const emailValidation = validateEmail(email);
+    if (!emailValidation.isValid) {
+      logger.warn('Invalid email format in send OTP request', { error: emailValidation.error });
+      return res.status(400).json({ message: emailValidation.error });
+    }
+
+    const sanitizedEmail = emailValidation.sanitized;
+
     // Check if user exists in users_profile table
     const { data: userProfile, error: userError } = await supabaseAdmin
       .from('users_profile')
       .select('user_id, email')
-      .eq('email', email)
+      .eq('email', sanitizedEmail)
       .single();
 
     if (userError || !userProfile) {
@@ -185,7 +215,7 @@ const sendOTP = async (req, res) => {
         otp_code: otp,
         otp_expiration: expiration.toISOString()
       })
-      .eq('email', email);
+      .eq('email', sanitizedEmail);
 
     if (otpError) {
       logger.error('Error updating OTP in database', { error: otpError.message });
@@ -193,14 +223,14 @@ const sendOTP = async (req, res) => {
     }
 
     // Send OTP via email
-    const emailResult = await sendOTPEmail(email, otp);
+    const emailResult = await sendOTPEmail(sanitizedEmail, otp);
     
     if (!emailResult.success) {
       logger.error('Failed to send OTP email', { error: emailResult.error });
       return res.status(500).json({ message: 'Failed to send verification code' });
     }
 
-    logger.debug('OTP sent successfully', { email });
+    logger.debug('OTP sent successfully', { email: sanitizedEmail });
     
     res.status(200).json({ 
       message: 'Verification code sent to your email successfully!' 
@@ -224,6 +254,15 @@ const login = async (req, res) => {
       logger.warn('Missing credentials in login request', { hasEmployeeNumber: !!employeeNumber, hasPassword: !!password });
       return res.status(400).json({ message: 'Employee number and password are required' });
     }
+
+    // Validate employee number
+    const employeeNumberValidation = validateEmployeeNumber(employeeNumber);
+    if (!employeeNumberValidation.isValid) {
+      logger.warn('Invalid employee number format in login request', { error: employeeNumberValidation.error });
+      return res.status(400).json({ message: 'Invalid employee number format' });
+    }
+
+    const sanitizedEmployeeNumber = employeeNumberValidation.sanitized;
     // Step 1: Find user by employee_number and get email from users_profile
     const { data: userData, error: userError } = await supabaseAdmin
       .from('users')
@@ -244,29 +283,29 @@ const login = async (req, res) => {
           )
         )
       `)
-      .eq('employee_number', employeeNumber)
+      .eq('employee_number', sanitizedEmployeeNumber)
       .is('deleted_at', null)
       .single();
     if (userError || !userData) {
-      logger.warn('User not found during login', { employeeNumber, error: userError?.message });
+      logger.warn('User not found during login', { employeeNumber: sanitizedEmployeeNumber, error: userError?.message });
       return res.status(401).json({ message: 'Invalid employee number or password' });
     }
     if (userData.users_profile.deleted_at) {
-      logger.warn('Login attempt for soft-deleted user', { employeeNumber });
+      logger.warn('Login attempt for soft-deleted user', { employeeNumber: sanitizedEmployeeNumber });
       return res.status(403).json({ message: 'Account has been deactivated. Please contact administrator.' });
     }
     if (!userData.users_profile.is_active) {
-      logger.warn('Login attempt for inactive user', { employeeNumber });
+      logger.warn('Login attempt for inactive user', { employeeNumber: sanitizedEmployeeNumber });
       return res.status(403).json({ message: 'Account is inactive. Please contact administrator.' });
     }
     // Step 2: Check if auth user is soft-deleted before attempting login
     const { data: authUser, error: authUserError } = await supabaseAdmin.auth.admin.getUserById(userData.users_profile.user_id);
     if (authUserError || !authUser.user) {
-      logger.warn('Auth user not found during login', { employeeNumber, error: authUserError?.message });
+      logger.warn('Auth user not found during login', { employeeNumber: sanitizedEmployeeNumber, error: authUserError?.message });
       return res.status(401).json({ message: 'Invalid employee number or password' });
     }
     if (authUser.user.banned_until || authUser.user.deleted_at) {
-      logger.warn('Login attempt for banned/deleted auth user', { employeeNumber });
+      logger.warn('Login attempt for banned/deleted auth user', { employeeNumber: sanitizedEmployeeNumber });
       return res.status(403).json({ message: 'Account has been deactivated. Please contact administrator.' });
     }
     // Step 3: Use the email from users_profile to authenticate with Supabase
@@ -275,13 +314,13 @@ const login = async (req, res) => {
       password,
     });
     if (authError) {
-      logger.warn('Authentication failed during login', { employeeNumber, error: authError.message });
+      logger.warn('Authentication failed during login', { employeeNumber: sanitizedEmployeeNumber, error: authError.message });
       return res.status(401).json({ message: 'Invalid employee number or password' });
     }
     // Step 4: Persist Supabase refresh token
     const sbRefreshToken = authData.session?.refresh_token;
     if (!sbRefreshToken) {
-      logger.error('No Supabase refresh token found on login response', { employeeNumber });
+      logger.error('No Supabase refresh token found on login response', { employeeNumber: sanitizedEmployeeNumber });
       return res.status(500).json({ message: 'Login session missing refresh token' });
     }
     // Ensure any legacy cookie is removed so only sb_refresh_token remains
@@ -336,7 +375,7 @@ const login = async (req, res) => {
       token: authData.session?.access_token || '' // Always use Supabase access token
     };
     logger.debug('Final login response data', { userId: responseData.user.user_id, roleId: responseData.user.role_id });
-    logger.info('Login successful', { employeeNumber, roleId: userData.users_profile.role_id });
+    logger.info('Login successful', { employeeNumber: sanitizedEmployeeNumber, roleId: userData.users_profile.role_id });
     res.status(200).json(responseData);
   } catch (error) {
     logger.error('Login error', { error: error.message, stack: error.stack });

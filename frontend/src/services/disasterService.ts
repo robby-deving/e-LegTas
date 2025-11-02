@@ -1,5 +1,6 @@
 import axios from "axios";
 import type { Disaster, DisasterPayload, DisasterTypeWithId, DisasterEventPayload } from "@/types/disaster";
+import { validateNumeric } from "@/utils/validateInput";
 
 interface DisasterApiResponse {
   data: any[];
@@ -35,6 +36,19 @@ class DisasterService {
     token: string
   ): Promise<Disaster[]> {
     try {
+      // Validate query parameters
+      const yearValidation = validateNumeric(year, { min: 1900, max: 2100 });
+      if (!yearValidation.isValid) {
+        throw new Error(`Invalid year parameter: ${yearValidation.error}`);
+      }
+
+      if (month !== null) {
+        const monthValidation = validateNumeric(month, { min: 1, max: 12 });
+        if (!monthValidation.isValid) {
+          throw new Error(`Invalid month parameter: ${monthValidation.error}`);
+        }
+      }
+
       const params = new URLSearchParams();
       if (month !== null) {
         params.append("month", month.toString());
@@ -109,6 +123,12 @@ class DisasterService {
 
   async fetchDisasterById(disasterId: number, token: string): Promise<Disaster> {
     try {
+      // Validate disaster ID parameter
+      const disasterIdValidation = validateNumeric(disasterId, { min: 1 });
+      if (!disasterIdValidation.isValid) {
+        throw new Error(`Invalid disaster ID parameter: ${disasterIdValidation.error}`);
+      }
+
       const response = await axios.get<DisasterApiResponse>(
         `${this.baseUrl}/disasters/${disasterId}`,
         {
@@ -143,6 +163,12 @@ class DisasterService {
     token: string
   ): Promise<void> {
     try {
+      // Validate disaster ID parameter
+      const disasterIdValidation = validateNumeric(disasterId, { min: 1 });
+      if (!disasterIdValidation.isValid) {
+        throw new Error(`Invalid disaster ID parameter: ${disasterIdValidation.error}`);
+      }
+
       await axios.put(`${this.baseUrl}/disasters/${disasterId}`, disasterData, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -157,6 +183,12 @@ class DisasterService {
 
   async deleteDisaster(disasterId: number, token: string): Promise<void> {
     try {
+      // Validate disaster ID parameter
+      const disasterIdValidation = validateNumeric(disasterId, { min: 1 });
+      if (!disasterIdValidation.isValid) {
+        throw new Error(`Invalid disaster ID parameter: ${disasterIdValidation.error}`);
+      }
+
       await axios.delete(`${this.baseUrl}/disasters/${disasterId}`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -171,6 +203,12 @@ class DisasterService {
 
   async fetchAssignedEvacuationCenter(userId: number, token: string): Promise<number | null> {
     try {
+      // Validate user ID parameter
+      const userIdValidation = validateNumeric(userId, { min: 1 });
+      if (!userIdValidation.isValid) {
+        throw new Error(`Invalid user ID parameter: ${userIdValidation.error}`);
+      }
+
       const response = await axios.get<EvacuationCenterResponse>(
         `${this.baseUrl}/evacuation-centers/user/${userId}`,
         {
@@ -197,6 +235,18 @@ class DisasterService {
     token: string
   ): Promise<DisasterEventCheckResponse> {
     try {
+      // Validate disaster ID parameter
+      const disasterIdValidation = validateNumeric(disasterId, { min: 1 });
+      if (!disasterIdValidation.isValid) {
+        throw new Error(`Invalid disaster ID parameter: ${disasterIdValidation.error}`);
+      }
+
+      // Validate evacuation center ID parameter
+      const evacuationCenterIdValidation = validateNumeric(evacuationCenterId, { min: 1 });
+      if (!evacuationCenterIdValidation.isValid) {
+        throw new Error(`Invalid evacuation center ID parameter: ${evacuationCenterIdValidation.error}`);
+      }
+
       const response = await axios.get<{
         exists: boolean;
         data: { id: number; disaster_id: number; evacuation_center_id: number } | null;

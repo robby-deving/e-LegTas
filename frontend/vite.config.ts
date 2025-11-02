@@ -3,10 +3,26 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import path from 'path'
 
-
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  esbuild: {
+    drop: process.env.NODE_ENV === 'production' ? ['console', 'debugger'] : [],
+  },
+  build: {
+    // Additional production optimizations
+    minify: 'esbuild',
+    sourcemap: process.env.NODE_ENV !== 'production', // Source maps only in development
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Split vendor chunks for better caching
+          vendor: ['react', 'react-dom'],
+          ui: ['@radix-ui/react-dialog', '@radix-ui/react-select'],
+        },
+      },
+    },
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),

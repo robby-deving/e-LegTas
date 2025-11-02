@@ -1,6 +1,8 @@
-//evacuees.event-evacuees-information.controller.js
+// evacuees.event-evacuees-information.controller.js
 
 const { supabase } = require('../config/supabase');
+const { validateId } = require('../utils/validateInput');
+const logger = require('../utils/logger');
 
 class ApiError extends Error {
   constructor(message, statusCode = 500) {
@@ -27,10 +29,32 @@ function buildFullName({ first_name, middle_name, last_name, suffix }) {
  * @access Private (Camp Manager only)
  */
 exports.getEvacueesInformationbyDisasterEvacuationEventId = async (req, res, next) => {
-  const eventId = Number(req.params.disasterEvacuationEventId ?? req.params.id);
-  if (!Number.isFinite(eventId)) {
-    return next(new ApiError('Invalid disaster evacuation event id.', 400));
+  // Use validated params from middleware if available, otherwise validate manually
+  let eventId = req.validatedParams?.disasterEvacuationEventId;
+  
+  if (!eventId) {
+    // Fallback validation if middleware not used
+    const rawId = req.params.disasterEvacuationEventId ?? req.params.id;
+    const idValidation = validateId(rawId, 'integer');
+
+    if (!idValidation.isValid) {
+      logger.warn('Invalid disaster evacuation event ID provided for evacuees information', {
+        path: req.path,
+        providedId: rawId,
+        error: idValidation.error,
+        ip: req.ip
+      });
+      return next(new ApiError(idValidation.error, 400));
+    }
+
+    eventId = idValidation.sanitized;
   }
+
+  logger.info('Fetching evacuees information for disaster evacuation event', {
+    disasterEvacuationEventId: eventId,
+    path: req.path,
+    ip: req.ip
+  });
 
   const parseJsonMaybe = (v) => {
     if (v == null) return null;
@@ -60,48 +84,70 @@ exports.getEvacueesInformationbyDisasterEvacuationEventId = async (req, res, nex
     return residentJoinName || 'Unknown';
   };
 
-try {
-// --- Fallback: get the event's EC name (works for Private House too)
-let fallbackEventLocationName = null;
+  try {
+    // --- Fallback: get the event's EC name (works for Private House too)
+    let fallbackEventLocationName = null;
 
-try {
-  const { data: eventRow, error: evtErr } = await supabase
-    .from('disaster_evacuation_event')       // your table name
-    .select(`
-      id,
-      evacuation_center_id,
-      evacuation_centers:evacuation_center_id (
-        id,
-        name,
-        category
-      )
-    `)
-    .eq('id', eventId)
-    .maybeSingle();
+    try {
+      const { data: eventRow, error: evtErr } = await supabase
+        .from('disaster_evacuation_event')
+        .select(`
+          id,
+          evacuation_center_id,
+          evacuation_centers:evacuation_center_id (
+            id,
+            name,
+            category
+          )
+        `)
+        .eq('id', eventId)
+        .maybeSingle();
 
-  if (evtErr) console.warn('[WARN] event fetch failed:', evtErr);
-  console.log('[DEBUG] eventRow:', eventRow);
-
-  // Primary: name from joined center
-  fallbackEventLocationName = eventRow?.evacuation_centers?.name ?? null;
-
-  // Safety net: direct fetch by id if the join didn't hydrate
-  if (!fallbackEventLocationName && eventRow?.evacuation_center_id) {
-    const { data: ecRow, error: ecErr } = await supabase
-      .from('evacuation_centers')
-      .select('id, name, category')
-      .eq('id', eventRow.evacuation_center_id)
-      .maybeSingle();
-
-    if (ecErr) console.warn('[WARN] ec fetch by id failed:', ecErr);
-    console.log('[DEBUG] ecRow:', ecRow);
-
-    fallbackEventLocationName = ecRow?.name ?? null;
+  if (evtErr) {
+    logger.warn('Event fetch failed', {
+      disasterEvacuationEventId: eventId,
+      error: evtErr
+    });
   }
+  logger.debug('Event row fetched', {
+    disasterEvacuationEventId: eventId,
+    hasEvacuationCenter: !!eventRow?.evacuation_centers
+  });
 
-  console.log('[DEBUG] fallbackEventLocationName:', fallbackEventLocationName);
+      // Primary: name from joined center
+      fallbackEventLocationName = eventRow?.evacuation_centers?.name ?? null;
+
+      // Safety net: direct fetch by id if the join didn't hydrate
+      if (!fallbackEventLocationName && eventRow?.evacuation_center_id) {
+        const { data: ecRow, error: ecErr } = await supabase
+          .from('evacuation_centers')
+          .select('id, name, category')
+          .eq('id', eventRow.evacuation_center_id)
+          .maybeSingle();
+
+    if (ecErr) {
+      logger.warn('Evacuation center fetch by id failed', {
+        evacuationCenterId: eventRow.evacuation_center_id,
+        error: ecErr
+      });
+    }
+    logger.debug('Evacuation center row fetched', {
+      evacuationCenterId: eventRow.evacuation_center_id,
+      centerName: ecRow?.name
+    });
+
+        fallbackEventLocationName = ecRow?.name ?? null;
+      }
+
+  logger.debug('Fallback event location name determined', {
+    disasterEvacuationEventId: eventId,
+    locationName: fallbackEventLocationName
+  });
 } catch (e) {
-  console.warn('[WARN] could not fetch event location name', e);
+  logger.warn('Could not fetch event location name', {
+    disasterEvacuationEventId: eventId,
+    error: e.message
+  });
 }
 
 
@@ -110,14 +156,24 @@ try {
     const { data: vulnTypes, error: vulnTypesErr } = await supabase
       .from('vulnerability_types')
       .select('id, name');
-    if (vulnTypesErr) console.warn('[WARN] fetching vulnerability_types:', vulnTypesErr);
+    if (vulnTypesErr) {
+      logger.warn('Failed to fetch vulnerability types', {
+        disasterEvacuationEventId: eventId,
+        error: vulnTypesErr
+      });
+    }
     const vulnNameById = new Map((vulnTypes || []).map((v) => [Number(v.id), v.name]));
 
     // 0.1) barangay id -> name map (for snapshot numeric values)
     const { data: brgyRows, error: brgyErr } = await supabase
       .from('barangays')
       .select('id, name');
-    if (brgyErr) console.warn('[WARN] fetching barangays:', brgyErr);
+    if (brgyErr) {
+      logger.warn('Failed to fetch barangays', {
+        disasterEvacuationEventId: eventId,
+        error: brgyErr
+      });
+    }
     const barangayNameById = new Map((brgyRows || []).map((b) => [Number(b.id), b.name]));
     const resolveBarangayName = resolveBarangayNameFactory(barangayNameById);
 
@@ -164,12 +220,26 @@ try {
       .eq('disaster_evacuation_event_id', eventId);
 
     if (regError) {
-      console.error('[ERROR] fetching registrations:', regError);
+      logger.error('Failed to fetch evacuation registrations', {
+        disasterEvacuationEventId: eventId,
+        error: regError,
+        path: req.path
+      });
       return next(new ApiError('Failed to fetch registrations', 500));
     }
     if (!registrations || registrations.length === 0) {
+      logger.info('No registrations found for disaster evacuation event', {
+        disasterEvacuationEventId: eventId,
+        path: req.path
+      });
       return res.status(200).json([]);
     }
+
+    logger.info('Registrations fetched successfully', {
+      disasterEvacuationEventId: eventId,
+      registrationCount: registrations.length,
+      path: req.path
+    });
 
     // 2) group by family_head_id
     const familyGroups = new Map();
@@ -179,20 +249,24 @@ try {
       familyGroups.get(fhId).push(r);
     }
 
-// --- Bulk fetch services for all visible families in this event ---
-const familyHeadIds = Array.from(familyGroups.keys()).filter((x) => Number.isFinite(x));
-let servicesByFamilyId = new Map();
+    // --- Bulk fetch services for all visible families in this event ---
+    const familyHeadIds = Array.from(familyGroups.keys()).filter((x) => Number.isFinite(x));
+    let servicesByFamilyId = new Map();
 
-if (familyHeadIds.length > 0) {
-  const { data: serviceRows, error: svcErr } = await supabase
-    .from('services')
-    .select('family_id, service_received, created_at') // <-- include created_at
-    .in('family_id', familyHeadIds)
-    .eq('disaster_evacuation_event_id', eventId)
-    .order('created_at', { ascending: false });
+    if (familyHeadIds.length > 0) {
+      const { data: serviceRows, error: svcErr } = await supabase
+        .from('services')
+        .select('family_id, service_received, created_at')
+        .in('family_id', familyHeadIds)
+        .eq('disaster_evacuation_event_id', eventId)
+        .order('created_at', { ascending: false });
 
   if (svcErr) {
-    console.warn('[WARN] fetching services:', svcErr);
+    logger.warn('Failed to fetch services for families', {
+      disasterEvacuationEventId: eventId,
+      familyHeadIdCount: familyHeadIds.length,
+      error: svcErr
+    });
   } else {
     servicesByFamilyId = serviceRows.reduce((map, row) => {
       const fid = Number(row.family_id);
@@ -204,6 +278,11 @@ if (familyHeadIds.length > 0) {
       map.set(fid, arr);
       return map;
     }, new Map());
+    logger.debug('Services fetched for families', {
+      disasterEvacuationEventId: eventId,
+      serviceCount: serviceRows?.length || 0,
+      familiesWithServices: servicesByFamilyId.size
+    });
   }
 }
 
@@ -342,7 +421,7 @@ if (familyHeadIds.length > 0) {
         room_name: first?.ec_rooms?.room_name || 'Unknown',
         decampment_timestamp: first?.decampment_timestamp || null,
         view_family: {
-          evacuation_center_name: first?.ec_rooms?.evacuation_centers?.name || fallbackEventLocationName ||'Unknown',
+          evacuation_center_name: first?.ec_rooms?.evacuation_centers?.name || fallbackEventLocationName || 'Unknown',
           head_of_family: family_head_full_name,
           decampment: first?.decampment_timestamp || null,
           summary_per_family: summary,
@@ -354,9 +433,21 @@ if (familyHeadIds.length > 0) {
       });
     }
 
+    logger.info('Successfully retrieved evacuees information', {
+      disasterEvacuationEventId: eventId,
+      familyCount: response.length,
+      totalIndividuals: response.reduce((sum, fam) => sum + fam.total_individuals, 0),
+      path: req.path
+    });
+
     return res.status(200).json(response);
   } catch (error) {
-    console.error('[FATAL] evacuees-information:', error);
+    logger.error('Fatal error in getEvacueesInformationbyDisasterEvacuationEventId', {
+      disasterEvacuationEventId: eventId,
+      error: error.message,
+      stack: error.stack,
+      path: req.path
+    });
     return next(new ApiError('Internal server error', 500));
   }
 };

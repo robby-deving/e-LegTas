@@ -40,6 +40,7 @@ export default function EvacuationInfo() {
     createDisaster: createDisasterApi,
     updateDisaster: updateDisasterApi,
     deleteDisaster: deleteDisasterApi,
+    refreshDisasters,
   } = useDisasters();
 
   const [typeFilter, setTypeFilter] = useState<string>("All");
@@ -216,6 +217,8 @@ const navigateToDetail = async (d: Disaster) => {
               setFilterMonth(newMonth);
               setFilterYear(newYear);
             }}
+            onRefresh={refreshDisasters}
+            refreshing={loading}
           />
 
         <div className="mt-2 space-y-10">

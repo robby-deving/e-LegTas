@@ -195,13 +195,9 @@ export const SearchEvacuation = ({
                   </div>
                   <div className="ml-4">
                     {evacuation.status === 'Inactive' ? (
-                      <button
-                        onClick={() => handleActivate(evacuation)}
-                        className="bg-green-700 hover:bg-green-800 text-white text-xs rounded px-4 py-1"
-                        disabled={isLoading}
-                      >
-                        {isLoading ? 'Activating...' : 'Activate'}
-                      </button>
+                      <span className="bg-green-700 text-white text-xs rounded px-4 py-1">
+                        Activate
+                      </span>
                     ) : evacuation.status === 'Active' ? (
                       <span className="bg-[#0192D4] text-white text-xs rounded px-4 py-1">
                         Active
@@ -252,8 +248,9 @@ export const SearchEvacuation = ({
               }
             }}
             className="bg-green-700 hover:bg-green-800"
+            disabled={isLoading}
           >
-            Activate Now
+            {isLoading ? 'Activating...' : 'Activate Now'}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

@@ -1,6 +1,7 @@
 // server/src/controllers/evacuees.update-registration.controller.js
 const { supabase } = require('../config/supabase');
 const { invalidateEvacueeSearchCache } = require('./evacuees.search.controller');
+const logger = require('../utils/logger');
 
 class ApiError extends Error {
   constructor(message, statusCode = 500) {
@@ -11,7 +12,9 @@ class ApiError extends Error {
 }
 
 exports.updateEvacuee = async (req, res, next) => {
-  const { id } = req.params;
+  // Use validated params and body from middleware if available
+  const id = req.validatedParams?.id || req.params.id;
+  const validatedData = req.validatedBody || req.body;
 
   const {
     first_name, middle_name, last_name, suffix, birthdate, sex,
@@ -24,10 +27,25 @@ exports.updateEvacuee = async (req, res, next) => {
     is_pwd, is_pregnant, is_lactating,
     
     ec_rooms_id, disaster_evacuation_event_id,
-  } = req.body;
+  } = validatedData;
 
-  if (!disaster_evacuation_event_id) return next(new ApiError('disaster_evacuation_event_id is required for updates.', 400));
-  if (!id || Number.isNaN(Number(id))) return next(new ApiError('Invalid evacuee id.', 400));
+  if (!disaster_evacuation_event_id) {
+    logger.warn('Missing disaster_evacuation_event_id for updateEvacuee', { id, bodyKeys: Object.keys(req.body || {}) });
+    return next(new ApiError('disaster_evacuation_event_id is required for updates.', 400));
+  }
+  if (!id || Number.isNaN(Number(id))) {
+    logger.warn('Invalid evacuee id for updateEvacuee', { id });
+    return next(new ApiError('Invalid evacuee id.', 400));
+  }
+
+  logger.debug('updateEvacuee payload (sanitized)', {
+    id,
+    disaster_evacuation_event_id,
+    family_head_id,
+    relationship_to_family_head,
+    flags: { is_infant, is_children, is_youth, is_adult, is_senior, is_pwd, is_pregnant, is_lactating },
+    ec_rooms_id
+  });
 
   const computeAge = (iso) => {
     if (!iso) return 0;
@@ -89,7 +107,10 @@ exports.updateEvacuee = async (req, res, next) => {
       .eq('id', id)
       .single();
 
-    if (evacueeErr || !evacueeRow) return next(new ApiError('Evacuee not found.', 404));
+    if (evacueeErr || !evacueeRow) {
+      logger.warn('Evacuee not found for update', { id, error: evacueeErr });
+      return next(new ApiError('Evacuee not found.', 404));
+    }
 
     const resident_id = evacueeRow.resident_id;
 
@@ -110,8 +131,16 @@ exports.updateEvacuee = async (req, res, next) => {
         .eq('family_head_id', evacueeRow.family_head_id)
         .eq('disaster_evacuation_event_id', disaster_evacuation_event_id);
 
-      if (famCountErr) throw new ApiError('Failed to count family members.', 500);
+      if (famCountErr) {
+        logger.error('Failed to count family members during head demotion check', { famCountErr, id, disaster_evacuation_event_id });
+        throw new ApiError('Failed to count family members.', 500);
+      }
       if ((familyCount ?? 1) > 1) {
+        logger.warn('Attempt to demote head while family members still assigned', {
+          evacuee_id: id,
+          family_head_id: evacueeRow.family_head_id,
+          disaster_evacuation_event_id
+        });
         return next(new ApiError(
           'Cannot demote the family head while other family members are still assigned in this event. Please transfer the head role to another member first.',
           409
@@ -129,7 +158,10 @@ exports.updateEvacuee = async (req, res, next) => {
           .select('id')
           .eq('resident_id', resident_id)
           .maybeSingle();
-        if (existingHeadErr) throw new ApiError('Failed to look up head record.', 500);
+        if (existingHeadErr) {
+          logger.error('Failed to look up head record', { resident_id, existingHeadErr });
+          throw new ApiError('Failed to look up head record.', 500);
+        }
 
         if (existingHead?.id) {
           resolved_family_head_id = existingHead.id;
@@ -141,11 +173,13 @@ exports.updateEvacuee = async (req, res, next) => {
             .single();
           if (newHeadErr) {
             if (newHeadErr.code === '23505') {
+              logger.error('Duplicate key on family_head.id sequence mismatch', { newHeadErr });
               throw new ApiError(
                 `Failed to create family head. Duplicate key on 'family_head.id'. Run: SELECT setval(pg_get_serial_sequence('family_head','id'), (SELECT MAX(id) FROM family_head)+1);`,
                 500
               );
             }
+            logger.error('Failed to create family head', { newHeadErr });
             throw new ApiError('Failed to create family head.', 500);
           }
           resolved_family_head_id = newHead.id;
@@ -154,6 +188,7 @@ exports.updateEvacuee = async (req, res, next) => {
       }
     } else {
       if (!family_head_id) {
+        logger.warn('Missing family_head_id when relationship is not Head', { id, relationship_to_family_head, disaster_evacuation_event_id });
         return next(new ApiError('family_head_id is required when relationship_to_family_head is not "Head".', 400));
       }
       resolved_family_head_id = family_head_id;
@@ -165,7 +200,10 @@ exports.updateEvacuee = async (req, res, next) => {
       .eq('evacuee_resident_id', id)
       .eq('disaster_evacuation_event_id', disaster_evacuation_event_id)
       .maybeSingle();
-    if (regFindErr) throw new ApiError('Failed to fetch evacuation registration.', 500);
+    if (regFindErr) {
+      logger.error('Failed to fetch evacuation registration', { id, disaster_evacuation_event_id, regFindErr });
+      throw new ApiError('Failed to fetch evacuation registration.', 500);
+    }
 
     if (!regRow) {
       const { data: otherActive, error: oaErr } = await supabase
@@ -179,7 +217,10 @@ exports.updateEvacuee = async (req, res, next) => {
         .eq('evacuee_resident_id', id)
         .is('decampment_timestamp', null);
 
-      if (oaErr) throw new ApiError('Failed to verify active-registration state.', 500);
+      if (oaErr) {
+        logger.error('Failed to verify active-registration state', { evacuee_id: id, oaErr });
+        throw new ApiError('Failed to verify active-registration state.', 500);
+      }
 
       if ((otherActive || []).length > 0) {
         const alreadyInTarget = otherActive.find(
@@ -187,12 +228,14 @@ exports.updateEvacuee = async (req, res, next) => {
         );
         if (alreadyInTarget) {
           const ecName = alreadyInTarget?.disaster_evacuation_event?.evacuation_centers?.name || 'this evacuation center';
+          logger.warn('Evacuee already actively registered in this event', { id, disaster_evacuation_event_id, ecName });
           return next(new ApiError(
             `This evacuee is already actively registered in this event (${ecName}). Use Edit to update the existing record.`,
             409
           ));
         }
         const ecName = otherActive[0]?.disaster_evacuation_event?.evacuation_centers?.name || 'another evacuation center';
+        logger.warn('Evacuee still active in another event', { id, current_event: ecName });
         return next(new ApiError(
           `This evacuee is still actively registered in another event (${ecName}). Please decamp them first before registering here.`,
           409
@@ -235,8 +278,12 @@ exports.updateEvacuee = async (req, res, next) => {
         .from('evacuation_registrations')
         .update(patch)
         .eq('id', regRow.id);
-      if (regUpdateErr) throw new ApiError('Failed to update evacuation registration.', 500);
+      if (regUpdateErr) {
+        logger.error('Failed to update evacuation registration', { reg_id: regRow.id, error: regUpdateErr });
+        throw new ApiError('Failed to update evacuation registration.', 500);
+      }
       mutated = true;
+      logger.debug('Updated evacuation registration', { reg_id: regRow.id, evacuee_id: id });
     } else {
       const reported_age = computeAge(snapshot.birthdate);
       const { error: regInsertErr } = await supabase
@@ -254,21 +301,35 @@ exports.updateEvacuee = async (req, res, next) => {
           created_at: nowIso,
           updated_at: nowIso,
         }]);
-      if (regInsertErr) throw new ApiError('Failed to create evacuation registration for this event.', 500);
+      if (regInsertErr) {
+        logger.error('Failed to create evacuation registration for this event', { evacuee_id: id, disaster_evacuation_event_id, error: regInsertErr });
+        throw new ApiError('Failed to create evacuation registration for this event.', 500);
+      }
       mutated = true;
+      logger.debug('Inserted evacuation registration', { evacuee_id: id, disaster_evacuation_event_id });
     }
+
+    logger.info('Evacuee updated successfully (event-scoped)', {
+      evacuee_id: id,
+      family_head_id: resolved_family_head_id,
+      disaster_evacuation_event_id
+    });
 
     return res.status(200).json({
       message: 'Evacuee updated successfully (event-scoped).',
       data: { evacuee_id: id, family_head_id: resolved_family_head_id },
     });
   } catch (err) {
-    console.error('UpdateEvacuee Error:', err);
+    logger.error('UpdateEvacuee Error', { id, disaster_evacuation_event_id, message: err?.message, stack: err?.stack });
     return next(new ApiError('Internal server error during evacuee update.', 500));
   } finally {
     if (mutated) {
-      // keep the search results consistent after any successful write
-      try { invalidateEvacueeSearchCache(); } catch {}
+      try {
+        logger.debug('Invalidating evacuee search cache after updateEvacuee', { evacuee_id: id, disaster_evacuation_event_id });
+        invalidateEvacueeSearchCache();
+      } catch (e) {
+        logger.error('Failed to invalidate evacuee search cache after updateEvacuee', { error: e?.message });
+      }
     }
   }
 };

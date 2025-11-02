@@ -19,7 +19,8 @@ class ApiError extends Error {
  */
 exports.getUserProfile = async (req, res, next) => {
     try {
-        const { userId } = req.params;
+        // Use validated params from middleware if available
+        const userId = req.validatedParams?.userId || req.params.userId;
 
         const { data, error } = await supabase
             .from('users')
@@ -77,8 +78,10 @@ exports.getUserProfile = async (req, res, next) => {
  */
 exports.updateUserProfile = async (req, res, next) => {
   try {
-    const { userId } = req.params;
-    const { email, phone_number, first_name, last_name } = req.body;
+    // Use validated params and body from middleware if available
+    const userId = req.validatedParams?.userId || req.params.userId;
+    const validatedData = req.validatedBody || req.body;
+    const { email, phone_number, first_name, last_name } = validatedData;
 
     // Step 1: Fetch the user's profile to get users_profile.id and residents.id
     const { data: existingData, error: fetchError } = await supabase

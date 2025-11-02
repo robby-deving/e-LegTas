@@ -31,7 +31,8 @@ class ApiError extends Error {
  */
 exports.getAllDisasters = async (req, res, next) => {
     try {
-        const { month, year } = req.query;
+        // Use validated query
+        const { month, year } = req.validatedQuery || req.query;
         
         // Generate cache key based on query parameters
         const cacheKey = generateCacheKey('disasters:all', { month, year });
@@ -119,7 +120,8 @@ exports.getAllDisasters = async (req, res, next) => {
  * @access Public
  */
 exports.getDisasterById = async (req, res, next) => {
-    const { id } = req.params;
+    // Use validated params
+    const { id } = req.validatedParams || req.params;
 
     if (!id || isNaN(Number(id))) {
         logger.warn('Invalid disaster ID provided', { id });
@@ -198,12 +200,13 @@ exports.getDisasterById = async (req, res, next) => {
  * @access Private (requires authentication/authorization, but public for now)
  */
 exports.createDisaster = async (req, res, next) => {
+    // Use validated body
     const {
         disaster_name,
         disaster_type_id,
         disaster_start_date,
         disaster_end_date 
-    } = req.body;
+    } = req.validatedBody || req.body;
 
     // Basic input validation
     if (!disaster_name || !disaster_type_id || !disaster_start_date) {
@@ -257,8 +260,9 @@ exports.createDisaster = async (req, res, next) => {
  * @access Private (requires authentication/authorization, but public for now)
  */
 exports.updateDisaster = async (req, res, next) => {
-    const { id } = req.params;
-    const updates = req.body;
+    // Use validated params and body
+    const { id } = req.validatedParams || req.params;
+    const updates = req.validatedBody || req.body;
 
     if (!id || isNaN(Number(id))) {
         logger.warn('Invalid disaster ID provided for update', { id });
@@ -321,7 +325,8 @@ exports.updateDisaster = async (req, res, next) => {
  * @access Private (requires authentication and delete_disaster permission)
  */
 exports.deleteDisaster = async (req, res, next) => {
-    const { id } = req.params;
+    // Use validated params
+    const { id } = req.validatedParams || req.params;
 
     if (!id || isNaN(Number(id))) {
         logger.warn('Invalid disaster ID provided for deletion', { id });

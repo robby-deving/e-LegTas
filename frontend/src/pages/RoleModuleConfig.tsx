@@ -1,68 +1,20 @@
-// Custom CSS for green checkboxes
-const checkboxGreenStyle = `
-.brand-checkbox {
-    appearance: none;
-    -webkit-appearance: none;
-    width: 1.1em;
-    height: 1.1em;
-    border: 2px solid #00824E;
-    border-radius: 0.25em;
-    background: #fff;
-    cursor: pointer;
-    position: relative;
-    margin-right: 0.75rem;
-    transition: border-color 0.2s, box-shadow 0.2s;
-}
-.brand-checkbox:checked {
-    background-color: #00824E;
-    border-color: #00824E;
-}
-.brand-checkbox:checked:after {
-    content: '';
-    position: absolute;
-    left: 0.28em;
-    top: 0.05em;
-    width: 0.35em;
-    height: 0.7em;
-    border: solid #fff;
-    border-width: 0 0.18em 0.18em 0;
-    transform: rotate(45deg);
-    pointer-events: none;
-    display: block;
-}
-.brand-checkbox:indeterminate {
-    background-color: #00824E;
-    border-color: #00824E;
-}
-.brand-checkbox:indeterminate:after {
-    content: '';
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    width: 0.6em;
-    height: 0.13em;
-    background: #fff;
-    border-radius: 1px;
-    display: block;
-    transform: translate(-50%, -50%);
-}
-`;
-    // Inject custom CSS for green checkboxes at the top of the component
-    // ...existing code...
 import { usePageTitle } from '../hooks/usePageTitle';
 import { useSelector } from 'react-redux';
 import { selectCurrentUser, selectToken } from '../features/auth/authSlice';
 import { Navigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, MoreHorizontal, Edit, Trash2 } from 'lucide-react';
+import { MoreHorizontal, Edit, Trash2, Plus } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../components/ui/dropdown-menu';
 import { Button } from '../components/ui/button';
 import { usePermissions } from '../contexts/PermissionContext';
-import { Tooltip, TooltipTrigger, TooltipContent } from '../components/ui/Tooltip';
+import { AddRoleModal } from '@/components/modals/AddRoleModal';
+import { EditRoleModal } from '@/components/modals/EditRoleModal';
+import { DeleteRoleModal } from '@/components/modals/DeleteRoleModal';
+import type { RoleFormData } from '@/components/modals/AddRoleModal';
 
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
-
-import { Plus } from 'lucide-react';
+import { Pagination } from '@/components/ui/pagination';
+import LoadingSpinner from '../components/loadingSpinner';
 
 interface Role {
     id: number;
@@ -104,13 +56,6 @@ export default function RoleModuleConfig() {
     const [isAddRoleModalOpen, setIsAddRoleModalOpen] = useState(false);
     const [isEditRoleModalOpen, setIsEditRoleModalOpen] = useState(false);
     const [editingRole, setEditingRole] = useState<Role | null>(null);
-    const [formLoading, setFormLoading] = useState(false);
-    const [formData, setFormData] = useState({
-        name: '',
-        permissions: [] as string[]
-    });
-    const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
-    // Dropdown state no longer needed with shadcn/ui DropdownMenu
     const [deleteConfirmRole, setDeleteConfirmRole] = useState<Role | null>(null);
     // Toast notification state
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
@@ -322,110 +267,9 @@ export default function RoleModuleConfig() {
     
     // No-op: dropdown handled by DropdownMenu
     
-    // Handle form input changes
-    const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({
-            ...prev,
-            [name]: value
-        }));
-    };
-
-    // Handle permission checkbox changes
-    const handlePermissionChange = (permissionName: string) => {
-        setFormData(prev => ({
-            ...prev,
-            permissions: prev.permissions.includes(permissionName)
-                ? prev.permissions.filter(p => p !== permissionName)
-                : [...prev.permissions, permissionName]
-        }));
-    };
-
-    // Handle category select all/unselect all
-    const handleCategoryToggle = (groupName: string) => {
-        const groupPermissions = permissionsWithGroups.filter(p => p.group === groupName);
-        const groupPermissionNames = groupPermissions.map(p => p.permission_name);
-        const allSelected = groupPermissionNames.every(name => formData.permissions.includes(name));
-        
-        setFormData(prev => ({
-            ...prev,
-            permissions: allSelected
-                ? prev.permissions.filter(p => !groupPermissionNames.includes(p))
-                : [...new Set([...prev.permissions, ...groupPermissionNames])]
-        }));
-    };
-
-    // Check if all permissions in a category are selected
-    const isCategoryFullySelected = (groupName: string) => {
-        const groupPermissions = permissionsWithGroups.filter(p => p.group === groupName);
-        return groupPermissions.length > 0 && groupPermissions.every(p => formData.permissions.includes(p.permission_name));
-    };
-
-    // Check if some (but not all) permissions in a category are selected
-    const isCategoryPartiallySelected = (groupName: string) => {
-        const groupPermissions = permissionsWithGroups.filter(p => p.group === groupName);
-        const selectedCount = groupPermissions.filter(p => formData.permissions.includes(p.permission_name)).length;
-        return selectedCount > 0 && selectedCount < groupPermissions.length;
-    };
-
-    // Toggle group expansion
-    const toggleGroup = (groupName: string) => {
-        setExpandedGroups(prev => ({
-            ...prev,
-            [groupName]: !prev[groupName]
-        }));
-    };
-    
-    // Reset form when modal is closed
-    const handleCloseModal = () => {
-        setFormData({
-            name: '',
-            permissions: []
-        });
-        setExpandedGroups({});
-        setIsAddRoleModalOpen(false);
-        setIsEditRoleModalOpen(false);
-        setEditingRole(null);
-    };
-    
     // Handle opening edit modal
-    const handleEditRole = async (role: Role) => {
+    const handleEditRole = (role: Role) => {
         setEditingRole(role);
-        
-        try {
-            // Ensure the permission catalog is available so modal can reflect selections
-            if (permissions.length === 0) {
-                await fetchPermissions();
-            }
-            // Fetch current role permissions
-            const response = await fetch(`/api/v1/permissions/role/${role.id}`, {
-                headers: getAuthHeaders()
-            });
-            
-            if (response.ok) {
-                const data = await response.json();
-                const rolePermissionNames = (data.permissions || []).map((p: any) => p.permission_name);
-                
-                setFormData({
-                    name: role.name,
-                    permissions: rolePermissionNames
-                });
-            } else {
-                // If failed to fetch permissions, just set empty permissions
-                console.warn(`Failed to fetch permissions for role ${role.id}`);
-                setFormData({
-                    name: role.name,
-                    permissions: []
-                });
-            }
-        } catch (error) {
-            console.error('Error fetching role permissions:', error);
-            setFormData({
-                name: role.name,
-                permissions: []
-            });
-        }
-        
         setIsEditRoleModalOpen(true);
     };
     
@@ -435,10 +279,7 @@ export default function RoleModuleConfig() {
     };
     
     // Handle add form submission
-    const handleAddSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setFormLoading(true);
-        
+    const handleAddSubmit = async (formData: RoleFormData) => {
         try {
             const response = await fetch('/api/v1/roles', {
                 method: 'POST',
@@ -453,30 +294,26 @@ export default function RoleModuleConfig() {
                 throw new Error('Failed to create role');
             }
 
-            // Reset form and close modal
-            handleCloseModal();
+            // Close modal
+            setIsAddRoleModalOpen(false);
             
             // Refresh roles list
             await fetchRoles();
+            showToast('Role created successfully', 'success');
             
         } catch (err) {
             console.error('Error creating role:', err);
-        } finally {
-            setFormLoading(false);
+            showToast('An error occurred while creating the role.', 'error');
+            throw err;
         }
     };
     
     // Handle edit form submission
-    const handleEditSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!editingRole) return;
-        
-        setFormLoading(true);
-        
+    const handleEditSubmit = async (formData: RoleFormData, role: Role) => {
         try {
             // 1) Update role name if it changed
-            if (formData.name && formData.name.trim() && formData.name.trim() !== editingRole.name) {
-                const renameResponse = await fetch(`/api/v1/roles/${editingRole.id}`, {
+            if (formData.name && formData.name.trim() && formData.name.trim() !== role.name) {
+                const renameResponse = await fetch(`/api/v1/roles/${role.id}`, {
                     method: 'PUT',
                     headers: getAuthHeaders(),
                     body: JSON.stringify({ role_name: formData.name.trim() })
@@ -486,8 +323,7 @@ export default function RoleModuleConfig() {
                     const errText = await renameResponse.text().catch(() => '');
                     console.error('Failed to rename role:', errText);
                     showToast('Failed to update role name', 'error');
-                    setFormLoading(false);
-                    return;
+                    throw new Error('Failed to update role name');
                 }
             }
 
@@ -501,9 +337,9 @@ export default function RoleModuleConfig() {
             console.log('Sending permission IDs:', permissionIds);
             console.log('All available permissions:', permissions);
 
-            const roleId = editingRole.id;
+            const roleId = role.id;
             if (canEditUserPermission) {
-                const response = await fetch(`/api/v1/permissions/role/${editingRole.id}`, {
+                const response = await fetch(`/api/v1/permissions/role/${role.id}`, {
                     method: 'PUT',
                     headers: getAuthHeaders(),
                     body: JSON.stringify({
@@ -516,8 +352,9 @@ export default function RoleModuleConfig() {
                 }
             }
 
-            // Reset form and close modal
-            handleCloseModal();
+            // Close modal
+            setIsEditRoleModalOpen(false);
+            setEditingRole(null);
             
             // Refresh roles list
             await fetchRoles();
@@ -529,8 +366,7 @@ export default function RoleModuleConfig() {
         } catch (err) {
             console.error('Error updating role:', err);
             showToast('An error occurred while updating the role.', 'error');
-        } finally {
-            setFormLoading(false);
+            throw err;
         }
     };
     
@@ -584,12 +420,10 @@ export default function RoleModuleConfig() {
     }
 
     return (
-        <>
-            <style>{checkboxGreenStyle}</style>
-            <div className="text-black p-6 space-y-6 flex flex-col">
+        <div className="h-full flex flex-col text-black p-10">
             {/* Title */}
             <h1 
-                className='font-bold mb-6'
+                className='font-bold mb-6 flex-shrink-0'
                 style={{ 
                     color: '#00824E', 
                     fontSize: '32px' 
@@ -599,7 +433,7 @@ export default function RoleModuleConfig() {
             </h1>
             
             {/* Add User Roles Button */}
-            <div className="mb-6 flex justify-end">
+            <div className="mb-4 flex justify-end flex-shrink-0">
                 {canCreateRole && (
                     <Button
                         onClick={handleAddRole}
@@ -612,309 +446,153 @@ export default function RoleModuleConfig() {
             </div>
             
             {/* Content */}
-            <div className="rounded-md border border-input overflow-hidden">
-                <div className="relative w-full overflow-x-auto">
-                <Table>
-                    <TableHeader className="bg-gray-50">
-                        <TableRow>
-                            <TableHead className="text-left">Name</TableHead>
-                            <TableHead className="text-center">Users</TableHead>
-                            <TableHead className="text-center">Permissions</TableHead>
-                            <TableHead className="text-center w-12">Actions</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {loading ? (
+            <div className="rounded-md border border-input overflow-hidden max-h-[600px] flex flex-col">
+                <div className="relative w-full overflow-auto flex-1">
+                    <Table>
+                        <TableHeader className="bg-gray-50">
                             <TableRow>
-                                <TableCell colSpan={4} className="text-center py-4 text-gray-500">
-                                    Loading roles...
-                                </TableCell>
+                                <TableHead className="text-left whitespace-nowrap">Name</TableHead>
+                                <TableHead className="text-center whitespace-nowrap">Users</TableHead>
+                                <TableHead className="text-center whitespace-nowrap">Permissions</TableHead>
+                                <TableHead className="text-center w-12 whitespace-nowrap">Actions</TableHead>
                             </TableRow>
-                        ) : roles.length === 0 ? (
-                            <TableRow>
-                                <TableCell colSpan={4} className="text-center py-4 text-gray-500">
-                                    No roles found
-                                </TableCell>
-                            </TableRow>
-                        ) : (
-                            paginatedRoles.map((role) => (
-                                <TableRow key={role.id} className="hover:bg-gray-50" style={{ position: 'relative' }}>
-                                    <TableCell className="text-foreground font-medium">
-                                        {role.name}
-                                    </TableCell>
-                                    <TableCell className="text-center text-foreground">
-                                        {getUserCountByRole(role.id)}
-                                    </TableCell>
-                                    <TableCell className="text-center text-foreground">
-                                        {rolePermissions[role.id] || 0}
-                                    </TableCell>
-                                    <TableCell className="text-center">
-                                        <div className="flex justify-end">
-                                            <div className="relative" data-role-id={role.id}>
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="Actions">
-                                                            <MoreHorizontal className="w-4 h-4" />
-                                                        </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem 
-                                                            onClick={() => handleEditRole(role)}
-                                                            className="cursor-pointer"
-                                                        >
-                                                            <Edit className="w-4 h-4 mr-2" />
-                                                            Edit
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem 
-                                                            onClick={() => setDeleteConfirmRole(role)}
-                                                            className="cursor-pointer text-red-600"
-                                                        >
-                                                            <Trash2 className="w-4 h-4 mr-2" />
-                                                            Delete
-                                                        </DropdownMenuItem>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
+                        </TableHeader>
+                        <TableBody>
+                            {loading ? (
+                                Array.from({ length: rowsPerPage }, (_, index) => (
+                                    <TableRow key={`loading-${index}`}>
+                                        <TableCell className="py-4">
+                                            <div className="flex items-center space-x-2">
+                                                <LoadingSpinner size="sm" />
+                                                <div className="h-4 bg-gray-200 rounded animate-pulse w-32"></div>
                                             </div>
+                                        </TableCell>
+                                        <TableCell className="text-center">
+                                            <div className="h-4 bg-gray-200 rounded animate-pulse w-12 mx-auto"></div>
+                                        </TableCell>
+                                        <TableCell className="text-center">
+                                            <div className="h-4 bg-gray-200 rounded animate-pulse w-12 mx-auto"></div>
+                                        </TableCell>
+                                        <TableCell className="text-center">
+                                            <div className="h-8 w-8 bg-gray-200 rounded animate-pulse mx-auto"></div>
+                                        </TableCell>
+                                    </TableRow>
+                                ))
+                            ) : roles.length === 0 ? (
+                                <TableRow>
+                                    <TableCell colSpan={4} className="text-center py-8">
+                                        <div className="text-gray-500 text-lg font-medium mb-2">
+                                            No roles found
                                         </div>
+                                        <p className="text-gray-400 text-sm">
+                                            Create a role to get started
+                                        </p>
                                     </TableCell>
                                 </TableRow>
-                            ))
-                        )}
-                    </TableBody>
-                </Table>
+                            ) : (
+                                paginatedRoles.map((role) => (
+                                    <TableRow key={role.id} className="hover:bg-gray-50" style={{ position: 'relative' }}>
+                                        <TableCell className="text-foreground font-medium">
+                                            {role.name}
+                                        </TableCell>
+                                        <TableCell className="text-center text-foreground">
+                                            {getUserCountByRole(role.id)}
+                                        </TableCell>
+                                        <TableCell className="text-center text-foreground">
+                                            {rolePermissions[role.id] || 0}
+                                        </TableCell>
+                                        <TableCell className="text-center">
+                                            <div className="flex justify-end">
+                                                <div className="relative" data-role-id={role.id}>
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="Actions">
+                                                                <MoreHorizontal className="w-4 h-4" />
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end">
+                                                            <DropdownMenuItem 
+                                                                onClick={() => handleEditRole(role)}
+                                                                className="cursor-pointer"
+                                                            >
+                                                                <Edit className="w-4 h-4 mr-2" />
+                                                                Edit
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem 
+                                                                onClick={() => setDeleteConfirmRole(role)}
+                                                                className="cursor-pointer text-red-600"
+                                                            >
+                                                                <Trash2 className="w-4 h-4 mr-2" />
+                                                                Delete
+                                                            </DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                </div>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                ))
+                            )}
+                        </TableBody>
+                    </Table>
                 </div>
             </div>
 
             {/* Pagination */}
-            <div className="flex items-center justify-between">
-                <div className="flex-1 text-sm text-muted-foreground">
-                    {paginatedRoles.length} of {totalRows} row(s) shown.
-                </div>
-                <div className='flex items-center gap-6'>
-                    <div className='flex items-center gap-2'>
-                        <span className='text-base text-gray-700'>Rows per page</span>
-                        <select
-                            value={rowsPerPage}
-                            onChange={(e) => setRowsPerPage(Number(e.target.value))}
-                            className='border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-[#00824E] focus:border-[#00824E] gap-20 mr-10'
-                        >
-                            <option value={5}>5</option>
-                            <option value={10}>10</option>
-                            <option value={20}>20</option>
-                            <option value={50}>50</option>
-                        </select>
+            {!loading && totalRows > 0 && (
+                <div className="flex items-center justify-between">
+                    <div className="flex-1 text-sm text-muted-foreground">
+                        <span>
+                            {(currentPage - 1) * rowsPerPage + 1}-
+                            {Math.min(currentPage * rowsPerPage, totalRows)} of {totalRows} row(s) shown.
+                        </span>
                     </div>
-                    <span className='text-base text-gray-700'>
-                        Page {currentPage} of {totalPages}
-                    </span>
-                    <div className='flex items-center gap-1'>
-                        <button
-                            onClick={() => setCurrentPage(1)}
-                            disabled={currentPage === 1}
-                            className='p-1 rounded border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed'
-                        >
-                            <ChevronsLeft className='h-4 w-4' />
-                        </button>
-                        <button
-                            onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                            disabled={currentPage === 1}
-                            className='p-1 rounded border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed'
-                        >
-                            <ChevronLeft className='h-4 w-4' />
-                        </button>
-                        <button
-                            onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                            disabled={currentPage === totalPages}
-                            className='p-1 rounded border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed'
-                        >
-                            <ChevronRight className='h-4 w-4' />
-                        </button>
-                        <button
-                            onClick={() => setCurrentPage(totalPages)}
-                            disabled={currentPage === totalPages}
-                            className='p-1 rounded border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed'
-                        >
-                            <ChevronsRight className='h-4 w-4' />
-                        </button>
-                    </div>
-                </div>
-            </div>
-            
-            {/* Role Modal (Add/Edit) */}
-            {(isAddRoleModalOpen || isEditRoleModalOpen) && (
-                <div 
-                    className='fixed inset-0 flex items-center justify-center z-50'
-                    style={{
-                        background: 'rgba(211, 211, 211, 0.80)'
-                    }}
-                >
-                    
-                    {/* Modal content */}
-                    <div className="relative bg-white rounded-lg p-8 w-[900px] shadow-lg max-h-[90vh] overflow-y-auto">
-                        <h2 className="text-2xl font-bold mb-6" style={{ color: '#00824E' }}>
-                            {isAddRoleModalOpen ? 'Add New Role' : 'Edit Role'}
-                        </h2>
-                        
-                        <form onSubmit={isAddRoleModalOpen ? handleAddSubmit : handleEditSubmit}>
-                            <div className="mb-6">
-                                <label className="block text-base font-bold text-gray-700 mb-3">
-                                    Role Name
-                                </label>
-                                <input
-                                    type="text"
-                                    name="name"
-                                    value={formData.name}
-                                    onChange={handleFormChange}
-                                    className="w-full px-4 py-3 text-base border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                                    placeholder="Enter role name"
-                                    required
-                                />
-                            </div>
-                            
-                            <div className="mb-8">
-                                <label className="block text-base font-bold text-gray-700 mb-3">
-                                    Permissions
-                                </label>
-                                <div className="border border-gray-300 rounded-md p-6 py-2 max-h-80 overflow-y-auto">
-                                    {/* Determine if user can modify permissions in this modal context */}
-                                    { /* no-op for layout; computed below in controls */ }
-                                    {permissionGroups.map((group) => {
-                                        const groupPermissions = permissionsWithGroups.filter(p => p.group === group);
-                                        const isExpanded = expandedGroups[group];
-                                        const isFullySelected = isCategoryFullySelected(group);
-                                        const isPartiallySelected = isCategoryPartiallySelected(group);
-                                        const canModifyRolePermissions = isAddRoleModalOpen ? canAddUserPermission : canEditUserPermission;
-                                        
-                                        return (
-                                            <div key={group} className="mb-3">
-                                                <div className="flex items-center">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => toggleGroup(group)}
-                                                        className="flex items-center p-0 hover:bg-gray-50 rounded mr-3"
-                                                    >
-                                                        <svg
-                                                            className={`w-5 h-5 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
-                                                            fill="none"
-                                                            stroke="currentColor"
-                                                            viewBox="0 0 24 24"
-                                                        >
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                                        </svg>
-                                                    </button>
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={isFullySelected}
-                                                        ref={(el) => {
-                                                            if (el) {
-                                                                el.indeterminate = isPartiallySelected;
-                                                            }
-                                                        }}
-                                                        onChange={() => handleCategoryToggle(group)}
-                                                        className="brand-checkbox"
-                                                        disabled={!canModifyRolePermissions}
-                                                    />
-                                                    <span className="font-bold text-base">{group}</span>
-                                                </div>
-                                                
-                                                {isExpanded && (
-                                                    <div className="ml-16 mt-3 space-y-3">
-                                                        {groupPermissions.map((permission) => (
-                                                            <label key={permission.permission_name} className="flex items-center gap-2">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    checked={formData.permissions.includes(permission.permission_name)}
-                                                                    onChange={() => handlePermissionChange(permission.permission_name)}
-                                                                    className="brand-checkbox"
-                                                                    disabled={!canModifyRolePermissions}
-                                                                />
-                                                                <span className="text-base">{permission.label}</span>
-                                                                {/* Hoverable question mark showing permission details */}
-                                                                <Tooltip>
-                                                                    <TooltipTrigger asChild>
-                                                                        <button
-                                                                            type="button"
-                                                                            className="ml-2 text-sm text-gray-500 hover:text-gray-700"
-                                                                            onClick={(e) => e.preventDefault()}
-                                                                        >
-                                                                            <span style={{ display: 'inline-block', width: 16, height: 16, lineHeight: '16px', textAlign: 'center', borderRadius: 8, border: '1px solid #cbd5e1' }}>?</span>
-                                                                        </button>
-                                                                    </TooltipTrigger>
-                                                                    <TooltipContent>
-                                                                        <div>{permission.description || permission.label}</div>
-                                                                    </TooltipContent>
-                                                                </Tooltip>
-                                                            </label>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                                {! (isAddRoleModalOpen ? canAddUserPermission : canEditUserPermission) && (
-                                    <p className="mt-2 text-xs text-gray-500">You don't have permission to {isAddRoleModalOpen ? 'assign' : 'edit'} user permissions.</p>
-                                )}
-                            </div>
-                            
-                            <div className="flex justify-end gap-4">
-                                <button
-                                    type="button"
-                                    onClick={handleCloseModal}
-                                    className="px-6 py-3 text-base text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
-                                    disabled={formLoading}
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    className="px-6 py-3 text-base text-white rounded-md hover:opacity-90"
-                                    style={{ backgroundColor: '#00824E' }}
-                                    disabled={formLoading}
-                                >
-                                    {formLoading 
-                                        ? (isAddRoleModalOpen ? 'Adding...' : 'Updating...')
-                                        : (isAddRoleModalOpen ? 'Add Role' : 'Update Role')
-                                    }
-                                </button>
-                            </div>
-                        </form>
-                    </div>
+                    <Pagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        onPageChange={(page) => setCurrentPage(page)}
+                        rowsPerPage={rowsPerPage}
+                        totalRows={totalRows}
+                        onRowsPerPageChange={(value: string) => {
+                            setRowsPerPage(Number(value));
+                            setCurrentPage(1);
+                        }}
+                    />
                 </div>
             )}
+            
+            {/* Add Role Modal */}
+            <AddRoleModal
+                isOpen={isAddRoleModalOpen}
+                onClose={() => setIsAddRoleModalOpen(false)}
+                onSubmit={handleAddSubmit}
+                permissions={permissionsWithGroups}
+                permissionGroups={permissionGroups}
+                canAddUserPermission={canAddUserPermission}
+            />
+
+            {/* Edit Role Modal */}
+            <EditRoleModal
+                isOpen={isEditRoleModalOpen}
+                onClose={() => {
+                    setIsEditRoleModalOpen(false);
+                    setEditingRole(null);
+                }}
+                onSubmit={handleEditSubmit}
+                role={editingRole}
+                permissions={permissionsWithGroups}
+                permissionGroups={permissionGroups}
+                canEditUserPermission={canEditUserPermission}
+                token={token}
+            />
             
             {/* Delete Confirmation Modal */}
-            {deleteConfirmRole && (
-                <div 
-                    className='fixed inset-0 flex items-center justify-center z-50'
-                    style={{
-                        background: 'rgba(211, 211, 211, 0.80)'
-                    }}
-                >
-                    <div className="bg-white rounded-lg p-6 w-[400px] shadow-lg">
-                        <h2 className="text-xl font-bold mb-4" style={{ color: '#00824E' }}>
-                            Delete Role
-                        </h2>
-                        <p className="text-gray-600 mb-6">
-                            Are you sure you want to delete the role "{deleteConfirmRole.name}"? This action cannot be undone.
-                        </p>
-                        <div className="flex justify-end gap-4">
-                            <button
-                                onClick={() => setDeleteConfirmRole(null)}
-                                className="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={() => handleDeleteRole(deleteConfirmRole.id)}
-                                className="px-4 py-2 text-white bg-red-600 rounded-md hover:bg-red-700"
-                            >
-                                Delete
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <DeleteRoleModal
+                isOpen={!!deleteConfirmRole}
+                onClose={() => setDeleteConfirmRole(null)}
+                onConfirm={handleDeleteRole}
+                role={deleteConfirmRole}
+            />
 
             {/* Toast Notification */}
             {toast && (
@@ -927,6 +605,5 @@ export default function RoleModuleConfig() {
                 </div>
             )}
         </div>
-        </>
     );
 }

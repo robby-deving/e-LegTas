@@ -46,7 +46,7 @@ const config = {
   report: {
     windowMs: parseInt(process.env.RATE_LIMIT_REPORT_WINDOW_MS) || 60 * 60 * 1000, // 1 hour
     maxAdmin: parseInt(process.env.RATE_LIMIT_REPORT_MAX_ADMIN) || (isProduction ? 50 : 100),
-    maxAuthenticated: parseInt(process.env.RATE_LIMIT_REPORT_MAX_AUTH) || (isProduction ? 10 : 20),
+    maxAuthenticated: parseInt(process.env.RATE_LIMIT_REPORT_MAX_AUTH) || (isProduction ? 50 : 100),
     maxAnonymous: parseInt(process.env.RATE_LIMIT_REPORT_MAX_ANON) || (isProduction ? 2 : 5),
   },
 

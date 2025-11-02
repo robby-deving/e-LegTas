@@ -10,6 +10,7 @@ const {
   deleteDisaster
 } = require('../controllers/disaster.controller');
 const { authenticateUser, requirePermission } = require('../middleware');
+const { validateParams, validateQuery, validateBody } = require('../middleware/inputValidation');
 
 // Create an Express Router instance
 const router = express.Router();
@@ -20,14 +21,26 @@ const router = express.Router();
 // @desc Get all disaster types
 // @route GET /api/v1/disasters/types
 // @access Private (requires view_disaster permission)
-router.get('/types', authenticateUser, requirePermission('view_disaster'), getAllDisasterTypes);
+router.get('/types', 
+  authenticateUser, 
+  requirePermission('view_disaster'), 
+  getAllDisasterTypes
+);
 
 // GET all disaster entries
 // Example: GET /api/v1/disasters
 // @desc Get all disasters
 // @route GET /api/v1/disasters
 // @access Private (requires view_disaster permission)
-router.get('/', authenticateUser, requirePermission('view_disaster'), getAllDisasters);
+router.get('/', 
+  authenticateUser, 
+  requirePermission('view_disaster'),
+  validateQuery({
+    month: { validator: 'integer', required: false, options: { min: 0, max: 11 } },
+    year: { validator: 'integer', required: false, options: { min: 1900, max: 2100 } }
+  }),
+  getAllDisasters
+);
 
 // GET a single disaster entry by ID
 // Example: GET /api/v1/disasters/123
@@ -37,6 +50,9 @@ router.get('/', authenticateUser, requirePermission('view_disaster'), getAllDisa
 router.get('/:id', 
   authenticateUser, 
   requirePermission('view_disaster'),
+  validateParams({
+    id: { validator: 'integer' }
+  }),
   getDisasterById
 );
 
@@ -47,7 +63,13 @@ router.get('/:id',
 // @access Private (requires create_disaster permission)
 router.post('/', 
   authenticateUser, 
-  requirePermission('create_disaster'), 
+  requirePermission('create_disaster'),
+  validateBody({
+    disaster_name: { validator: 'string', required: true, options: { minLength: 1, maxLength: 200 } },
+    disaster_type_id: { validator: 'integer', required: true },
+    disaster_start_date: { validator: 'string', required: true, options: { maxLength: 50, allowSpecialChars: true } },
+    disaster_end_date: { validator: 'string', required: false, options: { maxLength: 50, allowSpecialChars: true } }
+  }),
   createDisaster
 );
 
@@ -58,7 +80,16 @@ router.post('/',
 // @access Private (requires update_disaster permission)
 router.put('/:id', 
   authenticateUser, 
-  requirePermission('update_disaster'), 
+  requirePermission('update_disaster'),
+  validateParams({
+    id: { validator: 'integer' }
+  }),
+  validateBody({
+    disaster_name: { validator: 'string', required: false, options: { minLength: 1, maxLength: 200 } },
+    disaster_type_id: { validator: 'integer', required: false },
+    disaster_start_date: { validator: 'string', required: false, options: { maxLength: 50, allowSpecialChars: true } },
+    disaster_end_date: { validator: 'string', required: false, options: { maxLength: 50, allowSpecialChars: true } }
+  }),
   updateDisaster
 );
 
@@ -69,7 +100,10 @@ router.put('/:id',
 // @access Private (requires delete_disaster permission)
 router.delete('/:id', 
   authenticateUser, 
-  requirePermission('delete_disaster'), 
+  requirePermission('delete_disaster'),
+  validateParams({
+    id: { validator: 'integer' }
+  }),
   deleteDisaster
 );
 

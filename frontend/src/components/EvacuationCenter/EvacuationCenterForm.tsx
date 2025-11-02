@@ -4,6 +4,65 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import type { EvacuationCenterCategory } from '../../types/evacuation';
 import { evacuationCenterService } from '../../services/evacuationCenterService';
 import { usePermissions } from '../../contexts/PermissionContext';
+import { validateString, validateNumeric } from '../../utils/validateInput';
+
+// Validation function for the entire form - to be used by parent component
+export function validateEvacuationCenterForm(formData: EvacuationCenterFormData): Partial<Record<keyof EvacuationCenterFormData, string>> {
+  const errors: Partial<Record<keyof EvacuationCenterFormData, string>> = {};
+
+  // Validate name
+  const nameValidation = validateString(formData.name, { minLength: 1, maxLength: 100 });
+  if (!nameValidation.isValid) {
+    errors.name = nameValidation.error;
+  }
+
+  // Validate category
+  if (!formData.category) {
+    errors.category = 'Please select a category';
+  }
+
+  // Validate street name
+  const streetNameValidation = validateString(formData.streetName, { minLength: 1, maxLength: 100 });
+  if (!streetNameValidation.isValid) {
+    errors.streetName = streetNameValidation.error;
+  }
+
+  // Validate barangay
+  if (!formData.barangay || !formData.barangayId) {
+    errors.barangay = 'Please select a barangay';
+  }
+
+  // Validate latitude and longitude for non-private house categories
+  if (formData.category !== 'Private House') {
+    if (!formData.latitude) {
+      errors.latitude = 'Latitude is required';
+    } else {
+      const lat = parseFloat(formData.latitude);
+      if (isNaN(lat) || lat < -90 || lat > 90) {
+        errors.latitude = 'Latitude must be between -90 and 90';
+      }
+    }
+
+    if (!formData.longitude) {
+      errors.longitude = 'Longitude is required';
+    } else {
+      const lng = parseFloat(formData.longitude);
+      if (isNaN(lng) || lng < -180 || lng > 180) {
+        errors.longitude = 'Longitude must be between -180 and 180';
+      }
+    }
+  }
+
+  // Validate total capacity if provided
+  if (formData.total_capacity !== undefined && formData.total_capacity !== '') {
+    const capacityValidation = validateNumeric(formData.total_capacity, { min: 0, max: 10000 });
+    if (!capacityValidation.isValid) {
+      errors.total_capacity = capacityValidation.error;
+    }
+  }
+
+  return errors;
+}
 
 const CATEGORIES: EvacuationCenterCategory[] = [
   'School',
@@ -42,6 +101,7 @@ export function EvacuationCenterForm({ formData, onFormChange, errors }: Evacuat
   const [loading, setLoading] = useState(false);
   const { hasPermission } = usePermissions();
   const canAddOutsideEC = hasPermission('add_outside_ec');
+
 
   // Filter categories based on permission - users with add_outside_ec can see Private House, others cannot
   const availableCategories = canAddOutsideEC
