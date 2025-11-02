@@ -249,10 +249,10 @@ useEffect(() => {
   let cancelled = false;
   (async () => {
     try {
-      const res = await axios.get<{ data: { category?: string | null } }>(
-        `/api/v1/disaster-events/${centerId}/center-category`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+    const res = await axios.get<{ data: { category?: string | null } }>(
+      `http://localhost:3000/api/v1/disaster-events/${centerId}/center-category`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
       const cat = res?.data?.data?.category ?? null;
       if (!cancelled) setEcCategory(cat);
     } catch (e) {
@@ -273,8 +273,9 @@ const handleClickSave = async () => {
   setShowBlockDialog(false);
 
   // Validate form data
-  const validationErrors = validateEvacueeForm(formData, centerId);
+  //  const validationErrors = validateEvacueeForm(formData, centerId);
 
+  const validationErrors = validateEvacueeForm( formData, shouldHideRoom ? undefined : centerId);
   // If there are validation errors, display them and stop
   if (Object.keys(validationErrors).length > 0) {
     setFieldErrors(validationErrors);
