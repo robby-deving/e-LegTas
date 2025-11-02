@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useSelector } from "react-redux";
-import { Input } from "../components/ui/input";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "../components/ui/table";
 import { ChevronRight, Calendar, ArrowRight } from "lucide-react";
 import { Pagination } from "../components/ui/pagination";
@@ -25,6 +24,7 @@ import { RegisterBlockDialog } from "@/components/modals/RegisterBlockDialog";
 import { usePermissions } from "@/contexts/PermissionContext";
 import { evacueesApi } from "@/services/evacuees";
 import type { Evacuee, FamilyHeadResult } from "@/types/EvacuationCenterDetails";
+import SearchBar from "@/components/SearchBar";
 
 interface EvacueeFormData {
   firstName: string;
@@ -573,7 +573,7 @@ export default function DisasterDetail() {
   const filteredCenters = evacuationCenters;
 
   return (
-    <div className="text-black p-6 space-y-6 flex flex-col min-h-screen">
+    <div className="text-black p-10 space-y-6 flex flex-col min-h-screen">
       <div className="space-y-5">
         <h1 className="text-3xl font-bold text-green-800">
           Evacuation Information
@@ -616,46 +616,40 @@ export default function DisasterDetail() {
           </div>
 
           <div className="w-full flex justify-between items-center">
-            <div className="relative">
-              <Input
-                placeholder="Search evacuation centers or barangays"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pr-8"
+            <div className="flex gap-4 items-center">
+              <SearchBar
+                searchTerm={searchTerm}
+                onSearchChange={setSearchTerm}
+                placeholder="Search EC or Barangay"
+                isSearching={searchTerm !== debouncedSearchTerm}
               />
-              {searchTerm !== debouncedSearchTerm && (
-                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                  <div className="w-4 h-4 border-2 border-gray-300 border-t-green-600 rounded-full animate-spin"></div>
-                </div>
-              )}
+              
+              <Tabs
+                value={activeTab}
+                onValueChange={(value) => {
+                  // Prevent selecting the outside-ec tab if user lacks permission.
+                  if (value === 'outside-ec' && !canViewActiveOutsideEC) return;
+                  setActiveTab(value);
+                  setCurrentPage(1);
+                }}
+              >
+                {/* Adjust number of columns depending on whether Outside EC is shown */}
+                <TabsList className={`grid w-fit ${canViewActiveOutsideEC ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                  <TabsTrigger value="inside-ec" className="px-3 py-1">Inside EC</TabsTrigger>
+                  {canViewActiveOutsideEC && (
+                    <TabsTrigger
+                      value="outside-ec"
+                      className="px-3 py-1"
+                      title={!canViewActiveOutsideEC ? 'You do not have permission to view Outside EC' : undefined}
+                    >
+                      Outside EC
+                    </TabsTrigger>
+                  )}
+                </TabsList>
+              </Tabs>
             </div>
 
             <div className="flex gap-8 text-sm text-gray-600 items-center">
-              <div className="flex  items-center">
-                <Tabs
-                  value={activeTab}
-                  onValueChange={(value) => {
-                    // Prevent selecting the outside-ec tab if user lacks permission.
-                    if (value === 'outside-ec' && !canViewActiveOutsideEC) return;
-                    setActiveTab(value);
-                    setCurrentPage(1);
-                  }}
-                >
-                  {/* Adjust number of columns depending on whether Outside EC is shown */}
-                  <TabsList className={`grid w-fit ${canViewActiveOutsideEC ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                    <TabsTrigger value="inside-ec" className="px-3 py-1">Inside EC</TabsTrigger>
-                    {canViewActiveOutsideEC && (
-                      <TabsTrigger
-                        value="outside-ec"
-                        className="px-3 py-1"
-                        title={!canViewActiveOutsideEC ? 'You do not have permission to view Outside EC' : undefined}
-                      >
-                        Outside EC
-                      </TabsTrigger>
-                    )}
-                  </TabsList>
-                </Tabs>
-              </div>
               {canRegisterOutsideEC && (
                 <Button
                   className="bg-green-700 hover:bg-green-800 text-white px-6 flex gap-2 items-center cursor-pointer"
