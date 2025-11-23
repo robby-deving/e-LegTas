@@ -81,7 +81,7 @@ export function useCampManagerDashboardData(campManagerId: number, selectedDateR
       try {
         const headers = getAuthHeaders();
         const res = await fetch(
-          `h/api/v1/dashboard/camp-manager/center/${selectedDisaster.disaster_evacuation_event_id}`,
+          `/api/v1/dashboard/camp-manager/center/${selectedDisaster.disaster_evacuation_event_id}`,
           { headers }
         );
         
