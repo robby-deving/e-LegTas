@@ -89,8 +89,6 @@ export default function EvacuationInfo() {
   try {
     await createDisasterApi(payload);
     setCreateOpen(false);
-    // Refetch disasters for current filter
-    await fetchDisastersByMonthYear(filterMonth, filterYear);
   } catch (error) {
     console.error("Error creating disaster:", error);
   }
@@ -105,8 +103,6 @@ const handleUpdateDisaster = async (payload: DisasterPayload) => {
     await updateDisasterApi(editingDisaster.id, payload);
     setEditOpen(false);
     setEditingDisaster(undefined);
-    // Refetch disasters for current filter
-    await fetchDisastersByMonthYear(filterMonth, filterYear);
   } catch (error) {
     console.error("Error updating disaster:", error);
   }
@@ -119,9 +115,6 @@ const handleDeleteDisaster = async (disaster: Disaster) => {
 
     console.log("Disaster soft deleted successfully:", disaster.id);
     setDeleteConfirmDisaster(null);
-
-    // Refetch disasters for current filter
-    await fetchDisastersByMonthYear(filterMonth, filterYear);
 
     console.log("Disasters refreshed after deletion");
   } catch (error) {

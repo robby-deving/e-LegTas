@@ -11,7 +11,8 @@ const {
   validateOTP,
   validateString,
   validateNumeric,
-  validateBoolean
+  validateBoolean,
+  validateAddress
 } = require('../utils/validateInput');
 const logger = require('../utils/logger');
 
@@ -75,6 +76,9 @@ function validateBody(schema) {
           break;
         case 'boolean':
           validation = validateBoolean(value);
+          break;
+        case 'address':
+          validation = validateAddress(value);
           break;
         case 'custom':
           if (typeof rules.customValidator === 'function') {
@@ -154,6 +158,9 @@ function validateQuery(schema) {
           break;
         case 'boolean':
           validation = validateBoolean(value);
+          break;
+        case 'address':
+          validation = validateAddress(value);
           break;
         default:
           validation = { isValid: false, error: `Unknown validator type: ${rules.validator}` };

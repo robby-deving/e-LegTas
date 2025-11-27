@@ -3,6 +3,8 @@
  * Server-side validation for all incoming requests
  */
 
+const logger = require("./logger");
+
 /**
  * Validates and sanitizes string input for general use
  * Removes potentially dangerous characters and validates length
@@ -34,6 +36,8 @@ function validateString(input, options = {}) {
 
   for (const pattern of sqlInjectionPatterns) {
     if (pattern.test(trimmed)) {
+      logger.warn(trimmed);
+      
       return { isValid: false, error: 'Input contains potentially dangerous characters' };
     }
   }
@@ -357,6 +361,43 @@ function validateOTP(otp) {
   return { isValid: true, sanitized: trimmed };
 }
 
+/**
+ * Validates address inputs (allows apostrophes and common address punctuation)
+ */
+function validateAddress(address) {
+  if (!address || typeof address !== 'string') {
+    return { isValid: false, error: 'Address must be a string' };
+  }
+
+  const trimmed = address.trim();
+
+  // Check length (addresses can be long)
+  if (trimmed.length < 1 || trimmed.length > 500) {
+    return { isValid: false, error: 'Address must be between 1 and 500 characters' };
+  }
+
+  // Check for actual SQL injection patterns (excluding apostrophes which are legitimate in addresses)
+  const dangerousPatterns = [
+    /(\b(union|select|insert|update|delete|drop|create|alter|exec|execute)\b)/i,
+    /(-{2}|\/\*|\*\/)/, // SQL comments
+    /(<script|javascript:|vbscript:|onload=|onerror=)/i, // XSS patterns
+  ];
+
+  for (const pattern of dangerousPatterns) {
+    if (pattern.test(trimmed)) {
+      return { isValid: false, error: 'Address contains potentially dangerous characters' };
+    }
+  }
+
+  // Allow common address characters: letters, numbers, spaces, and punctuation
+  const addressRegex = /^[a-zA-Z0-9\s.,#'"-]+$/;
+  if (!addressRegex.test(trimmed)) {
+    return { isValid: false, error: 'Address contains invalid characters' };
+  }
+
+  return { isValid: true, sanitized: trimmed };
+}
+
 module.exports = {
   validateString,
   validateEmail,
@@ -369,6 +410,7 @@ module.exports = {
   sanitizeFormData,
   validateEmployeeNumber,
   validatePassword,
-  validateOTP
+  validateOTP,
+  validateAddress
 };
 
