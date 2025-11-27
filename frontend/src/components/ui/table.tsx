@@ -36,12 +36,6 @@ function Table({ className, ...props }: React.ComponentProps<"table">) {
     tableContainerRef.current.scrollLeft = scrollLeft - walk
   }
 
-  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
-    if (tableContainerRef.current) {
-      tableContainerRef.current.scrollLeft += e.deltaY;
-    }
-  };
-
   return (
     <div
       ref={tableContainerRef}
@@ -51,7 +45,6 @@ function Table({ className, ...props }: React.ComponentProps<"table">) {
       onMouseLeave={handleMouseLeave}
       onMouseUp={handleMouseUp}
       onMouseMove={handleMouseMove}
-      onWheel={handleWheel}
     >
       <table
         data-slot="table"
@@ -113,7 +106,7 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
     <th
       data-slot="table-head"
       className={cn( 
-        "text-gray-500 h-10 px-5 py-3 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
+        "text-gray-500 h-10 px-4 py-2 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
         className
       )}
       {...props}
@@ -126,7 +119,7 @@ function TableCell({ className, ...props }: React.ComponentProps<"td">) {
     <td
       data-slot="table-cell"
       className={cn( 
-        "px-5 py-3 align-middle cursor-pointer whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
+        "px-4 py-2 align-middle cursor-pointer whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
         className
       )}
       {...props}

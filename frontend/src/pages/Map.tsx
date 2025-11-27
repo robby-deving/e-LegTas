@@ -73,7 +73,7 @@ export default function Map() {
   return (
     <div className="flex h-full overflow-hidden relative">
       {/* Floating search component in upper left */}
-      <div className="absolute top-4 left-4 z-20 w-80">
+      <div className="absolute top-6 left-6 z-20 w-80">
         <MapSearch
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}

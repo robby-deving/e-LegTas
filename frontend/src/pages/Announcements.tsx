@@ -144,7 +144,7 @@ export default function AnnouncementsPage() {
   };
 
   return (
-    <div className="text-black p-6 space-y-6 flex flex-col">
+    <div className="h-full flex flex-col text-black p-10 space-y-3">
       <AnnouncementsHeader
         searchTerm={searchTerm}
         onSearchChange={handleSearchChange}
@@ -152,36 +152,39 @@ export default function AnnouncementsPage() {
         isSearching={isSearching}
       />
 
-      {/* Error State */}
-      {error && (
-        <div className="text-sm text-red-600">{error}</div>
-      )}
+      {/* Main Content */}
+      <div className="flex-1 min-h-0 flex flex-col">
+        {/* Error State */}
+        {error && (
+          <div className="text-sm text-red-600">{error}</div>
+        )}
 
-      {/* Content */}
-      {!error && (
-        <>
-          <AnnouncementsTable
-            currentRows={currentRows}
-            expandedRows={expandedRows}
-            onToggleExpand={toggleExpand}
-            onDeleteClick={handleDeleteClick}
-            loading={loading}
-            rowsPerPage={rowsPerPage}
-          />
-
-          {!loading && (
-            <AnnouncementsPagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={handlePageChange}
+        {/* Content */}
+        {!error && (
+          <>
+            <AnnouncementsTable
+              currentRows={currentRows}
+              expandedRows={expandedRows}
+              onToggleExpand={toggleExpand}
+              onDeleteClick={handleDeleteClick}
+              loading={loading}
               rowsPerPage={rowsPerPage}
-              totalRows={totalCount}
-              onRowsPerPageChange={handleRowsPerPageChangeWrapper}
-              selectedRowsCount={selectedAnnouncements.length}
             />
-          )}
-        </>
-      )}
+
+            {!loading && (
+              <AnnouncementsPagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+                rowsPerPage={rowsPerPage}
+                totalRows={totalCount}
+                onRowsPerPageChange={handleRowsPerPageChangeWrapper}
+                selectedRowsCount={selectedAnnouncements.length}
+              />
+            )}
+          </>
+        )}
+      </div>
 
       <CreateAnnouncementModal
         isOpen={isModalOpen}

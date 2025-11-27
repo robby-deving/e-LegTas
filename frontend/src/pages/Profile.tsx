@@ -150,7 +150,7 @@ export default function Profile() {
     }
 
     return (
-        <div className="text-black p-6 space-y-6">
+        <div className="text-black p-10 space-y-6">
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <h1 className="text-3xl font-bold text-green-800">Profile</h1>

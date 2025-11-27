@@ -656,13 +656,13 @@ const shouldHideRoom = isPrivateHouse;
   const capacityCount = detail.evacuation_summary.evacuation_center_capacity;
 
   return (
-    <div className="text-black p-6 space-y-6">
+    <div className="text-black p-10 space-y-6">
       {/* Header with Breadcrumb */}
       <div className="space-y-5">
         <h1 className="text-3xl font-bold text-green-800">Evacuation Information</h1>
         <div className="flex items-center text-sm text-gray-600">
           <button onClick={() => navigate("/evacuation-information")} className="hover:text-green-700 transition-colors cursor-pointer">
-            Disaster
+            Incident
           </button>
           <ChevronRight className="w-4 h-4 mx-2" />
           {canViewOnlySpecificDashboardEvacuation ? (
@@ -703,7 +703,7 @@ const shouldHideRoom = isPrivateHouse;
             </div>
           ) : (
             <>
-              <div className="py-3">
+              <div className="py-3 pb-6">
                 <div className="space-y-3">
                   <div className={`inline-block rounded px-3 py-1 text-sm font-semibold ${getTagColor(disaster.type)}`}>{disaster.type}</div>
                   <h2 className={`text-3xl font-bold ${getTypeColor(disaster.type)}`}>{disaster.name}</h2>
