@@ -11,15 +11,15 @@ router.use(authenticateUser);
 router.post('/', 
   requirePermission('create_role'),
   validateBody({
-    name: { 
-      validator: 'string', 
-      required: true, 
+    role_name: {
+      validator: 'string',
+      required: true,
       options: { minLength: 1, maxLength: 100, allowSpecialChars: false }
     },
-    description: { 
-      validator: 'string', 
-      required: false, 
-      options: { minLength: 1, maxLength: 500, allowSpecialChars: false }
+    permissions: {
+      validator: 'array',
+      required: false,
+      options: { itemValidator: (item) => ({ isValid: typeof item === 'string' && item.trim().length > 0, error: 'Permission must be a non-empty string' }) }
     }
   }),
   createRole
@@ -32,15 +32,15 @@ router.put('/:id',
     id: { validator: 'integer' }
   }),
   validateBody({
-    name: { 
-      validator: 'string', 
-      required: false, 
+    role_name: {
+      validator: 'string',
+      required: false,
       options: { minLength: 1, maxLength: 100, allowSpecialChars: false }
     },
-    description: { 
-      validator: 'string', 
-      required: false, 
-      options: { minLength: 1, maxLength: 500, allowSpecialChars: false }
+    permissions: {
+      validator: 'array',
+      required: false,
+      options: { itemValidator: (item) => ({ isValid: typeof item === 'string' && item.trim().length > 0, error: 'Permission must be a non-empty string' }) }
     }
   }),
   updateRole
