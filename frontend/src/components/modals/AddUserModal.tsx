@@ -52,6 +52,11 @@ export const AddUserModal = ({
     getAssignableRoles,
     canManageEvacuationCenterForUser,
 }: AddUserModalProps) => {
+    // Sort barangays naturally (e.g., Brgy 1, Brgy 2, ... Brgy 10)
+    const sortedBarangays = [...barangays].sort((a, b) => 
+        a.name.localeCompare(b.name, undefined, { numeric: true })
+    );
+
     const [formLoading, setFormLoading] = useState(false);
     const [formData, setFormData] = useState<UserFormData>({
         first_name: '',
@@ -149,7 +154,7 @@ export const AddUserModal = ({
                             <SelectValue placeholder="Select barangay (optional)" />
                         </SelectTrigger>
                         <SelectContent>
-                            {barangays.map(barangay => (
+                            {sortedBarangays.map(barangay => (
                                 <SelectItem key={barangay.id} value={barangay.id.toString()}>
                                     {barangay.name}
                                 </SelectItem>
@@ -294,7 +299,7 @@ export const AddUserModal = ({
                                     <SelectValue placeholder="Select barangay" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {barangays.map((barangay) => (
+                                    {sortedBarangays.map((barangay) => (
                                         <SelectItem key={barangay.id} value={barangay.id.toString()}>
                                             {barangay.name}
                                         </SelectItem>

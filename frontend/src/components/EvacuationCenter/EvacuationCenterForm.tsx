@@ -147,6 +147,11 @@ export function EvacuationCenterForm({ formData, onFormChange, errors }: Evacuat
     onFormChange('barangayId', selectedBarangay?.id || 0);
   };
 
+  // Sort barangays naturally (e.g., Brgy 1, Brgy 2, ... Brgy 10)
+  const sortedBarangays = [...barangays].sort((a, b) => 
+    a.name.localeCompare(b.name, undefined, { numeric: true })
+  );
+
   return (
     <div className="space-y-4">
       <div>
@@ -206,7 +211,7 @@ export function EvacuationCenterForm({ formData, onFormChange, errors }: Evacuat
             <SelectValue placeholder={loading ? "Loading barangays..." : "Select Barangay"} />
           </SelectTrigger>
           <SelectContent>
-            {barangays.map((barangay) => (
+            {sortedBarangays.map((barangay) => (
               <SelectItem key={barangay.id} value={barangay.name}>
                 {barangay.name}
               </SelectItem>
