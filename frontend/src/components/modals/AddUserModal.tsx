@@ -197,7 +197,8 @@ export const AddUserModal = ({
                     </DialogTitle>
                 </DialogHeader>
 
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden">
+                    <div className="flex-1 overflow-y-auto space-y-4 px-1 min-h-0">
                     {/* Row 1: First Name | Middle Name */}
                     <div className='grid grid-cols-2 gap-4'>
                         <div className="space-y-2">
@@ -422,6 +423,7 @@ export const AddUserModal = ({
 
                     {/* Assigned Field (Barangay or Evacuation Center) */}
                     {renderAssignedField()}
+                    </div>
 
                     <DialogFooter>
                         <Button

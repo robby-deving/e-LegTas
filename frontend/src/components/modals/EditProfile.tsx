@@ -79,7 +79,7 @@ export default function EditProfile({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-green-700 text-xl font-bold">
             Edit Profile
