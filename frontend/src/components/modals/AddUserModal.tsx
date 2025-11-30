@@ -180,7 +180,7 @@ export const AddUserModal = ({
                             </SelectTrigger>
                             <SelectContent>
                                 {evacuationCenters.map(center => (
-                                    <SelectItem key={center.id} value={center.name}>
+                                    <SelectItem key={center.id} value={center.id.toString()}>
                                         {center.name}
                                     </SelectItem>
                                 ))}

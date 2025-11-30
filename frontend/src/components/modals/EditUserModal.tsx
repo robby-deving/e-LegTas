@@ -95,6 +95,11 @@ export const EditUserModal = ({
     // Update form data when user changes
     useEffect(() => {
         if (user) {
+            // Normalize assigned evacuation center to use the center ID (as string)
+            const matchingCenter = evacuationCenters.find(c =>
+                c.id.toString() === String(user.assigned_evacuation_center) || c.name === user.assigned_evacuation_center
+            );
+
             setFormData({
                 first_name: user.first_name,
                 middle_name: user.middle_name || '',
@@ -107,11 +112,11 @@ export const EditUserModal = ({
                 email: user.email,
                 password: '',
                 role_id: user.role_id.toString(),
-                assigned_evacuation_center: user.assigned_evacuation_center || '',
+                assigned_evacuation_center: matchingCenter ? matchingCenter.id.toString() : (user.assigned_evacuation_center ? String(user.assigned_evacuation_center) : ''),
                 assigned_barangay: user.assigned_barangay_id ? user.assigned_barangay_id.toString() : ''
             });
         }
-    }, [user]);
+    }, [user, evacuationCenters]);
 
     const handleFormChange = (name: string, value: string) => {
         setFormData(prev => ({
@@ -202,7 +207,7 @@ export const EditUserModal = ({
                             </SelectTrigger>
                             <SelectContent>
                                 {evacuationCenters.map(center => (
-                                    <SelectItem key={center.id} value={center.name}>
+                                    <SelectItem key={center.id} value={center.id.toString()}>
                                         {center.name}
                                     </SelectItem>
                                 ))}

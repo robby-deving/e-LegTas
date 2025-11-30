@@ -615,8 +615,12 @@ export default function UserManagement(){
                 email: formData.email,
                 password: formData.password,
                 roleId: targetRoleId,
-                assignedEvacuationCenter: canManageEvacuationCenterForUser(targetRoleId) ? formData.assigned_evacuation_center : '',
-                assignedBarangay: targetRoleId === 7 ? formData.assigned_barangay : ''
+                // Send evacuation center ID (number) and barangay id as string
+                assignedEvacuationCenter: canManageEvacuationCenterForUser(targetRoleId) && formData.assigned_evacuation_center
+                    ? Number(formData.assigned_evacuation_center)
+                    : undefined,
+                // Only include assignedBarangay when target role is Barangay Official (7)
+                ...(targetRoleId === 7 && formData.assigned_barangay ? { assignedBarangay: Number(formData.assigned_barangay) } : {})
             };
 
             const response = await fetch('/api/v1/users', {
@@ -686,8 +690,12 @@ export default function UserManagement(){
                 employeeNumber: formData.employee_number,
                 email: formData.email,
                 roleId: targetRoleId,
-                assignedEvacuationCenter: canManageEvacuationCenterForUser(targetRoleId) ? formData.assigned_evacuation_center : editingUser.assigned_evacuation_center,
-                assignedBarangay: targetRoleId === 7 ? formData.assigned_barangay : (editingUser.assigned_barangay || ''),
+                // Send evacuation center ID (number) and barangay id as string
+                assignedEvacuationCenter: canManageEvacuationCenterForUser(targetRoleId) && formData.assigned_evacuation_center
+                    ? Number(formData.assigned_evacuation_center)
+                    : undefined,
+                // Only include assignedBarangay when target role is Barangay Official (7)
+                ...(targetRoleId === 7 && formData.assigned_barangay ? { assignedBarangay: Number(formData.assigned_barangay) } : {}),
                 // Only include password if it's provided
                 ...(formData.password && { password: formData.password })
             };
