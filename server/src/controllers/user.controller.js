@@ -422,65 +422,95 @@ const createUser = async (req, res) => {
 
     // Handle evacuation center assignment if provided
     let evacuationCenterAssignment = null;
-    if (assignedEvacuationCenter && assignedEvacuationCenter.trim()) {
-      try {
-        // Find evacuation center by name
-        let { data: evacuationCenter, error: centerError } = await supabaseAdmin
+    try {
+      // If assignedEvacuationCenter is an ID (number or numeric string), prefer lookup by ID
+      if (assignedEvacuationCenter != null && (typeof assignedEvacuationCenter === 'number' || /^\d+$/.test(String(assignedEvacuationCenter).trim()))) {
+        const centerId = Number(assignedEvacuationCenter);
+        const { data: evacuationCenterById, error: centerByIdError } = await supabaseAdmin
           .from('evacuation_centers')
-          .select('id, name, assigned_user_id')
-          .eq('name', assignedEvacuationCenter.trim())
+          .select('id, name')
+          .eq('id', centerId)
           .single();
 
-        if (centerError && centerError.code === 'PGRST116') {
-          // Evacuation center doesn't exist, create it
-          const { data: newCenter, error: createCenterError } = await supabaseAdmin
-            .from('evacuation_centers')
-            .insert({
-              name: assignedEvacuationCenter.trim(),
-              address: 'To be determined',
-              barangay_id: 1, // Default barangay, should be updated later
-              latitude: 0.0,
-              longitude: 0.0,
-              ec_status: 'Active',
-              category: 'Public',
-              total_capacity: 100, // Default capacity
-              assigned_user_id: user.id,
-              created_by: user.id
-            })
-            .select()
-            .single();
-
-          if (createCenterError) {
-            logger.error('Error creating evacuation center:', createCenterError);
-          } else {
-            evacuationCenter = newCenter;
-            evacuationCenterAssignment = {
-              center_name: evacuationCenter.name,
-              center_id: evacuationCenter.id,
-              status: 'assigned_new'
-            };
-          }
-        } else if (evacuationCenter) {
-          // Evacuation center exists, update its assigned_user_id
-          const { error: updateError } = await supabaseAdmin
+        if (!centerByIdError && evacuationCenterById) {
+          // Assign this user to the found center
+          const { error: assignError } = await supabaseAdmin
             .from('evacuation_centers')
             .update({ assigned_user_id: user.id })
-            .eq('id', evacuationCenter.id);
+            .eq('id', evacuationCenterById.id);
 
-          if (updateError) {
-            logger.error('Error updating evacuation center assignment:', updateError);
+          if (assignError) {
+            logger.error('Error assigning evacuation center by id:', assignError);
           } else {
             evacuationCenterAssignment = {
-              center_name: evacuationCenter.name,
-              center_id: evacuationCenter.id,
-              status: 'assigned_existing'
+              center_name: evacuationCenterById.name,
+              center_id: evacuationCenterById.id,
+              status: 'assigned_by_id'
             };
           }
         }
-      } catch (evacuationError) {
-        logger.error('Error handling evacuation center assignment:', evacuationError);
-        // Don't fail the entire user creation if evacuation assignment fails
+      } else {
+        // Treat as name-based assignment (legacy behavior)
+        const evacCenterName = assignedEvacuationCenter == null ? '' : String(assignedEvacuationCenter);
+        if (evacCenterName.trim()) {
+          // Find evacuation center by name
+          let { data: evacuationCenter, error: centerError } = await supabaseAdmin
+            .from('evacuation_centers')
+            .select('id, name, assigned_user_id')
+            .eq('name', evacCenterName.trim())
+            .single();
+
+          if (centerError && centerError.code === 'PGRST116') {
+            // Evacuation center doesn't exist, create it
+            const { data: newCenter, error: createCenterError } = await supabaseAdmin
+              .from('evacuation_centers')
+              .insert({
+                name: evacCenterName.trim(),
+                address: 'To be determined',
+                barangay_id: 1, // Default barangay, should be updated later
+                latitude: 0.0,
+                longitude: 0.0,
+                ec_status: 'Active',
+                category: 'Public',
+                total_capacity: 100, // Default capacity
+                assigned_user_id: user.id,
+                created_by: user.id
+              })
+              .select()
+              .single();
+
+            if (createCenterError) {
+              logger.error('Error creating evacuation center:', createCenterError);
+            } else {
+              evacuationCenter = newCenter;
+              evacuationCenterAssignment = {
+                center_name: evacuationCenter.name,
+                center_id: evacuationCenter.id,
+                status: 'assigned_new'
+              };
+            }
+          } else if (evacuationCenter) {
+            // Evacuation center exists, update its assigned_user_id
+            const { error: updateError } = await supabaseAdmin
+              .from('evacuation_centers')
+              .update({ assigned_user_id: user.id })
+              .eq('id', evacuationCenter.id);
+
+            if (updateError) {
+              logger.error('Error updating evacuation center assignment:', updateError);
+            } else {
+              evacuationCenterAssignment = {
+                center_name: evacuationCenter.name,
+                center_id: evacuationCenter.id,
+                status: 'assigned_existing'
+              };
+            }
+          }
+        }
       }
+    } catch (evacuationError) {
+      logger.error('Error handling evacuation center assignment:', evacuationError);
+      // Don't fail the entire user creation if evacuation assignment fails
     }
 
     // Handle barangay assignment for role 7 (Barangay Official)
@@ -1021,44 +1051,66 @@ const updateUser = async (req, res) => {
 
     // Handle evacuation center assignment if provided
     let evacuationCenterAssignment = null;
-    logger.debug('Processing evacuation center assignment. assignedEvacuationCenter:', assignedEvacuationCenter);
-    
-    if (assignedEvacuationCenter && assignedEvacuationCenter.trim()) {
-      try {
-        logger.debug('Assigning user', id, 'to evacuation center:', assignedEvacuationCenter);
-        
-        // Database trigger will automatically clear existing assignments when we assign a new one
-        const { error: assignmentError } = await supabaseAdmin
-          .from('evacuation_centers')
-          .update({ assigned_user_id: id })
-          .eq('name', assignedEvacuationCenter);
+    // Prefer ID-based assignment when numeric, otherwise fall back to name-based (legacy)
+    try {
+      if (assignedEvacuationCenter != null && (typeof assignedEvacuationCenter === 'number' || /^\d+$/.test(String(assignedEvacuationCenter).trim()))) {
+        const centerId = Number(assignedEvacuationCenter);
+        logger.debug('Assigning user', id, 'to evacuation center by id:', centerId);
 
-        if (assignmentError) {
-          logger.error('Error updating evacuation center assignment:', assignmentError);
-        } else {
-          logger.info('Successfully assigned user', id, 'to center:', assignedEvacuationCenter);
-          evacuationCenterAssignment = assignedEvacuationCenter;
-        }
-      } catch (evacuationError) {
-        logger.error('Error handling evacuation center assignment:', evacuationError);
-      }
-    } else {
-      // Remove user from any existing evacuation center assignments if no center is selected
-      logger.debug('No evacuation center selected, clearing all assignments for user:', id);
-      try {
-        const { error: clearError } = await supabaseAdmin
+        const { data: evacuationCenterById, error: centerByIdError } = await supabaseAdmin
           .from('evacuation_centers')
-          .update({ assigned_user_id: null })
-          .eq('assigned_user_id', id);
-          
-        if (clearError) {
-          logger.error('Error removing evacuation center assignment:', clearError);
-        } else {
-          logger.info('Successfully removed all evacuation center assignments for user:', id);
+          .select('id, name')
+          .eq('id', centerId)
+          .single();
+
+        if (!centerByIdError && evacuationCenterById) {
+          const { error: assignmentError } = await supabaseAdmin
+            .from('evacuation_centers')
+            .update({ assigned_user_id: id })
+            .eq('id', evacuationCenterById.id);
+
+          if (assignmentError) {
+            logger.error('Error updating evacuation center assignment by id:', assignmentError);
+          } else {
+            logger.info('Successfully assigned user', id, 'to center id:', centerId);
+            evacuationCenterAssignment = evacuationCenterById.name;
+          }
         }
-      } catch (evacuationError) {
-        logger.error('Error removing evacuation center assignment:', evacuationError);
+      } else {
+        const evacCenterNameUpdate = assignedEvacuationCenter == null ? '' : String(assignedEvacuationCenter);
+        logger.debug('Processing evacuation center assignment. assignedEvacuationCenter (name):', evacCenterNameUpdate);
+
+        if (evacCenterNameUpdate.trim()) {
+          logger.debug('Assigning user', id, 'to evacuation center by name:', evacCenterNameUpdate);
+          // Database trigger will automatically clear existing assignments when we assign a new one
+          const { error: assignmentError } = await supabaseAdmin
+            .from('evacuation_centers')
+            .update({ assigned_user_id: id })
+            .eq('name', evacCenterNameUpdate.trim());
+
+          if (assignmentError) {
+            logger.error('Error updating evacuation center assignment by name:', assignmentError);
+          } else {
+            logger.info('Successfully assigned user', id, 'to center:', evacCenterNameUpdate);
+            evacuationCenterAssignment = evacCenterNameUpdate.trim();
+          }
+        } else {
+          // Remove user from any existing evacuation center assignments if no center is selected
+          logger.debug('No evacuation center selected, clearing all assignments for user:', id);
+          const { error: clearError } = await supabaseAdmin
+            .from('evacuation_centers')
+            .update({ assigned_user_id: null })
+            .eq('assigned_user_id', id);
+
+          if (clearError) {
+            logger.error('Error removing evacuation center assignment:', clearError);
+          } else {
+            logger.info('Successfully removed all evacuation center assignments for user:', id);
+          }
+        }
       }
+    } catch (evacuationError) {
+      logger.error('Error handling evacuation center assignment:', evacuationError);
     }
 
     // Handle barangay assignment for role 7 (Barangay Official)
