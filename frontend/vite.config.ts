@@ -35,7 +35,7 @@ export default defineConfig({
       // 2. style-src: Needs 'unsafe-inline' for React/Tailwind runtime styles.
       // 3. connect-src: Whitelisted your specific backends.
       // 4. img-src: Whitelisted map tiles.
-      'Content-Security-Policy': "default-src 'self'; connect-src 'self' https://qgnwwombtmslvxyhnvuh.supabase.co https://api.e-legtas.tech; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; script-src 'self'; img-src 'self' data: https://*.tile.openstreetmap.org; font-src 'self' https://fonts.gstatic.com; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests",
+      'Content-Security-Policy': "default-src 'self'; connect-src 'self' https://qgnwwombtmslvxyhnvuh.supabase.co https://api.e-legtas.tech; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; script-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.tile.openstreetmap.org; font-src 'self' https://fonts.gstatic.com; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests",
       'X-Frame-Options': 'DENY',
       'X-Content-Type-Options': 'nosniff',
       'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload',
