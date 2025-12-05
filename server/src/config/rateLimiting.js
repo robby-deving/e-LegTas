@@ -11,7 +11,7 @@ const config = {
   // Global rate limiting
   global: {
     windowMs: parseInt(process.env.RATE_LIMIT_GLOBAL_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
-    maxAuthenticated: parseInt(process.env.RATE_LIMIT_GLOBAL_MAX_AUTH) || (isProduction ? 1000 : 2000),
+    maxAuthenticated: parseInt(process.env.RATE_LIMIT_GLOBAL_MAX_AUTH) || (isProduction ? 2000 : 2000),
     maxAnonymous: parseInt(process.env.RATE_LIMIT_GLOBAL_MAX_ANON) || (isProduction ? 100 : 200),
   },
 
@@ -30,7 +30,7 @@ const config = {
   // API rate limiting
   api: {
     windowMs: parseInt(process.env.RATE_LIMIT_API_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
-    maxAuthenticated: parseInt(process.env.RATE_LIMIT_API_MAX_AUTH) || (isProduction ? 500 : 1000),
+    maxAuthenticated: parseInt(process.env.RATE_LIMIT_API_MAX_AUTH) || (isProduction ? 1000 : 1500),
     maxAnonymous: parseInt(process.env.RATE_LIMIT_API_MAX_ANON) || (isProduction ? 50 : 100),
   },
 
@@ -53,7 +53,7 @@ const config = {
   // Search rate limiting
   search: {
     windowMs: parseInt(process.env.RATE_LIMIT_SEARCH_WINDOW_MS) || 5 * 60 * 1000, // 5 minutes
-    maxAuthenticated: parseInt(process.env.RATE_LIMIT_SEARCH_MAX_AUTH) || (isProduction ? 100 : 200),
+    maxAuthenticated: parseInt(process.env.RATE_LIMIT_SEARCH_MAX_AUTH) || (isProduction ? 200 : 300),
     maxAnonymous: parseInt(process.env.RATE_LIMIT_SEARCH_MAX_ANON) || (isProduction ? 20 : 50),
   },
 
@@ -61,7 +61,7 @@ const config = {
   dashboard: {
     windowMs: parseInt(process.env.RATE_LIMIT_DASHBOARD_WINDOW_MS) || 5 * 60 * 1000, // 5 minutes
     maxAdmin: parseInt(process.env.RATE_LIMIT_DASHBOARD_MAX_ADMIN) || (isProduction ? 200 : 400),
-    maxAuthenticated: parseInt(process.env.RATE_LIMIT_DASHBOARD_MAX_AUTH) || (isProduction ? 100 : 200),
+    maxAuthenticated: parseInt(process.env.RATE_LIMIT_DASHBOARD_MAX_AUTH) || (isProduction ? 300 : 500),
     maxAnonymous: parseInt(process.env.RATE_LIMIT_DASHBOARD_MAX_ANON) || (isProduction ? 10 : 20),
   },
 
