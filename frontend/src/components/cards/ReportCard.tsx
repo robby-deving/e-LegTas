@@ -42,13 +42,13 @@ const getFileIcon = (format: string) => {
 export default function ReportCard({ report, onDownload, onDelete, canDelete = true, canDownload = true }: Props) {
   return (
     <Card className="relative group flex flex-col gap-0 rounded-xl h-full transition-transform duration-100 hover:scale-102 ease-in-out hover:shadow-md cursor-pointer border-gray-200">
-      <CardHeader className="pb-3">
+      <CardHeader className="pb-1">
         <div className="flex items-start justify-between overflow-hidden text-ellipsis">
           <div className="flex gap-3 flex-col items-start min-w-0">
             {getFileIcon(report.format)}
             <div className="w-full min-w-0">
-              <CardTitle className="text-xl font-bold text-gray-900" title={report.name}>{report.name}</CardTitle>
-              <p className="text-sm text-green-600 font-semibold break-words whitespace-normal">{report.type}</p>
+              <CardTitle className="text-lg font-bold text-gray-900 truncate" title={report.name}>{report.name}</CardTitle>
+              <p className="text-sm text-green-600 font-medium break-words whitespace-normal">{report.type}</p>
             </div>
           </div>
 			<div className="flex gap-2 flex-shrink-0">
@@ -74,11 +74,14 @@ export default function ReportCard({ report, onDownload, onDelete, canDelete = t
         </div>
       </CardHeader>
       <CardContent className="pt-0">
-        <div className="space-y-2">
+        <div className="space-y-1">
           <div className="flex items-center space-x-1.5">
-            <img src={calendarIcon} alt="Calendar" className="w-4 h-4" />
+            <img src={calendarIcon} alt="Calendar" className="w-3.5 h-3.5" />
             <div className="text-xs font-medium text-gray-700">{report.date}</div>
-            <div className="text-xs font-medium text-gray-700 ml-auto">{report.size}</div>
+          </div>
+          <div className="flex items-center space-x-1.5">
+            <FileText className="w-3.5 h-3.5 text-gray-400" />
+            <div className="text-xs font-medium text-gray-700">{report.size}</div>
           </div>
         </div>
       </CardContent>

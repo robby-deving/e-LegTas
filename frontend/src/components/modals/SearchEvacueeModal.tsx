@@ -54,7 +54,7 @@ onEndedAction,
   return (
     <>
       <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-        <DialogContent>
+        <DialogContent className="sm:max-h-[30rem]">
           <DialogHeader>
             <DialogTitle className="text-green-700 text-xl font-bold">
               Search Registered Evacuee
@@ -65,17 +65,17 @@ onEndedAction,
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-3 py-4">
+          <div className="flex flex-col overflow-hidden py-4 min-h-0">
             <Input
               placeholder="Search Name"
               value={searchName}
               onChange={onSearchChange}
-              className="w-full"
+              className="w-full mb-3"
               autoFocus
             />
 
             {searchResults.length > 0 ? (
-              <div className="space-y-1 max-h-60 overflow-y-auto pr-2 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500">
+              <div className="flex-1 overflow-y-auto space-y-1 pr-2 min-h-0 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500">
                 {searchResults.map((evacuee, idx) => {
                   const fullName = [
                     evacuee.first_name,

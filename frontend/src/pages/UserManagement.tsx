@@ -615,8 +615,12 @@ export default function UserManagement(){
                 email: formData.email,
                 password: formData.password,
                 roleId: targetRoleId,
-                assignedEvacuationCenter: canManageEvacuationCenterForUser(targetRoleId) ? formData.assigned_evacuation_center : '',
-                assignedBarangay: targetRoleId === 7 ? formData.assigned_barangay : ''
+                // Send evacuation center ID (number) and barangay id as string
+                assignedEvacuationCenter: canManageEvacuationCenterForUser(targetRoleId) && formData.assigned_evacuation_center
+                    ? Number(formData.assigned_evacuation_center)
+                    : undefined,
+                // Only include assignedBarangay when target role is Barangay Official (7)
+                ...(targetRoleId === 7 && formData.assigned_barangay ? { assignedBarangay: Number(formData.assigned_barangay) } : {})
             };
 
             const response = await fetch('/api/v1/users', {
@@ -686,8 +690,12 @@ export default function UserManagement(){
                 employeeNumber: formData.employee_number,
                 email: formData.email,
                 roleId: targetRoleId,
-                assignedEvacuationCenter: canManageEvacuationCenterForUser(targetRoleId) ? formData.assigned_evacuation_center : editingUser.assigned_evacuation_center,
-                assignedBarangay: targetRoleId === 7 ? formData.assigned_barangay : (editingUser.assigned_barangay || ''),
+                // Send evacuation center ID (number) and barangay id as string
+                assignedEvacuationCenter: canManageEvacuationCenterForUser(targetRoleId) && formData.assigned_evacuation_center
+                    ? Number(formData.assigned_evacuation_center)
+                    : undefined,
+                // Only include assignedBarangay when target role is Barangay Official (7)
+                ...(targetRoleId === 7 && formData.assigned_barangay ? { assignedBarangay: Number(formData.assigned_barangay) } : {}),
                 // Only include password if it's provided
                 ...(formData.password && { password: formData.password })
             };
@@ -920,7 +928,7 @@ export default function UserManagement(){
                                     Array.from({ length: rowsPerPage }, (_, index) => (
                                         <TableRow key={`loading-${index}`}>
                                             {Array.from({ length: getColumnCount() }, (_, colIndex) => (
-                                                <TableCell key={`loading-cell-${colIndex}`} className="py-4">
+                                                <TableCell key={`loading-cell-${colIndex}`} className="py-4 text-foreground">
                                                     <div className="flex items-center space-x-2">
                                                         {colIndex === 0 && <LoadingSpinner size="sm" />}
                                                         <div className="h-4 bg-gray-200 rounded animate-pulse w-32"></div>
@@ -931,7 +939,7 @@ export default function UserManagement(){
                                     ))
                                 ) : paginatedUsers.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={getColumnCount()} className="text-center py-8">
+                                        <TableCell colSpan={getColumnCount()} className="text-center py-8 text-foreground">
                                             <div className="text-gray-500 text-lg font-medium mb-2">
                                                 {searchTerm ? 'No users found matching your search.' : 'No users found.'}
                                             </div>

@@ -170,7 +170,7 @@ export const AddRoleModal = ({
         <>
             <style>{checkboxGreenStyle}</style>
             <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-                <DialogContent size="large" showCloseButton={true} className="max-h-[90vh] overflow-y-auto">
+                <DialogContent className="max-w-[900px] max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle className="text-2xl font-bold" style={{ color: '#00824E' }}>
                             Add New Role

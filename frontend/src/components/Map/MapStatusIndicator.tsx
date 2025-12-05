@@ -41,7 +41,7 @@ export default function MapStatusIndicator({ lastUpdated, onRefresh, isLoading =
   }, [lastUpdated]);
 
   return (
-    <div className="absolute top-4 right-4 z-20 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200 p-3 min-w-[200px]">
+    <div className="absolute top-6 right-6 z-20 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200 p-3 min-w-[200px]">
       <div className="flex items-center justify-between">
         <div className="flex-1">
           <div className="text-sm text-gray-600 mb-1">Last updated</div>

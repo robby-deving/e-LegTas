@@ -11,6 +11,7 @@ import StatCard from '../../components/StatCard';
 import EvacueeStatisticsChart from '../../components/EvacueeStatisticsChart';
 import { useDashboardData } from '../../hooks/useDashboardData';
 import { usePermissions } from '../../contexts/PermissionContext';
+import { encodeId } from '../../utils/secureId';
 import type { DateRange } from "react-day-picker";
 import DashboardHeader from "./DashboardHeader";
 
@@ -131,7 +132,15 @@ export default function Dashboard() {
         <div className="border border-gray-200 rounded-xl shadow-sm p-6 min-h-[400px] flex flex-col">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-bold text-left">Evacuation Center Capacity Status</h2>
-            <button className="p-1 rounded hover:bg-gray-100 transition cursor-pointer" title="Expand">
+            <button
+              className="p-1 rounded hover:bg-gray-100 transition cursor-pointer"
+              title="Expand"
+              onClick={() => {
+                if (selectedDisaster?.id) {
+                  navigate(`/evacuation-information/${encodeId(selectedDisaster.id)}`);
+                }
+              }}
+            >
               <ExternalLink className="w-5 h-5 text-gray-500" />
             </button>
           </div>

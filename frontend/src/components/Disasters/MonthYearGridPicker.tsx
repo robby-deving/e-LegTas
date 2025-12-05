@@ -51,7 +51,7 @@ export default function MonthYearGridPicker({ month, year, onMonthYearChange }: 
           className={cn(
             "flex items-center gap-1 cursor-pointer rounded-md border",
             isFiltered
-              ? "bg-green-100 border-green-500 text-green-800"
+              ? "bg-green-100 border-green-500 text-green-800 "
               : "bg-white border-input"
           )}
         >
@@ -95,10 +95,10 @@ export default function MonthYearGridPicker({ month, year, onMonthYearChange }: 
         <div className="flex justify-between mb-2 flex-1">
           <button
             className={cn(
-              "flex flex-1 justify-center border rounded p-1 text-sm",
+              "flex flex-1 justify-center border rounded p-1 text-sm cursor-pointer transition-colors flex flex-1 justify-center border rounded p-1 text-sm text-muted-foreground hover:text-[#0C955B]",
               month === null
           ? "bg-transparent text-[#0C955B] font-semibold"
-          : "text-muted-foreground hover:text-[#0C955B] hover:bg-transparent",              isFiltered && month === null
+          : "text-muted-foreground hover:text-[#0C955B] hover:bg-gray-100",              isFiltered && month === null
           ? "border-[#038B53] text-[#038B53]"
           : ""
             )}
@@ -116,7 +116,7 @@ export default function MonthYearGridPicker({ month, year, onMonthYearChange }: 
               className={cn(
                 "text-sm transition-colors",
                 index === month
-                  ? "bg-transparent text-[#0C955B] font-semibold"
+                  ? "bg-transparent text-[#0C955B] font-bold"
                   : "text-muted-foreground hover:text-[#0C955B] hover:bg-transparent"
               )}
               onClick={() => handleMonthClick(index)}

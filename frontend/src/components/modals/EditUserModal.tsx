@@ -70,6 +70,11 @@ export const EditUserModal = ({
     getAssignableRoles,
     canManageEvacuationCenterForUser,
 }: EditUserModalProps) => {
+    // Sort barangays naturally (e.g., Brgy 1, Brgy 2, ... Brgy 10)
+    const sortedBarangays = [...barangays].sort((a, b) => 
+        a.name.localeCompare(b.name, undefined, { numeric: true })
+    );
+
     const [formLoading, setFormLoading] = useState(false);
     const [formData, setFormData] = useState<UserFormData>({
         first_name: '',
@@ -90,6 +95,11 @@ export const EditUserModal = ({
     // Update form data when user changes
     useEffect(() => {
         if (user) {
+            // Normalize assigned evacuation center to use the center ID (as string)
+            const matchingCenter = evacuationCenters.find(c =>
+                c.id.toString() === String(user.assigned_evacuation_center) || c.name === user.assigned_evacuation_center
+            );
+
             setFormData({
                 first_name: user.first_name,
                 middle_name: user.middle_name || '',
@@ -102,11 +112,11 @@ export const EditUserModal = ({
                 email: user.email,
                 password: '',
                 role_id: user.role_id.toString(),
-                assigned_evacuation_center: user.assigned_evacuation_center || '',
+                assigned_evacuation_center: matchingCenter ? matchingCenter.id.toString() : (user.assigned_evacuation_center ? String(user.assigned_evacuation_center) : ''),
                 assigned_barangay: user.assigned_barangay_id ? user.assigned_barangay_id.toString() : ''
             });
         }
-    }, [user]);
+    }, [user, evacuationCenters]);
 
     const handleFormChange = (name: string, value: string) => {
         setFormData(prev => ({
@@ -171,7 +181,7 @@ export const EditUserModal = ({
                             <SelectValue placeholder="Select barangay (optional)" />
                         </SelectTrigger>
                         <SelectContent>
-                            {barangays.map(barangay => (
+                            {sortedBarangays.map(barangay => (
                                 <SelectItem key={barangay.id} value={barangay.id.toString()}>
                                     {barangay.name}
                                 </SelectItem>
@@ -197,7 +207,7 @@ export const EditUserModal = ({
                             </SelectTrigger>
                             <SelectContent>
                                 {evacuationCenters.map(center => (
-                                    <SelectItem key={center.id} value={center.name}>
+                                    <SelectItem key={center.id} value={center.id.toString()}>
                                         {center.name}
                                     </SelectItem>
                                 ))}
@@ -219,7 +229,8 @@ export const EditUserModal = ({
                     </DialogTitle>
                 </DialogHeader>
 
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden">
+                    <div className="flex-1 overflow-y-auto space-y-4 px-1 min-h-0">
                     {/* Row 1: First Name | Middle Name */}
                     <div className='grid grid-cols-2 gap-4'>
                         <div className="space-y-2">
@@ -315,7 +326,7 @@ export const EditUserModal = ({
                                     <SelectValue placeholder="Select barangay" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {barangays.map((barangay) => (
+                                    {sortedBarangays.map((barangay) => (
                                         <SelectItem key={barangay.id} value={barangay.id.toString()}>
                                             {barangay.name}
                                         </SelectItem>
@@ -443,6 +454,7 @@ export const EditUserModal = ({
 
                     {/* Assigned Field (Barangay or Evacuation Center) */}
                     {renderAssignedField()}
+                    </div>
 
                     <DialogFooter>
                         <Button

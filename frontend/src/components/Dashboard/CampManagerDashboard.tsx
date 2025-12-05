@@ -37,7 +37,7 @@ export default function CampManagerDashboard() {
 
   if ((isCampManager && !campManagerId) || (isBarangay && !barangayId)) {
     return (
-      <div className="text-black p-6 space-y-6">
+      <div className="text-black p-10 space-y-6">
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <h2 className="text-2xl font-semibold text-gray-700 mb-2">
@@ -90,7 +90,7 @@ export default function CampManagerDashboard() {
   const toDate = new Date(); // today
 
   return (
-    <div className="text-black p-6 space-y-6">
+    <div className="text-black p-10 space-y-6">
       {/* Header */}
       <DashboardHeader
         disasters={disasters}

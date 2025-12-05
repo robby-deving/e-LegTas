@@ -52,6 +52,11 @@ export const AddUserModal = ({
     getAssignableRoles,
     canManageEvacuationCenterForUser,
 }: AddUserModalProps) => {
+    // Sort barangays naturally (e.g., Brgy 1, Brgy 2, ... Brgy 10)
+    const sortedBarangays = [...barangays].sort((a, b) => 
+        a.name.localeCompare(b.name, undefined, { numeric: true })
+    );
+
     const [formLoading, setFormLoading] = useState(false);
     const [formData, setFormData] = useState<UserFormData>({
         first_name: '',
@@ -149,7 +154,7 @@ export const AddUserModal = ({
                             <SelectValue placeholder="Select barangay (optional)" />
                         </SelectTrigger>
                         <SelectContent>
-                            {barangays.map(barangay => (
+                            {sortedBarangays.map(barangay => (
                                 <SelectItem key={barangay.id} value={barangay.id.toString()}>
                                     {barangay.name}
                                 </SelectItem>
@@ -175,7 +180,7 @@ export const AddUserModal = ({
                             </SelectTrigger>
                             <SelectContent>
                                 {evacuationCenters.map(center => (
-                                    <SelectItem key={center.id} value={center.name}>
+                                    <SelectItem key={center.id} value={center.id.toString()}>
                                         {center.name}
                                     </SelectItem>
                                 ))}
@@ -197,7 +202,8 @@ export const AddUserModal = ({
                     </DialogTitle>
                 </DialogHeader>
 
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden">
+                    <div className="flex-1 overflow-y-auto space-y-4 px-1 min-h-0">
                     {/* Row 1: First Name | Middle Name */}
                     <div className='grid grid-cols-2 gap-4'>
                         <div className="space-y-2">
@@ -293,7 +299,7 @@ export const AddUserModal = ({
                                     <SelectValue placeholder="Select barangay" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {barangays.map((barangay) => (
+                                    {sortedBarangays.map((barangay) => (
                                         <SelectItem key={barangay.id} value={barangay.id.toString()}>
                                             {barangay.name}
                                         </SelectItem>
@@ -422,6 +428,7 @@ export const AddUserModal = ({
 
                     {/* Assigned Field (Barangay or Evacuation Center) */}
                     {renderAssignedField()}
+                    </div>
 
                     <DialogFooter>
                         <Button

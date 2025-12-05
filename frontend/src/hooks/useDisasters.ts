@@ -99,6 +99,10 @@ export const useDisasters = (): UseDisastersReturn => {
     }
   }, [token]);
 
+  const refreshDisasters = useCallback(async () => {
+    await fetchDisastersByMonthYear(currentMonth, currentYear, true); // bypass cache
+  }, [currentMonth, currentYear, fetchDisastersByMonthYear]);
+
   const createDisaster = useCallback(
     async (disasterData: DisasterPayload) => {
       if (!token) return;
@@ -108,6 +112,8 @@ export const useDisasters = (): UseDisastersReturn => {
       try {
         await disasterService.createDisaster(disasterData, token);
         console.log("Disaster created successfully:", disasterData);
+        // Refresh data and bypass cache to show new disaster
+        await refreshDisasters();
       } catch (error) {
         console.error("Error creating disaster:", error);
         setError("Failed to create disaster");
@@ -116,7 +122,7 @@ export const useDisasters = (): UseDisastersReturn => {
         setCreating(false);
       }
     },
-    [token]
+    [token, refreshDisasters]
   );
 
   const updateDisaster = useCallback(
@@ -128,6 +134,8 @@ export const useDisasters = (): UseDisastersReturn => {
       try {
         await disasterService.updateDisaster(disasterId, disasterData, token);
         console.log("Disaster updated successfully:", disasterData);
+        // Refresh data and bypass cache to show updated disaster
+        await refreshDisasters();
       } catch (error) {
         console.error("Error updating disaster:", error);
         setError("Failed to update disaster");
@@ -136,17 +144,13 @@ export const useDisasters = (): UseDisastersReturn => {
         setUpdating(false);
       }
     },
-    [token]
+    [token, refreshDisasters]
   );
 
   const refetchCurrentData = useCallback(async () => {
     if (currentMonth !== null || currentYear !== null) {
       await fetchDisastersByMonthYear(currentMonth, currentYear);
     }
-  }, [currentMonth, currentYear, fetchDisastersByMonthYear]);
-
-  const refreshDisasters = useCallback(async () => {
-    await fetchDisastersByMonthYear(currentMonth, currentYear, true); // bypass cache
   }, [currentMonth, currentYear, fetchDisastersByMonthYear]);
 
   const deleteDisaster = useCallback(
@@ -158,7 +162,8 @@ export const useDisasters = (): UseDisastersReturn => {
       try {
         await disasterService.deleteDisaster(disasterId, token);
         console.log("Disaster deleted successfully:", disasterId);
-        await refetchCurrentData();
+        // Refresh data and bypass cache to show updated list without deleted disaster
+        await refreshDisasters();
       } catch (error) {
         console.error("Error deleting disaster:", error);
         setError("Failed to delete disaster");
@@ -167,7 +172,7 @@ export const useDisasters = (): UseDisastersReturn => {
         setDeleting(false);
       }
     },
-    [token, refetchCurrentData]
+    [token, refreshDisasters]
   );
 
 

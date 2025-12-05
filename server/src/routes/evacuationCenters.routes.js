@@ -79,7 +79,7 @@ router.post(
   requireAnyPermission(['create_evacuation_center', 'add_outside_ec']),
   validateBody({
     name: { validator: 'string', required: true, options: { minLength: 1, maxLength: 200 } },
-    address: { validator: 'string', required: true, options: { minLength: 1, maxLength: 500 } },
+    address: { validator: 'address', required: true },
     barangay_id: { validator: 'integer', required: true },
     latitude: { validator: 'numeric', required: false, options: { allowDecimals: true } },
     longitude: { validator: 'numeric', required: false, options: { allowDecimals: true } },
@@ -102,7 +102,7 @@ router.put(
   }),
   validateBody({
     name: { validator: 'string', required: false, options: { minLength: 1, maxLength: 200 } },
-    address: { validator: 'string', required: false, options: { minLength: 1, maxLength: 500 } },
+    address: { validator: 'address', required: true },
     barangay_id: { validator: 'integer', required: false },
     latitude: { validator: 'numeric', required: false, options: { allowDecimals: true } },
     longitude: { validator: 'numeric', required: false, options: { allowDecimals: true } },

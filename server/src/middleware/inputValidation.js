@@ -11,7 +11,9 @@ const {
   validateOTP,
   validateString,
   validateNumeric,
-  validateBoolean
+  validateBoolean,
+  validateAddress,
+  validateArray
 } = require('../utils/validateInput');
 const logger = require('../utils/logger');
 
@@ -33,6 +35,7 @@ function validateBody(schema) {
 
     for (const [field, rules] of Object.entries(schema)) {
       const value = req.body[field];
+      logger.info(value)
 
       // Check if required field is missing
       if (rules.required && (value === undefined || value === null || value === '')) {
@@ -75,6 +78,12 @@ function validateBody(schema) {
           break;
         case 'boolean':
           validation = validateBoolean(value);
+          break;
+        case 'address':
+          validation = validateAddress(value);
+          break;
+        case 'array':
+          validation = validateArray(value, rules.options || {});
           break;
         case 'custom':
           if (typeof rules.customValidator === 'function') {
@@ -154,6 +163,9 @@ function validateQuery(schema) {
           break;
         case 'boolean':
           validation = validateBoolean(value);
+          break;
+        case 'address':
+          validation = validateAddress(value);
           break;
         default:
           validation = { isValid: false, error: `Unknown validator type: ${rules.validator}` };
