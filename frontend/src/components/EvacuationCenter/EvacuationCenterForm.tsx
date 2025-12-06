@@ -104,7 +104,7 @@ export function EvacuationCenterForm({ formData, onFormChange, errors }: Evacuat
 
 
   // Filter categories based on permission - users with add_outside_ec can see Private House, others cannot
-  const baseCategories = canAddOutsideEC
+  const baseCategories: EvacuationCenterCategory[] = canAddOutsideEC
     ? CATEGORIES.filter(category => category === 'Private House')
     : CATEGORIES.filter(category => category !== 'Private House');
 
