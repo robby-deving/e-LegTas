@@ -104,9 +104,16 @@ export function EvacuationCenterForm({ formData, onFormChange, errors }: Evacuat
 
 
   // Filter categories based on permission - users with add_outside_ec can see Private House, others cannot
-  const availableCategories = canAddOutsideEC
+  const baseCategories = canAddOutsideEC
     ? CATEGORIES.filter(category => category === 'Private House')
     : CATEGORIES.filter(category => category !== 'Private House');
+
+  // Ensure the current category is available in the list (e.g., when editing a Private House as an admin)
+  const availableCategories = formData.category && 
+    !baseCategories.includes(formData.category as EvacuationCenterCategory) && 
+    CATEGORIES.includes(formData.category as EvacuationCenterCategory)
+      ? [...baseCategories, formData.category as EvacuationCenterCategory]
+      : baseCategories;
 
   // Automatically set category to 'Private House' if canAddOutsideEC is true
   useEffect(() => {
@@ -282,6 +289,7 @@ export function EvacuationCenterForm({ formData, onFormChange, errors }: Evacuat
             <p className="text-xs text-gray-500 mt-1">
               Total capacity is automatically calculated from room capacities
             </p>
+            {errors?.total_capacity && <p className="text-red-500 text-sm mt-1">{errors.total_capacity}</p>}
           </div>
         </>
       )}

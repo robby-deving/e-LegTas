@@ -57,9 +57,10 @@ interface RoomFormProps {
   onRoomChange: (roomId: string, field: string, value: string | number) => void;
   onDeleteRoom: (roomId: string) => void;
   errors?: Record<string, Partial<Record<keyof EvacuationRoom, string>>>;
+  generalError?: string;
 }
 
-export function RoomForm({ rooms, onAddRoom, onRoomChange, onDeleteRoom, errors }: RoomFormProps) {
+export function RoomForm({ rooms, onAddRoom, onRoomChange, onDeleteRoom, errors, generalError }: RoomFormProps) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -72,6 +73,12 @@ export function RoomForm({ rooms, onAddRoom, onRoomChange, onDeleteRoom, errors 
           + Add Room
         </Button>
       </div>
+
+      {generalError && (
+        <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">
+          {generalError}
+        </div>
+      )}
 
       <div className="max-h-96 overflow-y-auto space-y-3 pr-2">
         {rooms.length === 0 ? (

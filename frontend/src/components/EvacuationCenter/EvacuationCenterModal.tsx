@@ -384,6 +384,7 @@ export function EvacuationCenterModal({ isOpen, onClose, mode, center, onSuccess
                 onRoomChange={handleRoomChange}
                 onDeleteRoom={handleDeleteRoom}
                 errors={errors.rooms}
+                generalError={errors.center?.total_capacity}
               />
             </div>
           )}
