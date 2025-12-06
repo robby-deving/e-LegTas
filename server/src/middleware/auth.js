@@ -228,8 +228,40 @@ const basicAuth = async (req, res, next) => {
   }
 };
 
+/**
+ * Lightweight middleware to extract user ID from token for rate limiting
+ * Does not perform full validation or database lookups
+ * Use this BEFORE rate limiters to ensure authenticated users get their specific limits
+ */
+const extractUserForRateLimiting = (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    
+    // If we already have a user, skip
+    if (req.user) return next();
+
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      // Just decode to get ID, don't verify (verification happens later in authenticateUser)
+      const decoded = jwt.decode(token);
+      
+      if (decoded) {
+        // Matches the structure used in authenticateUser
+        const userId = decoded.app_user_id || decoded.sub;
+        if (userId) {
+          req.user = { id: userId, role_id: decoded.role_id };
+        }
+      }
+    }
+  } catch (error) {
+    // Ignore errors here, just let them pass as anonymous
+  }
+  next();
+};
+
 module.exports = {
   authenticateUser,
   basicAuth,
-  authenticateUserLegacy // Exported for testing/fallback purposes
+  authenticateUserLegacy,
+  extractUserForRateLimiting
 };

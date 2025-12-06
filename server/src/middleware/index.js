@@ -3,7 +3,7 @@
  * Only exports essential authentication and permission middleware
  */
 
-const { authenticateUser, basicAuth } = require('./auth');
+const { authenticateUser, basicAuth, extractUserForRateLimiting } = require('./auth');
 const { 
   requirePermission,
   requireAnyPermission,
@@ -19,6 +19,7 @@ module.exports = {
   // Authentication (from auth.js)
   authenticateUser,
   basicAuth,
+  extractUserForRateLimiting,
   
   // Permissions (from permissions.js)
   requirePermission,
