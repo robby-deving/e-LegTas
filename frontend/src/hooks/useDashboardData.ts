@@ -61,7 +61,7 @@ export function useDashboardData(selectedDateRange?: DateRange) {
       category: string;
     }[]
   >([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const getAuthHeaders = () => ({
     'Authorization': effectiveToken ? `Bearer ${effectiveToken}` : '',
@@ -79,10 +79,18 @@ export function useDashboardData(selectedDateRange?: DateRange) {
         setDisasters(data);
 
         if (!selectedDisaster || !data.some(d => d.id === selectedDisaster.id)) {
-          setSelectedDisaster(data[0] || null);
+          const nextDisaster = data[0] || null;
+          setSelectedDisaster(nextDisaster);
+          
+          // If we have no disaster to load details for, turn off loading.
+          // Otherwise, keep loading=true and let the dependent effects handle it.
+          if (!nextDisaster) {
+            setLoading(false);
+          }
         }
       } catch (error) {
         console.error('Error fetching disasters:', error);
+        setLoading(false);
       }
     };
 
