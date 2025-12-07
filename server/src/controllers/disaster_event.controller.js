@@ -116,10 +116,7 @@ exports.getDisasterEventDetailsByDisasterId = async (req, res, next) => {
             .from(TABLE_NAME) // Disaster_Evacuation_Event
             .select(`
                 *,
-                evacuation_summaries(
-                    total_no_of_family,
-                    total_no_of_individuals
-                ),
+                evacuation_registrations(family_head_id),
                 evacuation_centers!inner(
                     name,
                     total_capacity,
@@ -200,10 +197,14 @@ exports.getDisasterEventDetailsByDisasterId = async (req, res, next) => {
             // Transform and return filtered data
             const transformedData = paginatedData.map(event => {
                 try {
-                    // Extract Summary data
-                    const summary = event.evacuation_summaries;
-                    const totalNoOfFamily = summary ? summary.total_no_of_family : 0;
-                    const totalNoOfIndividuals = summary ? summary.total_no_of_individuals : 0;
+                    const registrations = event.evacuation_registrations || [];
+
+                    // Count individuals (total rows)
+                    const totalNoOfIndividuals = registrations.length;
+
+                    // Count families (unique family_head_id)
+                    const uniqueFamilies = new Set(registrations.map(r => r.family_head_id));
+                    const totalNoOfFamily = uniqueFamilies.size;
 
                     // Extract Evacuation Center data
                     const evacuationCenter = event.evacuation_centers;
@@ -224,7 +225,7 @@ exports.getDisasterEventDetailsByDisasterId = async (req, res, next) => {
                     }
 
                     // Destructure to omit the original nested objects
-                    const { evacuation_summaries, evacuation_centers, users, ...rest } = event;
+                    const { evacuation_centers, users, evacuation_registrations, ...rest } = event;
 
                     return {
                         ...rest,
@@ -296,10 +297,14 @@ exports.getDisasterEventDetailsByDisasterId = async (req, res, next) => {
         // Transform the data to flatten the nested objects and combine names
         const transformedData = data.map(event => {
             try {
-                // Extract Summary data
-                const summary = event.evacuation_summaries;
-                const totalNoOfFamily = summary ? summary.total_no_of_family : 0;
-                const totalNoOfIndividuals = summary ? summary.total_no_of_individuals : 0;
+                const registrations = event.evacuation_registrations || [];
+
+                // Count individuals (total rows)
+                const totalNoOfIndividuals = registrations.length;
+
+                // Count families (unique family_head_id)
+                const uniqueFamilies = new Set(registrations.map(r => r.family_head_id));
+                const totalNoOfFamily = uniqueFamilies.size;
 
                 // Extract Evacuation Center data
                 const evacuationCenter = event.evacuation_centers;
@@ -320,7 +325,7 @@ exports.getDisasterEventDetailsByDisasterId = async (req, res, next) => {
                 }
 
                 // Destructure to omit the original nested objects from the final output - FIX: Updated property names
-                const { evacuation_summaries, evacuation_centers, users, ...rest } = event;
+                const { evacuation_centers, users, evacuation_registrations, ...rest } = event;
 
                 return {
                     ...rest, // Spread all other properties of the Disaster_Evacuation_Event
@@ -398,10 +403,7 @@ exports.getDisasterEventById = async (req, res, next) => {
             .from(TABLE_NAME) // Disaster_Evacuation_Event
             .select(`
                 *,
-                evacuation_summaries(
-                    total_no_of_family,
-                    total_no_of_individuals
-                ),
+                evacuation_registrations(family_head_id),
                 evacuation_centers(
                     name,
                     total_capacity,
@@ -438,10 +440,14 @@ exports.getDisasterEventById = async (req, res, next) => {
         // This logic is similar to getDisasterEventDetailsByDisasterId for consistency
         const event = data; // data is already a single object due to .single()
 
-        // Extract Summary data
-        const summary = event.evacuation_summaries; // FIX: Changed from event.Summaries to event.evacuation_summaries
-        const totalNoOfFamily = summary ? summary.total_no_of_family : 0;
-        const totalNoOfIndividuals = summary ? summary.total_no_of_individuals : 0;
+        const registrations = event.evacuation_registrations || [];
+
+        // Count individuals (total rows)
+        const totalNoOfIndividuals = registrations.length;
+
+        // Count families (unique family_head_id)
+        const uniqueFamilies = new Set(registrations.map(r => r.family_head_id));
+        const totalNoOfFamily = uniqueFamilies.size;
 
         // Extract Evacuation Center data
         const evacuationCenter = event.evacuation_centers; // FIX: Changed from event.Evacuation_Centers to event.evacuation_centers
@@ -462,7 +468,7 @@ exports.getDisasterEventById = async (req, res, next) => {
         }
 
         // Destructure to omit the original nested objects from the final output - FIX: Updated property names
-        const { evacuation_summaries, evacuation_centers, users, ...rest } = event;
+        const { evacuation_centers, users, evacuation_registrations, ...rest } = event;
 
         const transformedData = {
             ...rest, // Spread all other properties of the Disaster_Evacuation_Event
