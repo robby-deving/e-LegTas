@@ -35,7 +35,6 @@ function validateBody(schema) {
 
     for (const [field, rules] of Object.entries(schema)) {
       const value = req.body[field];
-      logger.info(value)
 
       // Check if required field is missing
       if (rules.required && (value === undefined || value === null || value === '')) {

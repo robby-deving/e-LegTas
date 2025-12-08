@@ -12,7 +12,7 @@ const config = {
   global: {
     windowMs: parseInt(process.env.RATE_LIMIT_GLOBAL_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
     maxAuthenticated: parseInt(process.env.RATE_LIMIT_GLOBAL_MAX_AUTH) || (isProduction ? 2000 : 2000),
-    maxAnonymous: parseInt(process.env.RATE_LIMIT_GLOBAL_MAX_ANON) || (isProduction ? 100 : 200),
+    maxAnonymous: parseInt(process.env.RATE_LIMIT_GLOBAL_MAX_ANON) || (isProduction ? 200 : 200),
   },
 
   // Authentication rate limiting

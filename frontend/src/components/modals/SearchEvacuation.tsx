@@ -152,7 +152,7 @@ export const SearchEvacuation = ({
   return (
     <>
       <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-        <DialogContent>
+        <DialogContent className="sm:max-h-[30rem] ">
         <DialogHeader>
           <DialogTitle className="text-green-700 text-xl font-bold">
             Search Evacuation
@@ -162,12 +162,12 @@ export const SearchEvacuation = ({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-3 py-4">
+        <div className="flex flex-col overflow-hidden py-4 min-h-0">
           <Input
             placeholder="Search Evacuation"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full"
+            className="w-full mb-3"
             autoFocus
           />
 
@@ -177,7 +177,7 @@ export const SearchEvacuation = ({
               <span className="ml-2 text-sm text-gray-500">Searching...</span>
             </div>
           ) : results.length > 0 ? (
-            <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300">
+            <div className="flex-1 overflow-y-auto space-y-2 pr-2 min-h-0 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300">
               {results.map((evacuation) => (
                 <div
                   key={evacuation.id}
@@ -218,7 +218,7 @@ export const SearchEvacuation = ({
           ) : null}
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="mt-auto">
           <Button
             variant="outline"
             onClick={onClose}

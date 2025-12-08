@@ -18,7 +18,7 @@ const mobileRoutes = require('./mobile.routes');
 
 const reportsRoutes = require('./reports.routes');
 // Middleware and controllers
-const { authenticateUser, requirePermission } = require('../middleware');
+const { authenticateUser, requirePermission, extractUserForRateLimiting } = require('../middleware');
 const { createRole, deleteRole, getUserCountsByRole } = require('../controllers/user.controller');
 const { 
   authRateLimit, 
@@ -32,6 +32,10 @@ const {
 
 const router = express.Router();
 const baseAPI = '/api/v1';
+
+// Apply user extraction for rate limiting before any routes
+// This ensures rate limiters know if a user is authenticated, even for public routes
+router.use(extractUserForRateLimiting);
 
 // Endpoint: User counts by role
 router.get(
