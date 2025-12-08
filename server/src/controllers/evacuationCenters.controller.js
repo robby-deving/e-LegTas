@@ -596,21 +596,6 @@ exports.restoreEvacuationCenter = async (req, res, next) => {
 };
 exports.getEvacuationCenterMapData = async (req, res, next) => {
     try {
-        // Generate cache key for map data
-        const cacheKey = generateCacheKey('evacuation_centers:map');
-        
-        // Check cache first
-        const cachedData = evacuationCenterCache.get(cacheKey);
-        if (cachedData) {
-            logger.debug('Cache hit for getEvacuationCenterMapData', { cacheKey, count: cachedData.data.length });
-            return res.status(200).json({
-                ...cachedData,
-                cached: true
-            });
-        }
-        
-        logger.debug('Cache miss for getEvacuationCenterMapData', { cacheKey });
-
         // First, get all active evacuation centers with their basic data
         const { data: centers, error: centersError } = await supabase
             .from(TABLE_NAME) // evacuation_centers
@@ -727,17 +712,12 @@ exports.getEvacuationCenterMapData = async (req, res, next) => {
         });
 
         logger.debug('Successfully retrieved evacuation center map data', { count: transformedData.length });
-        logger.debug('Evacuation center map data', { data: transformedData });
         
         const responseData = {
             message: 'Successfully retrieved detailed evacuation center map data.',
             count: transformedData.length,
             data: transformedData
         };
-
-        // Store in cache
-        evacuationCenterCache.set(cacheKey, responseData);
-        logger.debug('Data cached for getEvacuationCenterMapData', { cacheKey, count: transformedData.length });
 
         res.status(200).json(responseData);
     } catch (err) {
